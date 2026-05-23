@@ -102,7 +102,7 @@ export class Stage1AFixtureRunner {
       const builder = this.options.newGameBuilder ?? (this.options.configs ? new NewGameBuilder(this.options.configs) : undefined);
       if (!builder) throw new Error('ERR_FIXTURE_NEW_GAME_BUILDER_REQUIRED');
       const newState = builder.buildStage1A({
-        buildId: this.options.buildId ?? 'fixture_runner_v0_0_2_22',
+        buildId: this.options.buildId ?? 'fixture_runner_default',
         nowIso8601: this.options.nowIso8601 ?? '2026-05-18T00:00:00.000Z'
       });
       return { state: newState, execution: { step_id: step.step_id, action_type: step.action_type, success: true, status_code: 'OK_NEW_GAME_STARTED' } };

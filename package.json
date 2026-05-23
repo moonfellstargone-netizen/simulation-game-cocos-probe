@@ -1,8 +1,8 @@
 {
   "name": "qinglan-cocos-prototype-codepack",
-  "version": "0.0.2-23",
+  "version": "0.0.2-24",
   "private": true,
-  "description": "模拟游戏 Cocos 微信试水代码包 v0.0.2.23：Project Map & Git Workflow Readiness / 项目分级地图与 Git 工作流准备版。",
+  "description": "模拟游戏 Cocos 微信试水代码包 v0.0.2.24：Quality Version Surface & BuildId Authority / 检查体系版本表面与构建标识权威源收敛版。",
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -25,8 +25,8 @@
     "test:cocos-save-load": "node --import tsx --test tests/cocos-save-load-ui-binding.test.ts tests/cocos-error-presentation.test.ts",
     "test:context-governance": "node --test tests/context-governance-contracts.test.mjs",
     "test:package-hygiene": "node --test tests/package-hygiene.test.mjs",
-    "release:build": "python3 tools/build_release_package.py --source-root . --root-name 模拟游戏_Cocos微信试水代码包_v0_0_2_23 --output ../模拟游戏_Cocos微信试水代码包_v0_0_2_23.zip --kind code",
-    "release:check": "python3 tools/check_release_zip.py ../模拟游戏_Cocos微信试水代码包_v0_0_2_23.zip --expected-root 模拟游戏_Cocos微信试水代码包_v0_0_2_23 --kind code",
+    "release:build": "node tools/run-python3.mjs tools/build_release_package.py --source-root . --project-target tools/quality/rules/project-target.json --root-name 模拟游戏_Cocos微信试水代码包_v0_0_2_24 --output ../模拟游戏_Cocos微信试水代码包_v0_0_2_24.zip --kind code",
+    "release:check": "node tools/run-python3.mjs tools/check_release_zip.py ../模拟游戏_Cocos微信试水代码包_v0_0_2_24.zip --project-target tools/quality/rules/project-target.json --expected-root 模拟游戏_Cocos微信试水代码包_v0_0_2_24 --kind code",
     "test:cocos-ui-shell": "node --import tsx --test tests/cocos-ui-shell-composition.test.ts",
     "test:cocos-ui-command-queue": "node --import tsx --test tests/cocos-ui-command-queue.test.ts",
     "test:cocos-ui-render-diff": "node --import tsx --test tests/cocos-ui-render-diff.test.ts",
@@ -51,7 +51,8 @@
     "test:quality-affected-contracts": "node --test tests/quality-affected-contracts.test.mjs",
     "test:quality-cache-contracts": "node --test tests/quality-cache-contracts.test.mjs",
     "test:quality-affected-policy-hardening": "node --test tests/quality-affected-policy-hardening.test.mjs",
-    "test:project-map-contracts": "node --test tests/project-map-contracts.test.mjs"
+    "test:project-map-contracts": "node --test tests/project-map-contracts.test.mjs",
+    "test:version-surface-contracts": "node --test tests/version-surface-contracts.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

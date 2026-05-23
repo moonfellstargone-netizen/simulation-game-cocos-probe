@@ -1,6 +1,6 @@
-# Cocos app — v0.0.2.23 / Project Map & Git Workflow Readiness
+﻿# Cocos app — v0.0.2.24 / Quality Version Surface & BuildId Authority
 
-Cocos app 层说明：本目录只保存 Cocos 表现层适配代码。当前 v0.0.2.23 为项目分级地图与 GitHub 工作流准备版，不提供真实 Cocos Component、Cocos Creator 场景、Prefab、节点资源绑定、微信小游戏构建或 wx storage 接入。
+Cocos app 层说明：本目录只保存 Cocos 表现层适配代码。当前 v0.0.2.24 为项目分级地图与 GitHub 工作流准备版，不提供真实 Cocos Component、Cocos Creator 场景、Prefab、节点资源绑定、微信小游戏构建或 wx storage 接入。
 
 日常代码权威见 GitHub 仓库；项目地图入口见 `docs/PROJECT_MAP.md` 与 `docs/GITHUB_WORKFLOW.md`。
 

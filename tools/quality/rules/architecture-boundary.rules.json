@@ -1,6 +1,6 @@
 {
-  "version": "v0.0.2.22",
-  "description": "Architecture boundary rules remain active while v0.0.2.22 adds affected/cache quality-gate probes. Low-risk import/path ownership rules remain authoritative; token/state-leak rules stay shadow_aligned/shadow until later authority migration.",
+  "version": "v0.0.2.24",
+  "description": "Architecture boundary rules remain active for v0.0.2.24 quality version surface work. Low-risk import/path ownership rules remain authoritative; token/state-leak rules stay shadow_aligned/shadow until later authority migration.",
   "ruleTypes": [
     "importBoundaries",
     "tokenBoundaries",

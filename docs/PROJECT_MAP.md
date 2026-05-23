@@ -1,4 +1,4 @@
-# PROJECT_MAP — v0.0.2.23
+﻿# PROJECT_MAP — v0.0.2.24
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.23：**Project Map & Git Workflow Readiness**。建立 GitHub 工作流、项目地图、文档治理与契约测试；**不改业务逻辑**。
+v0.0.2.24：**Quality Version Surface & BuildId Authority**。建立 GitHub 工作流、项目地图、文档治理与契约测试；**不改业务逻辑**。
 
 ## 3. 权威边界
 

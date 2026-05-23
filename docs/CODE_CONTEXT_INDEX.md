@@ -1,6 +1,6 @@
-# CODE_CONTEXT_INDEX — v0.0.2.23
+﻿# CODE_CONTEXT_INDEX — v0.0.2.24
 
-版本：v0.0.2.23 / Project Map & Git Workflow Readiness。
+版本：v0.0.2.24 / Quality Version Surface & BuildId Authority。
 
 ## 执行前必读顺序
 
@@ -27,12 +27,13 @@
 
 后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包，代码包不保存每轮具体任务上下文，代码包只保存执行端上下文治理约束。
 
-## v0.0.2.23 测试索引
+## v0.0.2.24 测试索引
 
 - `tests/project-map-contracts.test.mjs`
 - `tests/context-governance-contracts.test.mjs`
 - `tests/quality-gate-contracts.test.mjs`
 - `tests/quality-affected-policy-hardening.test.mjs`
+- `tests/version-surface-contracts.test.mjs`
 - `tests/package-hygiene.test.mjs`
 
 ## 既有架构边界索引

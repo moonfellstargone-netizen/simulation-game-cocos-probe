@@ -62,9 +62,9 @@ function makeTempRoot() {
 test('token boundary rules remain non-authoritative and declare scope plus allowed context', () => {
   const rules = readJson('tools/quality/rules/architecture-boundary.rules.json');
   const tokenRules = rules.rules.tokenBoundaries;
-  assert.ok(tokenRules.length >= 3, 'Affected Policy Hardening & Coverage Evidence should audit multiple token/state-leak rules');
+  assert.ok(tokenRules.length >= 3, 'token boundary policy should audit multiple token/state-leak rules');
   for (const rule of tokenRules) {
-    assert.notEqual(rule.mode, 'authoritative', `${rule.id} must not be authoritative in Affected Policy Hardening & Coverage Evidence`);
+    assert.notEqual(rule.mode, 'authoritative', `${rule.id} must not be authoritative in token boundary shadow policy`);
     assert.ok(['shadow', 'shadow_aligned'].includes(rule.mode), `${rule.id} remains shadow or shadow_aligned`);
     assert.equal(rule.severity, 'shadow_error');
     assert.ok(Array.isArray(rule.includeFiles) && rule.includeFiles.length > 0, `${rule.id} must narrow file scope`);

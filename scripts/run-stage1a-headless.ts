@@ -4,9 +4,10 @@ import {
   ConfigRepository,
   RuntimeContractValidator,
   RuntimeSchemaValidator,
+  type RuntimeConfigSnapshot,
 } from '../src/game-core/index';
 import { Stage1AActionScriptRunner, Stage1AHeadlessRuntime } from '../src/game-core/dev-api';
-import type { RuntimeConfigSnapshot } from '../src/game-core/index';
+import { deriveBuildId, loadVersionSurface } from '../tools/quality/lib/versionSurface.mjs';
 
 function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(path, 'utf8')) as T;
@@ -24,11 +25,12 @@ function collectJsonSchemas(dir: string, base = dir, out: Record<string, unknown
 }
 
 const root = process.cwd();
+const { markers } = loadVersionSurface(root);
 const snapshot = readJson<RuntimeConfigSnapshot>(join(root, 'design_snapshot/generated/stage_1A_runtime_snapshot.json'));
 const configs = new ConfigRepository(snapshot);
 const contracts = new RuntimeContractValidator(RuntimeSchemaValidator.fromSnapshotSchemas(collectJsonSchemas(join(root, 'design_snapshot/schemas'))));
 const runtime = new Stage1AHeadlessRuntime(configs, contracts, {
-  buildId: 'stage1a_headless_cli_v0_0_2_22',
+  buildId: deriveBuildId('stage1a_headless_cli', markers.snakeVersion),
   nowIso8601: '2026-05-19T00:00:00.000Z'
 });
 const runner = new Stage1AActionScriptRunner();

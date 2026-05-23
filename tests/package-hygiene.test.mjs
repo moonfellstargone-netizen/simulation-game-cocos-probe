@@ -39,7 +39,7 @@ test('code package source tree contains no generated Python cache or log artifac
 
 test('package hygiene policy is wired into scripts and architecture validator', () => {
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  assert.equal(packageJson.version, '0.0.2-23');
+  assert.equal(packageJson.version, '0.0.2-24');
   assert.equal(packageJson.scripts['test:package-hygiene'], 'node --test tests/package-hygiene.test.mjs');
 
   const registry = readFileSync(join(root, 'tools/quality/test-registry.json'), 'utf8');
@@ -59,12 +59,13 @@ test('release packaging scripts are present and wired into package scripts', () 
   assert.equal(existsSync(join(root, 'tools/build_release_package.py')), true);
   assert.equal(existsSync(join(root, 'tools/check_release_zip.py')), true);
   assert.match(packageJson.scripts['release:build'], /tools\/build_release_package\.py/);
-  assert.match(packageJson.scripts['release:build'], /模拟游戏_Cocos微信试水代码包_v0_0_2_23/);
+  assert.match(packageJson.scripts['release:build'], /--project-target/);
   assert.match(packageJson.scripts['release:check'], /tools\/check_release_zip\.py/);
-  assert.match(packageJson.scripts['release:check'], /--expected-root 模拟游戏_Cocos微信试水代码包_v0_0_2_23/);
+  assert.match(packageJson.scripts['release:check'], /--project-target/);
 
   const releaseBuilder = readFileSync(join(root, 'tools/build_release_package.py'), 'utf8');
-  for (const token of ['staging', 'ZIP_DEFLATED', 'node_modules', 'dist', 'coverage', '.cache', 'reports/quality', '开发日志包']) {
+  assert.equal(releaseBuilder.includes('DEFAULT_CODE_ROOT'), false);
+  for (const token of ['staging', 'ZIP_DEFLATED', 'node_modules', 'dist', 'coverage', '.cache', 'reports/quality', '开发日志包', '--project-target']) {
     assert.equal(releaseBuilder.includes(token), true, `release builder missing ${token}`);
   }
 

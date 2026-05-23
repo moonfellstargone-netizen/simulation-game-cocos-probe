@@ -1,4 +1,4 @@
-# Code Index — Files — v0.0.2.23
+﻿# Code Index — Files — v0.0.2.24
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -17,6 +17,8 @@
 | `docs/module_contracts/` | docs | 遗留模块契约（保留） | 读 Cocos 边界 | `test:context-governance` |
 | `docs/code-index/` | docs | 代码索引 | 找入口 | `test:project-map-contracts` |
 | `tools/quality/rules/project-target.json` | quality-tools | 版本权威 | 版本 bump | `quality:version` |
+| `tools/quality/lib/projectTarget.mjs` | quality-tools | project-target 读取 | 版本 bump | `test:version-surface-contracts` |
+| `tools/quality/lib/versionSurface.mjs` | quality-tools | version/BuildId 派生 | 版本 bump | `test:version-surface-contracts` |
 | `tools/quality/module-graph.json` | quality-tools | 模块图 | affected/arch | `arch:check` |
 | `tools/quality/test-registry.json` | quality-tools | 测试登记 | 新测试 | `quality:test-registry` |
 | `tools/quality/gate-policy.json` | quality-tools | 门禁策略 | 改 gate | `test:quality-gate-contracts` |

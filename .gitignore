@@ -9,3 +9,4 @@ coverage/
 *_logs/
 *.tmp
 .cache/
+reports/quality/

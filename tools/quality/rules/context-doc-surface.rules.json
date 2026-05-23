@@ -134,13 +134,15 @@
       ]
     },
     "docs/IMPLEMENTATION_SCOPE.md": {
-      "why": "实现范围文档必须锁定 v0.0.2.23 只做项目地图与 GitHub 工作流准备。",
+      "why": "实现范围文档必须锁定 v0.0.2.24 只做 version surface 与 BuildId 权威收敛。",
       "required": [
         "${codePackageVersion}",
         "${versionName}",
         "${chineseVersionName}",
-        "Project Map & Git Workflow Readiness",
-        "project-map-contracts",
+        "Quality Version Surface & BuildId Authority",
+        "version surface",
+        "BuildId",
+        "project-target.json",
         "module-cards",
         "module_contracts",
         "不进入 Stage 1B",

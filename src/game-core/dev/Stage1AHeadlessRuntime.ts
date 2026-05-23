@@ -35,7 +35,7 @@ export class Stage1AHeadlessRuntime {
     this.requests = new ActionRequestBuilder({ defaultActorId: this.options.actorId ?? 'player' });
     this.runtime = new GameRuntime(this.configs, this.contracts);
     this.state = new NewGameBuilder(this.configs).buildStage1A({
-      buildId: this.options.buildId ?? 'headless_runtime_v0_0_2_22',
+      buildId: this.options.buildId ?? 'headless_runtime_default',
       nowIso8601: this.options.nowIso8601 ?? '2026-05-19T00:00:00.000Z'
     });
     this.validateCurrentState();

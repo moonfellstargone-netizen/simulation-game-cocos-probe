@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # v0.0.2.22 起，中风险 token/state-leak 架构边界规则进入 architecture-boundary shadow_aligned 双跑对齐。
 # legacy validator 仍保留核心游戏架构红线和兼容入口。
-# 本轮 Project Map & Git Workflow Readiness 只做项目地图与 GitHub 工作流文档治理，不删除高风险红线。
+# 本轮 Quality Version Surface & BuildId Authority 只做版本表面、BuildId 与 release metadata 收敛，不删除高风险红线。
 
 FORBIDDEN_TASK_CONTEXT_FILES = [
     'docs/CURRENT_TASK_CONTEXT.md',
@@ -420,15 +420,18 @@ if 'run-stage1a-headless.ts' not in package_json['scripts']['dev:stage1a']:
     print('dev:stage1a must run the headless Stage 1A script')
     sys.exit(1)
 
-if 'tools/build_release_package.py' not in package_json['scripts']['release:build'] or '模拟游戏_Cocos微信试水代码包_v0_0_2_23' not in package_json['scripts']['release:build']:
-    print('release:build must use tools/build_release_package.py and the v0_0_2_23 root name')
+if 'tools/build_release_package.py' not in package_json['scripts']['release:build'] or '--project-target' not in package_json['scripts']['release:build']:
+    print('release:build must use tools/build_release_package.py with --project-target')
     sys.exit(1)
-if 'tools/check_release_zip.py' not in package_json['scripts']['release:check'] or '--expected-root 模拟游戏_Cocos微信试水代码包_v0_0_2_23' not in package_json['scripts']['release:check']:
-    print('release:check must use tools/check_release_zip.py and the v0_0_2_23 expected root')
+if 'tools/check_release_zip.py' not in package_json['scripts']['release:check'] or '--project-target' not in package_json['scripts']['release:check']:
+    print('release:check must use tools/check_release_zip.py with --project-target')
     sys.exit(1)
 
-if package_json.get('version') != '0.0.2-23':
-    print(f"package.json version must encode code package v0.0.2.23, got {package_json.get('version')}")
+project_target = json.loads((ROOT / 'tools/quality/rules/project-target.json').read_text(encoding='utf-8'))
+expected_npm_version = project_target['version']['npmVersion']
+expected_code_version = project_target['version']['codePackageVersion']
+if package_json.get('version') != expected_npm_version:
+    print(f"package.json version must encode code package {expected_code_version}, got {package_json.get('version')}")
     sys.exit(1)
 check_surface = package_json.get('scripts', {}).get('check', '')
 check_runner = ROOT / 'tools' / 'run-code-check.mjs'
@@ -459,13 +462,13 @@ for required_phrase in ['authoritative', 'shadow', 'importBoundaries', 'tokenBou
         sys.exit(1)
 
 source_design_text = (ROOT / 'design_snapshot/SOURCE_DESIGN_PACK.txt').read_text(encoding='utf-8')
-if 'code_package_version: v0.0.2.23' not in source_design_text:
-    print('design_snapshot/SOURCE_DESIGN_PACK.txt must declare code_package_version: v0.0.2.23')
+if f"code_package_version: {expected_code_version}" not in source_design_text:
+    print(f'design_snapshot/SOURCE_DESIGN_PACK.txt must declare code_package_version: {expected_code_version}')
     sys.exit(1)
 for rel in ['README.md', 'docs/ARCHITECTURE.md', 'docs/IMPLEMENTATION_SCOPE.md', 'docs/SOURCE_DESIGN_PACK.md', 'design_snapshot/SOURCE_DESIGN_PACK.txt', 'src/cocos-app/README.md']:
     text = (ROOT / rel).read_text(encoding='utf-8')
     old_marker_patterns = []
-    for patch in range(0, 23):
+    for patch in range(0, 24):
         old_marker_patterns.extend([
             rf'v0\.0\.2\.{patch}(?![0-9])',
             rf'v0_0_2_{patch}(?![0-9])',
@@ -478,9 +481,11 @@ for rel in ['README.md', 'docs/ARCHITECTURE.md', 'docs/IMPLEMENTATION_SCOPE.md',
 
 current_scope_requirements = {
     'README.md': [
-        'Project Map & Git Workflow Readiness',
-        '项目分级地图与 Git 工作流准备版',
-        'Task Intent Lock',
+        'Quality Version Surface & BuildId Authority',
+        '检查体系版本表面与构建标识权威源收敛版',
+        'version surface',
+        'BuildId',
+        'project-target.json',
         '本轮唯一目标',
         '后续建议不是授权目标',
         'tools/quality/rules/project-target.json',
@@ -496,9 +501,11 @@ current_scope_requirements = {
         'test:project-map-contracts',
     ],
     'docs/IMPLEMENTATION_SCOPE.md': [
-        'Project Map & Git Workflow Readiness',
-        '项目分级地图与 Git 工作流准备版',
-        'project-map-contracts',
+        'Quality Version Surface & BuildId Authority',
+        '检查体系版本表面与构建标识权威源收敛版',
+        'version surface',
+        'BuildId',
+        'project-target.json',
         'architecture-boundary.rules.json',
         'architecture-boundary-check.mjs',
         'authoritative',
@@ -509,9 +516,9 @@ current_scope_requirements = {
         '不删除旧 validator 核心红线',
     ],
     'docs/SOURCE_DESIGN_PACK.md': [
-        'code package version: `v0.0.2.23`',
+        f'code package version: `{expected_code_version}`',
         '正式包 v1.5.2.2',
-        '代码包内部文档治理',
+        '代码包内部检查体系治理',
         '不改变正式包设定',
         '不把日志包或规划对话作为正式设计来源',
     ],
@@ -543,8 +550,10 @@ current_scope_requirements = {
         'Scope Discovery',
     ],
     'docs/CHECK_ARCHITECTURE.md': [
-        'Project Map & Git Workflow Readiness',
-        'project-map-contracts',
+        'Quality Version Surface & BuildId Authority',
+        'version surface',
+        'BuildId',
+        'project-target.json',
         'architecture-boundary.rules.json',
         'architecture-boundary-check.mjs',
         'authoritative',
@@ -647,7 +656,7 @@ for required_phrase in [
         sys.exit(1)
 
 context_test_text = (ROOT / 'tests/context-governance-contracts.test.mjs').read_text(encoding='utf-8')
-for required_phrase in ['CODE_CONTEXT_INDEX', 'ADR', 'module contracts', 'CocosUiShellController', 'CocosUiShellCommandQueue', 'CocosUiShellSnapshotDiff', 'CocosSceneBindingController', 'CocosSceneBindingPort', 'CocosComponentNodeBindingPort', 'QinglanUiSceneProbeComponent', '0.0.2-23', 'Task Intent Lock', '后续建议不是授权目标', '外部执行指令', 'tests/context-governance-contracts.test.mjs', 'Project Map & Git Workflow Readiness']:
+for required_phrase in ['CODE_CONTEXT_INDEX', 'ADR', 'module contracts', 'CocosUiShellController', 'CocosUiShellCommandQueue', 'CocosUiShellSnapshotDiff', 'CocosSceneBindingController', 'CocosSceneBindingPort', 'CocosComponentNodeBindingPort', 'QinglanUiSceneProbeComponent', expected_npm_version, 'Task Intent Lock', '后续建议不是授权目标', '外部执行指令', 'tests/context-governance-contracts.test.mjs', 'Quality Version Surface & BuildId Authority']:
     if required_phrase not in context_test_text:
         print(f'context-governance-contracts.test.mjs missing required governance assertion token: {required_phrase}')
         sys.exit(1)
@@ -655,7 +664,7 @@ for required_phrase in ['CODE_CONTEXT_INDEX', 'ADR', 'module contracts', 'CocosU
 
 
 escaped_old_marker_patterns = []
-for patch in range(0, 21):
+for patch in range(0, 24):
     escaped_old_marker_patterns.extend([
         rf'v0\\\.0\\\.2\\\.{patch}(?![0-9])',
         rf'0\\\.0\\\.2-{patch}(?![0-9])',

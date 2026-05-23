@@ -9,6 +9,9 @@ function normalizeCommand(command) {
 function resolveSpawnConfig(task) {
   const args = task.args ?? [];
   // Node on Windows rejects direct spawn of npm.cmd without a shell (EINVAL).
+  if (process.platform === 'win32' && task.command === 'python3') {
+    return { command: 'python', args, shell: true };
+  }
   if (process.platform === 'win32' && task.command === 'npm') {
     return { command: 'npm', args, shell: true };
   }

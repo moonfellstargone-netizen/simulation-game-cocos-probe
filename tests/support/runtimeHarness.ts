@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { ConfigRepository, GameRuntime, NewGameBuilder, RuntimeContractValidator, RuntimeSchemaValidator } from '../../src/game-core/index';
 import type { RuntimeConfigSnapshot } from '../../src/game-core/index';
+import { testBuildId } from './buildId.mjs';
 
 export const root = process.cwd();
 
@@ -29,7 +30,7 @@ export function buildRuntime() {
   const configs = new ConfigRepository(snapshot);
   const contracts = buildContracts();
   const runtime = new GameRuntime(configs, contracts);
-  const state = new NewGameBuilder(configs).buildStage1A({ buildId: 'test_build_v0_0_2_22', nowIso8601: '2026-05-18T00:00:00.000Z' });
+  const state = new NewGameBuilder(configs).buildStage1A({ buildId: testBuildId('test_build'), nowIso8601: '2026-05-18T00:00:00.000Z' });
   return { snapshot, configs, contracts, runtime, state };
 }
 

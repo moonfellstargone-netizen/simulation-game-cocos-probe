@@ -1,4 +1,4 @@
----
+﻿---
 doc_type: module_card
 status: active
 applies_to: cocos-probe
@@ -36,7 +36,8 @@ source_of_truth: false
 
 ## 修改前必须读取
 
-- `tools/quality/rules/project-target.json`（release root/zip）
+- `tools/quality/rules/project-target.json`（release root/zip 权威）
+- `tools/quality/lib/versionSurface.mjs`
 
 ## 修改后必须运行
 

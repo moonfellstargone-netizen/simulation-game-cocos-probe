@@ -51,7 +51,7 @@ test('quality gate config and core files exist and parse', () => {
   ]) {
     assert.equal(existsSync(join(root, rel)), true, `${rel} must exist`);
   }
-  assert.equal(config.version, '0.0.2.23');
+  assert.equal(config.version, '0.0.2.24');
   assert.equal(config.reportDir, 'reports/quality');
   assert.equal(packageJson.scripts['test:quality-gate-contracts'], 'node --test tests/quality-gate-contracts.test.mjs');
 });
@@ -236,7 +236,7 @@ test('runCommandTask marks timed_out and avoids reporting it as ordinary failed'
 
 test('report normalizer counts timed_out and blocker failures', () => {
   const normalized = normalizeReport({
-    version: '0.0.2.23',
+    version: '0.0.2.24',
     gate: 'unit',
     status: 'failed',
     tasks: [

@@ -1,14 +1,14 @@
-# CHECK_ARCHITECTURE — v0.0.2.23
+# CHECK_ARCHITECTURE — v0.0.2.24
 
-v0.0.2.23 / Project Map & Git Workflow Readiness 是项目地图与 GitHub 工作流准备版，**不是业务架构修改版**。
+v0.0.2.24 / Quality Version Surface & BuildId Authority 是检查体系版本表面与 BuildId 权威源收敛版，**不是业务架构修改版**。
 
 ## 1. 本轮检查目标
 
-本轮不推进业务功能，只建立项目地图、GitHub 工作流文档、`project-map-contracts` 契约测试与版本口径同步。
+本轮不推进业务功能，只加固 `project-target.json` 权威、version surface、BuildId 派生、release `--project-target`、`version-consistency-check` 扫描面与 `version-surface-contracts` 测试登记。
 
-## 2. project-map-contracts
+## 2. version-surface-contracts
 
-`test:project-map-contracts` 是文档治理契约测试：检查地图文档存在、入口链接、路径存在性、禁止错误权威口径。该测试**不得**推动业务源码重构。入口见 [`GITHUB_WORKFLOW.md`](GITHUB_WORKFLOW.md) 与 [`PROJECT_MAP.md`](PROJECT_MAP.md)。
+`test:version-surface-contracts` 验证 helper 派生、release 权威收敛、旧 BuildId/release root 扫描与 gate 登记。该测试**不得**推动业务源码重构。
 
 ## 3. 现有门禁（继承既有 affected 策略）
 
@@ -22,7 +22,7 @@ v0.0.2.23 / Project Map & Git Workflow Readiness 是项目地图与 GitHub 工�
 
 ## 5. q:affected 与 full/release
 
-`q:affected` **仍只是开发反馈**，affected 不可作为 release 验收，不替代 `q:full` 或 `q:release`。docs / module-cards / code-index 负责导航，不替代源码。
+`q:affected` **仍只是开发反馈**，affected 不可作为 release 验收，不替代 `q:full` 或 `q:release`。
 
 ## 6. 业务边界不变
 
@@ -34,12 +34,12 @@ Cursor 预检是执行门禁，不是可选步骤。未确认预检报告前不�
 
 ## 8. cache 与 release
 
-cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affected，`allowCache=false`。release gate 仍全量、无缓存、可复现。
+cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affected，`allowCache=false`。release gate 仍全量、无缓存、可复现。`release:build` / `release:check` 通过 `--project-target` 读取 release root/zip。
 
 ## 9. 后续路线（不是授权目标）
 
-v0.0.2.24 BuildId Authority、v0.0.2.25 Flake/Nightly Gate、v0.0.2.26 Wx Storage Port 均为后续候选，不是 v0.0.2.23 范围。
+Flake/Nightly Gate、Wx Storage Port、Project Map 自动索引均为后续候选，不是 v0.0.2.24 范围。
 
 ## 10. 固定检查短语
 
-`q:affected` 不可作为 release 验收。release gate 禁止 cache。`architecture-boundary.rules.json` 与 `architecture-boundary-check.mjs` 继续有效。
+`q:affected` 不可作为 release 验收。release gate 禁止 cache。`architecture-boundary.rules.json` 与 `architecture-boundary-check.mjs` 继续有效。`test:project-map-contracts` 与 `docs/GITHUB_WORKFLOW.md`、`docs/PROJECT_MAP.md` 保持 project-map-contracts 导航口径。
