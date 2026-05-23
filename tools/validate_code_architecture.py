@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # v0.0.2.22 起，中风险 token/state-leak 架构边界规则进入 architecture-boundary shadow_aligned 双跑对齐。
 # legacy validator 仍保留核心游戏架构红线和兼容入口。
-# 本轮 Quality Version Surface & BuildId Authority 只做版本表面、BuildId 与 release metadata 收敛，不删除高风险红线。
+# 本轮 Project Map Auto Index & Traceability Lite 只做轻量 traceability 地基，不删除高风险红线。
 
 FORBIDDEN_TASK_CONTEXT_FILES = [
     'docs/CURRENT_TASK_CONTEXT.md',
@@ -481,10 +481,11 @@ for rel in ['README.md', 'docs/ARCHITECTURE.md', 'docs/IMPLEMENTATION_SCOPE.md',
 
 current_scope_requirements = {
     'README.md': [
-        'Quality Version Surface & BuildId Authority',
-        '检查体系版本表面与构建标识权威源收敛版',
-        'version surface',
-        'BuildId',
+        'Project Map Auto Index & Traceability Lite',
+        '项目地图自动索引与轻量可追踪矩阵版',
+        'traceability',
+        'TRACEABILITY_MATRIX',
+        'traceability-map.json',
         'project-target.json',
         '本轮唯一目标',
         '后续建议不是授权目标',
@@ -499,12 +500,14 @@ current_scope_requirements = {
         'release gate 禁止 cache',
         'q:full',
         'test:project-map-contracts',
+        'test:traceability-contracts',
     ],
     'docs/IMPLEMENTATION_SCOPE.md': [
-        'Quality Version Surface & BuildId Authority',
-        '检查体系版本表面与构建标识权威源收敛版',
-        'version surface',
-        'BuildId',
+        'Project Map Auto Index & Traceability Lite',
+        '项目地图自动索引与轻量可追踪矩阵版',
+        'traceability',
+        'traceability-map.json',
+        'TRACEABILITY_MATRIX',
         'project-target.json',
         'architecture-boundary.rules.json',
         'architecture-boundary-check.mjs',
@@ -514,6 +517,8 @@ current_scope_requirements = {
         '不接真实 Cocos',
         '不接 wx',
         '不删除旧 validator 核心红线',
+        'planned',
+        '不是当前实现',
     ],
     'docs/SOURCE_DESIGN_PACK.md': [
         f'code package version: `{expected_code_version}`',
@@ -547,12 +552,16 @@ current_scope_requirements = {
         'GITHUB_WORKFLOW.md',
         'PROJECT_MAP.md',
         'test:project-map-contracts',
+        'test:traceability-contracts',
+        'TRACEABILITY_MATRIX',
+        'traceability-map.json',
         'Scope Discovery',
     ],
     'docs/CHECK_ARCHITECTURE.md': [
-        'Quality Version Surface & BuildId Authority',
-        'version surface',
-        'BuildId',
+        'Project Map Auto Index & Traceability Lite',
+        'traceability',
+        'traceability-map.json',
+        'traceability-contracts',
         'project-target.json',
         'architecture-boundary.rules.json',
         'architecture-boundary-check.mjs',
@@ -656,7 +665,7 @@ for required_phrase in [
         sys.exit(1)
 
 context_test_text = (ROOT / 'tests/context-governance-contracts.test.mjs').read_text(encoding='utf-8')
-for required_phrase in ['CODE_CONTEXT_INDEX', 'ADR', 'module contracts', 'CocosUiShellController', 'CocosUiShellCommandQueue', 'CocosUiShellSnapshotDiff', 'CocosSceneBindingController', 'CocosSceneBindingPort', 'CocosComponentNodeBindingPort', 'QinglanUiSceneProbeComponent', expected_npm_version, 'Task Intent Lock', '后续建议不是授权目标', '外部执行指令', 'tests/context-governance-contracts.test.mjs', 'Quality Version Surface & BuildId Authority']:
+for required_phrase in ['CODE_CONTEXT_INDEX', 'ADR', 'module contracts', 'CocosUiShellController', 'CocosUiShellCommandQueue', 'CocosUiShellSnapshotDiff', 'CocosSceneBindingController', 'CocosSceneBindingPort', 'CocosComponentNodeBindingPort', 'QinglanUiSceneProbeComponent', expected_npm_version, 'Task Intent Lock', '后续建议不是授权目标', '外部执行指令', 'tests/context-governance-contracts.test.mjs', 'Project Map Auto Index & Traceability Lite', 'test:traceability-contracts']:
     if required_phrase not in context_test_text:
         print(f'context-governance-contracts.test.mjs missing required governance assertion token: {required_phrase}')
         sys.exit(1)

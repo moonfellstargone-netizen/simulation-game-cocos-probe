@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.24
+﻿# Code Index — Public API — v0.0.2.25
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -33,7 +33,13 @@
 
 - CLI：`npm run q:fast` / `q:affected` / `q:full` / `q:release`
 - 实现：`tools/quality/run-quality-gate.mjs`（本轮不改核心逻辑）
-- 配置：`tools/quality/gate-policy.json`、`tools/quality/test-registry.json`
+- 配置：`tools/quality/gate-policy.json`、`tools/quality/test-registry.json`、`tools/quality/quality.config.json`
+
+## Traceability / 文档治理入口（非业务 API）
+
+- 人工矩阵：`docs/TRACEABILITY_MATRIX.md`
+- 机器可读 map：`tools/quality/rules/traceability-map.json`（经 `quality.config.json` → `rules.traceabilityMap`）
+- 契约：`npm run test:traceability-contracts`
 
 ## Release build / check 入口
 

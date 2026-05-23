@@ -1,8 +1,8 @@
-﻿# Quality Map — v0.0.2.24
+﻿# Quality Map — v0.0.2.25
 
 ## 系统职责
 
-质量门禁：typecheck、architecture boundary、affected/full/release、版本一致性与 release surface。
+质量门禁：typecheck、architecture boundary、affected/full/release、版本一致性、release surface 与 **轻量 traceability**。
 
 ## 涉及模块
 
@@ -16,11 +16,14 @@
 - `tools/quality/test-registry.json`
 - `tools/quality/gate-policy.json`
 - `tools/quality/rules/project-target.json`
+- `tools/quality/rules/traceability-map.json`
+- `tools/quality/quality.config.json`（`rules.traceabilityMap`）
 - `tools/quality/affected/*`
 - `tools/quality/plugins/*`
 
 ## 关键测试
 
+- `tests/traceability-contracts.test.mjs`
 - `tests/quality-gate-contracts.test.mjs`
 - `tests/quality-affected-policy-hardening.test.mjs`
 - `tests/version-surface-contracts.test.mjs`
@@ -30,6 +33,7 @@
 
 - [`CHECK_ARCHITECTURE.md`](../CHECK_ARCHITECTURE.md)
 - [`GITHUB_WORKFLOW.md`](../GITHUB_WORKFLOW.md)
+- [`TRACEABILITY_MATRIX.md`](../TRACEABILITY_MATRIX.md)
 
 ## 修改后必跑
 
@@ -40,6 +44,7 @@
 
 - 把 q:affected 写成 release 替代品
 - 修改 gate 核心逻辑超出 Task Intent Lock
+- traceability active/planned 语义混淆
 - project-target 与 README 版本不一致
 
 ## 关联 module-cards

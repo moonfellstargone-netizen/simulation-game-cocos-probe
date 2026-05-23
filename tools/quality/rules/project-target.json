@@ -1,29 +1,29 @@
 {
   "version": {
-    "codePackageVersion": "v0.0.2.24",
-    "npmVersion": "0.0.2-24",
-    "qualityMetadataVersion": "0.0.2.24",
-    "snakeVersion": "v0_0_2_24",
-    "versionName": "Quality Version Surface & BuildId Authority",
-    "chineseVersionName": "检查体系版本表面与构建标识权威源收敛版"
+    "codePackageVersion": "v0.0.2.25",
+    "npmVersion": "0.0.2-25",
+    "qualityMetadataVersion": "0.0.2.25",
+    "snakeVersion": "v0_0_2_25",
+    "versionName": "Project Map Auto Index & Traceability Lite",
+    "chineseVersionName": "项目地图自动索引与轻量可追踪矩阵版"
   },
   "release": {
-    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_24",
-    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_24.zip"
+    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_25",
+    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_25.zip"
   },
   "design": {
     "designPackVersion": "v1.5.2.2",
     "designPackName": "模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip"
   },
   "previous": {
-    "codePackageVersion": "v0.0.2.23",
-    "npmVersion": "0.0.2-23",
-    "qualityMetadataVersion": "0.0.2.23",
-    "snakeVersion": "v0_0_2_23",
-    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_23",
-    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_23.zip",
-    "versionName": "Project Map & Git Workflow Readiness",
-    "chineseVersionName": "项目分级地图与 Git 工作流准备版"
+    "codePackageVersion": "v0.0.2.24",
+    "npmVersion": "0.0.2-24",
+    "qualityMetadataVersion": "0.0.2.24",
+    "snakeVersion": "v0_0_2_24",
+    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_24",
+    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_24.zip",
+    "versionName": "Quality Version Surface & BuildId Authority",
+    "chineseVersionName": "检查体系版本表面与构建标识权威源收敛版"
   },
   "staleMarkers": {
     "forbiddenCurrentMarkers": [
@@ -49,7 +49,19 @@
       "cocos_baseline_v0_0_2_22",
       "fixture_baseline_v0_0_2_23",
       "headless_baseline_v0_0_2_23",
-      "cocos_baseline_v0_0_2_23"
+      "cocos_baseline_v0_0_2_23",
+      "v0.0.2.24",
+      "v0_0_2_24",
+      "0.0.2-24",
+      "0.0.2.24",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_24",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_24.zip",
+      "Quality Version Surface & BuildId Authority",
+      "检查体系版本表面与构建标识权威源收敛版",
+      "检查体系版本表面与构建标识权威",
+      "fixture_baseline_v0_0_2_24",
+      "headless_baseline_v0_0_2_24",
+      "cocos_baseline_v0_0_2_24"
     ],
     "allowedHistoricalScopes": [
       "tools/quality/rules/project-target.json",

@@ -1,4 +1,4 @@
-﻿# GLOSSARY — v0.0.2.24
+﻿# GLOSSARY — v0.0.2.25
 
 术语表。防止权威与工具边界混淆。
 
@@ -16,6 +16,9 @@
 | **Task Intent Lock** | 本轮唯一目标与明确不做清单 |
 | **Scope Discovery** | 执行前范围发现：seed files、必读、暂不读模块 |
 | **Project Map** | L0–L5 分级导航，≠ 源码替代品 |
+| **Traceability Matrix** | `TRACEABILITY_MATRIX.md` + `traceability-map.json`，追踪层 ≠ 玩法权威 |
+| **traceability-lite/v1** | 当前轻量追踪 schema 版本 |
+| **active / planned** | active=当前追踪；planned+notCurrentAuthority=预留，非当前实现 |
 | **Module Card** | `docs/module-cards/*`，模块职责与边界卡片 |
 | **ADR** | 架构决策记录，`docs/adr/*` |
 | **RFC** | 待决方案讨论稿 |

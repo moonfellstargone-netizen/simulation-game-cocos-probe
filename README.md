@@ -1,29 +1,30 @@
-# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.24
+# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.25
 
-**Quality Version Surface & BuildId Authority / 检查体系版本表面与构建标识权威源收敛版**
+**Project Map Auto Index & Traceability Lite / 项目地图自动索引与轻量可追踪矩阵版**
 
 本仓库是 Cocos 微信试水代码项目**日常代码权威源**。正式玩法与契约权威仍为正式三包 v1.5.2.2。
 
-- 代码包版本：`v0.0.2.24`
-- npm package version：`0.0.2-24`
-- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_24`（权威源：`tools/quality/rules/project-target.json`）
+- 代码包版本：`v0.0.2.25`
+- npm package version：`0.0.2-25`
+- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_25`（权威源：`tools/quality/rules/project-target.json`）
 - 设计来源：`模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip`
-- 规则权威源：`tools/quality/rules/project-target.json`、`tools/quality/rules/context-doc-surface.rules.json`、`tools/quality/rules/architecture-boundary.rules.json`
+- 规则权威源：`tools/quality/rules/project-target.json`、`tools/quality/rules/context-doc-surface.rules.json`、`tools/quality/rules/architecture-boundary.rules.json`、`tools/quality/rules/traceability-map.json`
 - 代码权威：本 GitHub 仓库（非 zip 归档包）
 
 ## 入口文档
 
 - [`docs/GITHUB_WORKFLOW.md`](docs/GITHUB_WORKFLOW.md)
 - [`docs/PROJECT_MAP.md`](docs/PROJECT_MAP.md)
+- [`docs/TRACEABILITY_MATRIX.md`](docs/TRACEABILITY_MATRIX.md)
 - [`docs/DOCS_GOVERNANCE.md`](docs/DOCS_GOVERNANCE.md)
 - [`docs/GLOSSARY.md`](docs/GLOSSARY.md)
 - [`docs/CODE_CONTEXT_INDEX.md`](docs/CODE_CONTEXT_INDEX.md)
 
 ## Task Intent Lock
 
-本轮唯一目标是加固质量检查体系中的 version surface、BuildId 与 release root/zip 权威源，减少版本升级时的手动传播面。
+本轮唯一目标是建立轻量 traceability 地基：`TRACEABILITY_MATRIX`、`traceability-map.json` 与 `traceability-contracts`，使 Stage 1A / Cocos probe / quality / release 核心链路能在模块、源码、测试、文档与 gate 之间互相追踪。
 
-本轮明确不进入 Stage 1B，不接真实 Cocos，不接 wx storage，不新增玩法，不新增 formal action，不修改 ActionPipeline，不修改 SaveFile，不修改正式 fixture。
+本轮明确不进入 Stage 1B，不接真实 Cocos，不接 wx storage，不新增玩法，不新增 formal action，不修改 ActionPipeline，不修改 SaveFile，不修改正式 fixture，不做 Nightly 实装，不做完整 AST/symbol 自动索引。
 
 执行方使用 Cursor 时**必须先做预检报告**，用户或 GPT 确认后才可修改文件。复杂任务须先做 Scope Discovery。
 
@@ -35,6 +36,7 @@
 
 ## 常用命令
 
+- `npm run test:traceability-contracts`
 - `npm run test:project-map-contracts`
 - `npm run test:version-surface-contracts`
 - `npm run quality:version`

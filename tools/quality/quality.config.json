@@ -1,5 +1,5 @@
 {
-  "version": "0.0.2.24",
+  "version": "0.0.2.25",
   "moduleGraph": "tools/quality/module-graph.json",
   "testRegistry": "tools/quality/test-registry.json",
   "gatePolicy": "tools/quality/gate-policy.json",
@@ -10,6 +10,7 @@
   "rules": {
     "projectTarget": "tools/quality/rules/project-target.json",
     "contextDocSurface": "tools/quality/rules/context-doc-surface.rules.json",
-    "architectureBoundary": "tools/quality/rules/architecture-boundary.rules.json"
+    "architectureBoundary": "tools/quality/rules/architecture-boundary.rules.json",
+    "traceabilityMap": "tools/quality/rules/traceability-map.json"
   }
 }

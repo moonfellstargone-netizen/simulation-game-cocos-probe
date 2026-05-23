@@ -33,6 +33,7 @@ source_of_truth: false
 
 - test-registry 中 `release.build` / `release.check`
 - `npm run release:build` / `release:check`
+- traceability active entry `trace.release.zip-hygiene`（见 `traceability-map.json`）
 
 ## 修改前必须读取
 
