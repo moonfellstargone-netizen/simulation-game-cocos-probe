@@ -1,8 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadVersionSurface, deriveBuildId, deriveBaselineBuildIds } from '../tools/quality/lib/versionSurface.mjs';
+import { tmpdir } from 'node:os';
+import {
+  loadVersionSurface,
+  deriveBuildId,
+  deriveBaselineBuildIds,
+  pathAllowlistForStaleScan,
+  STALE_SCAN_NEGATIVE_CONTRACT_PATHS
+} from '../tools/quality/lib/versionSurface.mjs';
 import { runVersionConsistencyCheck } from '../tools/quality/plugins/version-consistency-check.mjs';
 
 const root = process.cwd();
@@ -38,6 +45,63 @@ test('release tools read project-target authority and package scripts match', ()
   assert.match(checker, /--project-target/);
   assert.match(packageJson.scripts['release:build'], /--project-target/);
   assert.match(packageJson.scripts['release:check'], /--project-target/);
+});
+
+test('version-consistency-check flags stale buildId markers under tests/** outside allowlist', () => {
+  const tempRoot = mkdtempSync(join(tmpdir(), 'version-surface-stale-scan-'));
+  const copyRelPaths = [
+    'tools/quality/rules/project-target.json',
+    'tools/quality/quality.config.json',
+    'tools/quality/module-graph.json',
+    'tools/quality/test-registry.json',
+    'tools/quality/gate-policy.json',
+    'package.json',
+    'package-lock.json',
+    'README.md',
+    'tools/build_release_package.py',
+    'tools/check_release_zip.py',
+    'design_snapshot/SOURCE_DESIGN_PACK.txt',
+    'docs/CHECK_ARCHITECTURE.md',
+    'docs/ARCHITECTURE.md',
+    'docs/CODE_CONTEXT_INDEX.md',
+    'docs/IMPLEMENTATION_SCOPE.md',
+    'docs/SOURCE_DESIGN_PACK.md',
+    'src/cocos-app/README.md'
+  ];
+  for (const rel of copyRelPaths) {
+    const dest = join(tempRoot, rel);
+    mkdirSync(join(dest, '..'), { recursive: true });
+    cpSync(join(root, rel), dest);
+  }
+  mkdirSync(join(tempRoot, 'tests'), { recursive: true });
+  const staleBuildId = ['fixture_baseline', 'v0', '0', '2', '23'].join('_');
+  writeFileSync(
+    join(tempRoot, 'tests/sample.test.ts'),
+    `export const staleBaseline = "${staleBuildId}";\n`
+  );
+
+  const result = runVersionConsistencyCheck({ rootDir: tempRoot });
+  const staleBuildFindings = result.findings.filter((finding) => finding.code === 'STALE_BUILD_ID_MARKER');
+  assert.ok(
+    staleBuildFindings.some((finding) => finding.file === 'tests/sample.test.ts' && finding.actual === staleBuildId),
+    `expected stale buildId finding for tests/sample.test.ts: ${JSON.stringify(staleBuildFindings)}`
+  );
+});
+
+test('stale scan allowlist is path-level for negative contract files and does not skip all tests/**', () => {
+  const surface = loadVersionSurface(root);
+  const allowlist = pathAllowlistForStaleScan(surface.projectTarget);
+  for (const rel of STALE_SCAN_NEGATIVE_CONTRACT_PATHS) {
+    assert.ok(allowlist.includes(rel), `${rel} must be on stale scan allowlist`);
+  }
+  assert.equal(allowlist.some((rel) => rel === 'tests/**' || rel === 'tests'), false);
+  assert.equal(STALE_SCAN_NEGATIVE_CONTRACT_PATHS.some((rel) => rel.endsWith('.test.mjs')), true);
+
+  const result = runVersionConsistencyCheck({ rootDir: root });
+  const staleOnAllowlisted = result.findings.filter(
+    (finding) => finding.code.startsWith('STALE_') && allowlist.includes(finding.file)
+  );
+  assert.deepEqual(staleOnAllowlisted, []);
 });
 
 test('version surface contracts are registered for fast/full/blocker gates', () => {

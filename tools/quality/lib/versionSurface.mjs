@@ -50,12 +50,25 @@ function collectSnakeVersionsForStaleBuildIds(projectTarget) {
   return [...snakes];
 }
 
+export const STALE_SCAN_NEGATIVE_CONTRACT_PATHS = [
+  'tests/architecture-boundary-plugin-contracts.test.mjs',
+  'tests/quality-plugin-contracts.test.mjs',
+  'tools/validate_code_architecture.py'
+];
+
 export function pathAllowlistForHistoricalMarkers(projectTarget) {
   const paths = new Set(['tools/quality/rules/project-target.json']);
   for (const scope of projectTarget.staleMarkers?.allowedHistoricalScopes ?? []) {
     if (scope.includes('/') || scope.endsWith('.md')) paths.add(scope);
   }
   return paths;
+}
+
+export function pathAllowlistForStaleScan(projectTarget) {
+  return [...new Set([
+    ...pathAllowlistForHistoricalMarkers(projectTarget),
+    ...STALE_SCAN_NEGATIVE_CONTRACT_PATHS
+  ])];
 }
 
 export function loadVersionSurface(rootDir = process.cwd()) {

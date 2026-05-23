@@ -7,7 +7,7 @@ import { createPluginResult } from '../plugin-runtime/createPluginResult.mjs';
 import { readJsonFile } from '../plugin-runtime/readJsonFile.mjs';
 import { readTextFile, pathExists } from '../plugin-runtime/readTextFile.mjs';
 import { pluginCliMain } from '../plugin-runtime/pluginCliMain.mjs';
-import { collectStaleBuildIdMarkers, pathAllowlistForHistoricalMarkers } from '../lib/versionSurface.mjs';
+import { collectStaleBuildIdMarkers, pathAllowlistForStaleScan } from '../lib/versionSurface.mjs';
 
 const PLUGIN_ID = 'version-consistency';
 const SCAN_SKIP_DIRS = new Set(['node_modules', '.git', 'reports', '.cache', 'dist', 'coverage']);
@@ -61,15 +61,9 @@ function walkScanFiles(rootDir, dir = rootDir, files = []) {
   return files;
 }
 
-function shouldSkipStaleScan(relPath) {
-  if (relPath.startsWith('tests/')) return true;
-  if (relPath === 'tools/validate_code_architecture.py') return true;
-  return false;
-}
-
 function scanMarkers(rootDir, findings, markers, allowlist, findingType) {
   for (const rel of walkScanFiles(rootDir)) {
-    if (isAllowlisted(rel, allowlist) || shouldSkipStaleScan(rel)) continue;
+    if (isAllowlisted(rel, allowlist)) continue;
     const text = readTextFile(rootDir, rel, findings);
     for (const marker of markers) {
       if (marker && text.includes(marker)) {
@@ -87,7 +81,7 @@ export function runVersionConsistencyCheck({ rootDir = process.cwd() } = {}) {
   const release = projectTarget.release ?? {};
   const staleMarkers = projectTarget.staleMarkers?.forbiddenCurrentMarkers ?? [];
   const staleBuildIds = collectStaleBuildIdMarkers(projectTarget);
-  const allowlist = [...pathAllowlistForHistoricalMarkers(projectTarget)];
+  const allowlist = pathAllowlistForStaleScan(projectTarget);
 
   for (const rel of currentFiles) {
     if (!pathExists(rootDir, rel)) {
