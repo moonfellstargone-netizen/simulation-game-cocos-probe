@@ -51,7 +51,7 @@ test('quality gate config and core files exist and parse', () => {
   ]) {
     assert.equal(existsSync(join(root, rel)), true, `${rel} must exist`);
   }
-  assert.equal(config.version, '0.0.2.22');
+  assert.equal(config.version, '0.0.2.23');
   assert.equal(config.reportDir, 'reports/quality');
   assert.equal(packageJson.scripts['test:quality-gate-contracts'], 'node --test tests/quality-gate-contracts.test.mjs');
 });
@@ -203,6 +203,8 @@ test('runner stays generic and supports timeout, timed_out, incremental report, 
   assert.equal(taskRunner.includes('timeoutSeconds'), true);
   assert.equal(taskRunner.includes('timed_out'), true);
   assert.equal(taskRunner.includes('settled'), true);
+  assert.match(taskRunner, /win32.*npm|npm.*win32/s);
+  assert.match(taskRunner, /shell:\s*true/);
   assert.equal(reportWriter.includes('timed_out'), true);
   assert.equal(reportWriter.includes('slowTasks'), true);
   assert.equal(reportWriter.includes('Timed Out Tasks'), true);
@@ -234,7 +236,7 @@ test('runCommandTask marks timed_out and avoids reporting it as ordinary failed'
 
 test('report normalizer counts timed_out and blocker failures', () => {
   const normalized = normalizeReport({
-    version: '0.0.2.22',
+    version: '0.0.2.23',
     gate: 'unit',
     status: 'failed',
     tasks: [

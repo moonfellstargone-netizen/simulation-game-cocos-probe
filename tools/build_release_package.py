@@ -28,8 +28,8 @@ FORBIDDEN_SUFFIXES = {'.pyc', '.pyo'}
 FORBIDDEN_SOURCE_ARTIFACT_SUFFIXES = {'.log'}
 QUALITY_REPORT_DIR = 'reports/quality'
 
-DEFAULT_CODE_ROOT = '模拟游戏_Cocos微信试水代码包_v0_0_2_22'
-DEFAULT_OUTPUT = '模拟游戏_Cocos微信试水代码包_v0_0_2_22.zip'
+DEFAULT_CODE_ROOT = '模拟游戏_Cocos微信试水代码包_v0_0_2_23'
+DEFAULT_OUTPUT = '模拟游戏_Cocos微信试水代码包_v0_0_2_23.zip'
 
 
 def parse_args() -> argparse.Namespace:

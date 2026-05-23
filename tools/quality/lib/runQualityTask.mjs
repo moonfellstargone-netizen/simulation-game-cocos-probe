@@ -3,8 +3,16 @@ import { tail } from './summarizeQualityFailures.mjs';
 import { runLegacyArchitectureValidator } from '../plugins/legacy-architecture-validator.mjs';
 
 function normalizeCommand(command) {
-  if (process.platform === 'win32' && command === 'npm') return 'npm.cmd';
   return command;
+}
+
+function resolveSpawnConfig(task) {
+  const args = task.args ?? [];
+  // Node on Windows rejects direct spawn of npm.cmd without a shell (EINVAL).
+  if (process.platform === 'win32' && task.command === 'npm') {
+    return { command: 'npm', args, shell: true };
+  }
+  return { command: normalizeCommand(task.command), args, shell: false };
 }
 
 export async function runQualityTask(task, options = {}) {
@@ -24,9 +32,10 @@ export function runCommandTask(task, { cwd = process.cwd(), stdio = 'pipe' } = {
     let settled = false;
     let timedOut = false;
 
-    const child = spawn(normalizeCommand(task.command), task.args ?? [], {
+    const { command, args, shell } = resolveSpawnConfig(task);
+    const child = spawn(command, args, {
       cwd,
-      shell: false,
+      shell,
       stdio: stdio === 'inherit' ? 'inherit' : ['ignore', 'pipe', 'pipe']
     });
 

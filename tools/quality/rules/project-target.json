@@ -1,41 +1,41 @@
 {
   "version": {
-    "codePackageVersion": "v0.0.2.22",
-    "npmVersion": "0.0.2-22",
-    "qualityMetadataVersion": "0.0.2.22",
-    "snakeVersion": "v0_0_2_22",
-    "versionName": "Affected Policy Hardening & Coverage Evidence",
-    "chineseVersionName": "受影响检查策略加固与覆盖证据版"
+    "codePackageVersion": "v0.0.2.23",
+    "npmVersion": "0.0.2-23",
+    "qualityMetadataVersion": "0.0.2.23",
+    "snakeVersion": "v0_0_2_23",
+    "versionName": "Project Map & Git Workflow Readiness",
+    "chineseVersionName": "项目分级地图与 Git 工作流准备版"
   },
   "release": {
-    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_22",
-    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_22.zip"
+    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_23",
+    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_23.zip"
   },
   "design": {
     "designPackVersion": "v1.5.2.2",
     "designPackName": "模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip"
   },
   "previous": {
-    "codePackageVersion": "v0.0.2.21",
-    "npmVersion": "0.0.2-21",
-    "qualityMetadataVersion": "0.0.2.21",
-    "snakeVersion": "v0_0_2_21",
-    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_21",
-    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_21.zip",
-    "versionName": "Affected & Cache Probe",
-    "chineseVersionName": "受影响检查与轻量缓存探针版"
+    "codePackageVersion": "v0.0.2.22",
+    "npmVersion": "0.0.2-22",
+    "qualityMetadataVersion": "0.0.2.22",
+    "snakeVersion": "v0_0_2_22",
+    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_22",
+    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_22.zip",
+    "versionName": "Affected Policy Hardening & Coverage Evidence",
+    "chineseVersionName": "受影响检查策略加固与覆盖证据版"
   },
   "staleMarkers": {
     "forbiddenCurrentMarkers": [
-      "v0.0.2.21",
-      "v0_0_2_21",
-      "0.0.2-21",
-      "0.0.2.21",
-      "模拟游戏_Cocos微信试水代码包_v0_0_2_21",
-      "模拟游戏_Cocos微信试水代码包_v0_0_2_21.zip",
-      "Affected & Cache Probe",
-      "受影响检查与轻量缓存探针版",
-      "受影响检查与轻量缓存探针"
+      "v0.0.2.22",
+      "v0_0_2_22",
+      "0.0.2-22",
+      "0.0.2.22",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_22",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_22.zip",
+      "Affected Policy Hardening & Coverage Evidence",
+      "受影响检查策略加固与覆盖证据版",
+      "受影响检查策略加固与覆盖证据"
     ],
     "allowedHistoricalScopes": [
       "tools/quality/rules/project-target.json",
@@ -43,7 +43,9 @@
       "历史输入说明",
       "上一版本输入说明",
       "CHANGELOG",
-      "development logs"
+      "development logs",
+      "迁移确认基线",
+      "previous version"
     ]
   }
 }
