@@ -80,7 +80,10 @@ test('legacy validator remains authority for high-risk rules while architecture 
   const docs = readFileSync(join(root, 'docs/CHECK_ARCHITECTURE.md'), 'utf8') + readFileSync(join(root, 'docs/IMPLEMENTATION_SCOPE.md'), 'utf8');
   assert.equal(docs.includes('authoritative'), true);
   assert.equal(docs.includes('shadow findings'), true);
-  assert.equal(docs.includes('旧 validator 仍保留高风险红线'), true);
+  assert.equal(docs.includes('legacy validator'), true);
+  assert.equal(docs.includes('architecture-boundary-check.mjs'), true);
+  assert.equal(docs.includes('architecture-boundary.rules.json'), true);
+  assert.match(docs, /不删除旧 validator 核心红线|高风险红线/);
 });
 
 test('architecture boundary plugin distinguishes authoritative violations from shadow findings', () => {

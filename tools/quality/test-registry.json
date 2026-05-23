@@ -1,5 +1,5 @@
 {
-  "version": "0.0.2.22",
+  "version": "0.0.2.23",
   "tests": {
     "static.typecheck": {
       "command": "node",
@@ -95,6 +95,30 @@
       ],
       "files": [
         "tests/context-governance-contracts.test.mjs"
+      ],
+      "group": "governance"
+    },
+    "test.project-map-contracts": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/project-map-contracts.test.mjs"
+      ],
+      "covers": [
+        "docs",
+        "tests"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "context",
+        "governance",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/project-map-contracts.test.mjs"
       ],
       "group": "governance"
     },
@@ -716,9 +740,9 @@
         "--source-root",
         ".",
         "--root-name",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_22",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_23",
         "--output",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_22.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_23.zip",
         "--kind",
         "code"
       ],
@@ -739,9 +763,9 @@
       "command": "python3",
       "args": [
         "tools/check_release_zip.py",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_22.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_23.zip",
         "--expected-root",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_22",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_23",
         "--kind",
         "code"
       ],

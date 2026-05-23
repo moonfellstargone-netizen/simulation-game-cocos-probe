@@ -1,6 +1,6 @@
-# ARCHITECTURE — v0.0.2.22
+# ARCHITECTURE — v0.0.2.23
 
-当前版本：v0.0.2.22 / Affected Policy Hardening & Coverage Evidence。
+当前版本：v0.0.2.23 / Project Map & Git Workflow Readiness。业务架构边界与上一版一致，本轮不改变 ActionPipeline、SaveFile 或 fixture。
 
 ## 1. 业务架构不变
 
