@@ -1,0 +1,197 @@
+{
+  "schemaVersion": "traceability-lite/v1",
+  "projectVersion": "v0.0.2.25",
+  "currentFullReleaseTraceIds": [
+    "trace.stage1a.actionpipeline",
+    "trace.stage1a.save-load",
+    "trace.stage1a.baseline-runtime",
+    "trace.cocos.session-viewmodel-port",
+    "trace.cocos.creator-adapter-probe",
+    "trace.quality.version-surface",
+    "trace.quality.affected-full-release-boundary",
+    "trace.release.zip-hygiene"
+  ],
+  "entries": [
+    {
+      "id": "trace.stage1a.actionpipeline",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": ["game-core"],
+      "sourceRefs": [
+        "src/game-core/action/ActionPipeline.ts",
+        "src/game-core/runtime/GameRuntime.ts"
+      ],
+      "testRefs": ["test.stage1a-contract", "test.smoke"],
+      "docRefs": [
+        "docs/module-cards/game-core.md",
+        "docs/ARCHITECTURE.md"
+      ],
+      "gateRefs": ["full"],
+      "designRefs": [
+        "docs/SOURCE_DESIGN_PACK.md",
+        "design_snapshot/SOURCE_DESIGN_PACK.txt"
+      ]
+    },
+    {
+      "id": "trace.stage1a.save-load",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": ["game-core"],
+      "sourceRefs": [
+        "src/game-core/save/SaveManager.ts",
+        "src/game-core/save/SaveStoragePort.ts"
+      ],
+      "testRefs": ["test.stage1a-fixture", "test.cocos-save-load"],
+      "docRefs": ["docs/module-cards/save-load.md"],
+      "gateRefs": ["full"],
+      "designRefs": ["docs/SOURCE_DESIGN_PACK.md"]
+    },
+    {
+      "id": "trace.stage1a.baseline-runtime",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": ["game-core", "cocos-app", "cocos-creator-adapter"],
+      "sourceRefs": [
+        "src/game-core/runtime/GameRuntime.ts",
+        "src/cocos-app/runtime/CocosAppRuntimeSession.ts"
+      ],
+      "testRefs": ["test.stage1a-baseline"],
+      "docRefs": [
+        "docs/maps/runtime-map.md",
+        "docs/module-cards/game-core.md"
+      ],
+      "gateRefs": ["full"],
+      "designRefs": ["docs/SOURCE_DESIGN_PACK.md"]
+    },
+    {
+      "id": "trace.cocos.session-viewmodel-port",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": ["cocos-app", "game-core"],
+      "sourceRefs": [
+        "src/cocos-app/runtime/CocosAppRuntimeSession.ts",
+        "src/cocos-app/adapters/CocosRuntimeFacade.ts"
+      ],
+      "testRefs": ["test.cocos-adapter"],
+      "docRefs": ["docs/module-cards/cocos-app.md"],
+      "gateRefs": ["full"],
+      "designRefs": ["docs/module_contracts/CocosAppRuntimeSession.contract.md"]
+    },
+    {
+      "id": "trace.cocos.creator-adapter-probe",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": ["cocos-creator-adapter"],
+      "sourceRefs": [
+        "src/cocos-creator-adapter/CocosSessionHost.ts",
+        "src/cocos-creator-adapter/QinglanSessionProbeComponent.ts"
+      ],
+      "testRefs": ["test.cocos-lifecycle"],
+      "docRefs": ["docs/module-cards/cocos-creator-adapter.md"],
+      "gateRefs": ["full"],
+      "designRefs": ["docs/module_contracts/CocosSessionHost.contract.md"]
+    },
+    {
+      "id": "trace.quality.version-surface",
+      "status": "active",
+      "stage": "quality",
+      "riskLevel": "medium",
+      "moduleRefs": ["tools"],
+      "sourceRefs": [
+        "tools/quality/lib/versionSurface.mjs",
+        "tools/quality/rules/project-target.json",
+        "tools/quality/plugins/version-consistency-check.mjs"
+      ],
+      "testRefs": [
+        "test.version-surface-contracts",
+        "quality.versionConsistency"
+      ],
+      "docRefs": [
+        "docs/CHECK_ARCHITECTURE.md",
+        "docs/maps/quality-map.md"
+      ],
+      "gateRefs": ["full"],
+      "designRefs": ["tools/quality/rules/project-target.json"]
+    },
+    {
+      "id": "trace.quality.affected-full-release-boundary",
+      "status": "active",
+      "stage": "quality",
+      "riskLevel": "medium",
+      "moduleRefs": ["tools"],
+      "sourceRefs": [
+        "tools/quality/affected/affectedPolicy.mjs",
+        "tools/quality/affected/resolveAffectedTasks.mjs",
+        "tools/quality/gate-policy.json"
+      ],
+      "testRefs": [
+        "test.quality-affected-policy-hardening",
+        "test.quality-affected-contracts"
+      ],
+      "docRefs": [
+        "docs/CHECK_ARCHITECTURE.md",
+        "docs/GITHUB_WORKFLOW.md"
+      ],
+      "gateRefs": ["affected", "full", "release"]
+    },
+    {
+      "id": "trace.release.zip-hygiene",
+      "status": "active",
+      "stage": "release",
+      "riskLevel": "medium",
+      "moduleRefs": ["release-tools", "tools"],
+      "sourceRefs": [
+        "tools/build_release_package.py",
+        "tools/check_release_zip.py"
+      ],
+      "testRefs": [
+        "test.package-hygiene",
+        "release.build",
+        "release.check"
+      ],
+      "docRefs": ["docs/module-cards/release-tools.md"],
+      "gateRefs": ["release"],
+      "designRefs": ["tools/quality/rules/project-target.json"]
+    },
+    {
+      "id": "trace.stage1b.wx-storage-port",
+      "status": "planned",
+      "stage": "Stage 1B",
+      "riskLevel": "high",
+      "moduleRefs": ["game-core"],
+      "sourceRefs": ["src/game-core/save/SaveStoragePort.ts"],
+      "testRefs": [],
+      "docRefs": ["docs/module-cards/save-load.md"],
+      "gateRefs": [],
+      "designRefs": ["design_snapshot/tests/expected/stage_1A_development_guardrails.yaml"],
+      "notCurrentAuthority": true,
+      "futureExtensions": [
+        "wx storage port implementation",
+        "platform SaveStoragePort adapter"
+      ]
+    },
+    {
+      "id": "trace.quality.nightly-profile",
+      "status": "planned",
+      "stage": "quality",
+      "riskLevel": "low",
+      "moduleRefs": ["tools"],
+      "sourceRefs": [],
+      "testRefs": [],
+      "docRefs": ["docs/maps/quality-map.md"],
+      "gateRefs": ["nightly"],
+      "designRefs": ["tools/quality/gate-policy.json"],
+      "notCurrentAuthority": true,
+      "futureExtensions": [
+        "slow tests",
+        "platform probes",
+        "flake governance"
+      ]
+    }
+  ]
+}

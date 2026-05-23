@@ -32,6 +32,8 @@
         "DOCS_GOVERNANCE.md",
         "GLOSSARY.md",
         "CODE_CONTEXT_INDEX.md",
+        "TRACEABILITY_MATRIX.md",
+        "traceability-map.json",
         "预检报告",
         "Scope Discovery",
         "q:affected",
@@ -58,6 +60,8 @@
         "${codePackageVersion}",
         "${versionName}",
         "project-map-contracts",
+        "traceability-contracts",
+        "traceability-map.json",
         "GITHUB_WORKFLOW",
         "PROJECT_MAP",
         "q:affected",
@@ -110,6 +114,7 @@
         "${versionName}",
         "GITHUB_WORKFLOW.md",
         "PROJECT_MAP.md",
+        "TRACEABILITY_MATRIX.md",
         "DOCS_GOVERNANCE.md",
         "GLOSSARY.md",
         "执行前必读顺序",
@@ -118,6 +123,7 @@
         "Task Intent Lock",
         "本轮唯一目标",
         "test:project-map-contracts",
+        "test:traceability-contracts",
         "module-cards",
         "module_contracts",
         "不跳过 ActionPipeline",
@@ -134,14 +140,15 @@
       ]
     },
     "docs/IMPLEMENTATION_SCOPE.md": {
-      "why": "实现范围文档必须锁定 v0.0.2.24 只做 version surface 与 BuildId 权威收敛。",
+      "why": "实现范围文档必须锁定 v0.0.2.25 只做 traceability 轻量追踪地基。",
       "required": [
         "${codePackageVersion}",
         "${versionName}",
         "${chineseVersionName}",
-        "Quality Version Surface & BuildId Authority",
-        "version surface",
-        "BuildId",
+        "Project Map Auto Index & Traceability Lite",
+        "traceability",
+        "traceability-map.json",
+        "TRACEABILITY_MATRIX",
         "project-target.json",
         "module-cards",
         "module_contracts",
@@ -152,7 +159,9 @@
         "不改变 SaveFile",
         "q:affected",
         "不替代 q:full",
-        "不替代 q:release"
+        "不替代 q:release",
+        "planned",
+        "不是当前实现"
       ],
       "forbiddenCurrent": [
         "${previousCodePackageVersion}",
@@ -173,6 +182,35 @@
         "项目地图与 GitHub 工作流",
         "不改变正式包设定",
         "不把日志包或规划对话作为正式设计来源"
+      ],
+      "forbiddenCurrent": [
+        "${previousCodePackageVersion}",
+        "${previousNpmVersion}",
+        "${previousSnakeVersion}",
+        "${previousReleaseRoot}",
+        "${previousVersionName}",
+        "${previousChineseVersionName}"
+      ]
+    },
+    "docs/TRACEABILITY_MATRIX.md": {
+      "why": "可追踪矩阵必须说明 active/planned 语义与边界，不替代源码或 test-registry。",
+      "required": [
+        "${codePackageVersion}",
+        "traceability-lite/v1",
+        "doc_type: traceability",
+        "status: active",
+        "notCurrentAuthority",
+        "planned",
+        "active",
+        "futureExtensions",
+        "后续建议不是授权目标",
+        "不进入 Stage 1B",
+        "不接 wx",
+        "不接真实 Cocos",
+        "traceability-map.json",
+        "q:affected",
+        "不可",
+        "release 验收"
       ],
       "forbiddenCurrent": [
         "${previousCodePackageVersion}",

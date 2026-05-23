@@ -122,12 +122,21 @@ function assertForbiddenPositiveMisauthority(text, pattern) {
   }
 }
 
-test('current version is v0.0.2.24 in package metadata', () => {
+test('current version is v0.0.2.25 in package metadata', () => {
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  assert.equal(packageJson.version, '0.0.2-24');
+  assert.equal(packageJson.version, '0.0.2-25');
 
   const projectTarget = JSON.parse(readFileSync(join(root, 'tools/quality/rules/project-target.json'), 'utf8'));
-  assert.equal(projectTarget.version.codePackageVersion, 'v0.0.2.24');
+  assert.equal(projectTarget.version.codePackageVersion, 'v0.0.2.25');
+});
+
+test('project map links traceability matrix entry', () => {
+  const projectMap = readFileSync(join(root, 'docs/PROJECT_MAP.md'), 'utf8');
+  const readme = readFileSync(join(root, 'README.md'), 'utf8');
+  assert.match(projectMap, /TRACEABILITY_MATRIX\.md/);
+  assert.match(readme, /TRACEABILITY_MATRIX\.md/);
+  assert.equal(existsSync(join(root, 'docs/TRACEABILITY_MATRIX.md')), true);
+  assert.equal(existsSync(join(root, 'tools/quality/rules/traceability-map.json')), true);
 });
 
 function collectMarkdown(relativeDir) {

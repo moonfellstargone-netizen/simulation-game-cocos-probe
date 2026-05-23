@@ -1,34 +1,38 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.2.24
+﻿# CODE_CONTEXT_INDEX — v0.0.2.25
 
-版本：v0.0.2.24 / Quality Version Surface & BuildId Authority。
+版本：v0.0.2.25 / Project Map Auto Index & Traceability Lite。
 
 ## 执行前必读顺序
 
 1. `package.json`
 2. `tools/quality/rules/project-target.json`
-3. `docs/GITHUB_WORKFLOW.md`
-4. `docs/PROJECT_MAP.md`
-5. `docs/DOCS_GOVERNANCE.md`
-6. `docs/GLOSSARY.md`
-7. `docs/CODE_CONTEXT_INDEX.md`
-8. `docs/CHECK_ARCHITECTURE.md`
-9. `docs/ARCHITECTURE.md`
-10. `docs/IMPLEMENTATION_SCOPE.md`
-11. `tools/quality/module-graph.json`
-12. `tools/quality/test-registry.json`
-13. `tools/quality/gate-policy.json`
-14. 本轮 Scope Discovery 指定的 module-cards / maps / code-index
+3. `tools/quality/quality.config.json`（含 `rules.traceabilityMap`）
+4. `docs/GITHUB_WORKFLOW.md`
+5. `docs/PROJECT_MAP.md`
+6. `docs/TRACEABILITY_MATRIX.md`
+7. `docs/DOCS_GOVERNANCE.md`
+8. `docs/GLOSSARY.md`
+9. `docs/CODE_CONTEXT_INDEX.md`
+10. `docs/CHECK_ARCHITECTURE.md`
+11. `docs/ARCHITECTURE.md`
+12. `docs/IMPLEMENTATION_SCOPE.md`
+13. `tools/quality/module-graph.json`
+14. `tools/quality/test-registry.json`
+15. `tools/quality/gate-policy.json`
+16. `tools/quality/rules/traceability-map.json`
+17. 本轮 Scope Discovery 指定的 module-cards / maps / code-index
 
 ## 预检报告必须包含
 
 输入版本、目标版本、正式包 v1.5.2.2 来源、已读取文件证据、未覆盖模块声明、旧版本残留扫描、Task Intent Lock、本轮唯一目标、验收命令和执行前判断。
 
-复杂任务必须先做 Scope Discovery；项目超出上下文时必须分层读取（见 PROJECT_MAP L0–L5）。Cursor 不得只依赖更新指导摘要；新增/修改/删除代码必须同步维护受影响层级项目地图。
+复杂任务必须先做 Scope Discovery；项目超出上下文时必须分层读取（见 PROJECT_MAP L0–L5）。Cursor 不得只依赖更新指导摘要；新增/修改/删除代码必须同步维护受影响层级项目地图与 traceability active entries。
 
-后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包，代码包不保存每轮具体任务上下文，代码包只保存执行端上下文治理约束。
+后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包；代码包不保存每轮具体任务上下文；代码包只保存执行端上下文治理约束。
 
-## v0.0.2.24 测试索引
+## v0.0.2.25 测试索引
 
+- `tests/traceability-contracts.test.mjs`
 - `tests/project-map-contracts.test.mjs`
 - `tests/context-governance-contracts.test.mjs`
 - `tests/quality-gate-contracts.test.mjs`
@@ -47,7 +51,9 @@ release zip 仍检查 UTF-8 metadata 与 mojibake 路径，并排除 `reports/qu
 - `q:affected`
 - `q:full`
 - `q:release`
+- `test:traceability-contracts`
 - `test:project-map-contracts`
+- `traceability-map.json`
 - `context-doc-surface.rules.json`
 - `project-target.json`
 

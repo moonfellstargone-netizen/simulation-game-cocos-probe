@@ -9,7 +9,7 @@ source_of_truth: false
 
 ## 模块职责
 
-质量门禁配置与插件：module-graph、test-registry、gate-policy、affected/cache、architecture-boundary 插件。
+质量门禁配置与插件：module-graph、test-registry、gate-policy、affected/cache、architecture-boundary 插件、**traceability-map**。
 
 ## 不负责什么
 
@@ -30,12 +30,15 @@ source_of_truth: false
 - `tools/quality/module-graph.json`
 - `tools/quality/test-registry.json`
 - `tools/quality/gate-policy.json`
+- `tools/quality/quality.config.json`
+- `tools/quality/rules/traceability-map.json`
 - `tools/quality/lib/projectTarget.mjs`
 - `tools/quality/lib/versionSurface.mjs`
 - `tools/quality/plugins/*`
 
 ## 关键测试
 
+- `tests/traceability-contracts.test.mjs`
 - `tests/quality-gate-contracts.test.mjs`
 - `tests/quality-affected-policy-hardening.test.mjs`
 - `tests/version-surface-contracts.test.mjs`
@@ -44,6 +47,7 @@ source_of_truth: false
 
 - `docs/CHECK_ARCHITECTURE.md`
 - `docs/GITHUB_WORKFLOW.md`
+- `docs/TRACEABILITY_MATRIX.md`
 
 ## 修改后必须运行
 
@@ -53,7 +57,8 @@ source_of_truth: false
 
 - q:affected 语义扩写成 release 替代
 - project-target 与 package 版本漂移
+- planned traceability entry 误标为 active 当前实现
 
 ## 代码—地图同步
 
-quality-map、GLOSSARY 中 q:* 术语。
+quality-map、TRACEABILITY_MATRIX、GLOSSARY 中 q:* 与 traceability 术语。

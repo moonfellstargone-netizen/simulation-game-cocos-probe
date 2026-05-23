@@ -39,7 +39,7 @@ test('code package source tree contains no generated Python cache or log artifac
 
 test('package hygiene policy is wired into scripts and architecture validator', () => {
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  assert.equal(packageJson.version, '0.0.2-24');
+  assert.equal(packageJson.version, '0.0.2-25');
   assert.equal(packageJson.scripts['test:package-hygiene'], 'node --test tests/package-hygiene.test.mjs');
 
   const registry = readFileSync(join(root, 'tools/quality/test-registry.json'), 'utf8');

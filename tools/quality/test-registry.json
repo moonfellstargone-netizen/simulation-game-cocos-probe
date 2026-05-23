@@ -1,5 +1,5 @@
 {
-  "version": "0.0.2.24",
+  "version": "0.0.2.25",
   "tests": {
     "static.typecheck": {
       "command": "node",
@@ -742,9 +742,9 @@
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--root-name",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_24",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_25",
         "--output",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_24.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_25.zip",
         "--kind",
         "code"
       ],
@@ -765,11 +765,11 @@
       "command": "python3",
       "args": [
         "tools/check_release_zip.py",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_24.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_25.zip",
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--expected-root",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_24",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_25",
         "--kind",
         "code"
       ],
@@ -1027,6 +1027,31 @@
         "tests/version-surface-contracts.test.mjs"
       ],
       "group": "quality"
+    },
+    "test.traceability-contracts": {
+      "command": "npm",
+      "args": [
+        "run",
+        "test:traceability-contracts"
+      ],
+      "covers": [
+        "docs",
+        "tools",
+        "tests"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "traceability",
+        "governance",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/traceability-contracts.test.mjs"
+      ],
+      "group": "governance"
     }
   }
 }
