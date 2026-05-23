@@ -1,4 +1,4 @@
-# Quality Map — v0.0.2.23
+﻿# Quality Map — v0.0.2.24
 
 ## 系统职责
 
@@ -23,7 +23,7 @@
 
 - `tests/quality-gate-contracts.test.mjs`
 - `tests/quality-affected-policy-hardening.test.mjs`
-- `tests/project-map-contracts.test.mjs`
+- `tests/version-surface-contracts.test.mjs`
 - `tests/context-governance-contracts.test.mjs`
 
 ## 修改前必读

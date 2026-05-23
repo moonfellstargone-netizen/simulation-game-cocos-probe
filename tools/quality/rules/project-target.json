@@ -1,29 +1,29 @@
 {
   "version": {
-    "codePackageVersion": "v0.0.2.23",
-    "npmVersion": "0.0.2-23",
-    "qualityMetadataVersion": "0.0.2.23",
-    "snakeVersion": "v0_0_2_23",
-    "versionName": "Project Map & Git Workflow Readiness",
-    "chineseVersionName": "项目分级地图与 Git 工作流准备版"
+    "codePackageVersion": "v0.0.2.24",
+    "npmVersion": "0.0.2-24",
+    "qualityMetadataVersion": "0.0.2.24",
+    "snakeVersion": "v0_0_2_24",
+    "versionName": "Quality Version Surface & BuildId Authority",
+    "chineseVersionName": "检查体系版本表面与构建标识权威源收敛版"
   },
   "release": {
-    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_23",
-    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_23.zip"
+    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_24",
+    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_24.zip"
   },
   "design": {
     "designPackVersion": "v1.5.2.2",
     "designPackName": "模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip"
   },
   "previous": {
-    "codePackageVersion": "v0.0.2.22",
-    "npmVersion": "0.0.2-22",
-    "qualityMetadataVersion": "0.0.2.22",
-    "snakeVersion": "v0_0_2_22",
-    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_22",
-    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_22.zip",
-    "versionName": "Affected Policy Hardening & Coverage Evidence",
-    "chineseVersionName": "受影响检查策略加固与覆盖证据版"
+    "codePackageVersion": "v0.0.2.23",
+    "npmVersion": "0.0.2-23",
+    "qualityMetadataVersion": "0.0.2.23",
+    "snakeVersion": "v0_0_2_23",
+    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_23",
+    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_23.zip",
+    "versionName": "Project Map & Git Workflow Readiness",
+    "chineseVersionName": "项目分级地图与 Git 工作流准备版"
   },
   "staleMarkers": {
     "forbiddenCurrentMarkers": [
@@ -35,10 +35,27 @@
       "模拟游戏_Cocos微信试水代码包_v0_0_2_22.zip",
       "Affected Policy Hardening & Coverage Evidence",
       "受影响检查策略加固与覆盖证据版",
-      "受影响检查策略加固与覆盖证据"
+      "受影响检查策略加固与覆盖证据",
+      "v0.0.2.23",
+      "v0_0_2_23",
+      "0.0.2-23",
+      "0.0.2.23",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_23",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_23.zip",
+      "Project Map & Git Workflow Readiness",
+      "项目分级地图与 Git 工作流准备版",
+      "fixture_baseline_v0_0_2_22",
+      "headless_baseline_v0_0_2_22",
+      "cocos_baseline_v0_0_2_22",
+      "fixture_baseline_v0_0_2_23",
+      "headless_baseline_v0_0_2_23",
+      "cocos_baseline_v0_0_2_23"
     ],
     "allowedHistoricalScopes": [
       "tools/quality/rules/project-target.json",
+      "docs/GITHUB_WORKFLOW.md",
+      "CHANGELOG.md",
+      "docs/releases/**",
       "开发日志包",
       "历史输入说明",
       "上一版本输入说明",

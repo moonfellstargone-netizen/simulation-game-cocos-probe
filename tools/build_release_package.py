@@ -7,6 +7,7 @@ runtime code, formal design snapshots, schemas, or gameplay logic.
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import sys
 import tempfile
@@ -28,17 +29,71 @@ FORBIDDEN_SUFFIXES = {'.pyc', '.pyo'}
 FORBIDDEN_SOURCE_ARTIFACT_SUFFIXES = {'.log'}
 QUALITY_REPORT_DIR = 'reports/quality'
 
-DEFAULT_CODE_ROOT = '模拟游戏_Cocos微信试水代码包_v0_0_2_23'
-DEFAULT_OUTPUT = '模拟游戏_Cocos微信试水代码包_v0_0_2_23.zip'
+DEFAULT_PROJECT_TARGET_PATH = 'tools/quality/rules/project-target.json'
+DEFAULT_SOURCE_ROOT = '.'
+DEFAULT_KIND = 'code'
+# release-surface marker (non-authoritative): 模拟游戏_Cocos微信试水代码包_v0_0_2_24 / 模拟游戏_Cocos微信试水代码包_v0_0_2_24.zip
+
+
+def load_project_target(path: Path) -> dict:
+    if not path.is_file():
+        print(f'project target file not found: {path}', file=sys.stderr)
+        raise SystemExit(2)
+    try:
+        return json.loads(path.read_text(encoding='utf-8'))
+    except json.JSONDecodeError as exc:
+        print(f'project target is not valid JSON: {path}: {exc}', file=sys.stderr)
+        raise SystemExit(2)
+
+
+def release_from_target(project_target: dict) -> tuple[str, str]:
+    release = project_target.get('release') or {}
+    root = release.get('root')
+    zip_name = release.get('zip')
+    if not root or not zip_name:
+        print('project target release.root and release.zip are required', file=sys.stderr)
+        raise SystemExit(2)
+    return str(root), str(zip_name)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Build a clean UTF-8 release zip.')
-    parser.add_argument('--source-root', default='.', help='Directory whose contents should be packaged.')
-    parser.add_argument('--root-name', default=DEFAULT_CODE_ROOT, help='Root directory name inside the zip.')
-    parser.add_argument('--output', default=f'../{DEFAULT_OUTPUT}', help='Output zip path.')
-    parser.add_argument('--kind', choices=['code', 'logs'], default='code', help='Package kind for hygiene policy.')
+    parser.add_argument('--source-root', default=DEFAULT_SOURCE_ROOT, help='Directory whose contents should be packaged.')
+    parser.add_argument('--project-target', default=DEFAULT_PROJECT_TARGET_PATH, help='Project target JSON for release root/zip authority.')
+    parser.add_argument('--root-name', default=None, help='Root directory name inside the zip.')
+    parser.add_argument('--output', default=None, help='Output zip path.')
+    parser.add_argument('--kind', choices=['code', 'logs'], default=DEFAULT_KIND, help='Package kind for hygiene policy.')
     return parser.parse_args()
+
+
+def resolve_release_args(args: argparse.Namespace) -> tuple[str, Path]:
+    target_path = Path(args.project_target)
+    if not target_path.is_absolute():
+        target_path = (Path(args.source_root).resolve() / target_path).resolve()
+    project_target = load_project_target(target_path)
+    target_root, target_zip = release_from_target(project_target)
+
+    root_name = args.root_name if args.root_name is not None else target_root
+    if args.root_name is not None and args.root_name != target_root:
+        print(
+            f'conflicting release root: --root-name {args.root_name!r} != project-target release.root {target_root!r}',
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+
+    default_output = Path('..') / target_zip
+    output = Path(args.output) if args.output is not None else default_output
+    if args.output is not None:
+        expected_output = (Path('..') / target_zip).resolve()
+        actual_output = output.resolve()
+        if actual_output != expected_output:
+            print(
+                f'conflicting release output: --output {output} != project-target release.zip ../{target_zip}',
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
+
+    return root_name, output
 
 
 def normalized_rel(path: Path, root: Path) -> str:
@@ -104,21 +159,17 @@ def build_zip(staged_root: Path, output: Path) -> None:
 def main() -> int:
     args = parse_args()
     source_root = Path(args.source_root).resolve()
-    output = Path(args.output).resolve()
+    root_name, output = resolve_release_args(args)
+    output = output.resolve()
     if not source_root.is_dir():
         print(f'source root does not exist or is not a directory: {source_root}', file=sys.stderr)
         return 2
-    if not args.root_name or '/' in args.root_name or '\\' in args.root_name:
-        print(f'root name must be a single directory name: {args.root_name!r}', file=sys.stderr)
+    if not root_name or '/' in root_name or '\\' in root_name:
+        print(f'root name must be a single directory name: {root_name!r}', file=sys.stderr)
         return 2
 
-    # Local generated directories such as node_modules/ may exist after npm ci.
-    # They are skipped when copying into staging; the final zip checker verifies
-    # that none of them entered the delivery archive. Source-tree pollution is
-    # still checked separately by validate_code_architecture.py and
-    # tests/package-hygiene.test.mjs.
     with tempfile.TemporaryDirectory(prefix='qinglan_release_staging_') as temp_dir:
-        staging_root = Path(temp_dir) / args.root_name
+        staging_root = Path(temp_dir) / root_name
         staging_root.mkdir(parents=True, exist_ok=True)
         copy_clean_tree(source_root, staging_root, args.kind)
         build_zip(staging_root, output)

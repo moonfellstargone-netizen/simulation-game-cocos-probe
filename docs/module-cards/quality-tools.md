@@ -1,4 +1,4 @@
----
+﻿---
 doc_type: module_card
 status: active
 applies_to: cocos-probe
@@ -30,14 +30,15 @@ source_of_truth: false
 - `tools/quality/module-graph.json`
 - `tools/quality/test-registry.json`
 - `tools/quality/gate-policy.json`
-- `tools/quality/rules/project-target.json`
+- `tools/quality/lib/projectTarget.mjs`
+- `tools/quality/lib/versionSurface.mjs`
 - `tools/quality/plugins/*`
 
 ## 关键测试
 
 - `tests/quality-gate-contracts.test.mjs`
 - `tests/quality-affected-policy-hardening.test.mjs`
-- `tests/project-map-contracts.test.mjs`
+- `tests/version-surface-contracts.test.mjs`
 
 ## 修改前必须读取
 

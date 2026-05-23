@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from zipfile import BadZipFile, ZipFile
 
 UTF8_FLAG = 0x800
@@ -13,13 +14,68 @@ FORBIDDEN_DIR_NAMES = {'__pycache__', 'node_modules', 'dist', 'coverage', '.cach
 FORBIDDEN_FILE_NAMES = {'.DS_Store'}
 FORBIDDEN_SUFFIXES = {'.pyc', '.pyo'}
 
+DEFAULT_PROJECT_TARGET_PATH = 'tools/quality/rules/project-target.json'
+DEFAULT_KIND = 'code'
+
+
+def load_project_target(path: Path) -> dict:
+    if not path.is_file():
+        print(f'project target file not found: {path}', file=sys.stderr)
+        raise SystemExit(2)
+    try:
+        return json.loads(path.read_text(encoding='utf-8'))
+    except json.JSONDecodeError as exc:
+        print(f'project target is not valid JSON: {path}: {exc}', file=sys.stderr)
+        raise SystemExit(2)
+
+
+def release_from_target(project_target: dict) -> tuple[str, str]:
+    release = project_target.get('release') or {}
+    root = release.get('root')
+    zip_name = release.get('zip')
+    if not root or not zip_name:
+        print('project target release.root and release.zip are required', file=sys.stderr)
+        raise SystemExit(2)
+    return str(root), str(zip_name)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Check release zip encoding and hygiene.')
-    parser.add_argument('zip_path', help='Release zip path to check.')
-    parser.add_argument('--expected-root', required=True, help='Expected single root directory inside the zip.')
-    parser.add_argument('--kind', choices=['code', 'logs'], default='code', help='Package kind for log-artifact policy.')
+    parser.add_argument('zip_path', nargs='?', default=None, help='Release zip path to check.')
+    parser.add_argument('--project-target', default=DEFAULT_PROJECT_TARGET_PATH, help='Project target JSON for expected root/zip authority.')
+    parser.add_argument('--expected-root', default=None, help='Expected single root directory inside the zip.')
+    parser.add_argument('--kind', choices=['code', 'logs'], default=DEFAULT_KIND, help='Package kind for log-artifact policy.')
     return parser.parse_args()
+
+
+def resolve_check_args(args: argparse.Namespace) -> tuple[Path, str]:
+    target_path = Path(args.project_target)
+    if not target_path.is_absolute():
+        target_path = (Path.cwd() / target_path).resolve()
+    project_target = load_project_target(target_path)
+    target_root, target_zip = release_from_target(project_target)
+
+    expected_root = args.expected_root if args.expected_root is not None else target_root
+    if args.expected_root is not None and args.expected_root != target_root:
+        print(
+            f'conflicting expected root: --expected-root {args.expected_root!r} != project-target release.root {target_root!r}',
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+
+    if args.zip_path is None:
+        zip_path = (Path('..') / target_zip).resolve()
+    else:
+        zip_path = Path(args.zip_path).resolve()
+        expected_zip = (Path('..') / target_zip).resolve()
+        if zip_path != expected_zip:
+            print(
+                f'conflicting zip path: {zip_path} != project-target release.zip {expected_zip}',
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
+
+    return zip_path, expected_root
 
 
 def has_non_ascii(text: str) -> bool:
@@ -69,9 +125,10 @@ def check_hygiene(name: str, kind: str) -> str | None:
 
 def main() -> int:
     args = parse_args()
+    zip_path, expected_root = resolve_check_args(args)
     violations: list[str] = []
     try:
-        with ZipFile(args.zip_path) as archive:
+        with ZipFile(zip_path) as archive:
             infos = archive.infolist()
             if not infos:
                 violations.append('zip is empty')
@@ -87,24 +144,24 @@ def main() -> int:
                 safety = check_path_safety(name)
                 if safety:
                     violations.append(f'{name}: {safety}')
-                if not (name == args.expected_root + '/' or name.startswith(args.expected_root + '/')):
-                    violations.append(f'{name}: outside expected root {args.expected_root}/')
+                if not (name == expected_root + '/' or name.startswith(expected_root + '/')):
+                    violations.append(f'{name}: outside expected root {expected_root}/')
                 hygiene = check_hygiene(name, args.kind)
                 if hygiene:
                     violations.append(f'{name}: {hygiene}')
-            if roots != {args.expected_root}:
-                violations.append(f'zip must contain exactly one root {args.expected_root!r}, got {sorted(roots)!r}')
+            if roots != {expected_root}:
+                violations.append(f'zip must contain exactly one root {expected_root!r}, got {sorted(roots)!r}')
     except BadZipFile as exc:
         violations.append(f'bad zip file: {exc}')
     except FileNotFoundError:
-        violations.append(f'zip file not found: {args.zip_path}')
+        violations.append(f'zip file not found: {zip_path}')
 
     if violations:
         print('release zip check failed:')
         for violation in sorted(set(violations)):
             print(f' - {violation}')
         return 1
-    print(f'release zip check passed: {args.zip_path}')
+    print(f'release zip check passed: {zip_path}')
     return 0
 
 

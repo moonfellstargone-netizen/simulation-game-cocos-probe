@@ -13,12 +13,13 @@ import {
 } from '../src/cocos-creator-adapter';
 import { InMemorySaveStoragePort } from '../src/game-core';
 import { buildRuntimeWithoutState, cloneForCompare } from './support/runtimeHarness';
+import { testBuildId } from './support/buildId.mjs';
 
 function makeComponentProbe() {
   const { configs, contracts } = buildRuntimeWithoutState();
   const storage = new InMemorySaveStoragePort();
   const host = new CocosSessionHost(configs, contracts, storage, {
-    buildId: 'cocos_component_node_binding_test_v0_0_2_22',
+    buildId: testBuildId('cocos_component_node_binding_test'),
     nowIso8601: '2026-05-21T00:00:00.000Z'
   });
   const nodePort = new RecordingCocosComponentNodeBindingPort();
@@ -71,7 +72,7 @@ test('component node binding adapter consumes scene binding updates and preserve
   const { configs, contracts } = buildRuntimeWithoutState();
   const storage = new InMemorySaveStoragePort();
   const host = new CocosSessionHost(configs, contracts, storage, {
-    buildId: 'component_adapter_scene_bridge_v0_0_2_22',
+    buildId: testBuildId('component_adapter_scene_bridge'),
     nowIso8601: '2026-05-21T00:00:00.000Z'
   });
   const shell = new CocosUiShellController(host);

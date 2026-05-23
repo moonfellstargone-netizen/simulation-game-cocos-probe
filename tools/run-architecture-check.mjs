@@ -9,7 +9,11 @@ const steps = [
 let failed = false;
 for (const [label, command, args] of steps) {
   console.log(`[arch:check] ${label}: ${command} ${args.join(' ')}`);
-  const result = spawnSync(command, args, { stdio: 'inherit', shell: false });
+  const result = spawnSync(
+    process.platform === 'win32' && command === 'python3' ? 'python' : command,
+    args,
+    { stdio: 'inherit', shell: process.platform === 'win32' && command === 'python3' }
+  );
   const status = result.status ?? 1;
   if (status !== 0) {
     console.error(`[arch:check] failed at ${label} with exit code ${status}`);

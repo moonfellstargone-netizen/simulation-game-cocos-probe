@@ -44,7 +44,7 @@ export class CocosAppRuntimeSession {
   ) {
     this.runtime = new GameRuntime(this.configs, this.contracts);
     this.state = new NewGameBuilder(this.configs).buildStage1A({
-      buildId: this.options.buildId ?? 'cocos_app_session_v0_0_2_22',
+      buildId: this.options.buildId ?? 'cocos_app_session_default',
       nowIso8601: this.options.nowIso8601 ?? '2026-05-19T00:00:00.000Z'
     });
     this.dispatcher = new CocosActionDispatcher(this.runtime.pipeline, () => this.state);

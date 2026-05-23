@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { testBuildId } from './support/buildId.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -12,7 +13,7 @@ function makeSession(storage = new InMemorySaveStoragePort()) {
   const { configs, contracts } = buildRuntimeWithoutState();
   return {
     session: new CocosAppRuntimeSession(configs, contracts, storage, {
-      buildId: 'cocos_session_test_v0_0_2_22',
+      buildId: testBuildId('cocos_session_test'),
       nowIso8601: '2026-05-19T00:00:00.000Z'
     }),
     storage

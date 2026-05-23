@@ -7,6 +7,7 @@ import { FORMAL_STAGE_1A_ACTION_TYPES, InMemorySaveStoragePort, StorageAudit, ty
 import { Stage1AActionScriptRunner, Stage1AHeadlessRuntime } from '../src/game-core/dev-api';
 import { Stage1AFixtureRunner, type Stage1AFixtureDocument } from '../src/game-core/testing-api';
 import { buildRuntimeWithoutState } from './support/runtimeHarness';
+import { baselineBuildIds } from './support/buildId.mjs';
 
 const EXPECTED_FORMAL_ACTIONS = [
   'plant_crop',
@@ -112,19 +113,19 @@ test('Stage 1A baseline final state is consistent across fixture runner, headles
 
   const fixtureReport = new Stage1AFixtureRunner(runtime.pipeline, {
     configs,
-    buildId: 'fixture_baseline_v0_0_2_22',
+    buildId: baselineBuildIds.fixture_baseline,
     nowIso8601: '2026-05-19T00:00:00.000Z'
   }).runFixtureThroughStepId(fixture, 'T20_release_injected_reservation');
 
   const headlessRuntime = new Stage1AHeadlessRuntime(configs, contracts, {
-    buildId: 'headless_baseline_v0_0_2_22',
+    buildId: baselineBuildIds.headless_baseline,
     nowIso8601: '2026-05-19T00:00:00.000Z'
   });
   const headlessReport = new Stage1AActionScriptRunner().runCoreLoop(headlessRuntime);
 
   const storage = new InMemorySaveStoragePort();
   const cocosSession = new CocosAppRuntimeSession(configs, contracts, storage, {
-    buildId: 'cocos_baseline_v0_0_2_22',
+    buildId: baselineBuildIds.cocos_baseline,
     nowIso8601: '2026-05-19T00:00:00.000Z'
   });
   const cocosRefs = runCoreLoopThroughSession(cocosSession);
@@ -164,7 +165,7 @@ test('Stage 1A baseline final state is consistent across fixture runner, headles
 test('Stage 1A baseline package metadata and docs do not retain old code package version markers', () => {
   const root = process.cwd();
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version: string; scripts: Record<string, string> };
-  assert.equal(packageJson.version, '0.0.2-23');
+  assert.equal(packageJson.version, '0.0.2-24');
   const checkSurface = `${packageJson.scripts.check}\n${readFileSync(join(root, 'tools/run-code-check.mjs'), 'utf8')}\n${readFileSync(join(root, 'tools/quality/test-registry.json'), 'utf8')}`;
   assert.equal(checkSurface.includes('tests/cocos-ui-readiness.test.ts'), true);
   assert.equal(checkSurface.includes('tests/action-preview-boundary.test.ts'), true);
@@ -179,7 +180,7 @@ test('Stage 1A baseline package metadata and docs do not retain old code package
   assert.equal(checkSurface.includes('tests/package-hygiene.test.mjs'), true);
 
   const sourceDesign = readFileSync(join(root, 'design_snapshot/SOURCE_DESIGN_PACK.txt'), 'utf8');
-  assert.equal(sourceDesign.includes('code_package_version: v0.0.2.23'), true);
+  assert.equal(sourceDesign.includes('code_package_version: v0.0.2.24'), true);
 
   const scannedFiles = [
     'README.md',

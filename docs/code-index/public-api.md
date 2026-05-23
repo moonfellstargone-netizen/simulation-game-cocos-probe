@@ -1,4 +1,4 @@
-# Code Index — Public API — v0.0.2.23
+﻿# Code Index — Public API — v0.0.2.24
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -37,8 +37,8 @@
 
 ## Release build / check 入口
 
-- `npm run release:build` → `tools/build_release_package.py`
-- `npm run release:check` → `tools/check_release_zip.py`
+- `npm run release:build` → `tools/build_release_package.py --project-target ...`
+- `npm run release:check` → `tools/check_release_zip.py --project-target ...`
 - release 根名见 `tools/quality/rules/project-target.json`
 
 ## 待后续增强

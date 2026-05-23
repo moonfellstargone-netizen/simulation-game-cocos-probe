@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { testBuildId } from './support/buildId.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -9,7 +10,7 @@ import { buildRuntimeWithoutState, cloneForCompare } from './support/runtimeHarn
 function makeQueuedShell(storage: SaveStoragePort = new InMemorySaveStoragePort()) {
   const { configs, contracts } = buildRuntimeWithoutState();
   const host = new CocosSessionHost(configs, contracts, storage, {
-    buildId: 'cocos_ui_command_queue_test_v0_0_2_22',
+    buildId: testBuildId('cocos_ui_command_queue_test'),
     nowIso8601: '2026-05-21T00:00:00.000Z'
   });
   const shell = new CocosUiShellController(host);

@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { testBuildId } from './support/buildId.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -10,7 +11,7 @@ import { buildRuntimeWithoutState, cloneForCompare } from './support/runtimeHarn
 function makeSession() {
   const { configs, contracts } = buildRuntimeWithoutState();
   return new CocosAppRuntimeSession(configs, contracts, new InMemorySaveStoragePort(), {
-    buildId: 'cocos_ui_readiness_test_v0_0_2_22',
+    buildId: testBuildId('cocos_ui_readiness_test'),
     nowIso8601: '2026-05-19T00:00:00.000Z'
   });
 }

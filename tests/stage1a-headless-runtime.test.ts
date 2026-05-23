@@ -7,10 +7,11 @@ import { Stage1AActionScriptRunner, Stage1AHeadlessRuntime } from '../src/game-c
 import { Stage1AFixtureRunner } from '../src/game-core/testing-api';
 import type { Stage1AFixtureDocument } from '../src/game-core/testing-api';
 import { buildRuntimeWithoutState } from './support/runtimeHarness';
+import { testBuildId } from './support/buildId.mjs';
 
 function runHeadlessCoreLoop() {
   const { configs, contracts } = buildRuntimeWithoutState();
-  const runtime = new Stage1AHeadlessRuntime(configs, contracts, { buildId: 'headless_test_v0_0_2_22', nowIso8601: '2026-05-19T00:00:00.000Z' });
+  const runtime = new Stage1AHeadlessRuntime(configs, contracts, { buildId: testBuildId('headless_test'), nowIso8601: '2026-05-19T00:00:00.000Z' });
   const script = new Stage1AActionScriptRunner();
   const report = script.runCoreLoop(runtime);
   return { runtime, report, contracts };
@@ -51,7 +52,7 @@ test('Headless runner completes Stage 1A core loop through submit_order with for
 
 test('Headless runner rejects system action requests before ActionPipeline dispatch', () => {
   const { configs, contracts } = buildRuntimeWithoutState();
-  const runtime = new Stage1AHeadlessRuntime(configs, contracts, { buildId: 'headless_system_reject_v0_0_2_22' });
+  const runtime = new Stage1AHeadlessRuntime(configs, contracts, { buildId: testBuildId('headless_system_reject') });
   const before = structuredClone(runtime.state);
 
   assert.throws(() => runtime.dispatchRequest({
@@ -69,7 +70,7 @@ test('Headless runner final key business state matches formal fixture runner sta
   const headless = runHeadlessCoreLoop();
   const { snapshot, configs, contracts, runtime } = buildRuntimeWithoutState();
   const fixture = snapshot.loaded_documents['tests/fixtures/stage_1A_action_sequence.yaml'] as Stage1AFixtureDocument;
-  const fixtureReport = new Stage1AFixtureRunner(runtime.pipeline, { configs, buildId: 'fixture_compare_v0_0_2_22', nowIso8601: '2026-05-19T00:00:00.000Z' }).runFixtureThroughStepId(fixture, 'T20_release_injected_reservation');
+  const fixtureReport = new Stage1AFixtureRunner(runtime.pipeline, { configs, buildId: testBuildId('fixture_compare'), nowIso8601: '2026-05-19T00:00:00.000Z' }).runFixtureThroughStepId(fixture, 'T20_release_injected_reservation');
 
   const headlessOrder = headless.runtime.state.save_file.orders.find((item) => item.order_id === 'tavern_home_dish_001');
   const fixtureOrder = fixtureReport.state.save_file.orders.find((item) => item.order_id === 'tavern_home_dish_001');

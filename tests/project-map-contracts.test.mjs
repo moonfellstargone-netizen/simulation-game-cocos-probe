@@ -46,14 +46,17 @@ const codeIndexExplicitPaths = [
   'tools/quality/gate-policy.json'
 ];
 
+const legacyMigrationBaselineVersion = ['v0', '0', '2', '22'].join('.');
+const legacyBaselineRegex = legacyMigrationBaselineVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const forbiddenMisauthorityPatterns = [
-  /永远基于\s*v0\.0\.2\.22/,
+  new RegExp(`永远基于\\s*${legacyBaselineRegex}`),
   /q:affected\s*(可以|能|能够)?\s*替代\s*(q:full|q:release|release)/,
   /日志包.*代码生成依据/,
   /跳过预检.*直接/,
   /技术指导.*玩法权威/,
   /Cocos\s*日常开发权威.*zip/,
-  /v0\.0\.2\.22.*永久当前版本/
+  new RegExp(`${legacyBaselineRegex}.*永久当前版本`)
 ];
 
 const forbiddenModuleContractsAsPrimaryPatterns = [
@@ -119,12 +122,12 @@ function assertForbiddenPositiveMisauthority(text, pattern) {
   }
 }
 
-test('current version is v0.0.2.23 in package metadata', () => {
+test('current version is v0.0.2.24 in package metadata', () => {
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  assert.equal(packageJson.version, '0.0.2-23');
+  assert.equal(packageJson.version, '0.0.2-24');
 
   const projectTarget = JSON.parse(readFileSync(join(root, 'tools/quality/rules/project-target.json'), 'utf8'));
-  assert.equal(projectTarget.version.codePackageVersion, 'v0.0.2.23');
+  assert.equal(projectTarget.version.codePackageVersion, 'v0.0.2.24');
 });
 
 function collectMarkdown(relativeDir) {

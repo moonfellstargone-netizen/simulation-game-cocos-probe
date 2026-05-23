@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { testBuildId } from './support/buildId.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -9,7 +10,7 @@ import { buildRuntime, buildRuntimeWithoutState, cloneForCompare } from './suppo
 function makeSession() {
   const { configs, contracts } = buildRuntimeWithoutState();
   return new CocosAppRuntimeSession(configs, contracts, new InMemorySaveStoragePort(), {
-    buildId: 'action_preview_boundary_test_v0_0_2_22',
+    buildId: testBuildId('action_preview_boundary_test'),
     nowIso8601: '2026-05-19T00:00:00.000Z'
   });
 }

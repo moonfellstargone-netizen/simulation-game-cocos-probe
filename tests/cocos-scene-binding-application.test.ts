@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { testBuildId } from './support/buildId.mjs';
 import assert from 'node:assert/strict';
 import {
   CocosSceneBindingController,
@@ -15,7 +16,7 @@ function makeSceneBinding() {
   const { configs, contracts } = buildRuntimeWithoutState();
   const storage = new InMemorySaveStoragePort();
   const host = new CocosSessionHost(configs, contracts, storage, {
-    buildId: 'cocos_scene_binding_test_v0_0_2_22',
+    buildId: testBuildId('cocos_scene_binding_test'),
     nowIso8601: '2026-05-21T00:00:00.000Z'
   });
   const shell = new CocosUiShellController(host);

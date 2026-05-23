@@ -1,12 +1,12 @@
-# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.23
+# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.24
 
-**Project Map & Git Workflow Readiness / 项目分级地图与 Git 工作流准备版**
+**Quality Version Surface & BuildId Authority / 检查体系版本表面与构建标识权威源收敛版**
 
 本仓库是 Cocos 微信试水代码项目**日常代码权威源**。正式玩法与契约权威仍为正式三包 v1.5.2.2。
 
-- 代码包版本：`v0.0.2.23`
-- npm package version：`0.0.2-23`
-- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_23`
+- 代码包版本：`v0.0.2.24`
+- npm package version：`0.0.2-24`
+- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_24`（权威源：`tools/quality/rules/project-target.json`）
 - 设计来源：`模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip`
 - 规则权威源：`tools/quality/rules/project-target.json`、`tools/quality/rules/context-doc-surface.rules.json`、`tools/quality/rules/architecture-boundary.rules.json`
 - 代码权威：本 GitHub 仓库（非 zip 归档包）
@@ -21,9 +21,9 @@
 
 ## Task Intent Lock
 
-本轮唯一目标是建立 GitHub 工作流、项目分级地图、文档治理与 `project-map-contracts` 契约测试。
+本轮唯一目标是加固质量检查体系中的 version surface、BuildId 与 release root/zip 权威源，减少版本升级时的手动传播面。
 
-本轮明确不进入 Stage 1B，不接真实 Cocos，不接 wx storage，不创建真实 Cocos Component/Scene/Prefab，不新增玩法，不新增 formal action，不修改 ActionPipeline，不修改 SaveFile，不修改正式 fixture。
+本轮明确不进入 Stage 1B，不接真实 Cocos，不接 wx storage，不新增玩法，不新增 formal action，不修改 ActionPipeline，不修改 SaveFile，不修改正式 fixture。
 
 执行方使用 Cursor 时**必须先做预检报告**，用户或 GPT 确认后才可修改文件。复杂任务须先做 Scope Discovery。
 
@@ -36,7 +36,8 @@
 ## 常用命令
 
 - `npm run test:project-map-contracts`
-- `npm run q:affected -- --changed-files docs/PROJECT_MAP.md`
+- `npm run test:version-surface-contracts`
+- `npm run quality:version`
 - `npm run q:full`
 - `npm run q:release`
 - `npm run arch:check`
