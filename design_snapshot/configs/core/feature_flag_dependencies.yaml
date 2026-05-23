@@ -1,0 +1,44 @@
+dependency_policy_id: feature_flag_dependencies.v1.5.2.2
+evaluation_order: parent_before_child
+extension_policy: Parent flag false disables runtime entry gates of normal child flags.
+  Child flags may remain true as configured defaults for later stages; they are inert
+  until every required parent is true. Debug overlay gates are evaluated separately
+  by allowed_stages / debug profile policy, so a normal gameplay parent can remain
+  false while a debug-only gate is true.
+dependencies:
+  child_can_self_feed:
+    requires_all:
+    - family_meal_enabled
+    disabled_behavior: inert_until_parent_enabled
+    stage_1A_note: Stage 1A may keep this configured true for future Stage 1B defaults,
+      but UI and Action gates must not open while family_meal_enabled=false.
+  allow_buy_meal_substitute:
+    requires_all:
+    - family_meal_enabled
+    disabled_behavior: inert_until_parent_enabled
+    stage_1A_note: Stage 1A may keep this configured true for future Stage 1B defaults,
+      but UI and Action gates must not open while family_meal_enabled=false.
+  carry_water_enabled:
+    requires_all:
+    - water_tank_enabled
+    disabled_behavior: inert_until_parent_enabled
+  water_quality_enabled:
+    requires_all:
+    - water_tank_enabled
+    disabled_behavior: inert_until_parent_enabled
+  clinic_order_debug_enabled:
+    dependency_mode: debug_overlay_gate
+    allowed_stages:
+    - stage_1C_debug
+    normal_pool_parent: clinic_order_enabled
+    keeps_normal_pool_closed_when:
+      clinic_order_enabled: false
+    disabled_behavior: debug_entry_hidden_outside_allowed_debug_stage
+    extension_note: This gate only exposes debug validation entry in explicitly allowed
+      debug stages. It does not open the normal clinic order pool while clinic_order_enabled=false.
+  old_case_debug_enabled:
+    requires_all:
+    - story_system_enabled
+    requires_false:
+    - old_case_content_enabled
+    disabled_behavior: debug_stub_only; no formal old-case content opens until old_case_content_enabled=true

@@ -1,0 +1,173 @@
+guardrail_version: stage_1A_development_guardrails.v1
+scope: Stage 1A can enter code implementation only if its architecture keeps Stage
+  1B and Stage 1C debug attachable without rewriting Stage 1A core services.
+stage_1A_code_can_start: true
+stage_1B_1C_must_remain_attachable: true
+required_guard_ids:
+- action_pipeline_single_write_entry
+- time_settlement_registry
+- savefile_versioned_migration
+- storage_occupant_open_set
+- feature_stage_gate_runtime_inertness
+- demand_resolver_config_driven
+- dev_tools_validator_only_boundary
+- large_game_foundation_not_demo_shortcut
+- material_base_form_model_boundary
+guards:
+  action_pipeline_single_write_entry:
+    current_stage_requirement: All Stage 1A gameplay state mutations must enter through
+      formal ActionRequest and ActionPipeline.
+    future_extension_reason: Stage 1B actions such as arrange_meal/carry_water and
+      Stage 1C debug actions must be addable as new formal actions rather than UI-side
+      direct mutations.
+    forbidden_shortcuts:
+    - UI directly mutates SaveFile, inventory, orders, money, story_flags, home_water,
+      family_state, tools_state, or facilities_state.
+    - Stage 1B reserved actions are implemented ad hoc outside the ActionPipeline.
+  time_settlement_registry:
+    current_stage_requirement: TimeSystem must expose a settlement registry/hook chain
+      for crop_growth, spoilage, processing_task, and order_deadline.
+    future_extension_reason: Stage 1B family_meal/home_water/tool_durability and Stage
+      1C clinic/story debug settlement must attach as additional settlement handlers.
+    forbidden_shortcuts:
+    - advance_time hard-codes only crop growth or processing and has no registration
+      path for future settlement domains.
+    - Daily settlement directly edits unrelated domains without ActionResult/DomainEvent
+      traceability.
+  savefile_versioned_migration:
+    current_stage_requirement: SaveManager must initialize from schemas/save_file.schema.json
+      and preserve version/migration fields from NewGameBuilder mapping.
+    future_extension_reason: Stage 1B/1C fields can be added through SaveFile schema
+      and migrations without breaking Stage 1A saves.
+    forbidden_shortcuts:
+    - SaveFile is represented as loose dict writes without schema validation.
+    - game_version/config_version/content_pack_versions are hard-coded outside rule_versions
+      and NewGameBuilder mapping.
+  storage_occupant_open_set:
+    current_stage_requirement: Inventory and StorageSystem must operate on StorageOccupantRef
+      and adapters for MaterialLot and DishLot.
+    future_extension_reason: Future stored objects can be registered without replacing
+      store_item, storage reconciliation, or container cache logic.
+    forbidden_shortcuts:
+    - Storage containers keep only material lot IDs.
+    - used_capacity is manually patched instead of rebuilt from StorageOccupant.storage_footprint.
+  feature_stage_gate_runtime_inertness:
+    current_stage_requirement: Configured/effective flags and runtime gates must remain
+      separate; inactive future systems may have data but no runtime entry.
+    future_extension_reason: Stage 1B and Stage 1C can be enabled by gates and formal
+      actions rather than by rewriting Stage 1A feature checks.
+    forbidden_shortcuts:
+    - Code assumes stage_id == stage_1A as the only gate model.
+    - Future config presence automatically opens UI or Action entry without runtime
+      gate approval.
+  demand_resolver_config_driven:
+    current_stage_requirement: submit_order must use DemandProfile/DemandResolver
+      and submitted_object_refs rather than hard-coded tavern dish logic.
+    future_extension_reason: Family meal, clinic meal, shop customer, and later economy
+      orders can reuse the same resolver path.
+    forbidden_shortcuts:
+    - 钱小曼酒馆订单 is hard-coded as the only order type inside submit_order.
+    - Dish suitability is read from recipe name instead of DishLot.suitability_tags/property
+      profile.
+  dev_tools_validator_only_boundary:
+    current_stage_requirement: dev_tools may validate package contracts and generate
+      derived design files, but must not be copied into game runtime as business logic.
+    future_extension_reason: Runtime services can be implemented cleanly while validators
+      remain independent guardrails for later Stage 1B/1C branches.
+    forbidden_shortcuts:
+    - dev_tools/check_config_closure.py functions are imported by game runtime systems.
+    - negative test payloads are treated as gameplay examples or codegen source.
+  large_game_foundation_not_demo_shortcut:
+    current_stage_requirement: Stage 1A code may implement a small feature scope,
+      but must keep large-game foundations such as NewGameBuilder, ConfigRepository,
+      ActionValidator, TransactionRunner, IdService, Quantity, DomainEvent/EventLog
+      separation, and core tests.
+    future_extension_reason: Stage 1B, Stage 1C, Unity complete version, and future
+      systems require the same foundation; demo-style shortcuts would force repeated
+      rewrites.
+    forbidden_shortcuts:
+    - Initial SaveFile, inventory, field, order, and version data are hard-coded inside
+      GameCore or UI controller functions.
+    - ActionPipeline directly calls systems that mutate SaveFile without validation,
+      transaction, event, rollback, or deterministic ID boundaries.
+  material_base_form_model_boundary:
+    current_stage_requirement: MaterialLot implementation must preserve base_id +
+      current_form as the material form model; propagation materials connect through
+      material_base_id/current_form and form tags.
+    future_extension_reason: Processing, cooking, breeding, storage, and demand matching
+      need to handle seed/fresh/cut/pickling/pickled/dried and later propagation forms
+      without creating unrelated item systems.
+    forbidden_shortcuts:
+    - cabbage_seed, cabbage_fresh, cabbage_pickled style IDs are treated as the long-term
+      primary identity model for all material forms.
+    - Business logic parses Chinese display names or string suffixes to decide whether
+      an item is seed, fresh, pickled, dried, plantable, processable, or cookable.
+machine_assertions:
+- assertion_id: active_contract_guardrail_section_exists
+  path: active_contract/00_当前唯一实现口径_v1_5_2_2.txt
+  contains_all:
+  - Stage 1A 代码开发护栏
+  - ActionPipeline 是唯一正式写入口
+  - settlement registry
+  - StorageOccupantRef
+  - runtime gate
+- assertion_id: module13_guardrail_boundary_exists
+  path: modules/13_项目目录结构与模块边界_current.txt
+  contains_all:
+  - Stage 1A 开发护栏
+  - 结算器注册
+  - 不得只支持 MaterialLot
+  - dev_tools 是 validator-only
+- assertion_id: module04_time_action_guardrail_exists
+  path: modules/04_时间动作管线事务存档测试_current.txt
+  contains_all:
+  - TimeSystem settlement registry
+  - family_meal
+  - home_water
+  - tool_durability
+  - clinic_debug
+- assertion_id: stage0_architecture_guardrail_exists
+  path: tests/stage_0_architecture_check.md
+  contains_all:
+  - Stage 1A 开发护栏
+  - 可注册结算器
+  - ActionPipeline 统一入口
+  - SaveFile version/migration
+- assertion_id: dev_tools_readme_validator_only_exists
+  path: dev_tools/README.md
+  contains_all:
+  - validator-only
+  - 不是游戏运行时代码
+  - run_negative_contract_tests.py --subset
+- assertion_id: action_result_message_template_boundary_exists
+  path: active_contract/00_当前唯一实现口径_v1_5_2_2.txt
+  contains_all:
+  - message_key
+  - message_params
+  - 文本模板
+  - 不得把最终拼接后的中文 message 作为唯一结果来源
+- assertion_id: module26_large_game_foundation_exists
+  path: modules/26_代码落地架构基础与形态模型_current.txt
+  contains_all:
+  - 大型游戏基础
+  - NewGameBuilder
+  - TransactionRunner
+  - IdService
+  - base_id
+  - current_form
+  - propagation material
+- assertion_id: active_contract_form_model_and_foundation_exists
+  path: active_contract/00_当前唯一实现口径_v1_5_2_2.txt
+  contains_all:
+  - 基础物 + 形态模型
+  - 大型游戏基础
+  - ActionRequest 不得退化为只传 action_type
+  - current_form
+  - IdService
+- assertion_id: stage0_foundation_guardrail_exists
+  path: tests/stage_0_architecture_check.md
+  contains_all:
+  - 大型游戏基础
+  - base_id + current_form
+  - TransactionRunner
+  - DomainEvent/EventLog

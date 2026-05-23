@@ -1,0 +1,16 @@
+stage_id: stage_1B
+override_version: feature_flags.override.v1.5.2.2.stage_1B
+merge_policy: override_core_feature_flags_by_key
+feature_flag_overrides:
+  family_meal_enabled: true
+  family_meal_daily_required: false
+  family_meal_hard_survival_penalty: false
+  child_can_self_feed: true
+  allow_buy_meal_substitute: true
+  water_tank_enabled: true
+  carry_water_enabled: true
+  water_quality_enabled: false
+  durability_system_enabled: true
+  fuel_system_enabled: true
+  clinic_order_debug_enabled: false
+  old_case_debug_enabled: false

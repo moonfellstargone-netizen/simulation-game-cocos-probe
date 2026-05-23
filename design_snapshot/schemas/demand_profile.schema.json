@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "demand_profile.schema.json",
+  "type": "object",
+  "required": [
+    "id",
+    "demand_profile_id",
+    "display_name_key",
+    "accepted_object_types",
+    "match_threshold"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "demand_profile_id": {
+      "type": "string"
+    },
+    "display_name_key": {
+      "type": "string"
+    },
+    "issuer_npc_id": {
+      "type": "string"
+    },
+    "accepted_object_types": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hard_requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "type",
+          "key"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "enum": [
+              "property",
+              "field",
+              "tag",
+              "defect",
+              "source",
+              "form",
+              "category"
+            ]
+          },
+          "key": {
+            "type": "string"
+          },
+          "max_value": {
+            "type": "number"
+          },
+          "min_value": {
+            "type": "number"
+          },
+          "target_range": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "weight": {
+            "type": "number"
+          },
+          "scoring_curve": {
+            "type": "string"
+          },
+          "source_object_field": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "weighted_requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "type",
+          "key"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "enum": [
+              "property",
+              "field",
+              "tag",
+              "defect",
+              "source",
+              "form",
+              "category"
+            ]
+          },
+          "key": {
+            "type": "string"
+          },
+          "max_value": {
+            "type": "number"
+          },
+          "min_value": {
+            "type": "number"
+          },
+          "target_range": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "weight": {
+            "type": "number"
+          },
+          "scoring_curve": {
+            "type": "string"
+          },
+          "source_object_field": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "forbidden_defects": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acceptable_defects": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "context_modifiers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [],
+        "additionalProperties": false,
+        "properties": {
+          "prefer_tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "penalize_tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "match_threshold": {
+      "type": "number"
+    },
+    "meal_tolerance_rules": {
+      "type": "object",
+      "required": [],
+      "additionalProperties": false,
+      "properties": {
+        "one_day_missing": {
+          "type": "string"
+        },
+        "consecutive_days_threshold": {
+          "type": "integer"
+        },
+        "substitute_allowed": {
+          "type": "boolean"
+        },
+        "child_self_feed_short_term": {
+          "type": "boolean"
+        }
+      }
+    },
+    "reward_rules": {
+      "type": "object",
+      "required": [],
+      "additionalProperties": false,
+      "properties": {
+        "base_money": {
+          "type": "number"
+        },
+        "score_bonus_per_10_over_threshold": {
+          "type": "number"
+        },
+        "reputation_delta_on_success": {
+          "type": "number"
+        },
+        "currency_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "explanation_keys": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "resolver_type_contract": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "available_from_stage": {
+      "enum": [
+        "stage_1A",
+        "stage_1B",
+        "stage_1C_debug",
+        "stage_2",
+        "stage_3"
+      ]
+    }
+  }
+}

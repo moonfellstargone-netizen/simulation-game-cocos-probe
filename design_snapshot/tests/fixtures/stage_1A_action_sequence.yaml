@@ -1,0 +1,248 @@
+fixture_id: stage_1A_action_sequence
+action_sequence:
+- step_id: T01_load_config
+  action_type: system.load_config_profile
+  parameters:
+    profile_path: configs/active_stage_1A/load_order.yaml
+  expected:
+    success: true
+    no_missing_refs: true
+    no_deprecated_fields: true
+- step_id: T02_start_new_game
+  action_type: system.start_new_game
+  parameters:
+    initial_world_path: configs/initial_world/stage_1A_initial_world.yaml
+  save_aliases:
+    seed_lot: seed_cabbage_initial_001
+    salt_lot: salt_initial_001
+    bacon_lot: bacon_initial_001
+    oil_lot: oil_initial_001
+- step_id: T03_plant_cabbage
+  action_type: plant_crop
+  parameters:
+    field_plot_id: field_plot_01
+    seed_lot_id: $seed_lot
+    seed_quantity:
+      amount: 1
+      unit: count
+  save_result_aliases:
+    crop: created_objects[0].object_id
+- step_id: T03B_save_load_mid_growth
+  action_type: system.save_and_load_roundtrip
+  parameters:
+    slot_id: test_stage_1A_mid_growth_slot
+  expected:
+    success: true
+    crop_instance_persisted: true
+    field_active_crop_ids_include_saved_crop: true
+    loaded_game_can_continue_growth_and_harvest: true
+- step_id: T04_advance_until_mature
+  action_type: advance_time
+  parameters:
+    minutes: 5400
+  expected:
+    crop_reaches_mature: true
+  test_driver_hints:
+    settlement_mode: daily_and_crop_growth
+    growth_time_policy: winter_cold_clear_multiplier_included
+- step_id: T05_harvest_cabbage
+  action_type: harvest_crop
+  parameters:
+    crop_id: $crop
+  save_result_aliases:
+    cabbage_lot: created_objects[0].object_id
+- step_id: T06_room_temp_decay
+  action_type: advance_time
+  parameters:
+    minutes: 1440
+  save_result_aliases:
+    room_temp_freshness_after_day: inventory[$cabbage_lot].property_profile.freshness
+  test_driver_hints:
+    settlement_mode: storage_decay
+- step_id: T07_move_to_cellar
+  action_type: store_item
+  parameters:
+    storage_ref:
+      location_id: home
+      storage_type: cellar
+      container_id: home_cellar_01
+    object_ref:
+      object_type: MaterialLot
+      object_id: $cabbage_lot
+- step_id: T08_cellar_decay
+  action_type: advance_time
+  parameters:
+    minutes: 1440
+  save_result_aliases:
+    cellar_freshness_after_day: inventory[$cabbage_lot].property_profile.freshness
+  test_driver_hints:
+    settlement_mode: storage_decay
+- step_id: T09_split_cabbage_300g
+  action_type: split_lot
+  parameters:
+    source_lot_id: $cabbage_lot
+    quantity:
+      amount: 300
+      unit: g
+  save_result_aliases:
+    cabbage_split_lot: created_objects[0].object_id
+- step_id: T10_start_pickling
+  action_type: start_processing
+  parameters:
+    method_id: pickling_cabbage_basic
+    input_lots:
+    - lot_id: $cabbage_split_lot
+      quantity:
+        amount: 300
+        unit: g
+    - lot_id: $salt_lot
+      quantity:
+        amount: 15
+        unit: g
+    facility_ref:
+      location_id: home
+      storage_type: pickling_jar
+      container_id: pickling_jar_basic_01
+      definition_id: pickling_jar_basic
+      facility_id: pickling_jar_basic_01
+  save_result_aliases:
+    pickling_task: created_objects[0].object_id
+- step_id: T11_advance_pickling_until_ready
+  action_type: advance_time
+  parameters:
+    minutes: 2880
+  expected:
+    processing_task_ready_to_collect: true
+  test_driver_hints:
+    settlement_mode: processing_progress
+- step_id: T12_collect_pickled_cabbage
+  action_type: collect_processing_result
+  parameters:
+    task_id: $pickling_task
+  save_result_aliases:
+    pickled_cabbage_lot: created_objects[0].object_id
+- step_id: T13_cook_bacon_cabbage
+  action_type: cook_dish
+  parameters:
+    recipe_variant_id: bacon_cabbage_basic
+    ingredients:
+      main:
+        lot_id: $pickled_cabbage_lot
+        quantity:
+          amount: 250
+          unit: g
+      side:
+        lot_id: $bacon_lot
+        quantity:
+          amount: 50
+          unit: g
+      oil:
+        lot_id: $oil_lot
+        quantity:
+          amount: 10
+          unit: ml
+    technique: stir_fry
+    operation_profile:
+      heat_level: high
+      active_minutes: 8
+    target_storage_ref:
+      location_id: home
+      storage_type: room_temp
+      container_id: home_room_temp_01
+  save_result_aliases:
+    dish_lot: created_objects[0].object_id
+- step_id: T14_submit_tavern_order
+  action_type: submit_order
+  parameters:
+    order_id: tavern_home_dish_001
+    submitted_object_refs:
+    - object_type: DishLot
+      object_id: $dish_lot
+- step_id: T15_save_and_load
+  action_type: system.save_and_load_roundtrip
+  parameters:
+    slot_id: test_stage_1A_slot
+- step_id: T16_invalid_lot_failure
+  action_type: start_processing
+  parameters:
+    method_id: pickling_cabbage_basic
+    input_lots:
+    - lot_id: $pickled_cabbage_lot
+      quantity:
+        amount: 250
+        unit: g
+    - lot_id: $salt_lot
+      quantity:
+        amount: 15
+        unit: g
+    facility_ref:
+      location_id: home
+      storage_type: pickling_jar
+      container_id: pickling_jar_basic_01
+      definition_id: pickling_jar_basic
+      facility_id: pickling_jar_basic_01
+  expected:
+    success: false
+    status_code_any_of:
+    - ERR_INVALID_LOT_STATE
+    - ERR_NOT_ENOUGH_RESOURCE
+    rollback_required: true
+    no_new_task: true
+    no_new_lot: true
+- step_id: T17_split_for_reservation_test
+  action_type: split_lot
+  parameters:
+    source_lot_id: $cabbage_lot
+    quantity:
+      amount: 100
+      unit: g
+  save_result_aliases:
+    reservation_test_lot: created_objects[0].object_id
+- step_id: T18_inject_active_reservation
+  action_type: system.inject_active_reservation
+  parameters:
+    target_ref:
+      object_type: MaterialLot
+      object_id: $reservation_test_lot
+    quantity:
+      amount: 50
+      unit: g
+    reason: reservation_rollback_contract_test
+  save_result_aliases:
+    injected_reservation: created_objects[0].object_id
+  expected:
+    success: true
+    created_object_type: Reservation
+- step_id: T19_reserved_lot_rollback_failure
+  action_type: start_processing
+  parameters:
+    method_id: pickling_cabbage_basic
+    input_lots:
+    - lot_id: $reservation_test_lot
+      quantity:
+        amount: 50
+        unit: g
+    - lot_id: $salt_lot
+      quantity:
+        amount: 5
+        unit: g
+    facility_ref:
+      location_id: home
+      storage_type: pickling_jar
+      container_id: pickling_jar_basic_01
+      definition_id: pickling_jar_basic
+      facility_id: pickling_jar_basic_01
+  expected:
+    success: false
+    status_code_any_of:
+    - ERR_ALREADY_RESERVED
+    rollback_required: true
+    no_extra_reservation_created: true
+    resources_not_double_consumed: true
+- step_id: T20_release_injected_reservation
+  action_type: system.release_reservation
+  parameters:
+    reservation_id: $injected_reservation
+  expected:
+    success: true
+    reservation_status: released

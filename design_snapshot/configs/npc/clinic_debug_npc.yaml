@@ -1,0 +1,12 @@
+npcs:
+  clinic_basic:
+    display_name_key: npc.clinic.name
+    role: clinic
+    location: east_market_clinic
+    demand_profiles:
+    - clinic_light_meal
+    teaching_feedback:
+    - trigger: first_fishy_soup
+      text_key: npc.clinic.tip.ginger
+debug_only: true
+available_from_stage: stage_1C_debug

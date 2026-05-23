@@ -1,0 +1,28 @@
+id: fish_soup
+display_name_key: dish.fish_soup.name
+dish_family: soup
+required_roles:
+  main:
+    allowed_base_ids: [river_fish]
+    min_quantity_g: 250
+resource_requirements:
+  water:
+    source: home_water
+    amount_ml: 1200
+optional_roles:
+  aromatic:
+    allowed_base_ids: [ginger]
+technique_expectations:
+  primary_action: boil
+  time_preference_minutes: {min: 15, ideal_min: 25, ideal_max: 45, max: 70}
+flavor_targets:
+  fishiness: {max: 45}
+  saltiness: {min: 10, ideal_min: 18, ideal_max: 35, max: 50}
+  soup_body: {min: 35, ideal_min: 50, ideal_max: 80}
+classifier_rules:
+  required_technique: boil
+defect_rules:
+  fishy: {condition: dish_profile.fishiness > 55}
+  bland: {condition: dish_profile.saltiness < 10}
+  overcooked: {condition: main_component.tenderness < 35}
+demand_tags: [warm, light_meal, family_suitable, clinic_possible]

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "animal_instance.schema.json",
+  "type": "object",
+  "required": [
+    "animal_id",
+    "species_id",
+    "status",
+    "location_id"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "animal_id": {
+      "type": "string"
+    },
+    "species_id": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "active",
+        "sold",
+        "dead",
+        "removed"
+      ]
+    },
+    "location_id": {
+      "type": "string"
+    },
+    "health": {
+      "type": "number"
+    },
+    "mood": {
+      "type": "number"
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

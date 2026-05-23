@@ -1,0 +1,290 @@
+property_definitions:
+  freshness:
+    type: number
+    min: 0
+    max: 100
+    default: 100
+    meaning: 新鲜度
+    available_from_stage: stage_1A
+  moisture:
+    type: number
+    min: 0
+    max: 100
+    default: 50
+    meaning: 含水量
+    available_from_stage: stage_1A
+  cleanliness:
+    type: number
+    min: 0
+    max: 100
+    default: 70
+    meaning: 清洁度
+    available_from_stage: stage_1A
+  damage:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 损伤程度
+    available_from_stage: stage_1A
+  microbial_risk:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 腐败/微生物风险
+    available_from_stage: stage_1A
+  safety_risk:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 食用安全风险
+    available_from_stage: stage_1A
+  salinity:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 材料盐分
+    available_from_stage: stage_1A
+  fermentation:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 发酵程度
+    available_from_stage: stage_1A
+  dryness:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 干燥程度
+    available_from_stage: stage_1A
+  crunch:
+    type: number
+    min: 0
+    max: 100
+    default: 50
+    meaning: 脆度
+    available_from_stage: stage_1A
+  aroma:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 香气
+    available_from_stage: stage_1A
+    stage_1A_usage: stored_or_hidden_property_not_required_for_main_score
+  sweetness:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 甜味
+    available_from_stage: stage_2
+  acidity:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 酸味
+    available_from_stage: stage_2
+  umami:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 鲜味
+    available_from_stage: stage_2
+  oiliness:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 油润/油腻程度
+    available_from_stage: stage_1A
+    stage_1A_usage: active_scoring_property
+  fishiness:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 腥味
+    available_from_stage: stage_2
+  smoky_aroma:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 烟熏香
+    available_from_stage: stage_1A
+    stage_1A_usage: stored_or_hidden_property_not_required_for_main_score
+  tenderness:
+    type: number
+    min: 0
+    max: 100
+    default: 50
+    meaning: 软嫩度
+    available_from_stage: stage_2
+  fiber:
+    type: number
+    min: 0
+    max: 100
+    default: 50
+    meaning: 纤维感
+    available_from_stage: stage_2
+  saltiness:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    object_scope: dish_lot
+    meaning: 菜品咸味感受
+    available_from_stage: stage_1A
+  wateriness:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    object_scope: dish_lot
+    meaning: 菜品出水/水气
+    available_from_stage: stage_1A
+  heat_level:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    object_scope: dish_lot
+    meaning: 火候强度
+    available_from_stage: stage_1A
+  doneness:
+    type: number
+    min: 0
+    max: 100
+    default: 50
+    object_scope: dish_lot
+    meaning: 成熟度
+    available_from_stage: stage_1A
+  texture_balance:
+    type: number
+    min: 0
+    max: 100
+    default: 50
+    object_scope: dish_lot
+    meaning: 口感平衡
+    available_from_stage: stage_1A
+  soup_body:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    object_scope: dish_lot
+    meaning: 汤感厚度
+    available_from_stage: stage_1A
+  freshness_expression:
+    type: number
+    min: 0
+    max: 100
+    default: 50
+    object_scope: dish_lot
+    meaning: 菜中体现的新鲜感
+    available_from_stage: stage_1A
+  defect_score:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    object_scope: dish_lot
+    meaning: 缺陷总分
+    available_from_stage: stage_1A
+  warming_potential:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 药食温养潜力
+    available_from_stage: stage_3
+  calming_potential:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 安神潜力
+    available_from_stage: stage_3
+  nourishing_potential:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 滋补潜力
+    available_from_stage: stage_3
+  medicinal_grade:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 药膳等级
+    available_from_stage: stage_3
+  bone_risk:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 鱼刺风险
+    available_from_stage: stage_1C_debug
+  soup_contribution:
+    type: number
+    min: 0
+    max: 100
+    default: 0
+    meaning: 汤底贡献
+    available_from_stage: stage_1C_debug
+allowed_property_scopes:
+  material_lot:
+  - freshness
+  - moisture
+  - cleanliness
+  - damage
+  - microbial_risk
+  - safety_risk
+  - salinity
+  - fermentation
+  - dryness
+  - crunch
+  - aroma
+  - sweetness
+  - acidity
+  - umami
+  - oiliness
+  - fishiness
+  - smoky_aroma
+  - tenderness
+  - fiber
+  - warming_potential
+  - calming_potential
+  - nourishing_potential
+  - medicinal_grade
+  - bone_risk
+  - soup_contribution
+  dish_lot:
+  - freshness_expression
+  - moisture
+  - safety_risk
+  - microbial_risk
+  - saltiness
+  - oiliness
+  - aroma
+  - sweetness
+  - acidity
+  - umami
+  - fishiness
+  - smoky_aroma
+  - tenderness
+  - wateriness
+  - heat_level
+  - doneness
+  - texture_balance
+  - soup_body
+  - defect_score

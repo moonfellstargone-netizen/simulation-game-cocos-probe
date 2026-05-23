@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "feature_flag_dependencies_config.schema.json",
+  "type": "object",
+  "required": [
+    "dependency_policy_id",
+    "evaluation_order",
+    "extension_policy",
+    "dependencies"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "dependency_policy_id": {
+      "type": "string"
+    },
+    "evaluation_order": {
+      "enum": [
+        "parent_before_child"
+      ]
+    },
+    "extension_policy": {
+      "type": "string"
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "disabled_behavior"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "requires_all": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requires_false": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "disabled_behavior": {
+            "type": "string"
+          },
+          "stage_1A_note": {
+            "type": "string"
+          },
+          "extension_note": {
+            "type": "string"
+          },
+          "dependency_mode": {
+            "enum": [
+              "normal_child_gate",
+              "debug_overlay_gate"
+            ]
+          },
+          "allowed_stages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "normal_pool_parent": {
+            "type": "string"
+          },
+          "keeps_normal_pool_closed_when": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    }
+  }
+}

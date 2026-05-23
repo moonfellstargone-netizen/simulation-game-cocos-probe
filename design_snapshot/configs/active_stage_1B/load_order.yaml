@@ -1,0 +1,21 @@
+stage_id: stage_1B
+extends: stage_1A
+config_version: config.v1.5.2.2.stage_1B
+additional_load_order:
+- ./feature_flag_overrides.yaml
+- ../core/home_water.yaml
+- ../demands/family_meal_basic.yaml
+- ../initial_world/stage_1B_life_overlay.yaml
+required_ids:
+  demand_profiles:
+  - family_meal_basic
+  facilities:
+  - water_tank_basic
+  tools:
+  - water_bucket_basic
+new_runtime_requirements:
+- HomeWaterSystem
+- FamilyMealSystem
+- DurabilitySystem
+load_order:
+- ../core/new_game_builder_mapping.yaml

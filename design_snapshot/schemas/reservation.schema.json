@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reservation.schema.json",
+  "type": "object",
+  "required": [
+    "reservation_id",
+    "actor_id",
+    "target_ref",
+    "quantity",
+    "reason",
+    "created_time",
+    "expire_time",
+    "status"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "reservation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "actor_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_ref": {
+      "$ref": "common_defs.schema.json#/$defs/ObjectRef"
+    },
+    "quantity": {
+      "$ref": "common_defs.schema.json#/$defs/Quantity"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_time": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "expire_time": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "status": {
+      "enum": [
+        "active",
+        "consumed",
+        "released",
+        "expired",
+        "cancelled"
+      ]
+    },
+    "source_action_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

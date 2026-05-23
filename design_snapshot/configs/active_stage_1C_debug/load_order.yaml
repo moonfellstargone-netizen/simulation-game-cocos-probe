@@ -1,0 +1,30 @@
+stage_id: stage_1C_debug
+extends: stage_1B
+config_version: config.v1.5.2.2.stage_1C_debug
+additional_load_order:
+- ./feature_flag_overrides.yaml
+- ../materials/fish/river_fish.yaml
+- ../materials/aromatics/ginger.yaml
+- ../cooking/dish_structures/fish_soup.yaml
+- ../cooking/recipe_variants/fish_soup_basic.yaml
+- ../npc/clinic_debug_npc.yaml
+- ../demands/clinic_light_meal.yaml
+- ../initial_world/stage_1C_debug_overlay.yaml
+required_ids:
+  materials:
+  - river_fish
+  - ginger
+  dish_structures:
+  - fish_soup
+  recipe_variants:
+  - fish_soup_basic
+  demand_profiles:
+  - clinic_light_meal
+  npcs:
+  - clinic_basic
+debug_only: true
+forbidden_normal_pool_when_flag_false:
+- clinic_light_meal
+- old_case_formal_content
+load_order:
+- ../core/new_game_builder_mapping.yaml

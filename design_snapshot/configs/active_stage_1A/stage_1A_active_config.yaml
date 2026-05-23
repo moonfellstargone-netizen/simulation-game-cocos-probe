@@ -1,0 +1,35 @@
+stage_id: stage_1A
+purpose: 最小可玩经营闭环，不包含家庭饭食、水资源、医馆正式订单、旧案正式内容。
+entry_chain:
+- plant_crop
+- advance_time_until_mature
+- harvest_crop
+- storage_decay_room_temp
+- move_to_cellar
+- split_lot
+- start_processing_pickling
+- collect_processing_result
+- cook_dish_bacon_cabbage
+- submit_tavern_order
+- save_and_load
+- rollback_failure_case
+active_recipe_variants:
+- bacon_cabbage_basic
+active_demands:
+- tavern_home_dish
+active_npcs:
+- sun_popo
+- qian_xiaoman
+active_material_base_ids:
+- cabbage
+- salt
+- bacon
+- cooking_oil
+- ginger
+active_seed_ids:
+- cabbage_seed
+notes:
+- Stage 1A 可以读取 home_water 字段以满足 SaveFile schema，但不得把扣水/挑水作为 Stage 1A 通过条件。
+- 工具、设施、燃料在 Stage 1A 可以作为存在性与轻量消耗验证；完整耐久反馈归 Stage 1B。
+- 'ginger 作为可选调味料和供货引用进入 Stage 1A 配置闭环，但不是主线通关必需材料。'
+- 'feature flags 以 active_stage_*/feature_flag_overrides.yaml 覆盖 core 默认值。'

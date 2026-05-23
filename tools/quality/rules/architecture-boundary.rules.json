@@ -1,0 +1,239 @@
+{
+  "version": "v0.0.2.22",
+  "description": "Architecture boundary rules remain active while v0.0.2.22 adds affected/cache quality-gate probes. Low-risk import/path ownership rules remain authoritative; token/state-leak rules stay shadow_aligned/shadow until later authority migration.",
+  "ruleTypes": [
+    "importBoundaries",
+    "tokenBoundaries",
+    "pathOwnership"
+  ],
+  "rules": {
+    "importBoundaries": [
+      {
+        "id": "game-core-no-presentation-or-platform",
+        "owner": "game-core",
+        "roots": [
+          "src/game-core/**"
+        ],
+        "includeExtensions": [
+          ".ts"
+        ],
+        "forbiddenImports": [
+          "src/cocos-app/",
+          "src/cocos-creator-adapter/",
+          "cc",
+          "wx",
+          "node:fs",
+          "fs"
+        ],
+        "severity": "error",
+        "description": "game-core 必须独立于 Cocos、微信、Node 文件系统、表现层和平台层。",
+        "mode": "authoritative"
+      },
+      {
+        "id": "cocos-app-no-dev-or-test-api",
+        "owner": "cocos-app",
+        "roots": [
+          "src/cocos-app/**"
+        ],
+        "includeExtensions": [
+          ".ts"
+        ],
+        "forbiddenImports": [
+          "src/game-core/dev-api",
+          "src/game-core/testing-api",
+          "tools/"
+        ],
+        "severity": "error",
+        "description": "cocos-app 不得依赖 game-core dev/testing API 或工具层。",
+        "mode": "authoritative"
+      },
+      {
+        "id": "cocos-creator-adapter-no-real-engine-or-platform",
+        "owner": "cocos-creator-adapter",
+        "roots": [
+          "src/cocos-creator-adapter/**"
+        ],
+        "includeExtensions": [
+          ".ts"
+        ],
+        "forbiddenImports": [
+          "cc",
+          "wx",
+          "node:fs",
+          "fs",
+          "src/game-core/dev-api",
+          "src/game-core/testing-api"
+        ],
+        "severity": "error",
+        "description": "cocos-creator-adapter 当前仍是 TypeScript probe，不得直接接入真实 cc、wx、fs、dev-api 或 testing-api。",
+        "mode": "authoritative"
+      }
+    ],
+    "tokenBoundaries": [
+      {
+        "id": "component-binding-no-savefile-state-leak",
+        "owner": "cocos-creator-adapter",
+        "roots": [
+          "src/cocos-creator-adapter/**"
+        ],
+        "includeExtensions": [
+          ".ts"
+        ],
+        "includeFiles": [
+          "**/*binding*.ts",
+          "**/*component*.ts",
+          "**/*scene*.ts",
+          "**/*view*.ts"
+        ],
+        "excludeFiles": [
+          "**/*.test.ts",
+          "**/*.test.mjs",
+          "**/__fixtures__/**",
+          "**/fixtures/**"
+        ],
+        "forbiddenTokens": [
+          "SaveFile",
+          "GameState",
+          "inventory",
+          "orders",
+          "reservations",
+          "domain_events"
+        ],
+        "allowedPhrases": [
+          "no SaveFile",
+          "no GameState",
+          "forbiddenTokens",
+          "shadow_aligned",
+          "state-leak boundary explanation"
+        ],
+        "ignore": {
+          "lineComments": true,
+          "blockComments": true,
+          "stringLiterals": false
+        },
+        "severity": "shadow_error",
+        "description": "component/scene/view binding 不得泄露内部存档和运行时状态结构；本轮双跑对齐，不转 authoritative。",
+        "mode": "shadow_aligned"
+      },
+      {
+        "id": "scene-binding-no-internal-state-leak",
+        "owner": "cocos-creator-adapter",
+        "roots": [
+          "src/cocos-creator-adapter/**"
+        ],
+        "includeExtensions": [
+          ".ts"
+        ],
+        "includeFiles": [
+          "**/*scene*.ts",
+          "**/*binding*.ts",
+          "**/*view*.ts"
+        ],
+        "excludeFiles": [
+          "**/*.test.ts",
+          "**/*.test.mjs",
+          "**/__fixtures__/**",
+          "**/fixtures/**"
+        ],
+        "forbiddenTokens": [
+          "SaveFile",
+          "GameState",
+          "inventory",
+          "orders",
+          "reservations",
+          "domain_events",
+          "ActionPipeline"
+        ],
+        "allowedPhrases": [
+          "no SaveFile",
+          "no GameState",
+          "no ActionPipeline",
+          "forbiddenTokens",
+          "shadow_aligned",
+          "state-leak boundary explanation"
+        ],
+        "ignore": {
+          "lineComments": true,
+          "blockComments": true,
+          "stringLiterals": false
+        },
+        "severity": "shadow_error",
+        "description": "scene binding 不得直接暴露内部状态结构或正式状态入口；本轮只做 shadow_aligned 双跑对齐。",
+        "mode": "shadow_aligned"
+      },
+      {
+        "id": "adapter-no-direct-runtime-state-shape",
+        "owner": "cocos-creator-adapter",
+        "roots": [
+          "src/cocos-creator-adapter/**"
+        ],
+        "includeExtensions": [
+          ".ts"
+        ],
+        "includeFiles": [
+          "**/*adapter*.ts",
+          "**/*presenter*.ts",
+          "**/*binding*.ts",
+          "**/*component*.ts",
+          "**/*scene*.ts",
+          "**/*view*.ts"
+        ],
+        "excludeFiles": [
+          "**/*.test.ts",
+          "**/*.test.mjs",
+          "**/__fixtures__/**",
+          "**/fixtures/**"
+        ],
+        "forbiddenTokens": [
+          "SaveFile",
+          "GameState",
+          "inventory",
+          "orders",
+          "reservations",
+          "domain_events",
+          "dish_lots"
+        ],
+        "allowedPhrases": [
+          "no SaveFile",
+          "no GameState",
+          "forbiddenTokens",
+          "shadow",
+          "shadow_aligned",
+          "state-leak boundary explanation"
+        ],
+        "ignore": {
+          "lineComments": true,
+          "blockComments": true,
+          "stringLiterals": false
+        },
+        "severity": "shadow_error",
+        "description": "adapter 不得直接感知 runtime state shape；本轮只收窄 scope，不转 authoritative。",
+        "mode": "shadow"
+      }
+    ],
+    "pathOwnership": [
+      {
+        "id": "tools-quality-not-business-runtime",
+        "owner": "tools-quality",
+        "roots": [
+          "tools/quality/**"
+        ],
+        "includeExtensions": [
+          ".mjs",
+          ".js",
+          ".ts"
+        ],
+        "forbiddenImports": [
+          "src/game-core/actions/",
+          "src/game-core/action/",
+          "src/game-core/systems/",
+          "src/game-core/state/"
+        ],
+        "severity": "error",
+        "description": "tools/quality 是静态检查工具层，不得依赖业务运行时代码内部 action、systems 或 state 路径。",
+        "mode": "authoritative"
+      }
+    ]
+  },
+  "defaultMode": "shadow"
+}

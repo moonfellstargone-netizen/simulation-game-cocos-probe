@@ -1,0 +1,462 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "save_file.schema.json",
+  "type": "object",
+  "required": [
+    "save_version",
+    "game_version",
+    "schema_version",
+    "rules_version",
+    "config_version",
+    "content_pack_versions",
+    "created_with_build",
+    "last_saved_with_build",
+    "created_at_real_time",
+    "last_saved_at_real_time",
+    "world_time",
+    "random_state",
+    "feature_flags",
+    "player_state",
+    "family_state",
+    "inventory",
+    "fields",
+    "animals",
+    "processing_tasks",
+    "dish_lots",
+    "orders",
+    "npc_relations",
+    "story_flags",
+    "discovered_clues",
+    "story_event_log",
+    "story_choices",
+    "story_items_state",
+    "home_water",
+    "tools_state",
+    "facilities_state",
+    "event_log_summary",
+    "migration_history",
+    "migration_warnings",
+    "last_migration_at",
+    "debug_flags",
+    "storage_containers",
+    "fuel_state",
+    "crop_instances",
+    "reservations"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "save_version": {
+      "type": "string"
+    },
+    "game_version": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "rules_version": {
+      "type": "string"
+    },
+    "config_version": {
+      "type": "string"
+    },
+    "content_pack_versions": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "created_with_build": {
+      "type": "string"
+    },
+    "last_saved_with_build": {
+      "type": "string"
+    },
+    "created_at_real_time": {
+      "type": "string"
+    },
+    "last_saved_at_real_time": {
+      "type": "string"
+    },
+    "world_time": {
+      "$ref": "time_state.schema.json"
+    },
+    "random_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "string",
+            "integer"
+          ]
+        },
+        "streams": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "seed": {
+                "type": [
+                  "string",
+                  "integer"
+                ]
+              },
+              "position": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+    "feature_flags": {
+      "$ref": "feature_flags_snapshot.schema.json"
+    },
+    "player_state": {
+      "type": "object",
+      "required": [
+        "player_id",
+        "name",
+        "money",
+        "stamina",
+        "skills",
+        "flags",
+        "currency_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "player_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "family_name_mode": {
+          "type": "string"
+        },
+        "gender_config_id": {
+          "type": "string"
+        },
+        "money": {
+          "type": "number"
+        },
+        "stamina": {
+          "type": "number"
+        },
+        "mood": {
+          "type": "number"
+        },
+        "skills": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "reputation_map": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "unlocked_locations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "currency_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "family_state": {
+      "$ref": "family_state.schema.json"
+    },
+    "inventory": {
+      "type": "array",
+      "items": {
+        "$ref": "material_lot.schema.json"
+      }
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "field_plot_state.schema.json"
+      }
+    },
+    "animals": {
+      "type": "array",
+      "items": {
+        "$ref": "animal_instance.schema.json"
+      }
+    },
+    "processing_tasks": {
+      "type": "array",
+      "items": {
+        "$ref": "processing_task.schema.json"
+      }
+    },
+    "dish_lots": {
+      "type": "array",
+      "items": {
+        "$ref": "dish_lot.schema.json"
+      }
+    },
+    "orders": {
+      "type": "array",
+      "items": {
+        "$ref": "order.schema.json"
+      }
+    },
+    "npc_relations": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "npc_id": {
+            "type": "string"
+          },
+          "relation_value": {
+            "type": "number"
+          },
+          "flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "story_flags": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "flag_id",
+          "value",
+          "state",
+          "visibility",
+          "locked",
+          "version"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "flag_id": {
+            "type": "string"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ]
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ]
+                }
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "hidden",
+              "known",
+              "active",
+              "resolved",
+              "abandoned",
+              "failed",
+              "archived"
+            ]
+          },
+          "visibility": {
+            "type": "string"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "discovered_clues": {
+      "type": "array",
+      "items": {
+        "$ref": "common_defs.schema.json#/$defs/StoryClueRef"
+      }
+    },
+    "story_event_log": {
+      "type": "array",
+      "items": {
+        "$ref": "common_defs.schema.json#/$defs/StoryEventEntry"
+      }
+    },
+    "story_choices": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "common_defs.schema.json#/$defs/StoryChoiceEntry"
+      }
+    },
+    "story_items_state": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "common_defs.schema.json#/$defs/StoryItemState"
+      }
+    },
+    "home_water": {
+      "$ref": "home_water_state.schema.json"
+    },
+    "tools_state": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "tool_state.schema.json"
+      },
+      "description": "Runtime tool states expanded from initial_tools_ref by NewGameBuilder."
+    },
+    "facilities_state": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "facility_state.schema.json"
+      },
+      "description": "Runtime facility states expanded from initial_facilities_ref by NewGameBuilder."
+    },
+    "event_log_summary": {
+      "type": "object",
+      "required": [
+        "last_event_id",
+        "total_event_count",
+        "compressed_until_absolute_minute",
+        "channels"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "last_event_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "total_event_count": {
+          "type": "integer"
+        },
+        "compressed_until_absolute_minute": {
+          "type": "integer"
+        },
+        "channels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "migration_history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "migration_id": {
+            "type": "string"
+          },
+          "from_version": {
+            "type": "string"
+          },
+          "to_version": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "migration_warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "last_migration_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "debug_flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "storage_containers": {
+      "type": "array",
+      "items": {
+        "$ref": "storage_container.schema.json"
+      }
+    },
+    "fuel_state": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "fuel_state.schema.json"
+      },
+      "description": "Runtime fuel stock states expanded from initial_fuel_ref by NewGameBuilder."
+    },
+    "crop_instances": {
+      "type": "array",
+      "items": {
+        "$ref": "crop_instance.schema.json"
+      }
+    },
+    "reservations": {
+      "type": "array",
+      "items": {
+        "$ref": "reservation.schema.json"
+      }
+    }
+  }
+}

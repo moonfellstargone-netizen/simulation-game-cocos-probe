@@ -1,0 +1,29 @@
+id: fish_soup_basic
+dish_structure_id: fish_soup
+display_name_key: recipe.fish_soup_basic.name
+technique: boil
+facility_requirements:
+- basic_stove
+- basic_pot
+resource_requirements:
+  water:
+    source: home_water
+    amount_ml: 1200
+  fuel:
+    base_id: firewood_basic
+    amount_bundle: 1
+ingredient_requirements:
+  main:
+    base_id: river_fish
+    min_quantity_g: 250
+  aromatic:
+    base_id: ginger
+    min_quantity_g: 5
+    optional: true
+operation_defaults:
+  time_cost_minutes: 35
+  stamina_cost: 6
+output_estimate:
+  serving_count: 2
+  total_quantity_ml: 900
+available_from_stage: stage_1C_debug

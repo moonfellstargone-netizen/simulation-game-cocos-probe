@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "field_plot_state.schema.json",
+  "type": "object",
+  "required": [
+    "field_plot_id",
+    "definition_id",
+    "location_id",
+    "occupied_tiles",
+    "active_crop_ids"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "field_plot_id": {
+      "type": "string"
+    },
+    "definition_id": {
+      "type": "string"
+    },
+    "location_id": {
+      "type": "string"
+    },
+    "occupied_tiles": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "active_crop_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "soil_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fertility": {
+          "type": "number"
+        },
+        "moisture": {
+          "type": "number"
+        },
+        "weed_pressure": {
+          "type": "number"
+        },
+        "pest_pressure": {
+          "type": "number"
+        }
+      },
+      "minProperties": 1
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

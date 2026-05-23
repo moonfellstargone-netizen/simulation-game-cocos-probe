@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "facility_state.schema.json",
+  "title": "Runtime facility state",
+  "type": "object",
+  "required": [
+    "facility_id",
+    "definition_id",
+    "status",
+    "condition",
+    "quality_tier",
+    "upgrade_level"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "facility_id": {
+      "type": "string"
+    },
+    "definition_id": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "locked",
+        "available",
+        "broken",
+        "disabled"
+      ]
+    },
+    "condition": {
+      "enum": [
+        "usable",
+        "worn",
+        "damaged"
+      ]
+    },
+    "quality_tier": {
+      "enum": [
+        "crude",
+        "basic",
+        "fine",
+        "masterwork"
+      ]
+    },
+    "upgrade_level": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "durability_current": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "durability_max": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "capacity_g": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "capacity_ml": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "container_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "storage_type": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  }
+}

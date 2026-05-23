@@ -1,0 +1,52 @@
+units:
+- g
+- ml
+- count
+- serving
+- bundle
+- slot_weight
+source_types:
+- farming
+- processing
+- cooking
+- npc_trade
+- fishing
+- story
+- debug
+- inventory_split
+- initial_world
+- system
+storage_types:
+- room_temp
+- cellar
+- drying_rack
+- pickling_jar
+- inventory_pack
+- water_storage
+locations:
+- home
+- home_field
+- east_market
+- west_market_tavern
+- river
+- mountain
+- clinic_basic
+- east_market_clinic
+quality_tiers:
+- crude
+- basic
+- fine
+- masterwork
+feature_stages:
+- stage_0
+- stage_1A
+- stage_1B
+- stage_1C_debug
+- stage_2
+- stage_3
+condition_tiers:
+- usable
+- worn
+- damaged
+currency_ids:
+- copper_coin

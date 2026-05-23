@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rule_versions_config.schema.json",
+  "type": "object",
+  "required": [
+    "version_bundle",
+    "load_profiles",
+    "deprecated_fields",
+    "required_runtime_services"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version_bundle": {
+      "type": "object",
+      "required": [
+        "game_version",
+        "schema_version",
+        "rules_version",
+        "config_version",
+        "content_pack_versions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "game_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rules_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "config_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content_pack_versions": {
+          "type": "object",
+          "required": [
+            "base"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          },
+          "properties": {
+            "base": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "load_profiles": {
+      "type": "object",
+      "required": [
+        "stage_0",
+        "stage_1A",
+        "stage_1B",
+        "stage_1C_debug"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "stage_0": {
+          "type": "object",
+          "required": [
+            "description"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        "stage_1A": {
+          "type": "object",
+          "required": [
+            "description"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        "stage_1B": {
+          "type": "object",
+          "required": [
+            "description"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        "stage_1C_debug": {
+          "type": "object",
+          "required": [
+            "description"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "description": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "deprecated_fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "required_runtime_services": {
+      "type": "object",
+      "required": [
+        "stage_0",
+        "stage_1A",
+        "stage_1B",
+        "stage_1C_debug"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "stage_0": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "stage_1A": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "stage_1B": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "stage_1C_debug": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

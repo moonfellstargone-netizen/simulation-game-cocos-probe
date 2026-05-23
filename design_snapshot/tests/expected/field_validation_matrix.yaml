@@ -1,0 +1,127 @@
+fixture_id: field_validation_matrix
+authority_layers:
+  schema: structure_types_required_fields_and_basic_container_shape
+  registry: common_enums_defines_extensible_identity_values
+  dev_tools: cross_file_semantic_references_and_generated_cache_rebuild
+  expected: snapshot_assertions_for_rebuilt_results_not_primary_truth
+protected_objects:
+- material_definition
+- seed_definition
+- material_lot
+- storage_container
+- storage_ref
+- initial_world
+- initial_world_overlay
+- active_profile
+- expected_storage_reconciliation
+- storable_object
+- storage_occupant
+- dish_lot
+- processing_task
+- order
+- reservation
+- fuel_state
+- tool_state
+- facility_state
+- domain_event
+- crop_instance
+- action_lifecycle_matrix
+- transaction_rollback_invariant
+field_categories:
+  identity:
+    authority: schema_and_dev_tools
+    dev_tools_rule: non_blank_trimmed_unique_within_declared_scope
+    examples:
+    - lot_id
+    - container_id
+    - initial_world_id
+    - initial_world_overlay_id
+  registry:
+    authority: common_enums_plus_dev_tools
+    dev_tools_rule: value_must_be_clean_unique_in_registry_and_references_must_be_registered
+    examples:
+    - unit
+    - storage_type
+    - location_id
+  numeric:
+    authority: schema_and_dev_tools
+    dev_tools_rule: must_be_int_or_float_finite_not_bool_not_string_and_with_current_range_rules
+    examples:
+    - quantity.amount
+    - capacity.amount
+    - used_capacity
+    - storage_footprint.amount
+  reference:
+    authority: dev_tools
+    dev_tools_rule: target_exists_type_matches_and_referenced_properties_match
+    examples:
+    - storage_ref.container_id
+    - definition_ref
+    - source_initial_world_id
+  derived:
+    authority: dev_tools
+    dev_tools_rule: derived_from_definition_or_runtime_source_not_accepted_as_independent_source
+    examples:
+    - storage_footprint.amount
+  cache:
+    authority: dev_tools
+    dev_tools_rule: rebuild_from_source_data_and_compare_cache_where_cache_is_stored
+    examples:
+    - StorageContainer.active_object_refs
+    - StorageContainer.used_capacity
+  expected:
+    authority: expected_snapshot_plus_dev_tools_rebuild
+    dev_tools_rule: expected_values_must_have_real_types_and_match_rebuilt_results
+    examples:
+    - stage_storage_reconciliation_expected.profiles.*.used_capacity
+  lifecycle:
+    authority: tests/expected/stage_1A_runtime_lifecycle_matrix.yaml_plus_dev_tools
+    dev_tools_rule: formal_action_read_write_objects_side_effects_cache_invariants_and_rollback_assertions_must_be_declared
+    examples:
+    - ActionLifecycle.reads
+    - ActionLifecycle.writes
+    - ActionLifecycle.storage_cache_invariant
+    - ActionLifecycle.rollback_assertions
+  transaction:
+    authority: active_contract_plus_lifecycle_matrix_plus_dev_tools
+    dev_tools_rule: storage_mutating_actions_must_declare_pre_action_snapshot_success_validation_and_failure_rollback_scope
+    examples:
+    - pre_action_snapshot_scope
+    - post_success_storage_reconciliation
+    - failure_rollback_scope
+    - domain_event_commit_after_validation
+destructive_cases:
+  identity:
+  - blank_string
+  - leading_or_trailing_whitespace
+  - duplicate_in_scope
+  registry:
+  - unregistered_value
+  - registry_duplicate
+  - registry_blank_or_whitespace
+  numeric:
+  - string_number
+  - bool
+  - nan
+  - infinity
+  - zero_or_negative_where_positive_required
+  - fractional_count
+  reference:
+  - missing_target
+  - wrong_target_property
+  - definition_ref_drift
+  - overlay_parent_drift
+  expected:
+  - string_numeric_snapshot
+  - missing_profile
+  - snapshot_matches_wrong_cache_but_not_rebuilt_source
+  lifecycle:
+  - missing_action
+  - missing_read_or_write_set
+  - missing_storage_cache_invariant_for_storage_mutation
+  - missing_save_roundtrip_assertion
+  transaction:
+  - partial_inventory_mutation_after_failure
+  - active_object_refs_not_rolled_back
+  - used_capacity_not_rolled_back
+  - reservation_or_fuel_or_domain_event_leak_after_failure

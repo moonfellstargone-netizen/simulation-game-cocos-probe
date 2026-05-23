@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fuel_state.schema.json",
+  "title": "Runtime fuel stock state",
+  "type": "object",
+  "required": [
+    "fuel_id",
+    "definition_id",
+    "quantity"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "fuel_id": {
+      "type": "string"
+    },
+    "definition_id": {
+      "type": "string"
+    },
+    "quantity": {
+      "$ref": "common_defs.schema.json#/$defs/Quantity"
+    },
+    "enough_for_days_estimate": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  }
+}

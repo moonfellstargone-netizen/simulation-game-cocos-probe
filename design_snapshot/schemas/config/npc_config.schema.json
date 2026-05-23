@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "npc_config.schema.json",
+  "type": "object",
+  "required": [
+    "npcs"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "npcs": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "display_name_key",
+          "role",
+          "location"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "display_name_key": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "supply_node": {
+            "type": "string"
+          },
+          "demand_profiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "teaching_feedback": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "trigger",
+                "text_key"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "trigger": {
+                  "type": "string"
+                },
+                "text_key": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "story_hooks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stage_1A": {
+            "type": "boolean"
+          },
+          "stage_1C_debug": {
+            "type": "boolean"
+          },
+          "debug_only": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "debug_only": {
+      "type": "boolean"
+    },
+    "available_from_stage": {
+      "enum": [
+        "stage_1A",
+        "stage_1B",
+        "stage_1C_debug",
+        "stage_2",
+        "stage_3"
+      ]
+    }
+  }
+}

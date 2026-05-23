@@ -1,0 +1,114 @@
+# 当前唯一实现口径 v1.5.2.2 practical ready
+
+定位：本文件是当前正式包的最高实现口径与权威索引。代码落地优先级：active_contract/00_当前唯一实现口径_v1_5_2_2.txt > configs/active_stage_* > schemas/ > tests/fixtures 与 tests/expected > modules/。modules 负责解释设计意图；若 modules 与 active config、formal schema、fixture/expected 发生冲突，以当前 active_contract 与可执行契约为准。
+
+一、最高权威与入口
+0. 包级机器权威：package_manifest.yaml。版本、根文件、派生文件、检查入口、allowlist 与负例测试入口以 package_manifest.yaml 为机器可读总契约；README 只作入口索引，日志包只记录过程，不替代正式包验证。
+1. Stage 0 架构入口：schemas/、configs/core/、tests/stage_0_architecture_check.md。
+2. Stage 1A 运行入口：configs/active_stage_1A/load_order.yaml；若存在 stage_active_config，必须由 load_order.yaml 的 stage_active_config 字段显式引用。
+3. Stage 1A 自动化验收入口：tests/fixtures/stage_1A_action_sequence.yaml、tests/expected/stage_1A_expected_assertions.yaml、tests/expected/stage_1A_new_game_builder_mapping_assertions.yaml。
+4. Stage 1B 生活系统入口：configs/active_stage_1B/load_order.yaml。当前只作为家庭饭食、水缸/挑水、工具耐久反馈与设施反馈的阶段入口，不反向扩大 Stage 1A 验收。
+5. Stage 1C debug 入口：configs/active_stage_1C_debug/load_order.yaml。当前只用于鱼汤、医馆清淡餐、旧案底座等调试验证，不进入 Stage 1A 正式经营链路。
+6. 当前正式配置加载必须从 active stage 的 load_order.yaml 出发，按 extends + load_order + additional_load_order 递归展开；不得绕过 load_order 直接读取某个目录或单个 override。
+
+二、阶段边界
+1. Stage 1A 只实现最小经营闭环：白菜种植、收获、库存批次、常温与菜窖、拆分、腌制、腊肉炒白菜、燃料轻量扣减、酒馆订单、保存读取、失败回滚测试。
+2. 家庭饭食、水资源扣水、挑水、完整工具耐久反馈、完整设施状态反馈归入 Stage 1B。
+3. 鱼汤、医馆清淡餐、旧案调试入口归入 Stage 1C debug 或后续扩展样板。
+4. npc_supply_sim_enabled=true 表示供应节点配置、供需模板和供应模拟底座可以加载；npc_trade_enabled=false 表示玩家购买行为未开放。二者不冲突。Stage 1A 只保留 NPC 供应底座和购买接口约束，不实现玩家购买流程。
+5. buy_item 当前为预留 Action，不属于 Stage 1A formal_stage_1A_action_request.schema.json；模块中出现的 buy_item 只作为经济分支接入约束，不得在 Stage 1A 代码中临时实现。
+6. 保留配置、Schema、文本或 UI 灰置入口是为了扩展性；未进入 active config、formal action schema、fixture/expected 的内容不应被审查为当前阶段未实现或未闭环。
+
+三、权威来源索引
+1. Action 契约权威：schemas/actions/formal_stage_1A_action_request.schema.json 与 schemas/actions/stage_1A_action_params.schema.json。测试 DSL 不得替代正式玩家 Action。
+2. Feature flag 权威：configs/core/feature_flags.yaml、configs/active_stage_*/feature_flag_overrides.yaml、configs/core/feature_flag_dependencies.yaml 与 tests/expected/*_effective_feature_flags.yaml、tests/expected/*_runtime_feature_gates.yaml。
+3. Registry 权威：configs/core/common_enums.yaml。unit、storage_type、location_id、currency_id 等可扩展身份值必须先登记，再由 dev_tools 检查引用一致性。Schema 不应把未来可扩展身份值硬编码成固定 enum。
+4. Schema 权威：schemas/ 负责结构类型、required 字段、基础数组/对象形态、可解析性，以及当前阶段必须固定的 formal action 边界。
+5. dev_tools 权威：dev_tools/check_config_closure.py 负责跨文件语义一致性，包括 registry 引用、引用目标存在、引用目标属性匹配、派生字段重建、缓存字段重建、active profile/overlay 链闭合、正文路径与阶段归属误导性扫描。
+6. Expected 权威：tests/expected/ 只作为重建结果快照和验收断言，不得替代 Schema、Registry 或运行时重建逻辑成为唯一真相。tests/expected/field_validation_matrix.yaml 是当前校验架构矩阵；新增受保护对象或字段类别时，必须先归类，再同步 Schema、Registry、dev_tools 与 expected。
+7. NewGameBuilder 权威：configs/core/new_game_builder_mapping.yaml、configs/core/rule_versions.yaml、configs/initial_world/*.yaml 与 overlay 合并规则共同定义新档来源；不得把 SaveFile 版本或 content pack 版本写成第二套常量。
+8. Modules 权威边界：modules/ 可保留完整游戏设计、未来扩展样板与阶段说明；凡使用“第一版 / MVP / 必做”等词，必须标明 Stage 1A、Stage 1B、Stage 1C debug 或后续扩展归属，并以 active config、formal schema、fixture/expected 为准。
+
+四、Stage 1A formal Action 契约
+1. Stage 1A formal gameplay actions：plant_crop、advance_time、harvest_crop、store_item、split_lot、start_processing、collect_processing_result、cook_dish、submit_order。
+2. collect_processing_result 是 Stage 1A 正式玩家 Action；加工时间推进使用 advance_time，收取加工结果使用 collect_processing_result，不允许用合并式测试动作替代正式 Action。
+3. system.* 动作只属于测试 DSL，不进入正式玩家 Action。
+4. 非 system.* fixture 的 parameters 必须与 formal ActionRequest 参数完全一致；测试专用结算模式、环境假设、驱动提示只能写入 test_driver_hints 或 expected，不得进入正式 parameters，也不得在 fixture schema 中额外放宽。
+5. submit_order 使用 submitted_object_refs 数组。Stage 1A 允许订单 available 或 accepted，提交时进入 submitted 短暂状态，再结算为 completed/failed。
+6. ActionResult.status_code 是机器可读结果码/失败原因码；message_key 只指向文本模板；message_params 提供动态上下文。message_params 可以包含 item_name、required_quantity、current_quantity、unit、field_name、crop_name 等 UI 友好字段，但长期优先保留 base_id、current_form、quantity、object_ref 等机器可读参数，避免把中文名作为唯一事实源。核心逻辑层不得把最终拼接后的中文 message 作为唯一结果来源，也不得在各系统内散落硬编码完整提示句。
+7. UI / 文本系统根据 message_key + message_params 生成最终显示文案。例如 status_code=ERR_INVENTORY_ITEM_MISSING、message_key=action_result.inventory_item_missing、message_params 记录 base_id=cabbage、current_form=dry_seed、quantity=1 count，可解析为“没有可用的白菜种子”。
+8. ActionResult.created_objects / updated_objects 使用 object_type + object_id，不使用 lot_id/crop_id/task_id 等类型专用键。
+9. ActionResult.domain_events 必须引用 domain_event.schema.json，不允许空 payload 或任意 payload；DomainEvent 必须使用 event_type const 与 payload schema 绑定，禁止类型错配。
+10. DomainEvent 必须包含 visibility。非 debug 业务事件必须包含非空 actor_id 与 source_action_id；system.debug_event 可允许为空以支持调试事件。
+11. ActionContextRef 与 DesiredOutcome 可以为 null；若为对象，必须至少包含一个有意义的非空字段，禁止 {field:null} 这种占位对象。
+
+五、运行态对象、NewGameBuilder 与 SaveFile
+1. CropInstance 必须以 SaveFile.crop_instances 持久化；FieldPlotState.active_crop_ids 只是索引/缓存。
+2. Reservation 若跨 Action、跨时间推进或跨保存读取，必须以 SaveFile.reservations 持久化；单 Action 内部临时预留可只存在于事务内。
+3. SaveFile.feature_flags 保存的是带 profile_id、merge_policy、source_config_hash、flags 的快照，不是任意 bool 字典，必须符合 feature_flags_snapshot.schema.json。
+4. SaveFile.fields 必须引用 field_plot_state.schema.json。
+5. SaveFile.content_pack_versions 由 rule_versions.version_bundle.content_pack_versions 生成；new_game_builder_mapping 不得写死不一致的常量版本。
+6. SaveFile.game_version 由 configs/core/rule_versions.yaml 的 version_bundle.game_version 生成；new_game_builder_mapping 不得写死 game_version 常量。这样保留后续存档迁移与内容包兼容扩展性，避免 SaveFile 与规则包版本出现双口径。
+7. tests/expected/stage_1A_new_game_builder_mapping_assertions.yaml 必须按 mapping 实际 category 分离 constant_fields_expected、generated_fields_expected、direct_or_renamed_fields_expected。constant 字段不得混入 generated_fields_expected；generated 字段不得写入 constant_fields_expected。
+8. Stage 1B/1C overlay 当前仍是预留/调试草案；若启用，family_meal_state 合并进 SaveFile.family_state.meal_state，debug_inventory_additions 追加进 SaveFile.inventory，debug_orders 追加进 SaveFile.orders，随后执行 storage reconciliation。
+
+六、Storage reconciliation 与 StorageOccupant 口径
+1. StorageContainer.active_object_refs 与 used_capacity 是可重建缓存，不是第二事实源；NewGameBuilder、读档后、overlay 合并后都必须通过 StorageOccupantAdapter 从合并后的 StorageOccupant.storage_ref、storage_form 与 storage_footprint 重算。当前 Stage 1A 的 StorageOccupant 包括 MaterialLot 与 DishLot，缓存引用必须使用 common_defs.StorageOccupantRef。
+2. Stage 1A 普通储存容器使用 slot_weight 作为容量比较单位：used_capacity 表示当前容器内所有 StorageOccupant 的 storage_footprint.amount 汇总，且只与 capacity.unit=slot_weight 的容器比较。
+3. 后续 water_storage、currency_storage 或特殊容器可以通过 storage_type / capacity_model 扩展独立容量模型；但在未登记新模型前，不得把 g/ml/count 直接混入普通 used_capacity。
+4. storage reconciliation 必须验证：所有普通 StorageContainer.capacity.unit 均为 slot_weight，即使容器当前为空也不得绕过；普通 StorageContainer.capacity.amount 必须大于 0；StorageContainer.supported_forms 必须至少包含一个非空、无首尾空白的 form 身份；StorageContainer.location_id 与 storage_type 必须是非空、无首尾空白的干净身份值；StorageOccupant.storage_ref.container_id 存在；StorageOccupant.storage_ref.location_id 与 storage_type 必须是非空、无首尾空白的干净身份值，并匹配所引用的 StorageContainer；StorageOccupantAdapter.storage_form 必须存在于容器 supported_forms 中：MaterialLot 使用 current_form，DishLot 使用 storage_form（当前允许 cooked_dish/dish）；StorageOccupant.storage_footprint.unit 已登记且当前普通容器为 slot_weight；active_object_refs 等于引用该容器的 StorageOccupantRef 列表；used_capacity 等于对应 footprint 汇总；used_capacity 不得超过 capacity.amount。
+5. MaterialLot.definition_ref 与 storage_footprint 必须由注册 base 定义闭合：definition_ref.type/id/canonical_id 必须匹配 lot.base_id 对应的 material/seed 定义；注册定义 category 必须是非空、无首尾空白字符串，lot.category 必须匹配注册定义 category；注册定义 forms 的 key、lot.current_form 与容器 supported_forms 内的 form 身份都必须非空且无首尾空白；lot.quantity.unit 必须匹配 definition.storage_footprint_rule.base_quantity.unit；当单位为 count 时，定义层 base_quantity.amount 与 lot.quantity.amount 必须为整数，避免半粒种子、半件工具等离散物品进入库存。代码落地时应按“基础物 + 形态”理解库存身份：base_id 表示白菜、腊肉、盐等基础物或兼容定义，current_form 表示 dry_seed、fresh、cut、pickling、pickled、dried、cured 等当前形态。新增材料或加工态不得为每个形态创建一套并列普通 material base_id；若当前配置存在 configs/farming/seeds/*.yaml，其职责是繁殖材料与育种规则定义，代码应通过 material_base_id 与 current_form 把它接回基础物形态模型。
+6. 当前普通库存的 footprint 推导规则为 ceil(quantity.amount / base_quantity.amount * footprint.amount)，合并进 SaveFile.inventory 并参与 storage reconciliation 的 active lot 数量必须大于 0，正数 lot 至少占 1 个 slot_weight，即使公式原始结果是极小正数也必须向上归为 1；不得手写与定义规则不一致的 storage_footprint 来让容器缓存“错得一致”。
+7. 当前 storage reconciliation 链条中的 quantity.amount、base_quantity.amount、footprint.amount、lot.storage_footprint.amount、container.capacity.amount、container.used_capacity 与 expected.used_capacity 必须是真实数值类型且 finite；不得为字符串数值、bool、NaN 或 Infinity。
+8. storage reconciliation 必须验证身份合法性与唯一性：storage_containers.container_id、合并后的 SaveFile.inventory.lot_id、lot.storage_ref.container_id、已加载 overlay 的 initial_world_overlay_id 与 extends 都必须是非空、去除首尾空白后不变的字符串；storage_containers.container_id 在初始容器列表内唯一，合并后的 SaveFile.inventory.lot_id 在当前 profile 内唯一；debug overlay 不得引入与初始库存或其他 overlay 重复的 lot_id。
+9. initial_world baseline 身份必须闭合：configs/initial_world/stage_1A_initial_world.yaml.initial_world_id 必须是非空、无首尾空白的字符串，configs/core/new_game_builder_mapping.yaml.source_initial_world_id 必须与实际 baseline initial_world_id 完全一致；overlay 身份链的起点必须使用实际 baseline id，不得把 stage_1A_initial_world 写死成不可校验常量，避免 NewGameBuilder 来源、overlay 链、expected 与运行日志各认一套根节点。
+10. initial_world overlay 身份链必须闭合：当前 profile 展开后加载的每个 overlay 的 initial_world_overlay_id 必须唯一；overlay.extends 必须指向实际 baseline initial_world_id 或当前 profile 中紧邻的上一层 overlay id，避免 overlay 合并链和 active profile 继承链各认一套父级。
+11. 普通 active storage container 的 container_type 必须是非空、无首尾空白的字符串；当前不强制枚举或绑定 storage_type/location，以保留未来外部仓库、特殊仓库与 capacity_model 扩展口。
+12. dev_tools 的 storage reconciliation 检查必须自动扫描 configs/active_*/load_order.yaml，发现所有加载 configs/initial_world/ 的 active profile，并强制这些 profile 同时进入 storage_reconciliation_policy.post_overlay_profiles 与 tests/expected/stage_storage_reconciliation_expected.yaml；不得只维护手写 profile 名单。
+13. dev_tools 的 storage reconciliation 检查必须基于每个 active profile 的 load_order / extends 递归展开结果，遍历所有已加载 initial_world overlay；不得只硬编码某一个 debug overlay 文件名、不得依赖 _overlay.yaml 后缀，也不得只支持 stage_1A/stage_1B/stage_1C_debug 的固定继承层级。
+14. StorageRef 扩展口径：通用 common_defs.StorageRef.storage_type 与 NonEmptyFacilityStorageRef.storage_type 不得硬编码固定 enum；具体取值以 configs/core/common_enums.yaml#storage_types 登记和 dev_tools 检查为权威；default_dish_storage_ref 与所有 lot.storage_ref 一样，必须校验 container_id 存在，并且 location_id、storage_type 与目标容器一致。当前 Stage 1A formal action 的动作参数边界可以继续保持阶段内枚举，避免把玩家动作入口提前放宽。
+
+15. ActionPipeline 必须把 storage reconciliation 作为事务不变量，而不只是 NewGameBuilder/读档规则。harvest_crop、store_item、split_lot、start_processing、collect_processing_result、cook_dish、submit_order 成功提交后，必须让 StorageContainer.active_object_refs 与 used_capacity 等于从所有 StorageOccupant 重建的结果；动作失败时必须恢复 pre-action snapshot，避免 inventory、dish_lots、reservations、fuel_state、orders、storage_containers 或 domain_events 出现半提交。
+16. store_item 的正式参数使用 object_ref + storage_ref，其中 object_ref 必须是 common_defs.StorageOccupantRef，不得使用通用 RuntimeObject ObjectRef；这样 MaterialLot、DishLot 与未来登记后的可储存对象可以共用同一移动入口。
+17. DomainEvent.storage.item_moved.payload.object_ref 必须同样使用 common_defs.StorageOccupantRef；Order.submitted_object_refs、formal submit_order.submitted_object_refs 与 DomainEvent.order.submitted/completed.payload.submitted_object_refs 必须统一使用 common_defs.SubmittedObjectRef，当前允许 DishLot、MaterialLot、PurchasedMeal，不得回退为通用 ObjectRef。
+18. 新增跨系统抽象或迁移旧抽象时，必须先建立可执行抽象传播矩阵：每个关键层不仅要写入 required_layers，还必须有 machine_assertions 指向真实 schema/config/fixture/expected/modules，并由 check_storage_occupant_abstract_propagation_matrix 执行；不得只补核心 Action/Schema 后宣称完成。
+19. Stage 1A submit_order 成功后，提交的 DishLot 从 SaveFile.dish_lots 中移除，并从所有 StorageContainer.active_object_refs 中消失；订单对象与 DomainEvent 保留提交审计信息。当前阶段不得使用“保留 DishLot 但标记为 non-stored”的模糊口径。
+
+六点五、Stage 1A 代码开发护栏（防止阻断 Stage 1B/1C）
+1. Stage 1A 可以进入代码实现，但代码不得把当前最小闭环写成不可扩展专案。ActionPipeline 是唯一正式写入口；UI、菜单、debug 面板、自动测试驱动都不得直接改 SaveFile、inventory、orders、money、family_state、home_water、tools_state、facilities_state 或 story_flags。
+2. TimeSystem 必须保留 settlement registry / settlement hook 链。Stage 1A 至少注册 crop_growth、spoilage、processing_task、order_deadline；Stage 1B 的 family_meal、home_water、tool_durability 与 Stage 1C debug 的 clinic_debug/story_debug 必须能作为后续 settlement handler 接入，而不是改写 advance_time 主流程。
+3. SaveManager 必须以 schemas/save_file.schema.json 与 configs/core/new_game_builder_mapping.yaml 初始化存档，并保留 save_version、game_version、schema_version、config_version、content_pack_versions、migration_history、migration_warnings 等 version/migration 字段。后续 Stage 1B/1C 新字段必须通过 Schema 与迁移接入，不得用散落 dict 临时字段。
+4. InventorySystem 与 StorageSystem 必须围绕 StorageOccupantRef / StorageOccupantAdapter 实现。Stage 1A 当前覆盖 MaterialLot 与 DishLot；后续若加入工具、家具、动物产物或特殊容器，应通过登记新的可存储对象和 capacity_model 扩展，不得把容器逻辑写死为 MaterialLot 列表。
+5. FeatureFlag 必须区分 configured flags、effective flags 与 runtime gate。未来系统配置存在不等于运行入口开放；Stage 1B/1C 的数据底座可以加载，但只有对应 runtime gate 和 formal Action 开放后才能进入 UI、Action 或自动验收。
+6. submit_order 与需求匹配必须走 DemandProfile / DemandResolver / submitted_object_refs，不得把钱小曼酒馆订单写死为唯一订单逻辑。家庭饭食、医馆清淡餐、店铺顾客和后续经济订单应复用同一需求解析接口。
+7. dev_tools 是 validator-only，不是游戏运行时代码。代码实现可以参考其契约检查意图，但不得把 dev_tools/check_config_closure.py、负例 payload 或包治理逻辑复制成业务系统。
+8. tests/expected/stage_1A_development_guardrails.yaml 是本节的机器验收镜像；dev_tools 必须检查该文件的 guard_id、machine_assertions 与对应正文锚点，防止 1A 开发护栏被误删或降级为纯说明文字。
+9. Stage 1A 代码可以先做小范围功能，但不得用一次性演示代码替代长期基础设施。最低功能范围也必须保留 NewGameBuilder、ConfigRepository、ActionValidator、TransactionRunner、DomainEvent/EventLog 分离、IdService、Quantity 对象、FeatureFlag runtime gate、StorageOccupantRef 与核心测试入口；允许某些服务第一阶段只有简化实现，不允许绕过服务边界直接写死到 UI 或单个系统函数里。
+10. 代码生成和手写实现不得把“能跑通第一条链路”凌驾于大型游戏基础之上。为了快速实现而牺牲对象边界、事务回滚、配置驱动、存档版本、可测试性、跨引擎复用能力的方案应被判为不合格。基础可以少内容，但不能把基础写歪。
+11. ActionRequest 不得退化为只传 action_type。即使 UI 暂时自动选择第一块田、第一批材料，也必须在 parameters 中显式传入 field_plot_id、lot/ref、quantity 等正式参数，避免核心逻辑暗藏默认对象。
+12. 运行态对象 ID 不得依赖 Date.now + Math.random 作为长期方案；正式代码应通过 IdService / deterministic id allocator 生成可测试、可回放、可追踪的 ID，并把必要计数器或来源纳入 SaveFile / runtime context。
+
+
+六点六、基础物 + 形态模型（代码落地口径）
+1. 库存批次的长期身份模型是“基础物 + 当前形态 + 批次属性”，不是为种子、鲜品、腌制品、晒干品分别创建互不关联的普通物品体系。示例：白菜作为基础物，dry_seed/seed、fresh、cut、pickling、pickled、dried 作为 current_form 或 form 定义。
+2. current_form 是结构化字段，不是字符串后缀拼接规则。业务逻辑不得通过截取 ID、拼接后缀或解析中文名来判断形态；应通过配置定义、form 标签、property_profile 与 action 参数判断可播种、可加工、可烹饪、可储存、可提交。
+3. 种子、秧苗、薯块、蒜瓣、菌种、苗木等应统一视为 propagation material / propagation form。Stage 1A 当前可只使用白菜种子，但接口不得写死为所有作物都只能 seed；FarmingSystem 应读取繁殖材料定义或 form tags。
+4. configs/farming/seeds/*.yaml 可以保存发芽率、种质摘要、来源政策、育种字段等繁殖规则；configs/materials/** 保存基础物与食材形态、物性、储存、加工、烹饪视图。二者通过 material_base_id / crop_base_id / current_form 连接，不得让代码把 seed 配置误解成一套与基础物无关的普通食材体系。
+5. 文本展示通过 TextResolver / MaterialNameResolver 从 base_id + current_form + 识别等级生成。核心逻辑不得把“白菜种子”“鲜白菜”“腌白菜”作为唯一逻辑 ID；中文名只用于 UI、日志和玩家可读提示。
+6. 工厂模式应是配置驱动的 MaterialLotFactory / DishLotFactory / CropInstanceFactory，而不是为每个材料形态创建一个类。工厂负责补齐 definition_ref、quantity、storage_footprint、property_profile、source_ref、schema_version、rules_version 和 form tags 派生字段。
+
+七、Feature flag、runtime gate 与阶段继承
+1. feature flag 分为 configured flags、effective flags 与 runtime entry gates。
+2. effective flags 必须按 active stage 的 load_order extends 继承链顺序合并：core defaults → Stage 1A overrides → Stage 1B overrides → Stage 1C debug overrides；后续新增 stage 时必须递归展开 extends 链，不得把继承层级写死为当前三层。不得只读取当前 stage 的 feature_flag_overrides。
+3. runtime entry gate 必须在 effective flags 基础上继续应用 feature_flag_dependencies.yaml。父开关为 false 时，子开关即使 configured/effective 为 true，也只能表示未来阶段默认能力，当前阶段必须保持 inert，不得开放 UI 入口、Action 入口或自动验收条件。
+4. 子开关保留 true 但受父开关压制，是为了保留扩展性，不应在后续审查中误判为未关闭功能。真正的验收标准是 effective flags 是否按继承链合并、runtime gate 是否受依赖规则约束。
+5. tests/expected/*_effective_feature_flags.yaml 必须记录 merge_sources，用于机器验证实际继承链；runtime gates 必须基于该 effective 结果再套用 feature_flag_dependencies.yaml。
+6. active profile 身份必须一致：目录 configs/active_<stage_id>/、load_order.yaml.stage_id、同目录 feature_flag_overrides.yaml.stage_id、以及被 stage_active_config 引用文件中的 stage_id 必须相同；extends 指向的 profile 也必须满足该身份一致性。
+
+八、正文、路径与代码生成上下文
+1. modules 中出现的路径示例必须指向当前正式包真实路径，或明确标注为未来扩展占位；不得保留已经搬迁的旧路径。
+2. modules 中的“第一版 / MVP / 必做”必须带当前阶段归属说明：Stage 1A 自动验收、Stage 1B 生活系统、Stage 1C debug，或后续扩展样板。
+3. 鱼汤、家庭饭食、水资源扣水、医馆清淡餐、旧案调试等可以保留配置底座或调试草案，但不得写成 Stage 1A formal gameplay action 或 Stage 1A 自动验收必做内容。
+4. DemandResolver 的 tag 类型只读取 DishLot.suitability_tags；cook_dish 必须把 DishStructure.demand_tags 合并进 DishLot.suitability_tags。
+5. 使用 fuel_system_enabled，不使用 fuel_enabled；使用 durability_system_enabled，不使用 tool_durability_enabled；拆分来源使用 source_type=inventory_split；订单截止字段只允许 deadline_absolute_minute。
+

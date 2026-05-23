@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "home_water_state.schema.json",
+  "type": "object",
+  "required": [
+    "storage_id",
+    "capacity_ml",
+    "current_ml",
+    "quality",
+    "refill_methods",
+    "last_update_time"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "storage_id": {
+      "type": "string"
+    },
+    "capacity_ml": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "current_ml": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "quality": {
+      "type": "string"
+    },
+    "refill_methods": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name_key",
+          "time_cost_minutes",
+          "amount_ml",
+          "money_cost",
+          "available_from_stage"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name_key": {
+            "type": "string"
+          },
+          "time_cost_minutes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "amount_ml": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "money_cost": {
+            "type": "number",
+            "minimum": 0
+          },
+          "available_from_stage": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "last_update_time": {
+      "type": "integer"
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "growth_profile_config.schema.json",
+  "type": "object",
+  "required": [
+    "id",
+    "crop_base_id",
+    "material_base_id",
+    "stage_sequence",
+    "base_growth_duration_minutes",
+    "harvest_rule"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "crop_base_id": {
+      "type": "string"
+    },
+    "material_base_id": {
+      "type": "string"
+    },
+    "display_name_key": {
+      "type": "string"
+    },
+    "stage_sequence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "min_progress",
+          "growth_stage"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "min_progress": {
+            "type": "number"
+          },
+          "growth_stage": {
+            "enum": [
+              "seed",
+              "sprout",
+              "growing",
+              "mature",
+              "withered"
+            ]
+          }
+        }
+      }
+    },
+    "base_growth_duration_minutes": {
+      "type": "integer"
+    },
+    "season_modifiers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "growth_speed_multiplier": {
+            "type": "number"
+          },
+          "failure_risk_delta": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "weather_modifiers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "growth_speed_multiplier": {
+            "type": "number"
+          },
+          "failure_risk_delta": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "harvest_rule": {
+      "type": "object",
+      "required": [
+        "output_base_id",
+        "output_form",
+        "default_quantity_g",
+        "source_type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "output_base_id": {
+          "type": "string"
+        },
+        "output_form": {
+          "type": "string"
+        },
+        "min_quantity_g": {
+          "type": "number"
+        },
+        "max_quantity_g": {
+          "type": "number"
+        },
+        "default_quantity_g": {
+          "type": "number"
+        },
+        "property_profile_from_material_defaults": {
+          "type": "boolean"
+        },
+        "source_type": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

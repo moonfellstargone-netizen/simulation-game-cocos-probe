@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ayue_learning_tracks.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "embroidery": {
+      "$ref": "#/$defs/LearningTrack"
+    },
+    "medicine": {
+      "$ref": "#/$defs/LearningTrack"
+    },
+    "literacy": {
+      "$ref": "#/$defs/LearningTrack"
+    },
+    "housework": {
+      "$ref": "#/$defs/LearningTrack"
+    },
+    "foraging": {
+      "$ref": "#/$defs/LearningTrack"
+    }
+  },
+  "$defs": {
+    "LearningTrack": {
+      "type": "object",
+      "required": [
+        "level",
+        "exp",
+        "unlocked"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exp": {
+          "type": "number",
+          "minimum": 0
+        },
+        "unlocked": {
+          "type": "boolean"
+        },
+        "mentor_npc_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_study_minute": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

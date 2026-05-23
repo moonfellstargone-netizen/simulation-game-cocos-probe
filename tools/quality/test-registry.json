@@ -1,0 +1,977 @@
+{
+  "version": "0.0.2.22",
+  "tests": {
+    "static.typecheck": {
+      "command": "node",
+      "args": [
+        "node_modules/typescript/bin/tsc",
+        "--noEmit"
+      ],
+      "covers": [
+        "game-core",
+        "cocos-app",
+        "cocos-creator-adapter",
+        "tools",
+        "tests"
+      ],
+      "type": "static",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "static",
+        "fast",
+        "full",
+        "blocker"
+      ],
+      "group": "static"
+    },
+    "architecture.legacy": {
+      "command": "python3",
+      "args": [
+        "tools/validate_code_architecture.py"
+      ],
+      "covers": [
+        "game-core",
+        "cocos-app",
+        "cocos-creator-adapter",
+        "tools",
+        "tests",
+        "docs",
+        "release-tools"
+      ],
+      "type": "architecture",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "architecture",
+        "legacy",
+        "full",
+        "blocker"
+      ],
+      "plugin": "legacy-architecture-validator",
+      "group": "governance"
+    },
+    "test.smoke": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/stage1a-architecture-smoke.test.mjs"
+      ],
+      "covers": [
+        "game-core"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "smoke",
+        "fast",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/stage1a-architecture-smoke.test.mjs"
+      ],
+      "group": "stage1a"
+    },
+    "test.context-governance": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/context-governance-contracts.test.mjs"
+      ],
+      "covers": [
+        "docs",
+        "tests"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "context",
+        "governance",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/context-governance-contracts.test.mjs"
+      ],
+      "group": "governance"
+    },
+    "test.package-hygiene": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/package-hygiene.test.mjs"
+      ],
+      "covers": [
+        "tools",
+        "docs",
+        "release-tools"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "package",
+        "hygiene",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/package-hygiene.test.mjs"
+      ],
+      "group": "governance"
+    },
+    "test.stage1a-baseline": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/stage1a-baseline.test.ts"
+      ],
+      "covers": [
+        "game-core",
+        "cocos-app",
+        "cocos-creator-adapter"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "stage1a",
+        "baseline",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/stage1a-baseline.test.ts"
+      ],
+      "group": "stage1a"
+    },
+    "test.stage1a-contract": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/stage1a-contract.test.ts"
+      ],
+      "covers": [
+        "game-core"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "stage1a",
+        "contract",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/stage1a-contract.test.ts"
+      ],
+      "group": "stage1a"
+    },
+    "test.stage1a-fixture": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/stage1a-fixture-runner.test.ts"
+      ],
+      "covers": [
+        "game-core",
+        "tests"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "stage1a",
+        "fixture",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/stage1a-fixture-runner.test.ts"
+      ],
+      "group": "stage1a"
+    },
+    "test.dev-runner": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/stage1a-headless-runtime.test.ts",
+        "tests/action-request-builder.test.ts"
+      ],
+      "covers": [
+        "game-core",
+        "scripts"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "stage1a",
+        "headless",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/stage1a-headless-runtime.test.ts",
+        "tests/action-request-builder.test.ts"
+      ],
+      "group": "stage1a"
+    },
+    "test.cocos-adapter": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/cocos-adapter-boundary.test.ts"
+      ],
+      "covers": [
+        "cocos-app"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "cocos",
+        "adapter",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/cocos-adapter-boundary.test.ts"
+      ],
+      "group": "cocos-adapter"
+    },
+    "test.cocos-ui-readiness": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/cocos-ui-readiness.test.ts"
+      ],
+      "covers": [
+        "cocos-app",
+        "cocos-creator-adapter"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "cocos",
+        "ui-readiness",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/cocos-ui-readiness.test.ts"
+      ],
+      "group": "cocos-ui"
+    },
+    "test.action-preview": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/action-preview-boundary.test.ts"
+      ],
+      "covers": [
+        "cocos-app",
+        "game-core"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "action-preview",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/action-preview-boundary.test.ts"
+      ],
+      "group": "governance"
+    },
+    "test.cocos-lifecycle": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/cocos-creator-lifecycle-probe.test.ts"
+      ],
+      "covers": [
+        "cocos-creator-adapter"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "cocos",
+        "lifecycle",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/cocos-creator-lifecycle-probe.test.ts"
+      ],
+      "group": "cocos-ui"
+    },
+    "test.cocos-menu": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/cocos-minimal-menu-binding.test.ts"
+      ],
+      "covers": [
+        "cocos-creator-adapter"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "cocos",
+        "minimal-menu",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/cocos-minimal-menu-binding.test.ts"
+      ],
+      "group": "cocos-ui"
+    },
+    "test.cocos-save-load": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/cocos-save-load-ui-binding.test.ts",
+        "tests/cocos-error-presentation.test.ts"
+      ],
+      "covers": [
+        "cocos-creator-adapter",
+        "game-core"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "cocos",
+        "save-load",
+        "error-presentation",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/cocos-save-load-ui-binding.test.ts",
+        "tests/cocos-error-presentation.test.ts"
+      ],
+      "group": "cocos-ui"
+    },
+    "test.cocos-ui-shell": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/cocos-ui-shell-composition.test.ts"
+      ],
+      "covers": [
+        "cocos-creator-adapter"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "cocos",
+        "ui-shell",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/cocos-ui-shell-composition.test.ts"
+      ],
+      "group": "cocos-ui"
+    },
+    "test.cocos-command-queue": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/cocos-ui-command-queue.test.ts"
+      ],
+      "covers": [
+        "cocos-creator-adapter"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "cocos",
+        "command-queue",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/cocos-ui-command-queue.test.ts"
+      ],
+      "group": "cocos-ui"
+    },
+    "test.cocos-render-diff": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/cocos-ui-render-diff.test.ts"
+      ],
+      "covers": [
+        "cocos-creator-adapter"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "cocos",
+        "render-diff",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/cocos-ui-render-diff.test.ts"
+      ],
+      "group": "cocos-ui"
+    },
+    "test.cocos-scene-binding": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/cocos-scene-binding-boundary.test.ts",
+        "tests/cocos-scene-binding-application.test.ts"
+      ],
+      "covers": [
+        "cocos-creator-adapter"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "cocos",
+        "scene-binding",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/cocos-scene-binding-boundary.test.ts",
+        "tests/cocos-scene-binding-application.test.ts"
+      ],
+      "group": "cocos-ui"
+    },
+    "test.cocos-component-node-binding": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/cocos-component-node-binding-boundary.test.ts",
+        "tests/cocos-component-node-binding-application.test.ts"
+      ],
+      "covers": [
+        "cocos-creator-adapter"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "cocos",
+        "component-node-binding",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/cocos-component-node-binding-boundary.test.ts",
+        "tests/cocos-component-node-binding-application.test.ts"
+      ],
+      "group": "cocos-ui"
+    },
+    "test.api-boundary": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/api-boundary.test.ts"
+      ],
+      "covers": [
+        "game-core",
+        "cocos-app",
+        "cocos-creator-adapter"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "api-boundary",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/api-boundary.test.ts"
+      ],
+      "group": "governance"
+    },
+    "quality.self-test": {
+      "command": "npm",
+      "args": [
+        "run",
+        "test:quality-gate-contracts"
+      ],
+      "covers": [
+        "tools",
+        "tests",
+        "docs"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "self-test",
+        "fast",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/quality-gate-contracts.test.mjs"
+      ],
+      "group": "quality"
+    },
+    "quality.versionConsistency": {
+      "command": "node",
+      "args": [
+        "tools/quality/plugins/version-consistency-check.mjs"
+      ],
+      "covers": [
+        "tools",
+        "docs",
+        "release-tools"
+      ],
+      "type": "quality-plugin",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "version",
+        "fast",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tools/quality/plugins/version-consistency-check.mjs"
+      ],
+      "group": "quality"
+    },
+    "quality.configIntegrity": {
+      "command": "node",
+      "args": [
+        "tools/quality/plugins/quality-config-integrity-check.mjs"
+      ],
+      "covers": [
+        "tools/quality"
+      ],
+      "type": "quality-plugin",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "config",
+        "fast",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tools/quality/plugins/quality-config-integrity-check.mjs"
+      ],
+      "group": "quality"
+    },
+    "quality.testRegistryIntegrity": {
+      "command": "node",
+      "args": [
+        "tools/quality/plugins/test-registry-integrity-check.mjs"
+      ],
+      "covers": [
+        "tools/quality",
+        "tests",
+        "package-scripts"
+      ],
+      "type": "quality-plugin",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "test-registry",
+        "fast",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tools/quality/plugins/test-registry-integrity-check.mjs"
+      ],
+      "group": "quality"
+    },
+    "quality.releaseSurface": {
+      "command": "node",
+      "args": [
+        "tools/quality/plugins/release-surface-check.mjs"
+      ],
+      "covers": [
+        "release-tools",
+        "package-scripts",
+        "tools"
+      ],
+      "type": "quality-plugin",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "release-surface",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tools/quality/plugins/release-surface-check.mjs"
+      ],
+      "group": "quality"
+    },
+    "quality.contextDocSurface": {
+      "command": "node",
+      "args": [
+        "tools/quality/plugins/context-doc-surface-check.mjs"
+      ],
+      "covers": [
+        "docs",
+        "design_snapshot"
+      ],
+      "type": "quality-plugin",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "context-docs",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tools/quality/plugins/context-doc-surface-check.mjs"
+      ],
+      "group": "quality"
+    },
+    "test.quality-plugin-contracts": {
+      "command": "npm",
+      "args": [
+        "run",
+        "test:quality-plugin-contracts"
+      ],
+      "covers": [
+        "tools/quality/plugins",
+        "tests"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "plugin-contracts",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/quality-plugin-contracts.test.mjs"
+      ],
+      "group": "quality"
+    },
+    "release.build": {
+      "command": "python3",
+      "args": [
+        "tools/build_release_package.py",
+        "--source-root",
+        ".",
+        "--root-name",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_22",
+        "--output",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_22.zip",
+        "--kind",
+        "code"
+      ],
+      "covers": [
+        "release-tools",
+        "docs",
+        "tools"
+      ],
+      "type": "release",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "release"
+      ],
+      "group": "release"
+    },
+    "release.check": {
+      "command": "python3",
+      "args": [
+        "tools/check_release_zip.py",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_22.zip",
+        "--expected-root",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_22",
+        "--kind",
+        "code"
+      ],
+      "covers": [
+        "release-tools"
+      ],
+      "type": "release",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "release"
+      ],
+      "group": "release"
+    },
+    "test.quality-rule-authority-contracts": {
+      "command": "npm",
+      "args": [
+        "run",
+        "test:quality-rule-authority-contracts"
+      ],
+      "covers": [
+        "tools",
+        "docs",
+        "release-tools"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "rule-authority",
+        "fast",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/quality-rule-authority-contracts.test.mjs"
+      ],
+      "group": "quality"
+    },
+    "quality.architectureBoundary": {
+      "command": "node",
+      "args": [
+        "tools/quality/plugins/architecture-boundary-check.mjs"
+      ],
+      "covers": [
+        "game-core",
+        "cocos-app",
+        "cocos-creator-adapter",
+        "tools"
+      ],
+      "type": "quality-plugin",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "architecture-boundary",
+        "shadow",
+        "full",
+        "blocker",
+        "authoritative"
+      ],
+      "files": [
+        "tools/quality/plugins/architecture-boundary-check.mjs",
+        "tools/quality/rules/architecture-boundary.rules.json",
+        "tools/quality/plugin-runtime/createPluginResult.mjs"
+      ],
+      "group": "quality"
+    },
+    "test.architecture-boundary-plugin-contracts": {
+      "command": "npm",
+      "args": [
+        "run",
+        "test:architecture-boundary-plugin-contracts"
+      ],
+      "covers": [
+        "tools/quality/plugins",
+        "tools/quality/rules",
+        "tests"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "architecture-boundary",
+        "plugin-contracts",
+        "fast",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/architecture-boundary-plugin-contracts.test.mjs"
+      ],
+      "group": "quality"
+    },
+    "test.architecture-boundary-authority-contracts": {
+      "command": "npm",
+      "args": [
+        "run",
+        "test:architecture-boundary-authority-contracts"
+      ],
+      "covers": [
+        "tools/quality/plugins",
+        "tools/quality/rules",
+        "tools/run-architecture-check.mjs",
+        "tests"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "architecture-boundary",
+        "authority-contracts",
+        "fast",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/architecture-boundary-authority-contracts.test.mjs"
+      ],
+      "group": "quality"
+    },
+    "test.architecture-boundary-token-alignment": {
+      "command": "npm",
+      "args": [
+        "run",
+        "test:architecture-boundary-token-alignment"
+      ],
+      "covers": [
+        "tools/quality/plugins",
+        "tools/quality/rules",
+        "tests",
+        "fixtures"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "architecture-boundary",
+        "token-alignment",
+        "fast",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/architecture-boundary-token-alignment.test.mjs"
+      ],
+      "group": "quality"
+    },
+    "test.quality-affected-contracts": {
+      "command": "npm",
+      "args": [
+        "run",
+        "test:quality-affected-contracts"
+      ],
+      "covers": [
+        "tools/quality",
+        "tests",
+        "docs"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "affected",
+        "fast",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/quality-affected-contracts.test.mjs"
+      ],
+      "group": "quality"
+    },
+    "test.quality-cache-contracts": {
+      "command": "npm",
+      "args": [
+        "run",
+        "test:quality-cache-contracts"
+      ],
+      "covers": [
+        "tools/quality",
+        "tests",
+        "release-tools"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "cache",
+        "fast",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/quality-cache-contracts.test.mjs"
+      ],
+      "group": "quality"
+    },
+    "test.quality-affected-policy-hardening": {
+      "command": "npm",
+      "args": [
+        "run",
+        "test:quality-affected-policy-hardening"
+      ],
+      "covers": [
+        "tools/quality",
+        "tests",
+        "docs"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "affected",
+        "policy-hardening",
+        "fast",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/quality-affected-policy-hardening.test.mjs"
+      ],
+      "group": "quality"
+    }
+  }
+}

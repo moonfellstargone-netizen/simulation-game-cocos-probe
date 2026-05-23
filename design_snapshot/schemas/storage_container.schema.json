@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "storage_container.schema.json",
+  "type": "object",
+  "required": [
+    "container_id",
+    "location_id",
+    "storage_type",
+    "container_type",
+    "capacity",
+    "used_capacity",
+    "supported_forms",
+    "active_object_refs"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "container_id": {
+      "type": "string"
+    },
+    "location_id": {
+      "type": "string"
+    },
+    "storage_type": {
+      "type": "string"
+    },
+    "container_type": {
+      "type": "string"
+    },
+    "capacity": {
+      "type": "object",
+      "required": [
+        "amount",
+        "unit"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "unit": {
+          "enum": [
+            "g",
+            "ml",
+            "count",
+            "bundle",
+            "slot_weight"
+          ]
+        }
+      }
+    },
+    "used_capacity": {
+      "type": "number",
+      "minimum": 0
+    },
+    "temperature_state": {
+      "type": "string"
+    },
+    "humidity_state": {
+      "type": "string"
+    },
+    "ventilation": {
+      "type": "string"
+    },
+    "cleanliness": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "supported_forms": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "active_object_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "common_defs.schema.json#/$defs/StorageOccupantRef"
+      },
+      "description": "Derived cache rebuilt from all current Stage 1A StorageOccupants. Items must use StorageOccupantRef, not generic RuntimeObject ObjectRef."
+    }
+  }
+}

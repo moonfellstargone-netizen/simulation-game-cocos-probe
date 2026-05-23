@@ -1,0 +1,218 @@
+fixture_id: stage_1A_runtime_lifecycle_matrix
+authority: Formal Stage 1A Action lifecycle contract for AI code generation and transaction
+  tests.
+global_invariants:
+  storage_occupant_types_current_stage:
+  - MaterialLot
+  - DishLot
+  storage_cache_fields:
+  - StorageContainer.active_object_refs
+  - StorageContainer.used_capacity
+  post_success_storage_rule: Every successful storage-mutating action must leave active_object_refs
+    and used_capacity equal to a full rebuild from StorageOccupants.
+  rollback_rule: Every failed action must restore inventory, dish_lots, reservations,
+    fuel_state, orders, storage_containers, and domain_events to the pre-action snapshot
+    for objects touched by that action.
+  domain_event_rule: DomainEvents are appended only after object writes and storage
+    reconciliation validation succeed.
+  storage_occupant_ref_type: common_defs.StorageOccupantRef
+  storage_occupant_adapters_ref: configs/core/new_game_builder_mapping.yaml.validation_policy.storage_reconciliation_policy.storage_occupant_adapters
+  submit_order_consumption_rule: 'Stage 1A success: submitted DishLot is removed from
+    SaveFile.dish_lots; Order.submitted_object_refs and DomainEvent retain submission
+    history.'
+actions:
+  plant_crop:
+    reads:
+    - MaterialLot(seed)
+    - FieldPlotState
+    - CropDefinition
+    - GrowthProfile
+    writes:
+    - CropInstance
+    - FieldPlotState.active_crop_ids
+    - MaterialLot(seed quantity)
+    - DomainEvent
+    storage_mutation: true
+    storage_cache_invariant: seed MaterialLot footprint/capacity must be reconciled
+      after quantity change or lot consumption
+    rollback_assertions:
+    - seed quantity unchanged on failure
+    - no CropInstance leaked on failure
+    - field active_crop_ids unchanged on failure
+  advance_time:
+    reads:
+    - TimeState
+    - CropInstance
+    - ProcessingTask
+    - MaterialLot
+    - DishLot
+    writes:
+    - TimeState
+    - CropInstance.growth_state
+    - ProcessingTask.status
+    - freshness_state where decay applies
+    - DomainEvent
+    storage_mutation: false
+    storage_cache_invariant: active_object_refs unchanged unless decay deletes or
+      transforms a stored object; any such transform must reconcile storage cache
+    rollback_assertions:
+    - world_time unchanged on failure
+    - task progress unchanged on failure
+    - no domain_event committed on failure
+  harvest_crop:
+    reads:
+    - CropInstance
+    - FieldPlotState
+    - MaterialDefinition
+    writes:
+    - MaterialLot
+    - FieldPlotState.active_crop_ids
+    - CropInstance.status
+    - StorageContainer.active_object_refs
+    - StorageContainer.used_capacity
+    - DomainEvent
+    storage_mutation: true
+    storage_cache_invariant: created MaterialLot must enter active_object_refs with
+      object_type MaterialLot before action result is returned
+    rollback_assertions:
+    - no harvested MaterialLot leaked on failure
+    - field active_crop_ids restored on failure
+    - crop status restored on failure
+  store_item:
+    reads:
+    - StorageOccupantRef(MaterialLot or DishLot)
+    - StorageContainer
+    - StorageOccupantAdapter
+    writes:
+    - StorageOccupant.storage_ref
+    - StorageContainer.active_object_refs
+    - StorageContainer.used_capacity
+    - DomainEvent
+    storage_mutation: true
+    storage_cache_invariant: moved object appears once in target container active_object_refs
+      and zero times in previous container
+    rollback_assertions:
+    - object storage_ref restored on failure
+    - source and target container caches restored on failure
+  split_lot:
+    reads:
+    - MaterialLot(source)
+    - StorageContainer
+    writes:
+    - MaterialLot(source quantity)
+    - MaterialLot(new split)
+    - StorageContainer.active_object_refs
+    - StorageContainer.used_capacity
+    - DomainEvent
+    storage_mutation: true
+    storage_cache_invariant: source and split MaterialLot footprints must be regenerated
+      from definitions and reconciled
+    rollback_assertions:
+    - source lot quantity restored on failure
+    - split lot not leaked on failure
+    - storage capacity restored on failure
+  start_processing:
+    reads:
+    - MaterialLot inputs
+    - FacilityState
+    - Reservation
+    - ProcessingMethod
+    writes:
+    - ProcessingTask
+    - Reservation or consumed MaterialLot quantities
+    - StorageContainer.active_object_refs
+    - StorageContainer.used_capacity
+    - DomainEvent
+    storage_mutation: true
+    storage_cache_invariant: reserved/consumed input lots and facility container occupancy
+      must reconcile before task is committed
+    rollback_assertions:
+    - no ProcessingTask leaked on failure
+    - input MaterialLot quantities restored on failure
+    - reservations restored on failure
+  collect_processing_result:
+    reads:
+    - ProcessingTask
+    - ProcessingMethod
+    - StorageContainer
+    writes:
+    - ProcessingTask.status
+    - MaterialLot(output)
+    - StorageContainer.active_object_refs
+    - StorageContainer.used_capacity
+    - DomainEvent
+    storage_mutation: true
+    storage_cache_invariant: output MaterialLot must enter active_object_refs and
+      task cannot be collected twice
+    rollback_assertions:
+    - output MaterialLot not leaked on failure
+    - task status restored on failure
+    - storage cache restored on failure
+  cook_dish:
+    reads:
+    - MaterialLot ingredients
+    - FuelState
+    - ToolState
+    - FacilityState
+    - RecipeVariant
+    - DishStructure
+    - StorageContainer
+    writes:
+    - MaterialLot ingredient quantities
+    - FuelState
+    - ToolState or FacilityState when enabled
+    - DishLot
+    - StorageContainer.active_object_refs
+    - StorageContainer.used_capacity
+    - DomainEvent
+    storage_mutation: true
+    storage_cache_invariant: created DishLot must enter active_object_refs with object_type
+      DishLot; ingredient lots and capacity must reconcile after consumption
+    rollback_assertions:
+    - ingredient quantities restored on failure
+    - fuel_state restored on failure
+    - DishLot not leaked on failure
+    - storage cache restored on failure
+  submit_order:
+    reads:
+    - Order
+    - DishLot or accepted submitted object
+    - DemandProfile
+    writes:
+    - Order.status
+    - Order.submitted_object_refs
+    - PlayerState.money
+    - DishLot or submitted object consumed/marked submitted
+    - StorageContainer.active_object_refs
+    - StorageContainer.used_capacity
+    - DomainEvent
+    storage_mutation: true
+    storage_cache_invariant: submitted DishLot must be removed from SaveFile.dish_lots
+      and absent from every StorageContainer.active_object_refs before order completion
+      is committed; Order and DomainEvent retain submission history
+    rollback_assertions:
+    - order status restored on failure
+    - submitted object storage state restored on failure
+    - money unchanged on failure
+    - domain_events not committed on failure
+post_action_storage_snapshots:
+  after_cook_dish:
+    trigger_action: cook_dish
+    created_ref:
+      object_type: DishLot
+      object_id_alias: created_dish_lot
+    required_storage_form: cooked_dish
+    required_cache_effect: created_ref appears exactly once in target StorageContainer.active_object_refs
+      and its storage_footprint.amount is included in used_capacity
+  after_submit_order:
+    trigger_action: submit_order
+    submitted_ref:
+      object_type: DishLot
+      object_id_alias: submitted_dish_lot
+    required_savefile_effect: submitted DishLot is removed from SaveFile.dish_lots
+      in Stage 1A
+    required_cache_effect: submitted_ref is absent from all StorageContainer.active_object_refs
+      and used_capacity is rebuilt after removal
+    history_retention: Order.submitted_object_refs and DomainEvent payload retain
+      audit history; Stage 1A removes the DishLot runtime object instead of retaining
+      a detached runtime object.

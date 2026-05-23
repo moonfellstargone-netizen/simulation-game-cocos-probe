@@ -1,0 +1,29 @@
+id: cabbage_growth_basic
+crop_base_id: cabbage_crop
+material_base_id: cabbage
+display_name_key: crop.cabbage.name
+stage_sequence:
+- min_progress: 0
+  growth_stage: seed
+- min_progress: 20
+  growth_stage: sprout
+- min_progress: 50
+  growth_stage: growing
+- min_progress: 100
+  growth_stage: mature
+base_growth_duration_minutes: 4320
+season_modifiers:
+  winter:
+    growth_speed_multiplier: 0.85
+    failure_risk_delta: 0
+weather_modifiers:
+  cold_clear:
+    growth_speed_multiplier: 0.95
+harvest_rule:
+  output_base_id: cabbage
+  output_form: fresh
+  min_quantity_g: 900
+  max_quantity_g: 1500
+  default_quantity_g: 1200
+  property_profile_from_material_defaults: true
+  source_type: farming

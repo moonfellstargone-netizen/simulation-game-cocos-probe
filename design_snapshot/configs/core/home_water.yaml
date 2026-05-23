@@ -1,0 +1,19 @@
+home_water:
+  storage_id: water_tank_basic
+  capacity_ml: 20000
+  current_ml: 12000
+  quality: clean
+  refill_methods:
+  - id: carry_water
+    name_key: action.carry_water.name
+    time_cost_minutes: 30
+    amount_ml: 10000
+    money_cost: 0
+    available_from_stage: stage_1B
+  - id: home_well
+    name_key: action.home_well_refill.name
+    time_cost_minutes: 0
+    amount_ml: 20000
+    money_cost: 0
+    available_from_stage: stage_2
+    requires_facility: home_well_basic

@@ -1,0 +1,420 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "initial_world.schema.json",
+  "type": "object",
+  "required": [
+    "initial_world_id",
+    "schema_version",
+    "rules_version",
+    "config_version",
+    "world_time",
+    "player_state",
+    "family_state",
+    "initial_inventory",
+    "initial_orders",
+    "home_water",
+    "fields",
+    "storage_containers",
+    "initial_tools_ref",
+    "initial_facilities_ref",
+    "initial_fuel_ref",
+    "story_flags",
+    "runtime_initialization_policy"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "initial_world_id": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "rules_version": {
+      "type": "string"
+    },
+    "config_version": {
+      "type": "string"
+    },
+    "world_time": {
+      "$ref": "time_state.schema.json"
+    },
+    "player_state": {
+      "type": "object",
+      "required": [
+        "player_id",
+        "name",
+        "money",
+        "stamina",
+        "skills",
+        "flags",
+        "currency_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "player_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "family_name_mode": {
+          "type": "string"
+        },
+        "gender_config_id": {
+          "type": "string"
+        },
+        "money": {
+          "type": "number"
+        },
+        "stamina": {
+          "type": "number"
+        },
+        "mood": {
+          "type": "number"
+        },
+        "skills": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "reputation_map": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "unlocked_locations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "currency_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "family_state": {
+      "$ref": "family_state.schema.json"
+    },
+    "home_water": {
+      "$ref": "home_water_state.schema.json"
+    },
+    "initial_inventory": {
+      "type": "array",
+      "items": {
+        "$ref": "material_lot.schema.json"
+      }
+    },
+    "initial_orders": {
+      "type": "array",
+      "items": {
+        "$ref": "order.schema.json"
+      }
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "$ref": "field_plot_state.schema.json"
+      }
+    },
+    "storage_containers": {
+      "type": "array",
+      "items": {
+        "$ref": "storage_container.schema.json"
+      }
+    },
+    "initial_tools_ref": {
+      "type": "string"
+    },
+    "initial_facilities_ref": {
+      "type": "string"
+    },
+    "initial_fuel_ref": {
+      "type": "string"
+    },
+    "story_flags": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "flag_id",
+          "value",
+          "state",
+          "visibility",
+          "locked",
+          "version"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "flag_id": {
+            "type": "string"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ]
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ]
+                }
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "hidden",
+              "known",
+              "active",
+              "resolved",
+              "abandoned",
+              "failed",
+              "archived"
+            ]
+          },
+          "visibility": {
+            "type": "string"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "runtime_initialization_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mapping_config_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mapping_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "new_game_builder_required": {
+          "type": "boolean"
+        },
+        "new_game_builder_output": {
+          "const": "SaveFile"
+        },
+        "no_implicit_defaults": {
+          "type": "boolean"
+        },
+        "savefile_schema_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mapping_coverage_required": {
+          "type": "string",
+          "minLength": 1
+        },
+        "validation_steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "generated_field_policy": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "expanded_ref_policy": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "expanded_ref_output_schema_policy": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "tools_and_facilities_state_semantics": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "default_dish_storage_ref": {
+          "$ref": "common_defs.schema.json#/$defs/StorageRef"
+        },
+        "cook_dish_output_storage_policy": {
+          "type": "string"
+        },
+        "overlay_merge_policy": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "storage_occupant_policy": {
+          "type": "object",
+          "required": [
+            "storable_object_types_current_stage",
+            "object_ref_cache_field",
+            "capacity_cache_field",
+            "storage_source",
+            "object_id_fields",
+            "capacity_rule",
+            "material_lot_view_rule"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "storable_object_types_current_stage": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "MaterialLot",
+                  "DishLot"
+                ]
+              },
+              "minItems": 2,
+              "uniqueItems": true
+            },
+            "object_ref_cache_field": {
+              "const": "StorageContainer.active_object_refs"
+            },
+            "capacity_cache_field": {
+              "const": "StorageContainer.used_capacity"
+            },
+            "storage_source": {
+              "type": "string",
+              "minLength": 1
+            },
+            "object_id_fields": {
+              "type": "object",
+              "required": [
+                "MaterialLot",
+                "DishLot"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "MaterialLot": {
+                  "const": "lot_id"
+                },
+                "DishLot": {
+                  "const": "dish_lot_id"
+                }
+              }
+            },
+            "capacity_rule": {
+              "type": "string",
+              "minLength": 1
+            },
+            "material_lot_view_rule": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "action_pipeline_storage_invariant": {
+          "type": "object",
+          "required": [
+            "applies_to_actions",
+            "post_success_rule",
+            "rollback_rule",
+            "event_rule"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "applies_to_actions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "post_success_rule": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rollback_rule": {
+              "type": "string",
+              "minLength": 1
+            },
+            "event_rule": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
+      "required": [
+        "mapping_config_ref",
+        "mapping_id",
+        "new_game_builder_required",
+        "new_game_builder_output",
+        "no_implicit_defaults",
+        "savefile_schema_ref",
+        "mapping_coverage_required",
+        "validation_steps",
+        "generated_field_policy",
+        "expanded_ref_policy",
+        "expanded_ref_output_schema_policy",
+        "tools_and_facilities_state_semantics"
+      ]
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "load_order_config.schema.json",
+  "type": "object",
+  "required": [
+    "stage_id",
+    "config_version"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "stage_id": {
+      "type": "string"
+    },
+    "config_version": {
+      "type": "string"
+    },
+    "extends": {
+      "type": "string"
+    },
+    "load_order": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "additional_load_order": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "required_ids": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "excluded_from_stage_1A": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "new_runtime_requirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "debug_only": {
+      "type": "boolean"
+    },
+    "forbidden_normal_pool_when_flag_false": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "stage_active_config": {
+      "type": "string"
+    }
+  }
+}

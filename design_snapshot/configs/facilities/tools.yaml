@@ -1,0 +1,40 @@
+tool_definitions:
+  knife_basic:
+    tool_type: knife
+    allowed_actions:
+    - cut
+    - cook_prep
+  water_bucket_basic:
+    tool_type: water_container
+    allowed_actions:
+    - carry_water
+  hoe_basic:
+    tool_type: farming_tool
+    allowed_actions:
+    - till_soil
+    - plant_seed
+initial_tools:
+- id: knife_basic
+  quality_tier: basic
+  durability_current: 60
+  durability_max: 100
+  repairable: true
+  definition_id: knife_basic
+  status: available
+  condition: worn
+- id: water_bucket_basic
+  quality_tier: basic
+  durability_current: 80
+  durability_max: 100
+  repairable: true
+  definition_id: water_bucket_basic
+  status: available
+  condition: worn
+- id: hoe_basic
+  quality_tier: basic
+  durability_current: 70
+  durability_max: 100
+  repairable: true
+  definition_id: hoe_basic
+  status: available
+  condition: worn

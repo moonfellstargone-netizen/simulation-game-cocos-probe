@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dish_structure_config.schema.json",
+  "type": "object",
+  "required": [
+    "id",
+    "display_name_key",
+    "dish_family",
+    "required_roles",
+    "technique_expectations",
+    "classifier_rules"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "display_name_key": {
+      "type": "string"
+    },
+    "dish_family": {
+      "type": "string"
+    },
+    "required_roles": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [],
+        "additionalProperties": false,
+        "properties": {
+          "allowed_base_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "allowed_forms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "min_quantity_g": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "optional_roles": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [],
+        "additionalProperties": false,
+        "properties": {
+          "allowed_base_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "allowed_forms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "min_quantity_g": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "technique_expectations": {
+      "type": "object",
+      "required": [],
+      "additionalProperties": false,
+      "properties": {
+        "primary_action": {
+          "type": "string"
+        },
+        "heat_level_preference": {
+          "type": "string"
+        },
+        "time_preference_minutes": {
+          "type": "object",
+          "required": [],
+          "additionalProperties": false,
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "ideal_min": {
+              "type": "number"
+            },
+            "ideal_max": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "flavor_targets": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [],
+        "additionalProperties": false,
+        "properties": {
+          "min": {
+            "type": "number"
+          },
+          "ideal_min": {
+            "type": "number"
+          },
+          "ideal_max": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "classifier_rules": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "number",
+          "string",
+          "boolean"
+        ]
+      }
+    },
+    "defect_rules": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "condition"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "condition": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "demand_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "resource_requirements": {
+      "type": "object",
+      "required": [],
+      "additionalProperties": false,
+      "properties": {
+        "water": {
+          "type": "object",
+          "required": [
+            "source",
+            "amount_ml"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string"
+            },
+            "amount_ml": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,56 @@
+id: tavern_home_dish
+demand_profile_id: tavern_home_dish
+display_name_key: demand.tavern_home_dish.name
+issuer_npc_id: qian_xiaoman
+accepted_object_types:
+- DishLot
+hard_requirements:
+- type: property
+  key: safety_risk
+  max_value: 25
+weighted_requirements:
+- type: property
+  key: saltiness
+  target_range:
+  - 40
+  - 75
+  weight: 2
+  scoring_curve: bell
+- type: property
+  key: oiliness
+  target_range:
+  - 30
+  - 75
+  weight: 1.5
+  scoring_curve: bell
+- type: field
+  key: serving_count
+  min_value: 2
+  weight: 1
+  scoring_curve: threshold
+  source_object_field: DishLot.serving_count
+- type: tag
+  key: home_style
+  weight: 1
+  scoring_curve: boolean
+forbidden_defects:
+- unsafe
+acceptable_defects:
+  watery_dish: minor_penalty
+  too_salty: medium_penalty
+match_threshold: 60
+reward_rules:
+  base_money: 28
+  score_bonus_per_10_over_threshold: 3
+  reputation_delta_on_success: 1
+  currency_id: copper_coin
+explanation_keys:
+  accepted: demand.tavern_home_dish.accepted
+  rejected_safety: demand.tavern_home_dish.rejected_safety
+  watery_feedback: npc.qian_xiaoman.tip.high_heat
+resolver_type_contract:
+  property: read from dish_profile or material property_profile
+  field: read from top-level object fields, such as DishLot.serving_count
+  tag: read only from DishLot.suitability_tags; cook_dish must merge DishStructure.demand_tags into DishLot.suitability_tags
+    when recognized_dish_id is set
+  defect: read from defects list or defect map

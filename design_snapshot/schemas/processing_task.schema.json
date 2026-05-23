@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "processing_task.schema.json",
+  "type": "object",
+  "required": [
+    "task_id",
+    "method_id",
+    "input_lot_refs",
+    "reserved_quantities",
+    "start_world_minute",
+    "expected_finish_minute",
+    "facility_ref",
+    "environment_snapshot",
+    "current_stage",
+    "status"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "task_id": {
+      "type": "string"
+    },
+    "method_id": {
+      "type": "string"
+    },
+    "input_lot_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "lot_id",
+          "quantity",
+          "reservation_id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "lot_id": {
+            "type": "string"
+          },
+          "quantity": {
+            "$ref": "common_defs.schema.json#/$defs/Quantity"
+          },
+          "reservation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "reserved_quantities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "reservation_id",
+          "lot_id",
+          "quantity",
+          "status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "reservation_id": {
+            "type": "string"
+          },
+          "lot_id": {
+            "type": "string"
+          },
+          "quantity": {
+            "$ref": "common_defs.schema.json#/$defs/Quantity"
+          },
+          "status": {
+            "enum": [
+              "reserved",
+              "released",
+              "consumed",
+              "cancelled"
+            ]
+          }
+        }
+      }
+    },
+    "start_world_minute": {
+      "type": "integer"
+    },
+    "expected_finish_minute": {
+      "type": "integer"
+    },
+    "facility_ref": {
+      "$ref": "common_defs.schema.json#/$defs/NonEmptyFacilityStorageRef"
+    },
+    "environment_snapshot": {
+      "type": "object",
+      "required": [
+        "temperature_state",
+        "humidity_state",
+        "cleanliness",
+        "ventilation",
+        "season",
+        "weather",
+        "container_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "temperature_state": {
+          "type": "string"
+        },
+        "humidity_state": {
+          "type": "string"
+        },
+        "cleanliness": {
+          "type": "number"
+        },
+        "ventilation": {
+          "type": "string"
+        },
+        "season": {
+          "type": "string"
+        },
+        "weather": {
+          "type": "string"
+        },
+        "container_id": {
+          "type": "string"
+        }
+      }
+    },
+    "current_stage": {
+      "enum": [
+        "started",
+        "fermenting",
+        "drying",
+        "ready",
+        "risky",
+        "failed"
+      ]
+    },
+    "progress": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "risk_state": {
+      "type": "string"
+    },
+    "preview_result": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "expected_output_base_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expected_quantity": {
+          "$ref": "common_defs.schema.json#/$defs/Quantity"
+        },
+        "risk_note_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "minProperties": 1
+    },
+    "status": {
+      "enum": [
+        "active",
+        "paused",
+        "ready_to_collect",
+        "completed",
+        "cancelled",
+        "failed"
+      ]
+    },
+    "output_preview": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "output_base_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "quantity": {
+          "$ref": "common_defs.schema.json#/$defs/Quantity"
+        },
+        "quality_grade": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "minProperties": 1
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

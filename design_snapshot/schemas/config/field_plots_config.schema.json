@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "field_plots_config.schema.json",
+  "type": "object",
+  "required": [
+    "field_plot_definitions",
+    "initial_field_plots"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "field_plot_definitions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "display_name_key",
+          "location_id",
+          "soil_quality",
+          "capacity_tiles"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "display_name_key": {
+            "type": "string"
+          },
+          "location_id": {
+            "type": "string"
+          },
+          "soil_quality": {
+            "type": "number"
+          },
+          "capacity_tiles": {
+            "type": "integer"
+          },
+          "supports_crop_categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default_water_state": {
+            "type": "string"
+          },
+          "unlock_stage": {
+            "enum": [
+              "stage_1A",
+              "stage_1B",
+              "stage_1C_debug",
+              "stage_2",
+              "stage_3"
+            ]
+          }
+        }
+      }
+    },
+    "initial_field_plots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "field_plot_id",
+          "definition_id",
+          "location_id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "field_plot_id": {
+            "type": "string"
+          },
+          "definition_id": {
+            "type": "string"
+          },
+          "location_id": {
+            "type": "string"
+          },
+          "soil_quality": {
+            "type": "number"
+          },
+          "capacity_tiles": {
+            "type": "integer"
+          },
+          "occupied_tiles": {
+            "type": "integer"
+          },
+          "flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

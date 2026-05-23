@@ -1,0 +1,548 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "new_game_builder_mapping.schema.json",
+  "title": "NewGameBuilder InitialWorld to SaveFile mapping contract",
+  "type": "object",
+  "required": [
+    "mapping_id",
+    "mapping_version",
+    "target_schema_id",
+    "source_initial_world_id",
+    "savefile_field_rules",
+    "coverage_policy",
+    "validation_policy"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "mapping_id": {
+      "type": "string"
+    },
+    "mapping_version": {
+      "type": "string"
+    },
+    "target_schema_id": {
+      "const": "save_file.schema.json"
+    },
+    "source_initial_world_id": {
+      "type": "string"
+    },
+    "coverage_policy": {
+      "type": "object",
+      "required": [
+        "all_savefile_required_fields_must_be_covered",
+        "all_savefile_properties_must_have_rule_or_explicit_optional_policy"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "all_savefile_required_fields_must_be_covered": {
+          "const": true
+        },
+        "all_savefile_properties_must_have_rule_or_explicit_optional_policy": {
+          "const": true
+        },
+        "disallow_implicit_defaults": {
+          "type": "boolean"
+        }
+      }
+    },
+    "savefile_field_rules": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "category",
+          "target_path"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "enum": [
+              "direct_map",
+              "renamed_map",
+              "expanded_ref",
+              "generated",
+              "constant",
+              "default_empty",
+              "default_null"
+            ]
+          },
+          "target_path": {
+            "type": "string"
+          },
+          "source_path": {
+            "type": "string"
+          },
+          "source_ref_path": {
+            "type": "string"
+          },
+          "generator": {
+            "type": "string"
+          },
+          "constant_value": {
+            "$ref": "#/$defs/JSONValue"
+          },
+          "default_value": {
+            "$ref": "#/$defs/JSONValue"
+          },
+          "required_non_null": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "generator_output_schema": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "validation_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validate_source_paths_exist",
+        "validate_expanded_refs_exist",
+        "validate_generated_fields_non_null_after_build",
+        "validate_savefile_against_schema_after_build",
+        "validate_no_unmapped_savefile_required_fields",
+        "validate_no_unmapped_savefile_properties",
+        "new_game_builder_must_emit_mapping_audit",
+        "mapping_audit_required_fields",
+        "storage_reconciliation_policy"
+      ],
+      "properties": {
+        "validate_source_paths_exist": {
+          "const": true
+        },
+        "validate_expanded_refs_exist": {
+          "const": true
+        },
+        "validate_generated_fields_non_null_after_build": {
+          "const": true
+        },
+        "validate_savefile_against_schema_after_build": {
+          "const": true
+        },
+        "validate_no_unmapped_savefile_required_fields": {
+          "const": true
+        },
+        "validate_no_unmapped_savefile_properties": {
+          "const": true
+        },
+        "new_game_builder_must_emit_mapping_audit": {
+          "const": true
+        },
+        "mapping_audit_required_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "overlay_merge_targets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "reconciliation_required": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "storage_reconciliation_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cache_fields",
+            "rebuild_input",
+            "container_source",
+            "lot_container_ref",
+            "lot_footprint_ref",
+            "current_capacity_unit",
+            "used_capacity_rule",
+            "post_overlay_profiles",
+            "overflow_policy",
+            "extension_policy",
+            "overlay_detection_rule",
+            "lot_storage_ref_required",
+            "storage_ref_match_rule",
+            "stored_form_rule",
+            "unique_identity_rule",
+            "identity_non_blank_rule",
+            "lot_definition_ref_rule",
+            "storage_occupant_positive_quantity_rule",
+            "count_integer_rule",
+            "lot_category_rule",
+            "quantity_unit_rule",
+            "form_definition_rule",
+            "category_identity_rule",
+            "form_identity_rule",
+            "container_supported_forms_rule",
+            "container_positive_capacity_rule",
+            "footprint_definition_rule",
+            "footprint_derivation_rule",
+            "overlay_identity_rule",
+            "baseline_identity_rule",
+            "container_type_identity_rule",
+            "storage_location_type_identity_rule",
+            "storage_type_registry_rule",
+            "finite_numeric_rule",
+            "numeric_type_rule",
+            "minimum_slot_weight_rule",
+            "registry_boundary_rule",
+            "cache_rebuild_rule",
+            "default_storage_ref_rule",
+            "occupant_source",
+            "storable_object_types_current_stage",
+            "object_ref_cache_rule",
+            "dish_lot_storage_rule",
+            "action_pipeline_invariant_rule",
+            "transaction_rollback_rule",
+            "storage_occupant_ref_schema_rule",
+            "submit_order_consumption_rule",
+            "storage_occupant_adapters"
+          ],
+          "properties": {
+            "cache_fields": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "rebuild_input": {
+              "type": "string",
+              "minLength": 1
+            },
+            "container_source": {
+              "type": "string",
+              "minLength": 1
+            },
+            "lot_container_ref": {
+              "const": "StorageOccupantAdapter.storage_ref_field.container_id"
+            },
+            "lot_footprint_ref": {
+              "const": "StorageOccupantAdapter.storage_footprint_field"
+            },
+            "current_capacity_unit": {
+              "const": "slot_weight"
+            },
+            "used_capacity_rule": {
+              "type": "string",
+              "minLength": 1
+            },
+            "post_overlay_profiles": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^stage_[A-Za-z0-9_]+$"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "overflow_policy": {
+              "type": "string",
+              "minLength": 1
+            },
+            "extension_policy": {
+              "type": "string",
+              "minLength": 1
+            },
+            "overlay_detection_rule": {
+              "const": "all_loaded_configs_initial_world_yaml_except_stage_1A_initial_world"
+            },
+            "lot_storage_ref_required": {
+              "const": true
+            },
+            "storage_ref_match_rule": {
+              "const": "lot.storage_ref.location_id_and_storage_type_must_match_referenced_container"
+            },
+            "stored_form_rule": {
+              "const": "StorageOccupantAdapter.storage_form_must_be_in_referenced_container.supported_forms"
+            },
+            "unique_identity_rule": {
+              "const": "storage_container.container_id_and_storage_occupant_object_refs_must_be_unique_per_profile"
+            },
+            "lot_definition_ref_rule": {
+              "const": "lot.definition_ref.type_id_canonical_id_must_match_registered_base_definition"
+            },
+            "quantity_unit_rule": {
+              "const": "lot.quantity.unit_must_match_definition.storage_footprint_rule.base_quantity.unit"
+            },
+            "form_definition_rule": {
+              "const": "lot.current_form_must_exist_in_registered_definition.forms"
+            },
+            "footprint_definition_rule": {
+              "const": "definition.storage_footprint_rule.footprint.unit_and_container.capacity.unit_must_use_slot_weight_current_stage"
+            },
+            "footprint_derivation_rule": {
+              "const": "ceil_to_integer_slot_weight_from_quantity_over_base_quantity"
+            },
+            "storage_occupant_positive_quantity_rule": {
+              "const": "MaterialLot.quantity.amount_must_be_positive; DishLot.serving_count_and_total_quantity.amount_must_be_positive_when_stored"
+            },
+            "lot_category_rule": {
+              "const": "lot.category_must_match_registered_base_definition_category"
+            },
+            "overlay_identity_rule": {
+              "const": "loaded_initial_world_overlay_ids_unique_not_baseline_and_extends_immediate_previous_initial_world_layer"
+            },
+            "identity_non_blank_rule": {
+              "const": "storage_identity_ids_must_be_non_blank_trimmed_strings"
+            },
+            "count_integer_rule": {
+              "const": "count_unit_amounts_must_be_integers_for_current_storage_reconciliation"
+            },
+            "category_identity_rule": {
+              "const": "registered_definition.category_must_be_non_blank_trimmed_string"
+            },
+            "form_identity_rule": {
+              "const": "definition_forms_current_form_and_supported_forms_must_be_non_blank_trimmed_strings"
+            },
+            "container_supported_forms_rule": {
+              "const": "storage_container.supported_forms_must_be_non_empty_for_current_ordinary_storage"
+            },
+            "container_positive_capacity_rule": {
+              "const": "storage_container.capacity.amount_must_be_positive_for_current_ordinary_storage"
+            },
+            "baseline_identity_rule": {
+              "const": "source_initial_world_id_must_match_actual_baseline_initial_world_id"
+            },
+            "container_type_identity_rule": {
+              "const": "storage_container.container_type_must_be_non_blank_trimmed_string"
+            },
+            "storage_location_type_identity_rule": {
+              "const": "storage_location_id_and_storage_type_must_be_non_blank_trimmed_strings"
+            },
+            "storage_type_registry_rule": {
+              "const": "common_defs_storage_ref_schema_must_not_hardcode_storage_type_enum_dev_tools_validates_common_enums_storage_types"
+            },
+            "finite_numeric_rule": {
+              "const": "storage_reconciliation_numeric_fields_must_be_finite_no_nan_no_infinity"
+            },
+            "numeric_type_rule": {
+              "const": "storage_reconciliation_numeric_fields_must_be_int_or_float_not_bool_or_string"
+            },
+            "minimum_slot_weight_rule": {
+              "const": "positive_lot_must_occupy_at_least_one_slot_weight"
+            },
+            "registry_boundary_rule": {
+              "const": "schema_validates_shape_registry_defines_identity_dev_tools_validates_registration_and_references"
+            },
+            "cache_rebuild_rule": {
+              "const": "active_object_refs_and_used_capacity_must_be_rebuilt_from_storage_occupants_not_trusted_as_source"
+            },
+            "default_storage_ref_rule": {
+              "const": "default_dish_storage_ref_must_match_referenced_container_location_and_storage_type"
+            },
+            "occupant_source": {
+              "type": "string",
+              "minLength": 1
+            },
+            "storable_object_types_current_stage": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "MaterialLot",
+                  "DishLot"
+                ]
+              },
+              "minItems": 2,
+              "uniqueItems": true
+            },
+            "object_ref_cache_rule": {
+              "const": "active_object_refs stores common_defs.StorageOccupantRef entries, not generic RuntimeObjectRef or material-only ids"
+            },
+            "dish_lot_storage_rule": {
+              "const": "DishLot.storage_ref_storage_form_and_storage_footprint_participate_in_same_reconciliation_as_MaterialLot"
+            },
+            "action_pipeline_invariant_rule": {
+              "const": "every_storage_mutating_formal_action_must_validate_storage_reconciliation_after_success_and_restore_pre_action_snapshot_after_failure"
+            },
+            "transaction_rollback_rule": {
+              "const": "failed_action_must_not_leave_inventory_dish_lots_reservations_fuel_orders_storage_cache_or_domain_events_partially_mutated"
+            },
+            "storage_occupant_ref_schema_rule": {
+              "const": "store_item.object_ref_and_StorageContainer.active_object_refs_must_use_common_defs.StorageOccupantRef"
+            },
+            "submit_order_consumption_rule": {
+              "const": "Stage_1A_submit_order_success_removes_submitted_DishLot_from_SaveFile.dish_lots; Order_and_DomainEvent_keep_submission_history"
+            },
+            "storage_occupant_adapters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "MaterialLot",
+                "DishLot"
+              ],
+              "properties": {
+                "MaterialLot": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "object_type",
+                    "collection",
+                    "id_field",
+                    "storage_ref_field",
+                    "storage_footprint_field",
+                    "storage_form_field",
+                    "quantity_fields"
+                  ],
+                  "properties": {
+                    "object_type": {
+                      "const": "MaterialLot"
+                    },
+                    "collection": {
+                      "const": "SaveFile.inventory"
+                    },
+                    "id_field": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "storage_ref_field": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "storage_footprint_field": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "storage_form_field": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "definition_ref_field": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "base_id_field": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "storage_form_allowed_values": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 1,
+                      "uniqueItems": true
+                    },
+                    "quantity_fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 1
+                    }
+                  }
+                },
+                "DishLot": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "object_type",
+                    "collection",
+                    "id_field",
+                    "storage_ref_field",
+                    "storage_footprint_field",
+                    "storage_form_field",
+                    "quantity_fields"
+                  ],
+                  "properties": {
+                    "object_type": {
+                      "const": "DishLot"
+                    },
+                    "collection": {
+                      "const": "SaveFile.dish_lots"
+                    },
+                    "id_field": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "storage_ref_field": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "storage_footprint_field": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "storage_form_field": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "definition_ref_field": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "base_id_field": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "storage_form_allowed_values": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 1,
+                      "uniqueItems": true
+                    },
+                    "quantity_fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "runtime_lifecycle_matrix_required": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "$defs": {
+    "JSONValue": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/JSONValue"
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/JSONValue"
+          }
+        }
+      ]
+    }
+  }
+}

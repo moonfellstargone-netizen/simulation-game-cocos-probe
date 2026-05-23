@@ -1,0 +1,14 @@
+id: cabbage_crop
+material_base_id: cabbage
+seed_id: cabbage_seed
+growth_profile_id: cabbage_growth_basic
+display_name_key: crop.cabbage.name
+crop_category: leafy_vegetable
+default_harvest_material:
+  base_id: cabbage
+  form: fresh
+field_requirements:
+  allowed_field_definitions:
+  - field_plot_basic
+  min_soil_quality: 20
+available_from_stage: stage_1A

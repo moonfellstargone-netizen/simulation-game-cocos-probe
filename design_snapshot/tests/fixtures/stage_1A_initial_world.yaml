@@ -1,0 +1,4 @@
+fixture_id: stage_1A_initial_world_fixture
+source_config: ../../configs/initial_world/stage_1A_initial_world.yaml
+purpose: 作为自动化测试的新档起点，不要求 UI 参与。
+expected_load_profile: stage_1A

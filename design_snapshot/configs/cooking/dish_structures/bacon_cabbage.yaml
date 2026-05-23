@@ -1,0 +1,34 @@
+id: bacon_cabbage
+display_name_key: dish.bacon_cabbage.name
+dish_family: stir_fry
+required_roles:
+  main:
+    allowed_base_ids: [cabbage]
+    allowed_forms: [fresh, cut, pickled]
+    min_quantity_g: 200
+  side:
+    allowed_base_ids: [bacon]
+    allowed_forms: [cured]
+    min_quantity_g: 40
+optional_roles:
+  oil:
+    allowed_base_ids: [cooking_oil]
+  aromatic:
+    allowed_base_ids: [ginger]
+technique_expectations:
+  primary_action: stir_fry
+  heat_level_preference: high
+  time_preference_minutes: {min: 4, ideal_min: 6, ideal_max: 10, max: 15}
+flavor_targets:
+  saltiness: {min: 35, ideal_min: 45, ideal_max: 65, max: 78}
+  oiliness: {min: 25, ideal_min: 35, ideal_max: 65, max: 82}
+  wateriness: {max: 55}
+classifier_rules:
+  min_main_role_match: 1
+  min_side_role_match: 1
+  required_technique: stir_fry
+defect_rules:
+  watery_dish: {condition: dish_profile.wateriness > 65}
+  too_salty: {condition: dish_profile.saltiness > 78}
+  greasy: {condition: dish_profile.oiliness > 85}
+demand_tags: [home_style, hearty, tavern_suitable]

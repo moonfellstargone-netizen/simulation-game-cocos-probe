@@ -1,0 +1,110 @@
+assertion_set_id: stage_1A_expected_assertions
+config_assertions:
+- no_yaml_parse_errors
+- no_json_schema_parse_errors
+- no_missing_material_refs_for_stage_1A
+- no_missing_text_keys_for_stage_1A
+- no_deprecated_fields:
+  - old_case_enabled
+  - water.unlimited_for_stage1
+  - property_or_tag
+  - source_type=split
+  - storage_ref=home_cellar
+  - household_water_enabled
+  - recipe.water_cost_ml
+  - fuel_enabled
+  - tool_durability_enabled
+- stage_1A_feature_flag_overrides_applied
+- demand_field_requirements_are_not_treated_as_properties
+- tavern_order_deadline_covers_full_action_sequence
+- domain_event_type_payload_binding
+- cook_dish_output_storage_target_or_default
+- feature_flags_snapshot_has_metadata_and_known_flags_only
+- fixture_gameplay_parameters_are_subset_of_formal_schema
+- test_driver_hints_are_not_formal_action_parameters
+- feature_flag_dependencies_apply_without_destroying_future_defaults
+- stage_profile_explicitly_references_stage_active_config
+- storage_occupant_cache_uses_active_object_refs
+- dish_lot_participates_in_storage_reconciliation
+- action_lifecycle_matrix_covers_all_formal_actions
+- storage_mutating_actions_have_transaction_rollback_assertions
+- storage_occupant_ref_schema_is_narrow
+- storage_occupant_adapters_define_materiallot_and_dishlot
+- module04_action_contract_table_matches_formal_schema
+world_assertions:
+- initial_inventory_contains:
+  - cabbage_seed
+  - salt
+  - bacon
+  - cooking_oil
+- initial_world_contains:
+  - field_plot_01
+  - home_room_temp_01
+  - home_cellar_01
+  - pickling_jar_basic_01
+  - tavern_home_dish_001
+- initial_order_deadline_absolute_minute_gte: 12000
+chain_assertions:
+- mid_growth_save_roundtrip:
+    step_id: T03B_save_load_mid_growth
+    crop_instance_persisted: true
+    field_active_crop_ids_include_saved_crop: true
+    loaded_game_can_continue_growth_and_harvest: true
+- harvest_creates_material_lot:
+    base_id: cabbage
+    current_form: fresh
+    source_ref.source_type: farming
+- storage_decay_differs:
+    room_temp_freshness_loss_per_day_gt_cellar: true
+- split_uses_source_ref:
+    source_type: inventory_split
+    forbidden_source_type: split
+- processing_task_created:
+    method_id: pickling_cabbage_basic
+    status_initial: active
+    status_final: completed
+- collect_processing_result:
+    step_id: T12_collect_pickled_cabbage
+    action_type: collect_processing_result
+    creates_output_lot: true
+- pickling_output:
+    base_id: cabbage
+    current_form: pickled
+    source_ref.source_type: processing
+- cooking_output:
+    object_type: DishLot
+    recognized_dish_id: bacon_cabbage
+    forbidden_object_type: MaterialLot
+    source_ref.source_type: cooking
+- tavern_order_completed:
+    demand_profile_id: tavern_home_dish
+    min_match_score: 60
+- save_roundtrip:
+    inventory_hash_equal: true
+    orders_hash_equal: true
+    random_state_equal: true
+- invalid_lot_failure:
+    step_id: T16_invalid_lot_failure
+    no_new_task: true
+    no_new_lot: true
+    resources_not_double_consumed: true
+- reservation_rollback_failure:
+    step_id: T19_reserved_lot_rollback_failure
+    status_code: ERR_ALREADY_RESERVED
+    no_extra_reservation_created: true
+    resources_not_double_consumed: true
+- runtime_lifecycle_matrix:
+    matrix_path: tests/expected/stage_1A_runtime_lifecycle_matrix.yaml
+    all_formal_actions_covered: true
+    storage_mutating_actions_have_post_success_reconciliation: true
+    failure_rollback_scope_declared: true
+- cook_dish_storage_occupant:
+    created_object_type: DishLot
+    must_appear_in_storage_container_active_object_refs: true
+    capacity_recalculated_from_dish_storage_footprint: true
+- submit_order_storage_occupant_consumption:
+    submitted_object_type: DishLot
+    must_be_removed_from_savefile_dish_lots_before_completion: true
+    must_be_absent_from_all_storage_container_active_object_refs: true
+    history_retained_by_order_and_domain_event: true
+    storage_cache_reconciled_after_completion: true

@@ -1,0 +1,46 @@
+id: family_meal_basic
+demand_profile_id: family_meal_basic
+display_name_key: demand.family_meal_basic.name
+accepted_object_types:
+- DishLot
+- PurchasedMeal
+hard_requirements:
+- type: property
+  key: safety_risk
+  max_value: 20
+weighted_requirements:
+- type: property
+  key: saltiness
+  target_range:
+  - 15
+  - 60
+  weight: 1.5
+  scoring_curve: bell
+- type: property
+  key: oiliness
+  max_value: 70
+  weight: 1
+  scoring_curve: threshold
+- type: tag
+  key: warm
+  weight: 1
+  scoring_curve: boolean
+- type: tag
+  key: family_suitable
+  weight: 1
+  scoring_curve: boolean
+context_modifiers:
+  ayue_low_health:
+    prefer_tags:
+    - warm
+    - light_meal
+    penalize_tags:
+    - heavy_oil
+    - too_spicy
+match_threshold: 50
+meal_tolerance_rules:
+  one_day_missing: no_severe_penalty
+  consecutive_days_threshold: 3
+  substitute_allowed: true
+  child_self_feed_short_term: true
+available_from_stage: stage_1B

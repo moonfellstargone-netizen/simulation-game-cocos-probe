@@ -1,0 +1,299 @@
+fixture_id: stage_1A_new_game_builder_mapping_assertions
+mapping_id: stage_1A_new_game_builder_mapping
+target_schema_id: save_file.schema.json
+expected_savefile_properties:
+- save_version
+- game_version
+- schema_version
+- rules_version
+- config_version
+- content_pack_versions
+- created_with_build
+- last_saved_with_build
+- created_at_real_time
+- last_saved_at_real_time
+- world_time
+- random_state
+- feature_flags
+- player_state
+- family_state
+- inventory
+- fields
+- animals
+- processing_tasks
+- dish_lots
+- orders
+- npc_relations
+- story_flags
+- discovered_clues
+- story_event_log
+- story_choices
+- story_items_state
+- home_water
+- tools_state
+- facilities_state
+- event_log_summary
+- migration_history
+- migration_warnings
+- last_migration_at
+- debug_flags
+- storage_containers
+- fuel_state
+- crop_instances
+- reservations
+expected_savefile_required_fields:
+- save_version
+- game_version
+- schema_version
+- rules_version
+- config_version
+- content_pack_versions
+- created_with_build
+- last_saved_with_build
+- created_at_real_time
+- last_saved_at_real_time
+- world_time
+- random_state
+- feature_flags
+- player_state
+- family_state
+- inventory
+- fields
+- animals
+- processing_tasks
+- dish_lots
+- orders
+- npc_relations
+- story_flags
+- discovered_clues
+- story_event_log
+- story_choices
+- story_items_state
+- home_water
+- tools_state
+- facilities_state
+- event_log_summary
+- migration_history
+- migration_warnings
+- last_migration_at
+- debug_flags
+- storage_containers
+- fuel_state
+- crop_instances
+- reservations
+coverage_assertions:
+  all_savefile_required_fields_have_rules: true
+  all_savefile_properties_have_rules: true
+  savefile_required_equals_properties: true
+  no_implicit_defaults: true
+  validate_source_paths_exist: true
+  validate_expanded_refs_exist: true
+  validate_built_savefile_against_schema: true
+  mapping_audit_required: true
+category_counts:
+  constant: 1
+  generated: 12
+  direct_map: 8
+  default_empty: 14
+  expanded_ref: 3
+  default_null: 1
+critical_field_rules:
+  inventory:
+    category: generated
+    target_path: SaveFile.inventory
+    generator: inventory_from_initial_world_plus_active_overlay_debug_inventory_additions
+    required_non_null: true
+  orders:
+    category: generated
+    target_path: SaveFile.orders
+    generator: orders_from_initial_world_plus_active_overlay_debug_orders
+    required_non_null: true
+  storage_containers:
+    category: generated
+    target_path: SaveFile.storage_containers
+    generator: storage_containers_reconciled_from_merged_inventory_storage_refs_and_footprints
+    required_non_null: true
+  family_state:
+    category: generated
+    target_path: SaveFile.family_state
+    generator: family_state_from_initial_world_plus_active_overlay_meal_state
+    required_non_null: true
+  crop_instances:
+    category: default_empty
+    target_path: SaveFile.crop_instances
+    default_value: []
+  reservations:
+    category: default_empty
+    target_path: SaveFile.reservations
+    default_value: []
+  tools_state:
+    category: expanded_ref
+    target_path: SaveFile.tools_state
+    source_ref_path: initial_world.initial_tools_ref
+    generator: expand_initial_tools_ref_to_tool_state
+    required_non_null: true
+    generator_output_schema: schemas/tool_state.schema.json
+  facilities_state:
+    category: expanded_ref
+    target_path: SaveFile.facilities_state
+    source_ref_path: initial_world.initial_facilities_ref
+    generator: expand_initial_facilities_ref_to_facility_state
+    required_non_null: true
+    generator_output_schema: schemas/facility_state.schema.json
+  fuel_state:
+    category: expanded_ref
+    target_path: SaveFile.fuel_state
+    source_ref_path: initial_world.initial_fuel_ref
+    generator: expand_initial_fuel_ref_to_fuel_state
+    required_non_null: true
+    generator_output_schema: schemas/fuel_state.schema.json
+  feature_flags:
+    category: generated
+    target_path: SaveFile.feature_flags
+    generator: feature_flags_snapshot_from_effective_feature_flags_active_profile(profile_id,
+      merge_policy, effective_flags, source_config_hash)
+    required_non_null: true
+    generator_output_schema: schemas/feature_flags_snapshot.schema.json
+  random_state:
+    category: generated
+    target_path: SaveFile.random_state
+    generator: new_game_random_state_factory(seed_policy=stage1_fixed_seed)
+    required_non_null: true
+  migration_history:
+    category: default_empty
+    target_path: SaveFile.migration_history
+    default_value: []
+  last_migration_at:
+    category: default_null
+    target_path: SaveFile.last_migration_at
+    default_value: null
+  game_version:
+    category: generated
+    target_path: SaveFile.game_version
+    generator: game_version_from_rule_versions.version_bundle.game_version
+    required_non_null: true
+    single_source: configs/core/rule_versions.yaml#version_bundle.game_version
+expanded_refs_expected:
+  initial_tools_ref: SaveFile.tools_state
+  initial_facilities_ref: SaveFile.facilities_state
+  initial_fuel_ref: SaveFile.fuel_state
+constant_fields_expected:
+- save_version
+generated_fields_expected:
+- game_version
+- content_pack_versions
+- created_with_build
+- last_saved_with_build
+- created_at_real_time
+- last_saved_at_real_time
+- random_state
+- feature_flags
+- family_state
+- inventory
+- storage_containers
+- orders
+direct_or_renamed_fields_expected:
+  schema_version: SaveFile.schema_version
+  rules_version: SaveFile.rules_version
+  config_version: SaveFile.config_version
+  world_time: SaveFile.world_time
+  player_state: SaveFile.player_state
+  home_water: SaveFile.home_water
+  fields: SaveFile.fields
+  story_flags: SaveFile.story_flags
+mapping_version: new_game_builder_mapping.v1_5_2_2.storage_occupant_abstract_propagation_closure
+expanded_ref_output_schema_assertions:
+  tools_state: schemas/tool_state.schema.json
+  facilities_state: schemas/facility_state.schema.json
+  fuel_state: schemas/fuel_state.schema.json
+  quality_tier_worn_forbidden: true
+  condition_worn_required_for_starter_worn_assets: true
+  main_check_must_call_mapping_contract: true
+storage_reconciliation_policy_expected:
+  cache_fields:
+  - storage_containers.active_object_refs
+  - storage_containers.used_capacity
+  rebuild_input: merged_SaveFile_storage_occupants_after_active_overlay_merge_and_runtime_action_commit
+  container_source: initial_world.storage_containers
+  lot_container_ref: StorageOccupantAdapter.storage_ref_field.container_id
+  lot_footprint_ref: StorageOccupantAdapter.storage_footprint_field
+  overlay_detection_rule: all_loaded_configs_initial_world_yaml_except_stage_1A_initial_world
+  lot_storage_ref_required: true
+  storage_ref_match_rule: lot.storage_ref.location_id_and_storage_type_must_match_referenced_container
+  stored_form_rule: StorageOccupantAdapter.storage_form_must_be_in_referenced_container.supported_forms
+  unique_identity_rule: storage_container.container_id_and_storage_occupant_object_refs_must_be_unique_per_profile
+  lot_definition_ref_rule: lot.definition_ref.type_id_canonical_id_must_match_registered_base_definition
+  storage_occupant_positive_quantity_rule: MaterialLot.quantity.amount_must_be_positive;
+    DishLot.serving_count_and_total_quantity.amount_must_be_positive_when_stored
+  lot_category_rule: lot.category_must_match_registered_base_definition_category
+  category_identity_rule: registered_definition.category_must_be_non_blank_trimmed_string
+  quantity_unit_rule: lot.quantity.unit_must_match_definition.storage_footprint_rule.base_quantity.unit
+  form_definition_rule: lot.current_form_must_exist_in_registered_definition.forms
+  form_identity_rule: definition_forms_current_form_and_supported_forms_must_be_non_blank_trimmed_strings
+  container_supported_forms_rule: storage_container.supported_forms_must_be_non_empty_for_current_ordinary_storage
+  container_positive_capacity_rule: storage_container.capacity.amount_must_be_positive_for_current_ordinary_storage
+  footprint_definition_rule: definition.storage_footprint_rule.footprint.unit_and_container.capacity.unit_must_use_slot_weight_current_stage
+  footprint_derivation_rule: ceil_to_integer_slot_weight_from_quantity_over_base_quantity
+  overlay_identity_rule: loaded_initial_world_overlay_ids_unique_not_baseline_and_extends_immediate_previous_initial_world_layer
+  current_capacity_unit: slot_weight
+  used_capacity_rule: sum slot_weight storage_footprint.amount for all StorageOccupants
+    whose storage_ref.container_id equals container_id
+  post_overlay_profiles:
+  - stage_1A
+  - stage_1B
+  - stage_1C_debug
+  overflow_policy: NewGameBuilder must fail validation when reconciled used_capacity
+    exceeds container capacity.amount
+  extension_policy: Future water_storage/currency_storage/special containers may declare
+    a separate capacity model, but must be registered before bypassing slot_weight
+    reconciliation.
+  identity_non_blank_rule: storage_identity_ids_must_be_non_blank_trimmed_strings
+  count_integer_rule: count_unit_amounts_must_be_integers_for_current_storage_reconciliation
+  baseline_identity_rule: source_initial_world_id_must_match_actual_baseline_initial_world_id
+  container_type_identity_rule: storage_container.container_type_must_be_non_blank_trimmed_string
+  storage_location_type_identity_rule: storage_location_id_and_storage_type_must_be_non_blank_trimmed_strings
+  storage_type_registry_rule: common_defs_storage_ref_schema_must_not_hardcode_storage_type_enum_dev_tools_validates_common_enums_storage_types
+  finite_numeric_rule: storage_reconciliation_numeric_fields_must_be_finite_no_nan_no_infinity
+  numeric_type_rule: storage_reconciliation_numeric_fields_must_be_int_or_float_not_bool_or_string
+  minimum_slot_weight_rule: positive_lot_must_occupy_at_least_one_slot_weight
+  registry_boundary_rule: schema_validates_shape_registry_defines_identity_dev_tools_validates_registration_and_references
+  cache_rebuild_rule: active_object_refs_and_used_capacity_must_be_rebuilt_from_storage_occupants_not_trusted_as_source
+  default_storage_ref_rule: default_dish_storage_ref_must_match_referenced_container_location_and_storage_type
+  occupant_source: SaveFile.inventory + SaveFile.dish_lots + future registered storable
+    object collections
+  storable_object_types_current_stage:
+  - MaterialLot
+  - DishLot
+  object_ref_cache_rule: active_object_refs stores common_defs.StorageOccupantRef
+    entries, not generic RuntimeObjectRef or material-only ids
+  dish_lot_storage_rule: DishLot.storage_ref_storage_form_and_storage_footprint_participate_in_same_reconciliation_as_MaterialLot
+  action_pipeline_invariant_rule: every_storage_mutating_formal_action_must_validate_storage_reconciliation_after_success_and_restore_pre_action_snapshot_after_failure
+  transaction_rollback_rule: failed_action_must_not_leave_inventory_dish_lots_reservations_fuel_orders_storage_cache_or_domain_events_partially_mutated
+  storage_occupant_ref_schema_rule: store_item.object_ref_and_StorageContainer.active_object_refs_must_use_common_defs.StorageOccupantRef
+  submit_order_consumption_rule: Stage_1A_submit_order_success_removes_submitted_DishLot_from_SaveFile.dish_lots;
+    Order_and_DomainEvent_keep_submission_history
+  storage_occupant_adapters:
+    MaterialLot:
+      object_type: MaterialLot
+      collection: SaveFile.inventory
+      id_field: lot_id
+      storage_ref_field: storage_ref
+      storage_footprint_field: storage_footprint
+      storage_form_field: current_form
+      definition_ref_field: definition_ref
+      base_id_field: base_id
+      quantity_fields:
+      - quantity.amount
+    DishLot:
+      object_type: DishLot
+      collection: SaveFile.dish_lots
+      id_field: dish_lot_id
+      storage_ref_field: storage_ref
+      storage_footprint_field: storage_footprint
+      storage_form_field: storage_form
+      storage_form_allowed_values:
+      - cooked_dish
+      - dish
+      quantity_fields:
+      - serving_count
+      - total_quantity.amount

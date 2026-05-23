@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "order.schema.json",
+  "type": "object",
+  "required": [
+    "order_id",
+    "issuer_id",
+    "demand_profile_id",
+    "quantity_required",
+    "deadline_absolute_minute",
+    "base_reward",
+    "match_threshold",
+    "status",
+    "submitted_object_refs"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "order_id": {
+      "type": "string"
+    },
+    "issuer_id": {
+      "type": "string"
+    },
+    "demand_profile_id": {
+      "type": "string"
+    },
+    "quantity_required": {
+      "$ref": "common_defs.schema.json#/$defs/Quantity"
+    },
+    "deadline_absolute_minute": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "deadline_policy": {
+      "type": "string"
+    },
+    "base_reward": {
+      "type": "number"
+    },
+    "bonus_rules": {
+      "type": "array",
+      "items": {
+        "$ref": "common_defs.schema.json#/$defs/OrderRule"
+      },
+      "default": []
+    },
+    "penalty_rules": {
+      "type": "array",
+      "items": {
+        "$ref": "common_defs.schema.json#/$defs/OrderRule"
+      },
+      "default": []
+    },
+    "match_threshold": {
+      "type": "number"
+    },
+    "status": {
+      "enum": [
+        "available",
+        "accepted",
+        "submitted",
+        "completed",
+        "failed",
+        "expired",
+        "cancelled"
+      ]
+    },
+    "submitted_object_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "common_defs.schema.json#/$defs/SubmittedObjectRef"
+      }
+    },
+    "result_summary": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "match_score": {
+          "type": "number"
+        },
+        "reward_final": {
+          "type": "number"
+        },
+        "submitted_count": {
+          "type": "number"
+        },
+        "result_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "minProperties": 1
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "debug_flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "not": {
+    "anyOf": [
+      {
+        "required": [
+          "deadline_minute"
+        ]
+      },
+      {
+        "required": [
+          "submitted_object_ref"
+        ]
+      }
+    ]
+  }
+}

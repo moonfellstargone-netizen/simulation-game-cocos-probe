@@ -1,0 +1,78 @@
+stage_id: stage_1A
+config_version: config.v1.5.2.2.stage_1A
+load_order:
+- ../core/rule_versions.yaml
+- ../core/new_game_builder_mapping.yaml
+- ../core/common_enums.yaml
+- ../core/entry_chain_catalog.yaml
+- ../core/feature_flags.yaml
+- ../core/feature_flag_dependencies.yaml
+- ./feature_flag_overrides.yaml
+- ../core/time_segments.yaml
+- ../core/property_definitions.yaml
+- ../materials/crops/cabbage.yaml
+- ../materials/seasonings/salt.yaml
+- ../materials/seasonings/cooking_oil.yaml
+- ../materials/aromatics/ginger.yaml
+- ../materials/meats/bacon.yaml
+- ../farming/seeds/cabbage_seed.yaml
+- ../farming/crops/cabbage_crop.yaml
+- ../farming/growth_profiles/cabbage_growth_basic.yaml
+- ../farming/field_plots.yaml
+- ../processing/methods/pickling_cabbage_basic.yaml
+- ../cooking/dish_structures/bacon_cabbage.yaml
+- ../cooking/recipe_variants/bacon_cabbage_basic.yaml
+- ../demands/tavern_home_dish.yaml
+- ../npc/npc_profiles.yaml
+- ../npc/supply_nodes.yaml
+- ../facilities/tools.yaml
+- ../facilities/home_facilities.yaml
+- ../facilities/fuel.yaml
+- ../initial_world/stage_1A_initial_world.yaml
+- ../story/flags.yaml
+- ../story/clues.yaml
+- ../story/events.yaml
+- ../story/items.yaml
+- ../text/zh_cn.yaml
+required_ids:
+  materials:
+  - cabbage
+  - salt
+  - bacon
+  - cooking_oil
+  - ginger
+  seed_defs:
+  - cabbage_seed
+  crop_defs:
+  - cabbage_crop
+  growth_profiles:
+  - cabbage_growth_basic
+  processing_methods:
+  - pickling_cabbage_basic
+  dish_structures:
+  - bacon_cabbage
+  recipe_variants:
+  - bacon_cabbage_basic
+  demand_profiles:
+  - tavern_home_dish
+  npcs:
+  - sun_popo
+  - qian_xiaoman
+  facilities:
+  - basic_stove
+  - pickling_jar_basic
+  - home_cellar_01
+  tools:
+  - hoe_basic
+  - knife_basic
+  fuel_definitions:
+  - firewood_basic
+  field_plot_definitions:
+  - field_plot_basic
+excluded_from_stage_1A:
+- family_meal_runtime
+- home_water_runtime_actions
+- clinic_order_normal_pool
+- old_case_content
+- fish_soup_debug
+stage_active_config: ./stage_1A_active_config.yaml

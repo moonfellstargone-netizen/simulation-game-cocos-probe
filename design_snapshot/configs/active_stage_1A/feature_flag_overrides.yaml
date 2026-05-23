@@ -1,0 +1,17 @@
+stage_id: stage_1A
+override_version: feature_flags.override.v1.5.2.2.stage_1A
+merge_policy: override_core_feature_flags_by_key
+notes:
+- Stage 1A 只跑最小经营闭环；SaveFile 可以保留 home_water 字段，但不开放挑水、扣水、家庭饭食、医馆、旧案调试。
+- 燃料可做轻量消耗验证；工具/设施耐久完整反馈推迟到 Stage 1B。
+feature_flag_overrides:
+  family_meal_enabled: false
+  water_tank_enabled: false
+  carry_water_enabled: false
+  clinic_order_debug_enabled: false
+  old_case_debug_enabled: false
+  durability_system_enabled: false
+  fuel_system_enabled: true
+  quality_tier_enabled: true
+  npc_supply_sim_enabled: true
+  npc_trade_enabled: false

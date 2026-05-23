@@ -1,0 +1,2 @@
+docs/CHECK_ARCHITECTURE.md
+README.md

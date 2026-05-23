@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dish_component.schema.json",
+  "type": "object",
+  "required": [
+    "component_id",
+    "source_lot_id",
+    "base_id",
+    "role",
+    "quantity_used",
+    "component_profile"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "component_id": {
+      "type": "string"
+    },
+    "source_lot_id": {
+      "type": "string"
+    },
+    "base_id": {
+      "type": "string"
+    },
+    "role": {
+      "enum": [
+        "main",
+        "side",
+        "seasoning",
+        "liquid",
+        "oil",
+        "aromatic",
+        "garnish"
+      ]
+    },
+    "quantity_used": {
+      "$ref": "common_defs.schema.json#/$defs/Quantity"
+    },
+    "component_profile": {
+      "$ref": "common_defs.schema.json#/$defs/PropertyProfile"
+    },
+    "transformation_history": {
+      "type": "array",
+      "items": {
+        "$ref": "common_defs.schema.json#/$defs/TransformationHistoryEntry"
+      },
+      "default": []
+    },
+    "visible_description_key": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

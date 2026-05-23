@@ -1,0 +1,436 @@
+initial_world_id: stage_1A_initial_world
+schema_version: schema.stage1.v1
+rules_version: rules.stage1.v1
+config_version: config.v1.5.2.2
+world_time:
+  world_day: 1
+  world_minute: 360
+  absolute_minute: 360
+  season: winter
+  weather: cold_clear
+player_state:
+  player_id: player
+  name: 顾瑾
+  family_name_mode: hidden
+  gender_config_id: female_default
+  money: 100
+  stamina: 100
+  mood: 70
+  skills:
+    farming: 1
+    cooking: 1
+    processing: 1
+  reputation_map:
+    west_market_tavern: 0
+  unlocked_locations:
+  - home
+  - home_field
+  - east_market
+  - west_market_tavern
+  flags:
+  - new_arrival
+  currency_id: copper_coin
+family_state:
+  ayue:
+    ayue_id: ayue
+    name: 顾玥
+    age: 7
+    health: 70
+    mood: 60
+    security: 50
+    energy: 70
+    study_focus: 40
+    relationship: 50
+    trauma_pressure: 30
+    learning_tracks: {}
+    preferences: {}
+    story_attitude: cautious
+    flags: []
+home_water:
+  storage_id: water_tank_basic
+  capacity_ml: 20000
+  current_ml: 12000
+  quality: clean
+  refill_methods:
+  - id: carry_water
+    name_key: action.carry_water.name
+    time_cost_minutes: 30
+    amount_ml: 10000
+    money_cost: 0
+    available_from_stage: stage_1B
+  last_update_time: 360
+  flags:
+  - runtime_ignored_in_stage_1A
+fields:
+- field_plot_id: field_plot_01
+  definition_id: field_plot_basic
+  location_id: home_field
+  occupied_tiles: 0
+  active_crop_ids: []
+storage_containers:
+- container_id: home_room_temp_01
+  location_id: home
+  storage_type: room_temp
+  container_type: room_temp_container
+  capacity:
+    amount: 50
+    unit: slot_weight
+  used_capacity: 6
+  temperature_state: normal
+  humidity_state: normal
+  ventilation: normal
+  cleanliness: 65
+  supported_forms:
+  - fresh
+  - cut
+  - dry
+  - cured
+  - liquid
+  - cooked_dish
+  - dish
+  - dry_seed
+  flags:
+  - default_inventory
+  active_object_refs:
+  - object_type: MaterialLot
+    object_id: seed_cabbage_initial_001
+  - object_type: MaterialLot
+    object_id: salt_initial_001
+  - object_type: MaterialLot
+    object_id: bacon_initial_001
+  - object_type: MaterialLot
+    object_id: oil_initial_001
+- container_id: home_cellar_01
+  location_id: home
+  storage_type: cellar
+  container_type: cellar_container
+  capacity:
+    amount: 20
+    unit: slot_weight
+  used_capacity: 0
+  temperature_state: cool
+  humidity_state: humid
+  ventilation: low
+  cleanliness: 60
+  supported_forms:
+  - fresh
+  - cut
+  - cured
+  - pickled
+  flags:
+  - worn
+  active_object_refs: []
+- container_id: pickling_jar_basic_01
+  location_id: home
+  storage_type: pickling_jar
+  container_type: pickling_jar
+  capacity:
+    amount: 3
+    unit: slot_weight
+  used_capacity: 0
+  temperature_state: normal
+  humidity_state: sealed
+  ventilation: sealed
+  cleanliness: 60
+  supported_forms:
+  - pickling
+  flags:
+  - worn
+  active_object_refs: []
+initial_inventory:
+- lot_id: seed_cabbage_initial_001
+  base_id: cabbage_seed
+  category: seed
+  quantity:
+    amount: 10
+    unit: count
+  current_form: dry_seed
+  property_profile:
+    freshness: 100
+    cleanliness: 75
+    microbial_risk: 0
+    safety_risk: 0
+  source_ref:
+    source_type: initial_world
+    source_id: starter_supplies
+    source_time: 360
+    source_actor: system
+    source_location: home
+  storage_ref:
+    location_id: home
+    storage_type: room_temp
+    container_id: home_room_temp_01
+  created_time: 360
+  last_update_time: 360
+  schema_version: schema.stage1.v1
+  rules_version: rules.stage1.v1
+  flags:
+  - starter
+  definition_ref:
+    type: seed
+    id: cabbage_seed
+    canonical_id: base:cabbage_seed
+  storage_footprint:
+    amount: 1
+    unit: slot_weight
+- lot_id: salt_initial_001
+  base_id: salt
+  category: seasoning
+  quantity:
+    amount: 200
+    unit: g
+  current_form: dry
+  property_profile:
+    freshness: 100
+    moisture: 2
+    cleanliness: 80
+    microbial_risk: 0
+    safety_risk: 0
+    salinity: 100
+    dryness: 100
+  source_ref:
+    source_type: initial_world
+    source_id: starter_supplies
+    source_time: 360
+    source_actor: system
+    source_location: home
+  storage_ref:
+    location_id: home
+    storage_type: room_temp
+    container_id: home_room_temp_01
+  created_time: 360
+  last_update_time: 360
+  schema_version: schema.stage1.v1
+  rules_version: rules.stage1.v1
+  flags:
+  - starter
+  definition_ref:
+    type: material
+    id: salt
+    canonical_id: base:salt
+  storage_footprint:
+    amount: 2.0
+    unit: slot_weight
+- lot_id: bacon_initial_001
+  base_id: bacon
+  category: meat_processed
+  quantity:
+    amount: 200
+    unit: g
+  current_form: cured
+  property_profile:
+    freshness: 80
+    moisture: 32
+    cleanliness: 70
+    microbial_risk: 5
+    safety_risk: 3
+    salinity: 62
+    dryness: 50
+    oiliness: 68
+    smoky_aroma: 55
+  source_ref:
+    source_type: initial_world
+    source_id: starter_supplies
+    source_time: 360
+    source_actor: system
+    source_location: home
+  storage_ref:
+    location_id: home
+    storage_type: room_temp
+    container_id: home_room_temp_01
+  created_time: 360
+  last_update_time: 360
+  schema_version: schema.stage1.v1
+  rules_version: rules.stage1.v1
+  flags:
+  - starter
+  definition_ref:
+    type: material
+    id: bacon
+    canonical_id: base:bacon
+  storage_footprint:
+    amount: 2.0
+    unit: slot_weight
+- lot_id: oil_initial_001
+  base_id: cooking_oil
+  category: seasoning
+  quantity:
+    amount: 100
+    unit: ml
+  current_form: liquid
+  property_profile:
+    freshness: 90
+    cleanliness: 75
+    microbial_risk: 0
+    safety_risk: 0
+    oiliness: 85
+    aroma: 20
+  source_ref:
+    source_type: initial_world
+    source_id: starter_supplies
+    source_time: 360
+    source_actor: system
+    source_location: home
+  storage_ref:
+    location_id: home
+    storage_type: room_temp
+    container_id: home_room_temp_01
+  created_time: 360
+  last_update_time: 360
+  schema_version: schema.stage1.v1
+  rules_version: rules.stage1.v1
+  flags:
+  - starter
+  definition_ref:
+    type: material
+    id: cooking_oil
+    canonical_id: base:cooking_oil
+  storage_footprint:
+    amount: 1
+    unit: slot_weight
+initial_tools_ref: ../facilities/tools.yaml#initial_tools
+initial_facilities_ref: ../facilities/home_facilities.yaml#initial_facilities
+initial_fuel_ref: ../facilities/fuel.yaml#initial_fuel
+initial_orders:
+- order_id: tavern_home_dish_001
+  issuer_id: qian_xiaoman
+  demand_profile_id: tavern_home_dish
+  quantity_required:
+    amount: 1
+    unit: serving
+  base_reward: 28
+  bonus_rules: []
+  penalty_rules: []
+  match_threshold: 60
+  status: available
+  submitted_object_refs: []
+  result_summary: null
+  deadline_policy: absolute_world_minute
+  notes:
+  - 订单截止时间允许 Stage 1A 自动验收链完成作物成长、存储对比、腌制、烹饪和提交。
+  deadline_absolute_minute: 14400
+story_flags:
+  old_case_system_stub:
+    flag_id: old_case_system_stub
+    value: true
+    state: hidden
+    visibility: hidden
+    locked: true
+    notes:
+    - formal_content_disabled
+    version: story.stub.v1
+runtime_initialization_policy:
+  mapping_config_ref: ../core/new_game_builder_mapping.yaml
+  mapping_id: stage_1A_new_game_builder_mapping
+  new_game_builder_required: true
+  new_game_builder_output: SaveFile
+  no_implicit_defaults: true
+  savefile_schema_ref: schemas/save_file.schema.json
+  mapping_coverage_required: Every SaveFile property must have a direct_map, renamed_map,
+    expanded_ref, generated, constant, default_empty, or default_null rule.
+  validation_steps:
+  - load_active_profile_and_compute_effective_feature_flags
+  - validate_initial_world_against_initial_world_schema
+  - load_new_game_builder_mapping
+  - verify_all_savefile_required_fields_covered
+  - verify_all_source_paths_and_refs_exist
+  - build_savefile_fields_by_mapping_rules
+  - expand_initial_tools_ref_to_tools_state
+  - expand_initial_facilities_ref_to_facilities_state
+  - expand_initial_fuel_ref_to_fuel_state
+  - validate_built_savefile_against_save_file_schema
+  - emit_new_game_builder_mapping_audit
+  generated_field_policy:
+    save_version: constant from mapping
+    game_version: generated from rule_versions.version_bundle.game_version
+    created_with_build: runtime build id
+    last_saved_with_build: runtime build id
+    created_at_real_time: runtime ISO-8601 time
+    last_saved_at_real_time: runtime ISO-8601 time
+    random_state: NewGameBuilder deterministic random state factory
+    feature_flags: effective flags from active stage profile
+    empty_collections: must be emitted explicitly, never omitted
+    storage_containers: generated from initial_world.storage_containers, then reconciled
+      from every storable runtime object with storage_ref and storage_footprint after
+      all active overlays are merged; current Stage 1A storable types are MaterialLot
+      and DishLot
+    inventory: generated from initial_world.initial_inventory plus active overlay
+      inventory additions when a higher stage explicitly enables them; MaterialLot
+      entries participate in StorageOccupant reconciliation
+    orders: generated from initial_world.initial_orders plus active overlay debug_orders
+      when a debug profile explicitly enables them
+    family_state: generated from initial_world.family_state plus active overlay family_meal_state
+      mapped to SaveFile.family_state.meal_state when Stage 1B or later is active
+    crop_instances: default empty list; plant_crop creates CropInstance and field
+      active_crop_ids indexes it
+    reservations: default empty list; only cross-action/cross-save reservations persist
+      here
+    dish_lots: default empty list; cook_dish creates DishLot entries and those entries
+      participate in the same StorageOccupant reconciliation as MaterialLot
+  expanded_ref_policy:
+    initial_tools_ref: must resolve to a non-empty initial_tools list and emit SaveFile.tools_state
+    initial_facilities_ref: must resolve to a non-empty initial_facilities list and
+      emit SaveFile.facilities_state
+    initial_fuel_ref: must resolve to a non-empty initial_fuel object and emit SaveFile.fuel_state
+  expanded_ref_output_schema_policy:
+    tools_state: schemas/tool_state.schema.json
+    facilities_state: schemas/facility_state.schema.json
+    fuel_state: schemas/fuel_state.schema.json
+    validation_required: NewGameBuilder must validate every expanded runtime state
+      entry against its schema before SaveFile validation.
+  tools_and_facilities_state_semantics:
+    quality_tier: crude/basic/fine/masterwork craftsmanship tier only
+    condition: usable/worn/damaged wear condition; quality_tier stores craftsmanship
+      tier only
+    status: availability state such as available/broken/locked/disabled
+  default_dish_storage_ref:
+    location_id: home
+    storage_type: room_temp
+    container_id: home_room_temp_01
+  cook_dish_output_storage_policy: cook_dish may pass target_storage_ref; if omitted,
+    NewGameBuilder/runtime uses default_dish_storage_ref. DishLot storage_ref must
+    be filled before ActionResult is returned.
+  overlay_merge_policy:
+    stage_1B_life_overlay.family_meal_state: merge into SaveFile.family_state.meal_state
+      when Stage 1B profile is active
+    stage_1C_debug_overlay.debug_inventory_additions: append to SaveFile.inventory
+      before storage reconciliation when Stage 1C debug profile is active
+    stage_1C_debug_overlay.debug_orders: append to SaveFile.orders when Stage 1C debug
+      profile is active
+    post_merge_storage_reconciliation: rebuild StorageContainer.active_object_refs
+      and used_capacity from merged SaveFile inventory plus dish_lots storable objects;
+      validate container existence, slot_weight unit, capacity overflow, and object-type/id
+      uniqueness
+  storage_occupant_policy:
+    storable_object_types_current_stage:
+    - MaterialLot
+    - DishLot
+    object_ref_cache_field: StorageContainer.active_object_refs
+    capacity_cache_field: StorageContainer.used_capacity
+    storage_source: all SaveFile runtime objects whose schema requires storage_ref
+      and storage_footprint
+    object_id_fields:
+      MaterialLot: lot_id
+      DishLot: dish_lot_id
+    capacity_rule: sum slot_weight storage_footprint.amount across all active StorageOccupants
+      referencing the container
+    material_lot_view_rule: MaterialLot-specific views may be derived for UI/debug, but
+      the persisted storage cache authority is active_object_refs over all StorageOccupants.
+  action_pipeline_storage_invariant:
+    applies_to_actions:
+    - harvest_crop
+    - store_item
+    - split_lot
+    - start_processing
+    - collect_processing_result
+    - cook_dish
+    - submit_order
+    post_success_rule: after every successful storage-mutating action, rebuild or
+      incrementally update active_object_refs and used_capacity from StorageOccupants
+      and then validate against full reconciliation
+    rollback_rule: if an action fails after reserving, consuming, creating, moving,
+      or storing an object, restore inventory, dish_lots, reservations, fuel_state,
+      orders, storage_containers, and domain_events to the pre-action transaction
+      snapshot
+    event_rule: domain_events are committed only after storage and object lifecycle
+      validation succeeds

@@ -1,0 +1,49 @@
+{
+  "version": {
+    "codePackageVersion": "v0.0.2.22",
+    "npmVersion": "0.0.2-22",
+    "qualityMetadataVersion": "0.0.2.22",
+    "snakeVersion": "v0_0_2_22",
+    "versionName": "Affected Policy Hardening & Coverage Evidence",
+    "chineseVersionName": "受影响检查策略加固与覆盖证据版"
+  },
+  "release": {
+    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_22",
+    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_22.zip"
+  },
+  "design": {
+    "designPackVersion": "v1.5.2.2",
+    "designPackName": "模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip"
+  },
+  "previous": {
+    "codePackageVersion": "v0.0.2.21",
+    "npmVersion": "0.0.2-21",
+    "qualityMetadataVersion": "0.0.2.21",
+    "snakeVersion": "v0_0_2_21",
+    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_21",
+    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_21.zip",
+    "versionName": "Affected & Cache Probe",
+    "chineseVersionName": "受影响检查与轻量缓存探针版"
+  },
+  "staleMarkers": {
+    "forbiddenCurrentMarkers": [
+      "v0.0.2.21",
+      "v0_0_2_21",
+      "0.0.2-21",
+      "0.0.2.21",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_21",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_21.zip",
+      "Affected & Cache Probe",
+      "受影响检查与轻量缓存探针版",
+      "受影响检查与轻量缓存探针"
+    ],
+    "allowedHistoricalScopes": [
+      "tools/quality/rules/project-target.json",
+      "开发日志包",
+      "历史输入说明",
+      "上一版本输入说明",
+      "CHANGELOG",
+      "development logs"
+    ]
+  }
+}

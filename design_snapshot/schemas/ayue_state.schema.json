@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ayue_state.schema.json",
+  "type": "object",
+  "required": [
+    "ayue_id",
+    "name",
+    "age",
+    "health",
+    "mood",
+    "security",
+    "energy",
+    "study_focus",
+    "relationship",
+    "trauma_pressure",
+    "learning_tracks",
+    "preferences",
+    "story_attitude",
+    "flags"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "ayue_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "age": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "health": {
+      "type": "number"
+    },
+    "mood": {
+      "type": "number"
+    },
+    "security": {
+      "type": "number"
+    },
+    "energy": {
+      "type": "number"
+    },
+    "study_focus": {
+      "type": "number"
+    },
+    "relationship": {
+      "type": "number"
+    },
+    "trauma_pressure": {
+      "type": "number"
+    },
+    "learning_tracks": {
+      "$ref": "ayue_learning_tracks.schema.json"
+    },
+    "preferences": {
+      "$ref": "ayue_preferences.schema.json"
+    },
+    "story_attitude": {
+      "type": "string"
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

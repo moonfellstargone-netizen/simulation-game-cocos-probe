@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "crop_instance.schema.json",
+  "type": "object",
+  "required": [
+    "crop_id",
+    "crop_base_id",
+    "seed_lot_id",
+    "field_plot_id",
+    "planted_time",
+    "growth_stage",
+    "lifecycle_status",
+    "growth_progress",
+    "expected_harvest_minute",
+    "health",
+    "flags"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "crop_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "crop_base_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "seed_lot_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "field_plot_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "planted_time": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "growth_stage": {
+      "enum": [
+        "seed",
+        "sprout",
+        "growing",
+        "mature",
+        "withered"
+      ]
+    },
+    "lifecycle_status": {
+      "enum": [
+        "active",
+        "ready_to_harvest",
+        "harvested",
+        "removed",
+        "failed"
+      ]
+    },
+    "growth_progress": {
+      "type": "number",
+      "minimum": 0
+    },
+    "expected_harvest_minute": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "health": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "season_context": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source_ref": {
+      "$ref": "common_defs.schema.json#/$defs/SourceRef"
+    },
+    "created_time": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "last_update_time": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "seed_config.schema.json",
+  "type": "object",
+  "required": [
+    "id",
+    "crop_base_id",
+    "material_base_id",
+    "category",
+    "display_name_key",
+    "base_unit",
+    "forms",
+    "seed_defaults",
+    "source_policy",
+    "storage_footprint_rule"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "crop_base_id": {
+      "type": "string"
+    },
+    "material_base_id": {
+      "type": "string"
+    },
+    "category": {
+      "const": "seed"
+    },
+    "display_name_key": {
+      "type": "string"
+    },
+    "base_unit": {
+      "const": "count"
+    },
+    "forms": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "display_name_key"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "display_name_key": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "seed_defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "germination_rate": {
+          "type": "number"
+        },
+        "seed_quality": {
+          "type": "string"
+        },
+        "genetic_summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "growth_tendency": {
+              "type": "string"
+            },
+            "storage_tendency": {
+              "type": "string"
+            },
+            "medicinal_tendency": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "source_policy": {
+      "type": "object",
+      "required": [
+        "default_source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "default_source": {
+          "type": "string"
+        },
+        "suggested_npc": {
+          "type": "string"
+        }
+      }
+    },
+    "storage_footprint_rule": {
+      "type": "object",
+      "required": [
+        "base_quantity",
+        "footprint"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "base_quantity": {
+          "$ref": "common_defs.schema.json#/$defs/Quantity"
+        },
+        "footprint": {
+          "$ref": "common_defs.schema.json#/$defs/StorageFootprint"
+        }
+      }
+    }
+  }
+}

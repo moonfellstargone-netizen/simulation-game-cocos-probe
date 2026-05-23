@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tools_config.schema.json",
+  "type": "object",
+  "required": [
+    "tool_definitions",
+    "initial_tools"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "tool_definitions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "tool_type",
+          "allowed_actions"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "tool_type": {
+            "type": "string"
+          },
+          "allowed_actions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "initial_tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "definition_id",
+          "status",
+          "condition",
+          "quality_tier"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "definition_id": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "available",
+              "broken",
+              "lost",
+              "disabled"
+            ]
+          },
+          "condition": {
+            "enum": [
+              "usable",
+              "worn",
+              "damaged"
+            ]
+          },
+          "quality_tier": {
+            "enum": [
+              "crude",
+              "basic",
+              "fine",
+              "masterwork"
+            ]
+          },
+          "durability_current": {
+            "type": "number"
+          },
+          "durability_max": {
+            "type": "number"
+          },
+          "repairable": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

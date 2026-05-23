@@ -1,0 +1,50 @@
+version_bundle:
+  game_version: v0.1-stage1
+  schema_version: schema.stage1.v1
+  rules_version: rules.stage1.v1
+  config_version: config.v1.5.2.2
+  content_pack_versions:
+    base: base_content.v1.5.2.2
+load_profiles:
+  stage_0:
+    description: 只加载 core/schema/空存档骨架，用于工程骨架验收。
+  stage_1A:
+    description: 白菜种植、保质期、菜窖、拆分、腌制、腊肉炒白菜、酒馆订单闭环。
+  stage_1B:
+    description: 在 1A 基础上接入家庭饭食、水缸挑水、工具耐久和燃料轻量逻辑。
+  stage_1C_debug:
+    description: 旧案空底座、医馆清淡餐调试、鱼汤扣水调试。
+deprecated_fields:
+- old_case_enabled
+- water.unlimited_for_stage1
+- property_or_tag
+- source_type=split
+- storage_ref=home_cellar
+- household_water_enabled
+- recipe.water_cost_ml
+- fuel_enabled
+- tool_durability_enabled
+required_runtime_services:
+  stage_0:
+  - ConfigRegistry
+  - SchemaValidator
+  - SaveManager
+  - TimeSystem
+  - ActionPipeline
+  - EventLog
+  stage_1A:
+  - InventorySystem
+  - FarmingSystem
+  - StorageSystem
+  - ProcessingSystem
+  - CookingSystem
+  - DemandResolver
+  - TransactionManager
+  stage_1B:
+  - FamilyMealSystem
+  - HomeWaterSystem
+  - DurabilitySystem
+  stage_1C_debug:
+  - StorySystemStub
+  - DebugCommandService
+  - ConfigMigrationChecker

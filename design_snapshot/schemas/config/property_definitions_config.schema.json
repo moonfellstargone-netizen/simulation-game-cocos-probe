@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "property_definitions_config.schema.json",
+  "type": "object",
+  "required": [
+    "property_definitions",
+    "allowed_property_scopes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "property_definitions": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "type",
+          "min",
+          "max",
+          "default",
+          "meaning",
+          "available_from_stage"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "enum": [
+              "number",
+              "integer"
+            ]
+          },
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "default": {
+            "type": "number"
+          },
+          "meaning": {
+            "type": "string",
+            "minLength": 1
+          },
+          "available_from_stage": {
+            "enum": [
+              "stage_0",
+              "stage_1A",
+              "stage_1B",
+              "stage_1C_debug",
+              "stage_2",
+              "stage_3"
+            ]
+          },
+          "object_scope": {
+            "enum": [
+              "material_lot",
+              "dish_lot",
+              "crop_instance",
+              "processing_task",
+              "storage_container"
+            ]
+          },
+          "stage_1A_usage": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "allowed_property_scopes": {
+      "type": "object",
+      "required": [
+        "material_lot",
+        "dish_lot"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "material_lot": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dish_lot": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "crop_instance": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "processing_task": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "storage_container": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

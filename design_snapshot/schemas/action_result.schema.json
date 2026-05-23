@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "action_result.schema.json",
+  "type": "object",
+  "required": [
+    "request_id",
+    "success",
+    "status_code",
+    "message_key"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "request_id": {
+      "type": "string"
+    },
+    "success": {
+      "type": "boolean"
+    },
+    "status_code": {
+      "type": "string"
+    },
+    "message_key": {
+      "type": "string"
+    },
+    "message_params": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/MessageParam"
+      },
+      "default": []
+    },
+    "consumed_resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "resource_type",
+          "resource_id",
+          "quantity"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "resource_type": {
+            "type": "string"
+          },
+          "resource_id": {
+            "type": "string"
+          },
+          "quantity": {
+            "$ref": "common_defs.schema.json#/$defs/Quantity"
+          }
+        }
+      },
+      "default": []
+    },
+    "created_objects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ActionObjectRef"
+      },
+      "default": []
+    },
+    "updated_objects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ActionObjectRef"
+      },
+      "default": []
+    },
+    "released_reservations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "domain_events": {
+      "type": "array",
+      "items": {
+        "$ref": "domain_event.schema.json"
+      },
+      "default": []
+    },
+    "event_log_entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "message_key"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "message_key": {
+            "type": "string"
+          },
+          "params": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "value"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": [
+                    "string",
+                    "number",
+                    "integer",
+                    "boolean",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "default": []
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "preview_mismatch": {
+      "type": "boolean",
+      "default": false
+    },
+    "debug_trace": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "minProperties": 1
+    }
+  },
+  "$defs": {
+    "ActionObjectRef": {
+      "type": "object",
+      "required": [
+        "object_type",
+        "object_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "object_type": {
+          "$ref": "common_defs.schema.json#/$defs/RuntimeObjectType"
+        },
+        "object_id": {
+          "type": "string"
+        },
+        "summary": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "display_name_key": {
+              "type": "string"
+            },
+            "quantity": {
+              "$ref": "common_defs.schema.json#/$defs/Quantity"
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "minProperties": 1
+        }
+      }
+    },
+    "MessageParam": {
+      "type": "object",
+      "required": [
+        "key",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "value": {
+          "type": [
+            "string",
+            "number",
+            "integer",
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

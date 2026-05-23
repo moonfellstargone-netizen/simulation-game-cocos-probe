@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "action_request.schema.json",
+  "description": "Current Stage 1A ActionRequest schema is an alias to the formal stage-specific schema. Future stages must add their own formal schema rather than validating gameplay requests with a loose base envelope.",
+  "allOf": [
+    {
+      "$ref": "formal_stage_1A_action_request.schema.json"
+    }
+  ]
+}

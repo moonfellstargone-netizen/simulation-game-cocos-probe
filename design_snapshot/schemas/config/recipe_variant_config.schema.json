@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "recipe_variant_config.schema.json",
+  "type": "object",
+  "required": [
+    "id",
+    "dish_structure_id",
+    "display_name_key",
+    "technique",
+    "ingredient_requirements",
+    "operation_defaults",
+    "output_estimate",
+    "available_from_stage"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "dish_structure_id": {
+      "type": "string"
+    },
+    "display_name_key": {
+      "type": "string"
+    },
+    "technique": {
+      "type": "string"
+    },
+    "facility_requirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tool_requirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "resource_requirements": {
+      "type": "object",
+      "required": [],
+      "additionalProperties": false,
+      "properties": {
+        "fuel": {
+          "type": "object",
+          "required": [
+            "base_id"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "base_id": {
+              "type": "string"
+            },
+            "amount_bundle": {
+              "type": "number"
+            },
+            "feature_flag": {
+              "type": "string"
+            }
+          }
+        },
+        "water": {
+          "type": "object",
+          "required": [
+            "source",
+            "amount_ml"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "type": "string"
+            },
+            "amount_ml": {
+              "type": "number"
+            },
+            "feature_flag": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "ingredient_requirements": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "base_id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "base_id": {
+            "type": "string"
+          },
+          "allowed_forms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "min_quantity_g": {
+            "type": "number"
+          },
+          "min_quantity_ml": {
+            "type": "number"
+          },
+          "optional": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "operation_defaults": {
+      "type": "object",
+      "required": [],
+      "additionalProperties": false,
+      "properties": {
+        "heat_level": {
+          "type": "string"
+        },
+        "time_cost_minutes": {
+          "type": "integer"
+        },
+        "stamina_cost": {
+          "type": "number"
+        }
+      }
+    },
+    "output_estimate": {
+      "type": "object",
+      "required": [],
+      "additionalProperties": false,
+      "properties": {
+        "serving_count": {
+          "type": "integer"
+        },
+        "total_quantity_g": {
+          "type": "number"
+        },
+        "total_quantity_ml": {
+          "type": "number"
+        }
+      }
+    },
+    "available_from_stage": {
+      "enum": [
+        "stage_1A",
+        "stage_1B",
+        "stage_1C_debug",
+        "stage_2",
+        "stage_3"
+      ]
+    }
+  }
+}

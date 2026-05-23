@@ -1,0 +1,36 @@
+stage_id: stage_1B
+merge_policy: override_core_feature_flags_by_effective_load_order_extends_chain
+merge_sources:
+- configs/core/feature_flags.yaml
+- configs/active_stage_1A/feature_flag_overrides.yaml
+- configs/active_stage_1B/feature_flag_overrides.yaml
+effective_feature_flags:
+  breeding_enabled: false
+  fishpond_enabled: false
+  advanced_cooking_enabled: true
+  story_system_enabled: true
+  old_case_content_enabled: false
+  old_case_debug_enabled: false
+  clinic_order_enabled: false
+  clinic_order_debug_enabled: false
+  clinic_learning_track_enabled: false
+  clinic_health_event_enabled: false
+  clinic_reputation_enabled: false
+  clinic_herb_trade_enabled: false
+  clinic_medicine_food_enabled: false
+  family_meal_enabled: true
+  family_meal_daily_required: false
+  family_meal_hard_survival_penalty: false
+  child_can_self_feed: true
+  allow_buy_meal_substitute: true
+  water_tank_enabled: true
+  carry_water_enabled: true
+  water_quality_enabled: false
+  fuel_system_enabled: true
+  durability_system_enabled: true
+  quality_tier_enabled: true
+  medicine_food_enabled: false
+  npc_supply_sim_enabled: true
+  festival_enabled: false
+  player_shop_enabled: false
+  npc_trade_enabled: false

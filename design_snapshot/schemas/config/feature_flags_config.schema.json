@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "feature_flags_config.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "breeding_enabled": {
+      "type": "boolean"
+    },
+    "fishpond_enabled": {
+      "type": "boolean"
+    },
+    "advanced_cooking_enabled": {
+      "type": "boolean"
+    },
+    "story_system_enabled": {
+      "type": "boolean"
+    },
+    "old_case_content_enabled": {
+      "type": "boolean"
+    },
+    "old_case_debug_enabled": {
+      "type": "boolean"
+    },
+    "clinic_order_enabled": {
+      "type": "boolean"
+    },
+    "clinic_order_debug_enabled": {
+      "type": "boolean"
+    },
+    "clinic_learning_track_enabled": {
+      "type": "boolean"
+    },
+    "clinic_health_event_enabled": {
+      "type": "boolean"
+    },
+    "clinic_reputation_enabled": {
+      "type": "boolean"
+    },
+    "clinic_herb_trade_enabled": {
+      "type": "boolean"
+    },
+    "clinic_medicine_food_enabled": {
+      "type": "boolean"
+    },
+    "family_meal_enabled": {
+      "type": "boolean"
+    },
+    "family_meal_daily_required": {
+      "type": "boolean"
+    },
+    "family_meal_hard_survival_penalty": {
+      "type": "boolean"
+    },
+    "child_can_self_feed": {
+      "type": "boolean"
+    },
+    "allow_buy_meal_substitute": {
+      "type": "boolean"
+    },
+    "water_tank_enabled": {
+      "type": "boolean"
+    },
+    "carry_water_enabled": {
+      "type": "boolean"
+    },
+    "water_quality_enabled": {
+      "type": "boolean"
+    },
+    "fuel_system_enabled": {
+      "type": "boolean"
+    },
+    "durability_system_enabled": {
+      "type": "boolean"
+    },
+    "quality_tier_enabled": {
+      "type": "boolean"
+    },
+    "medicine_food_enabled": {
+      "type": "boolean"
+    },
+    "npc_supply_sim_enabled": {
+      "type": "boolean"
+    },
+    "festival_enabled": {
+      "type": "boolean"
+    },
+    "player_shop_enabled": {
+      "type": "boolean"
+    },
+    "npc_trade_enabled": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "breeding_enabled",
+    "fishpond_enabled",
+    "advanced_cooking_enabled",
+    "story_system_enabled",
+    "old_case_content_enabled",
+    "old_case_debug_enabled",
+    "clinic_order_enabled",
+    "clinic_order_debug_enabled",
+    "clinic_learning_track_enabled",
+    "clinic_health_event_enabled",
+    "clinic_reputation_enabled",
+    "clinic_herb_trade_enabled",
+    "clinic_medicine_food_enabled",
+    "family_meal_enabled",
+    "family_meal_daily_required",
+    "family_meal_hard_survival_penalty",
+    "child_can_self_feed",
+    "allow_buy_meal_substitute",
+    "water_tank_enabled",
+    "carry_water_enabled",
+    "water_quality_enabled",
+    "fuel_system_enabled",
+    "durability_system_enabled",
+    "quality_tier_enabled",
+    "medicine_food_enabled",
+    "npc_supply_sim_enabled",
+    "festival_enabled",
+    "player_shop_enabled",
+    "npc_trade_enabled"
+  ]
+}

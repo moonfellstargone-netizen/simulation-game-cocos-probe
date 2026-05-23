@@ -1,0 +1,970 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "domain_event.schema.json",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "world_time",
+    "source_action_id",
+    "actor_id",
+    "payload",
+    "visibility"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "world_time": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "source_action_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "actor_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "debug_only": {
+      "type": "boolean",
+      "default": false
+    },
+    "visibility": {
+      "enum": [
+        "internal",
+        "debug",
+        "player_visible"
+      ]
+    },
+    "event_type": {
+      "type": "string"
+    },
+    "payload": {
+      "not": {
+        "type": "null"
+      },
+      "description": "Payload is validated by event_type-specific oneOf branches."
+    }
+  },
+  "$defs": {
+    "LotPayload": {
+      "type": "object",
+      "required": [
+        "lot_id",
+        "base_id",
+        "quantity"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "lot_id": {
+          "type": "string"
+        },
+        "base_id": {
+          "type": "string"
+        },
+        "quantity": {
+          "$ref": "common_defs.schema.json#/$defs/Quantity"
+        }
+      }
+    },
+    "ObjectPayload": {
+      "type": "object",
+      "required": [
+        "object_ref"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "object_ref": {
+          "$ref": "common_defs.schema.json#/$defs/ObjectRef"
+        }
+      }
+    },
+    "ReservationPayload": {
+      "type": "object",
+      "required": [
+        "reservation_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "reservation_id": {
+          "type": "string"
+        },
+        "lot_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "quantity": {
+          "$ref": "common_defs.schema.json#/$defs/Quantity"
+        }
+      }
+    },
+    "OrderPayload": {
+      "type": "object",
+      "required": [
+        "order_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "order_id": {
+          "type": "string"
+        },
+        "submitted_object_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "common_defs.schema.json#/$defs/SubmittedObjectRef"
+          }
+        }
+      }
+    },
+    "DebugPayload": {
+      "type": "object",
+      "required": [
+        "note_key"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "note_key": {
+          "type": "string"
+        },
+        "debug_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "ProcessingTaskPayload": {
+      "type": "object",
+      "required": [
+        "task_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "method_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "input_lot_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "lot_id",
+              "quantity"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "lot_id": {
+                "type": "string"
+              },
+              "quantity": {
+                "$ref": "common_defs.schema.json#/$defs/Quantity"
+              }
+            }
+          }
+        },
+        "output_object_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "common_defs.schema.json#/$defs/ObjectRef"
+          }
+        }
+      }
+    },
+    "DishPayload": {
+      "type": "object",
+      "required": [
+        "dish_lot_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "dish_lot_id": {
+          "type": "string"
+        },
+        "recognized_dish_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "serving_count": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      }
+    },
+    "StorageMovePayload": {
+      "type": "object",
+      "required": [
+        "object_ref",
+        "from_storage_ref",
+        "to_storage_ref"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "object_ref": {
+          "$ref": "common_defs.schema.json#/$defs/StorageOccupantRef"
+        },
+        "from_storage_ref": {
+          "$ref": "common_defs.schema.json#/$defs/StorageRef"
+        },
+        "to_storage_ref": {
+          "$ref": "common_defs.schema.json#/$defs/StorageRef"
+        }
+      }
+    },
+    "CropPayload": {
+      "type": "object",
+      "required": [
+        "crop_id",
+        "field_plot_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "crop_id": {
+          "type": "string"
+        },
+        "field_plot_id": {
+          "type": "string"
+        },
+        "crop_base_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "created_lot_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "common_defs.schema.json#/$defs/ObjectRef"
+          }
+        }
+      }
+    },
+    "TimeAdvancePayload": {
+      "type": "object",
+      "required": [
+        "minutes",
+        "from_absolute_minute",
+        "to_absolute_minute"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "minutes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "from_absolute_minute": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "to_absolute_minute": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "triggered_summary": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "payload",
+        "event_id",
+        "world_time",
+        "source_action_id",
+        "actor_id",
+        "visibility"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "inventory.lot_created"
+        },
+        "payload": {
+          "$ref": "#/$defs/LotPayload"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "world_time": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "debug_only": {
+          "type": "boolean",
+          "default": false
+        },
+        "visibility": {
+          "enum": [
+            "internal",
+            "debug",
+            "player_visible"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "payload",
+        "event_id",
+        "world_time",
+        "source_action_id",
+        "actor_id",
+        "visibility"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "inventory.lot_updated"
+        },
+        "payload": {
+          "$ref": "#/$defs/LotPayload"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "world_time": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "debug_only": {
+          "type": "boolean",
+          "default": false
+        },
+        "visibility": {
+          "enum": [
+            "internal",
+            "debug",
+            "player_visible"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "payload",
+        "event_id",
+        "world_time",
+        "source_action_id",
+        "actor_id",
+        "visibility"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "processing.task_started"
+        },
+        "payload": {
+          "$ref": "#/$defs/ProcessingTaskPayload"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "world_time": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "debug_only": {
+          "type": "boolean",
+          "default": false
+        },
+        "visibility": {
+          "enum": [
+            "internal",
+            "debug",
+            "player_visible"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "payload",
+        "event_id",
+        "world_time",
+        "source_action_id",
+        "actor_id",
+        "visibility"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "processing.task_completed"
+        },
+        "payload": {
+          "$ref": "#/$defs/ProcessingTaskPayload"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "world_time": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "debug_only": {
+          "type": "boolean",
+          "default": false
+        },
+        "visibility": {
+          "enum": [
+            "internal",
+            "debug",
+            "player_visible"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "payload",
+        "event_id",
+        "world_time",
+        "source_action_id",
+        "actor_id",
+        "visibility"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "cooking.dish_created"
+        },
+        "payload": {
+          "$ref": "#/$defs/DishPayload"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "world_time": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "debug_only": {
+          "type": "boolean",
+          "default": false
+        },
+        "visibility": {
+          "enum": [
+            "internal",
+            "debug",
+            "player_visible"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "payload",
+        "event_id",
+        "world_time",
+        "source_action_id",
+        "actor_id",
+        "visibility"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "order.submitted"
+        },
+        "payload": {
+          "$ref": "#/$defs/OrderPayload"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "world_time": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "debug_only": {
+          "type": "boolean",
+          "default": false
+        },
+        "visibility": {
+          "enum": [
+            "internal",
+            "debug",
+            "player_visible"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "payload",
+        "event_id",
+        "world_time",
+        "source_action_id",
+        "actor_id",
+        "visibility"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "order.completed"
+        },
+        "payload": {
+          "$ref": "#/$defs/OrderPayload"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "world_time": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "debug_only": {
+          "type": "boolean",
+          "default": false
+        },
+        "visibility": {
+          "enum": [
+            "internal",
+            "debug",
+            "player_visible"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "payload",
+        "event_id",
+        "world_time",
+        "source_action_id",
+        "actor_id",
+        "visibility"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "reservation.created"
+        },
+        "payload": {
+          "$ref": "#/$defs/ReservationPayload"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "world_time": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "debug_only": {
+          "type": "boolean",
+          "default": false
+        },
+        "visibility": {
+          "enum": [
+            "internal",
+            "debug",
+            "player_visible"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "payload",
+        "event_id",
+        "world_time",
+        "source_action_id",
+        "actor_id",
+        "visibility"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "reservation.released"
+        },
+        "payload": {
+          "$ref": "#/$defs/ReservationPayload"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "world_time": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "debug_only": {
+          "type": "boolean",
+          "default": false
+        },
+        "visibility": {
+          "enum": [
+            "internal",
+            "debug",
+            "player_visible"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "payload",
+        "event_id",
+        "world_time",
+        "source_action_id",
+        "actor_id",
+        "visibility"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "storage.item_moved"
+        },
+        "payload": {
+          "$ref": "#/$defs/StorageMovePayload"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "world_time": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "debug_only": {
+          "type": "boolean",
+          "default": false
+        },
+        "visibility": {
+          "enum": [
+            "internal",
+            "debug",
+            "player_visible"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "payload",
+        "event_id",
+        "world_time",
+        "source_action_id",
+        "actor_id",
+        "visibility"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "system.debug_event"
+        },
+        "payload": {
+          "$ref": "#/$defs/DebugPayload"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "world_time": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_action_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "actor_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "debug_only": {
+          "type": "boolean",
+          "default": false
+        },
+        "visibility": {
+          "enum": [
+            "internal",
+            "debug",
+            "player_visible"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "payload",
+        "event_id",
+        "world_time",
+        "source_action_id",
+        "actor_id",
+        "visibility"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "farming.crop_planted"
+        },
+        "payload": {
+          "$ref": "#/$defs/CropPayload"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "world_time": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "debug_only": {
+          "type": "boolean",
+          "default": false
+        },
+        "visibility": {
+          "enum": [
+            "internal",
+            "debug",
+            "player_visible"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "payload",
+        "event_id",
+        "world_time",
+        "source_action_id",
+        "actor_id",
+        "visibility"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "farming.crop_harvested"
+        },
+        "payload": {
+          "$ref": "#/$defs/CropPayload"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "world_time": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "debug_only": {
+          "type": "boolean",
+          "default": false
+        },
+        "visibility": {
+          "enum": [
+            "internal",
+            "debug",
+            "player_visible"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "event_type",
+        "payload",
+        "event_id",
+        "world_time",
+        "source_action_id",
+        "actor_id",
+        "visibility"
+      ],
+      "properties": {
+        "event_type": {
+          "const": "time.advanced"
+        },
+        "payload": {
+          "$ref": "#/$defs/TimeAdvancePayload"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "world_time": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "debug_only": {
+          "type": "boolean",
+          "default": false
+        },
+        "visibility": {
+          "enum": [
+            "internal",
+            "debug",
+            "player_visible"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

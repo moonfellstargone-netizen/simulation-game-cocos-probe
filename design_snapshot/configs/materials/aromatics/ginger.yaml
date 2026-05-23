@@ -1,0 +1,43 @@
+id: ginger
+category: aromatic
+display_name_key: material.ginger.name
+base_unit: g
+forms:
+  fresh:
+    display_name_key: material.ginger.fresh
+property_defaults:
+  freshness: 90
+  moisture: 70
+  cleanliness: 65
+  damage: 0
+  microbial_risk: 2
+  safety_risk: 0
+  aroma: 75
+  warming_potential: 10
+storage_rules:
+  room_temp:
+    freshness_decay_per_day: 8
+    microbial_risk_gain_per_day: 2
+  cellar:
+    freshness_decay_per_day: 4
+    microbial_risk_gain_per_day: 1
+cooking_views:
+  soup:
+    role: aromatic
+    fishiness_suppression: 45
+  stir_fry:
+    role: aromatic
+    aroma_boost: 25
+market_tags:
+- aromatic
+- medicine_food_basic
+source_policy:
+  default_source: npc_trade
+  suggested_npc: sun_popo
+storage_footprint_rule:
+  base_quantity:
+    amount: 100
+    unit: g
+  footprint:
+    amount: 1
+    unit: slot_weight

@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "supply_nodes_config.schema.json",
+  "type": "object",
+  "required": [
+    "supply_nodes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "supply_nodes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "owner_npc_id",
+          "refresh_rule",
+          "output_goods"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "owner_npc_id": {
+            "type": "string"
+          },
+          "refresh_rule": {
+            "type": "object",
+            "required": [
+              "mode"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "mode": {
+                "type": "string"
+              },
+              "hour_minute": {
+                "type": "integer"
+              }
+            }
+          },
+          "output_goods": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "goods_id",
+                "base_id",
+                "price_rule"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "goods_id": {
+                  "type": "string"
+                },
+                "base_id": {
+                  "type": "string"
+                },
+                "form": {
+                  "type": "string"
+                },
+                "quantity_g": {
+                  "type": "number"
+                },
+                "quantity_ml": {
+                  "type": "number"
+                },
+                "quantity_count": {
+                  "type": "number"
+                },
+                "price_rule": {
+                  "type": "object",
+                  "required": [
+                    "currency_id",
+                    "pricing_unit",
+                    "price"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "currency_id": {
+                      "type": "string"
+                    },
+                    "pricing_unit": {
+                      "$ref": "common_defs.schema.json#/$defs/Quantity"
+                    },
+                    "price": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "capacity": {
+            "type": "object",
+            "required": [],
+            "additionalProperties": false,
+            "properties": {
+              "max_daily_transactions": {
+                "type": "integer"
+              }
+            }
+          },
+          "event_modifiers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [],
+              "additionalProperties": false,
+              "properties": {
+                "price_multiplier": {
+                  "type": "number"
+                },
+                "quantity_multiplier": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "black_box_source": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

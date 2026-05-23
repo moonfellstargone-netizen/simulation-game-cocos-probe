@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "facility_config.schema.json",
+  "type": "object",
+  "required": [
+    "facility_definitions",
+    "initial_facilities"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "facility_definitions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "facility_type"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "facility_type": {
+            "type": "string"
+          },
+          "allowed_actions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "allowed_processes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fuel_required": {
+            "type": "boolean"
+          },
+          "upgrade_to": {
+            "type": "string"
+          },
+          "location_id": {
+            "type": "string"
+          },
+          "storage_type": {
+            "type": "string"
+          },
+          "container_id": {
+            "type": "string"
+          },
+          "capacity_g": {
+            "type": "number"
+          },
+          "capacity_ml": {
+            "type": "number"
+          },
+          "unlock_state": {
+            "type": "string"
+          },
+          "available_from_stage": {
+            "enum": [
+              "stage_1A",
+              "stage_1B",
+              "stage_1C_debug",
+              "stage_2",
+              "stage_3"
+            ]
+          }
+        }
+      }
+    },
+    "initial_facilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "definition_id",
+          "status",
+          "condition",
+          "quality_tier"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "definition_id": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "locked",
+              "available",
+              "broken",
+              "disabled"
+            ]
+          },
+          "condition": {
+            "enum": [
+              "usable",
+              "worn",
+              "damaged"
+            ]
+          },
+          "quality_tier": {
+            "enum": [
+              "crude",
+              "basic",
+              "fine",
+              "masterwork"
+            ]
+          },
+          "upgrade_level": {
+            "type": "integer"
+          },
+          "durability_current": {
+            "type": "number"
+          },
+          "durability_max": {
+            "type": "number"
+          },
+          "capacity_g": {
+            "type": "number"
+          },
+          "capacity_ml": {
+            "type": "number"
+          },
+          "container_id": {
+            "type": "string"
+          },
+          "storage_type": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

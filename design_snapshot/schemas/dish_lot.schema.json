@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dish_lot.schema.json",
+  "type": "object",
+  "required": [
+    "dish_lot_id",
+    "components",
+    "dish_profile",
+    "serving_count",
+    "total_quantity",
+    "source_ref",
+    "created_time",
+    "storage_ref",
+    "storage_form",
+    "storage_footprint",
+    "last_update_time",
+    "decay_policy_id",
+    "freshness_state",
+    "suitability_tags"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "dish_lot_id": {
+      "type": "string"
+    },
+    "recognized_dish_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "$ref": "dish_component.schema.json"
+      }
+    },
+    "dish_profile": {
+      "$ref": "common_defs.schema.json#/$defs/PropertyProfile"
+    },
+    "serving_count": {
+      "type": "number",
+      "minimum": 0
+    },
+    "total_quantity": {
+      "$ref": "common_defs.schema.json#/$defs/Quantity"
+    },
+    "temperature_state": {
+      "enum": [
+        "hot",
+        "warm",
+        "cold"
+      ]
+    },
+    "defects": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "suitability_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source_ref": {
+      "$ref": "common_defs.schema.json#/$defs/SourceRef"
+    },
+    "lineage_summary": {
+      "$ref": "common_defs.schema.json#/$defs/LineageSummary"
+    },
+    "created_time": {
+      "type": "integer"
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "storage_ref": {
+      "$ref": "common_defs.schema.json#/$defs/StorageRef"
+    },
+    "storage_footprint": {
+      "$ref": "common_defs.schema.json#/$defs/StorageFootprint"
+    },
+    "last_update_time": {
+      "type": "integer"
+    },
+    "decay_policy_id": {
+      "type": "string"
+    },
+    "freshness_state": {
+      "enum": [
+        "fresh_hot",
+        "warm",
+        "cold",
+        "stale",
+        "spoiled"
+      ]
+    },
+    "storage_form": {
+      "enum": [
+        "cooked_dish",
+        "dish"
+      ],
+      "description": "Storage compatibility form used by StorageOccupantAdapter when checking container supported_forms."
+    }
+  }
+}

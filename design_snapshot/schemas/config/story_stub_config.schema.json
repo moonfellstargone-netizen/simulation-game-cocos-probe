@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "story_stub_config.schema.json",
+  "type": "object",
+  "required": [
+    "story_config_type",
+    "status",
+    "entries"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "story_config_type": {
+      "enum": [
+        "flags",
+        "clues",
+        "events",
+        "items"
+      ]
+    },
+    "status": {
+      "const": "locked_stub"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

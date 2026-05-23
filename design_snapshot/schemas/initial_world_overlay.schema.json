@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "initial_world_overlay.schema.json",
+  "type": "object",
+  "required": [
+    "initial_world_overlay_id",
+    "extends"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "initial_world_overlay_id": {
+      "type": "string"
+    },
+    "extends": {
+      "type": "string"
+    },
+    "enable_runtime_systems": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "family_meal_state": {
+      "type": "object",
+      "required": [
+        "current_day_status",
+        "consecutive_missing_days",
+        "substitute_available",
+        "child_self_feed_available"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "current_day_status": {
+          "enum": [
+            "not_arranged",
+            "arranged",
+            "substituted",
+            "child_self_fed",
+            "missed"
+          ]
+        },
+        "consecutive_missing_days": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "substitute_available": {
+          "type": "boolean"
+        },
+        "child_self_feed_available": {
+          "type": "boolean"
+        }
+      }
+    },
+    "home_water_runtime": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "allow_carry_water",
+        "quality_affects_score"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "allow_carry_water": {
+          "type": "boolean"
+        },
+        "quality_affects_score": {
+          "type": "boolean"
+        }
+      }
+    },
+    "debug_inventory_additions": {
+      "type": "array",
+      "items": {
+        "$ref": "material_lot.schema.json"
+      }
+    },
+    "debug_orders": {
+      "type": "array",
+      "items": {
+        "$ref": "order.schema.json"
+      }
+    },
+    "merge_policy": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "debug_dish_lot_additions": {
+      "type": "array",
+      "items": {
+        "$ref": "dish_lot.schema.json"
+      }
+    }
+  }
+}

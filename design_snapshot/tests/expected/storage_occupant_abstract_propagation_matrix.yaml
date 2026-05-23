@@ -1,0 +1,213 @@
+matrix_id: storage_occupant_abstract_propagation_matrix
+purpose: Ensure cross-system abstractions are not only listed in design text but are
+  propagated through executable schema/tooling assertions, positive fixtures, expected
+  snapshots, negative cases, modules, and modification rules.
+abstracts:
+  StorageOccupant:
+    allowed_runtime_types:
+    - MaterialLot
+    - DishLot
+    required_layers:
+      common_defs: common_defs.StorageOccupantRef
+      formal_store_item: schemas/actions/formal_stage_1A_action_request.schema.json.store_item.parameters.object_ref
+      fixture_store_item: schemas/actions/stage_1A_action_params.schema.json.store_item.parameters.object_ref
+      storage_container_cache: schemas/storage_container.schema.json.active_object_refs.items
+      domain_event_storage_move: schemas/domain_event.schema.json.StorageMovePayload.object_ref
+      adapter_mapping: configs/core/new_game_builder_mapping.yaml.validation_policy.storage_reconciliation_policy.storage_occupant_adapters
+      positive_fixture: tests/fixtures/storage_reconciliation_with_dishlot.yaml
+      expected_snapshots: tests/expected/stage_1A_runtime_lifecycle_matrix.yaml.post_action_storage_snapshots
+      rules: modification_spec.23_RUNTIME_LIFECYCLE_STORAGE_OCCUPANT_RULES
+  SubmittedObject:
+    allowed_runtime_types:
+    - DishLot
+    - MaterialLot
+    - PurchasedMeal
+    required_layers:
+      common_defs: common_defs.SubmittedObjectRef
+      formal_submit_order: schemas/actions/formal_stage_1A_action_request.schema.json.submit_order.parameters.submitted_object_refs.items
+      fixture_submit_order: schemas/actions/stage_1A_action_params.schema.json.submit_order.parameters.submitted_object_refs.items
+      order_schema: schemas/order.schema.json.submitted_object_refs.items
+      domain_event_order_payload: schemas/domain_event.schema.json.OrderPayload.submitted_object_refs.items
+      runtime_lifecycle_matrix: tests/expected/stage_1A_runtime_lifecycle_matrix.yaml.submit_order
+required_negative_cases:
+- storage_move_event_generic_objectref.case.yaml
+- order_event_submitted_refs_generic_objectref.case.yaml
+- order_schema_submitted_refs_inline_or_generic.case.yaml
+- dishlot_reconciliation_positive_fixture_removed.case.yaml
+- abstract_matrix_machine_assertion_removed.case.yaml
+- abstract_matrix_expected_ref_mismatch.case.yaml
+- abstract_matrix_no_declarative_only_layers_regression.case.yaml
+matrix_policy:
+  status: active_executable_contract
+  no_declarative_only_layers: true
+  every_required_layer_must_have_machine_assertion_or_explicit_external_rule: true
+  external_rule_layers_must_be_validated_by_branch_completion_scan:
+  - modification_spec
+  stop_condition: All machine_assertions pass, required negative cases exist and pass,
+    and modification spec contains no active_lot_ids/inventory-only/MaterialLot-only
+    rollback wording except quoted forbidden examples.
+machine_assertions:
+- id: storage_ref_enum_narrow
+  abstract: StorageOccupant
+  layer: common_defs
+  kind: json_pointer_equals
+  path: schemas/common_defs.schema.json
+  pointer: /$defs/StorageOccupantRef/properties/object_type/enum
+  expected:
+  - MaterialLot
+  - DishLot
+- id: submitted_ref_enum_narrow
+  abstract: SubmittedObject
+  layer: common_defs
+  kind: json_pointer_equals
+  path: schemas/common_defs.schema.json
+  pointer: /$defs/SubmittedObjectRef/properties/object_type/enum
+  expected:
+  - DishLot
+  - MaterialLot
+  - PurchasedMeal
+- id: formal_store_item_uses_storage_occupant_ref
+  abstract: StorageOccupant
+  layer: formal_store_item
+  kind: action_param_ref_equals
+  path: schemas/actions/formal_stage_1A_action_request.schema.json
+  action_type: store_item
+  param_path:
+  - object_ref
+  - $ref
+  expected: common_defs.schema.json#/$defs/StorageOccupantRef
+- id: fixture_store_item_uses_storage_occupant_ref
+  abstract: StorageOccupant
+  layer: fixture_store_item
+  kind: action_param_ref_equals
+  path: schemas/actions/stage_1A_action_params.schema.json
+  action_type: store_item
+  param_path:
+  - object_ref
+  - $ref
+  expected: common_defs.schema.json#/$defs/StorageOccupantRef
+- id: storage_container_cache_uses_storage_occupant_ref
+  abstract: StorageOccupant
+  layer: storage_container_cache
+  kind: json_pointer_equals
+  path: schemas/storage_container.schema.json
+  pointer: /properties/active_object_refs/items/$ref
+  expected: common_defs.schema.json#/$defs/StorageOccupantRef
+- id: domain_event_storage_move_uses_storage_occupant_ref
+  abstract: StorageOccupant
+  layer: domain_event_storage_move
+  kind: json_pointer_equals
+  path: schemas/domain_event.schema.json
+  pointer: /$defs/StorageMovePayload/properties/object_ref/$ref
+  expected: common_defs.schema.json#/$defs/StorageOccupantRef
+- id: dish_lot_requires_storage_form
+  abstract: StorageOccupant
+  layer: runtime_object_schema
+  kind: json_pointer_contains
+  path: schemas/dish_lot.schema.json
+  pointer: /required
+  expected: storage_form
+- id: dish_lot_storage_form_enum
+  abstract: StorageOccupant
+  layer: runtime_object_schema
+  kind: json_pointer_equals
+  path: schemas/dish_lot.schema.json
+  pointer: /properties/storage_form/enum
+  expected:
+  - cooked_dish
+  - dish
+- id: adapter_materiallot_collection
+  abstract: StorageOccupant
+  layer: adapter_mapping
+  kind: yaml_path_equals
+  path: configs/core/new_game_builder_mapping.yaml
+  yaml_path:
+  - validation_policy
+  - storage_reconciliation_policy
+  - storage_occupant_adapters
+  - MaterialLot
+  - collection
+  expected: SaveFile.inventory
+- id: adapter_dishlot_collection
+  abstract: StorageOccupant
+  layer: adapter_mapping
+  kind: yaml_path_equals
+  path: configs/core/new_game_builder_mapping.yaml
+  yaml_path:
+  - validation_policy
+  - storage_reconciliation_policy
+  - storage_occupant_adapters
+  - DishLot
+  - collection
+  expected: SaveFile.dish_lots
+- id: positive_dishlot_fixture_exists
+  abstract: StorageOccupant
+  layer: positive_fixture
+  kind: file_exists
+  path: tests/fixtures/storage_reconciliation_with_dishlot.yaml
+- id: positive_dishlot_fixture_expected_ref
+  abstract: StorageOccupant
+  layer: positive_fixture
+  kind: yaml_path_equals
+  path: tests/fixtures/storage_reconciliation_with_dishlot.yaml
+  yaml_path:
+  - expected_reconciliation
+  - home_room_temp_01
+  - active_object_refs
+  - 0
+  - object_type
+  expected: DishLot
+- id: lifecycle_matrix_cook_dish_storage_cache
+  abstract: StorageOccupant
+  layer: expected_snapshots
+  kind: text_contains
+  path: tests/expected/stage_1A_runtime_lifecycle_matrix.yaml
+  expected: created DishLot must enter active_object_refs
+- id: module04_store_item_param_aligned
+  abstract: StorageOccupant
+  layer: modules
+  kind: text_contains
+  path: modules/04_时间动作管线事务存档测试_current.txt
+  expected: '| store_item | object_ref、storage_ref |'
+- id: formal_submit_order_uses_submitted_ref
+  abstract: SubmittedObject
+  layer: formal_submit_order
+  kind: action_param_ref_equals
+  path: schemas/actions/formal_stage_1A_action_request.schema.json
+  action_type: submit_order
+  param_path:
+  - submitted_object_refs
+  - items
+  - $ref
+  expected: common_defs.schema.json#/$defs/SubmittedObjectRef
+- id: fixture_submit_order_uses_submitted_ref
+  abstract: SubmittedObject
+  layer: fixture_submit_order
+  kind: action_param_ref_equals
+  path: schemas/actions/stage_1A_action_params.schema.json
+  action_type: submit_order
+  param_path:
+  - submitted_object_refs
+  - items
+  - $ref
+  expected: common_defs.schema.json#/$defs/SubmittedObjectRef
+- id: order_schema_uses_submitted_ref
+  abstract: SubmittedObject
+  layer: order_schema
+  kind: json_pointer_equals
+  path: schemas/order.schema.json
+  pointer: /properties/submitted_object_refs/items/$ref
+  expected: common_defs.schema.json#/$defs/SubmittedObjectRef
+- id: domain_event_order_payload_uses_submitted_ref
+  abstract: SubmittedObject
+  layer: domain_event_order_payload
+  kind: json_pointer_equals
+  path: schemas/domain_event.schema.json
+  pointer: /$defs/OrderPayload/properties/submitted_object_refs/items/$ref
+  expected: common_defs.schema.json#/$defs/SubmittedObjectRef
+- id: lifecycle_matrix_submit_order_delete_dishlot
+  abstract: SubmittedObject
+  layer: runtime_lifecycle_matrix
+  kind: text_contains
+  path: tests/expected/stage_1A_runtime_lifecycle_matrix.yaml
+  expected: removed from SaveFile.dish_lots

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "time_segments_config.schema.json",
+  "type": "object",
+  "required": [
+    "time_units",
+    "segments",
+    "notes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "time_units": {
+      "type": "object",
+      "required": [
+        "minute",
+        "ke_minutes",
+        "shichen_minutes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "minute": {
+          "const": 1
+        },
+        "ke_minutes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "shichen_minutes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "segments": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "display_name_key",
+          "start_minute",
+          "end_minute"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "display_name_key": {
+            "type": "string"
+          },
+          "start_minute": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "end_minute": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "object",
+      "required": [
+        "night_crosses_day",
+        "world_time_base"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "night_crosses_day": {
+          "type": "boolean"
+        },
+        "world_time_base": {
+          "const": "absolute_minutes"
+        }
+      }
+    }
+  }
+}

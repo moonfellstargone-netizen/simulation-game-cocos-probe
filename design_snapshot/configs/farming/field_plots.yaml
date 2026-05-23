@@ -1,0 +1,17 @@
+field_plot_definitions:
+  field_plot_basic:
+    display_name_key: field.field_plot_basic.name
+    location_id: home_field
+    soil_quality: 45
+    capacity_tiles: 6
+    supports_crop_categories: [leafy_vegetable, vegetable]
+    default_water_state: normal
+    unlock_stage: stage_1A
+initial_field_plots:
+  - field_plot_id: field_plot_01
+    definition_id: field_plot_basic
+    location_id: home_field
+    soil_quality: 45
+    capacity_tiles: 6
+    occupied_tiles: 0
+    flags: [old_house_land]

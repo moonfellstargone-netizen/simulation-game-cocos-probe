@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "feature_flag_overrides_config.schema.json",
+  "type": "object",
+  "required": [
+    "stage_id",
+    "override_version",
+    "merge_policy",
+    "feature_flag_overrides"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "stage_id": {
+      "type": "string"
+    },
+    "override_version": {
+      "type": "string"
+    },
+    "merge_policy": {
+      "const": "override_core_feature_flags_by_key"
+    },
+    "feature_flag_overrides": {
+      "$ref": "feature_flags_snapshot.schema.json#/$defs/PartialFeatureFlags"
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

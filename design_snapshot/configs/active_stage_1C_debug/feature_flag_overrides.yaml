@@ -1,0 +1,10 @@
+stage_id: stage_1C_debug
+override_version: feature_flags.override.v1.5.2.2.stage_1C_debug
+merge_policy: override_core_feature_flags_by_key
+feature_flag_overrides:
+  clinic_order_debug_enabled: true
+  old_case_debug_enabled: true
+  story_system_enabled: true
+  clinic_order_enabled: false
+  old_case_content_enabled: false
+  fishpond_enabled: false

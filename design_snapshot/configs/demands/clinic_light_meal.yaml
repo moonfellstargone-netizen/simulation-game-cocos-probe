@@ -1,0 +1,41 @@
+id: clinic_light_meal
+demand_profile_id: clinic_light_meal
+display_name_key: demand.clinic_light_meal.name
+accepted_object_types:
+- DishLot
+hard_requirements:
+- type: property
+  key: safety_risk
+  max_value: 12
+- type: property
+  key: microbial_risk
+  max_value: 20
+weighted_requirements:
+- type: property
+  key: saltiness
+  target_range:
+  - 8
+  - 35
+  weight: 2
+  scoring_curve: bell
+- type: property
+  key: oiliness
+  max_value: 45
+  weight: 1.5
+  scoring_curve: threshold
+- type: tag
+  key: warm
+  weight: 1
+  scoring_curve: boolean
+- type: tag
+  key: light_meal
+  weight: 2
+  scoring_curve: boolean
+forbidden_defects:
+- unsafe
+- too_salty
+- greasy
+acceptable_defects:
+  bland: minor_penalty
+match_threshold: 70
+available_from_stage: stage_1C_debug

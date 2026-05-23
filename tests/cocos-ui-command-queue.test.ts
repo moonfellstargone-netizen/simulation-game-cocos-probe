@@ -1,0 +1,155 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { CocosSessionHost, CocosUiShellCommandQueue, CocosUiShellController } from '../src/cocos-creator-adapter';
+import { InMemorySaveStoragePort, type SaveStoragePort } from '../src/game-core';
+import { buildRuntimeWithoutState, cloneForCompare } from './support/runtimeHarness';
+
+function makeQueuedShell(storage: SaveStoragePort = new InMemorySaveStoragePort()) {
+  const { configs, contracts } = buildRuntimeWithoutState();
+  const host = new CocosSessionHost(configs, contracts, storage, {
+    buildId: 'cocos_ui_command_queue_test_v0_0_2_22',
+    nowIso8601: '2026-05-21T00:00:00.000Z'
+  });
+  const shell = new CocosUiShellController(host);
+  const queue = new CocosUiShellCommandQueue(shell);
+  return { host, shell, queue, storage };
+}
+
+test('Cocos UI command queue executes shell commands and returns render snapshots', async () => {
+  const { host, queue } = makeQueuedShell();
+
+  const created = await queue.execute({ name: 'create_session' });
+  assert.equal(created.status, 'completed');
+  assert.equal(created.snapshot.lifecycle.last_operation, 'create_session');
+  assert.equal(created.snapshot.lifecycle.has_session, true);
+
+  const beforePreview = cloneForCompare(host.requireSession().getViewModel());
+  const previewed = await queue.execute({ name: 'menu_preview', selection: { action_type: 'advance_time', minutes: 60 } });
+  assert.equal(previewed.status, 'completed');
+  assert.equal(previewed.snapshot.lifecycle.last_operation, 'menu_preview');
+  assert.equal(previewed.snapshot.menu.last_preview_result?.success, true);
+  assert.deepEqual(host.requireSession().getViewModel(), beforePreview);
+
+  const confirmed = await queue.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+  assert.equal(confirmed.status, 'completed');
+  assert.equal(confirmed.snapshot.lifecycle.last_operation, 'menu_confirm');
+  assert.equal(confirmed.snapshot.menu.last_action_result?.success, true);
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 420');
+
+  const saved = await queue.execute({ name: 'save', selection: { slot_id: 'queue_after_confirm' } });
+  assert.equal(saved.status, 'completed');
+  assert.equal(saved.snapshot.lifecycle.last_operation, 'save');
+  assert.equal(saved.snapshot.save_load.last_save_result?.slot_id, 'queue_after_confirm');
+
+  const refreshed = await queue.execute({ name: 'refresh' });
+  assert.equal(refreshed.status, 'completed');
+  assert.equal(refreshed.snapshot.lifecycle.last_operation, 'refresh');
+
+  const loaded = await queue.execute({ name: 'load', selection: { slot_id: 'queue_after_confirm' } });
+  assert.equal(loaded.status, 'completed');
+  assert.equal(loaded.snapshot.lifecycle.last_operation, 'load');
+  assert.equal(loaded.snapshot.save_load.last_load_result?.slot_id, 'queue_after_confirm');
+
+  const destroyed = await queue.execute({ name: 'destroy_session' });
+  assert.equal(destroyed.status, 'completed');
+  assert.equal(destroyed.snapshot.lifecycle.has_session, false);
+});
+
+test('Cocos UI command queue serializes async save/load commands in enqueue order', async () => {
+  const storage = new DelayedMemoryStorage();
+  const { queue } = makeQueuedShell(storage);
+  await queue.execute({ name: 'create_session' });
+
+  const firstSave = queue.enqueue({ name: 'save', selection: { slot_id: 'queue_initial' } });
+  const confirm = queue.enqueue({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+  const secondSave = queue.enqueue({ name: 'save', selection: { slot_id: 'queue_advanced' } });
+  const loadInitial = queue.enqueue({ name: 'load', selection: { slot_id: 'queue_initial' } });
+
+  const results = await Promise.all([firstSave, confirm, secondSave, loadInitial]);
+  assert.deepEqual(results.map((result) => result.command_name), ['save', 'menu_confirm', 'save', 'load']);
+  assert.deepEqual(storage.operations, ['write:queue_initial', 'write:queue_advanced', 'read:queue_initial']);
+  assert.equal(results[0].snapshot.save_load.last_save_result?.world_minute, 360);
+  assert.equal(results[1].snapshot.menu.view_model?.time_label, 'day 1 minute 420');
+  assert.equal(results[2].snapshot.save_load.last_save_result?.world_minute, 420);
+  assert.equal(results[3].snapshot.menu.view_model?.time_label, 'day 1 minute 360');
+});
+
+test('Cocos UI command queue exposes failed command status while preserving later command execution', async () => {
+  const { host, queue, storage } = makeQueuedShell(new InMemorySaveStoragePort());
+  await queue.execute({ name: 'create_session' });
+  await queue.execute({ name: 'save', selection: { slot_id: 'queue_good' } });
+  await storage.write('queue_broken', '{"broken":true}');
+  const before = cloneForCompare(host.requireSession().getViewModel());
+
+  const failedLoad = await queue.execute({ name: 'load', selection: { slot_id: 'queue_broken' } });
+  assert.equal(failedLoad.status, 'failed');
+  assert.match(failedLoad.error_message ?? '', /ERR_COCOS_SESSION_LOAD_REJECTED/);
+  assert.equal(queue.status(), 'failed');
+  assert.equal(queue.lastExecutionResult()?.status, 'failed');
+  assert.deepEqual(host.requireSession().getViewModel(), before);
+
+  const loadedGood = await queue.execute({ name: 'load', selection: { slot_id: 'queue_good' } });
+  assert.equal(loadedGood.status, 'completed');
+  assert.equal(queue.status(), 'completed');
+  assert.equal(loadedGood.snapshot.save_load.last_load_result?.slot_id, 'queue_good');
+});
+
+test('Cocos UI command queue source stays a shell wrapper without platform or core shortcuts', () => {
+  const text = readFileSync(join(process.cwd(), 'src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts'), 'utf8');
+  for (const required of [
+    'CocosUiShellCommandQueue',
+    'CocosUiShellCommand',
+    'CocosUiShellCommandStatus',
+    'CocosUiShellCommandExecutionResult',
+    'CocosUiShellController',
+    'enqueue',
+    'execute'
+  ]) {
+    assert.equal(text.includes(required), true, `queue source missing ${required}`);
+  }
+
+  for (const forbidden of [
+    'game-core/dev-api',
+    'game-core/testing-api',
+    'Stage1AFixtureRunner',
+    'Stage1AHeadlessRuntime',
+    "from 'cc'",
+    'from "cc"',
+    "from 'node:fs'",
+    'from "node:fs"',
+    "from 'fs'",
+    'from "fs"',
+    'wx.',
+    'GameState',
+    'SaveFile',
+    'save_file',
+    'inventory',
+    'orders',
+    'dish_lots',
+    'reservations'
+  ]) {
+    assert.equal(text.includes(forbidden), false, `queue source leaked forbidden token ${forbidden}`);
+  }
+});
+
+class DelayedMemoryStorage extends InMemorySaveStoragePort {
+  readonly operations: string[] = [];
+
+  override async write(slotId: string, serializedSave: string): Promise<void> {
+    await delay(5);
+    this.operations.push(`write:${slotId}`);
+    await super.write(slotId, serializedSave);
+  }
+
+  override async read(slotId: string): Promise<string | null> {
+    await delay(5);
+    this.operations.push(`read:${slotId}`);
+    return await super.read(slotId);
+  }
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}

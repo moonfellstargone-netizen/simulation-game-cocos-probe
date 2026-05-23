@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "common_enums_config.schema.json",
+  "type": "object",
+  "required": [
+    "units",
+    "source_types",
+    "storage_types",
+    "locations",
+    "quality_tiers",
+    "condition_tiers",
+    "feature_stages"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "units": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!\\s)(?!.*\\s$).+$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "source_types": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!\\s)(?!.*\\s$).+$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "storage_types": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!\\s)(?!.*\\s$).+$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "locations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!\\s)(?!.*\\s$).+$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "quality_tiers": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "crude",
+          "basic",
+          "fine",
+          "masterwork"
+        ]
+      },
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true
+    },
+    "condition_tiers": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "usable",
+          "worn",
+          "damaged"
+        ]
+      },
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true
+    },
+    "feature_stages": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "stage_0",
+          "stage_1A",
+          "stage_1B",
+          "stage_1C_debug",
+          "stage_2",
+          "stage_3"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "currency_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!\\s)(?!.*\\s$).+$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    }
+  }
+}

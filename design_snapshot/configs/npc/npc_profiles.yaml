@@ -1,0 +1,24 @@
+npcs:
+  sun_popo:
+    display_name_key: npc.sun_popo.name
+    role: sauce_shop_elder
+    location: east_market
+    supply_node: sun_popo_sauce_shop
+    teaching_feedback:
+    - trigger: first_under_salted_pickling
+      text_key: npc.sun_popo.tip.under_salted
+    - trigger: first_watery_pickled
+      text_key: npc.sun_popo.tip.press
+    story_hooks:
+    - old_house_vague_memory
+  qian_xiaoman:
+    display_name_key: npc.qian_xiaoman.name
+    role: tavern_counter
+    location: west_market_tavern
+    demand_profiles:
+    - tavern_home_dish
+    teaching_feedback:
+    - trigger: first_watery_dish
+      text_key: npc.qian_xiaoman.tip.high_heat
+    story_hooks:
+    - tavern_rumor_old_case

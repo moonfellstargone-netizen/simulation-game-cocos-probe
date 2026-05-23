@@ -1,0 +1,52 @@
+fixture_id: storage_reconciliation_with_dishlot_positive
+purpose: Validates that DishLot enters storage reconciliation through StorageOccupantAdapter, not through single-collection storage logic.
+storage_containers:
+- container_id: home_room_temp_01
+  container_type: room_temp_storage
+  location_id: home
+  storage_type: room_temp
+  capacity:
+    amount: 20
+    unit: slot_weight
+  supported_forms:
+  - cooked_dish
+  active_object_refs:
+  - object_type: DishLot
+    object_id: dish_bacon_cabbage_positive_001
+  used_capacity: 2
+dish_lots:
+- dish_lot_id: dish_bacon_cabbage_positive_001
+  recipe_variant_id: bacon_cabbage_basic
+  dish_structure_id: bacon_cabbage
+  display_name_key: dish.bacon_cabbage.name
+  created_at_minute: 600
+  serving_count: 1
+  total_quantity:
+    amount: 1
+    unit: serving
+  components: []
+  quality_snapshot:
+    quality_tier: normal
+    score: 70
+  freshness_state:
+    created_at_minute: 600
+    best_before_minute: 1200
+    spoilage_minute: 1800
+    freshness_tier: fresh
+  decay_policy_id: cooked_dish_room_temp_basic
+  storage_ref:
+    container_id: home_room_temp_01
+    location_id: home
+    storage_type: room_temp
+  storage_form: cooked_dish
+  storage_footprint:
+    amount: 2
+    unit: slot_weight
+  temperature_state: warm
+expected_reconciliation:
+  home_room_temp_01:
+    active_object_refs:
+    - object_type: DishLot
+      object_id: dish_bacon_cabbage_positive_001
+    used_capacity: 2
+    capacity_unit: slot_weight

@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "material_config.schema.json",
+  "type": "object",
+  "required": [
+    "id",
+    "category",
+    "display_name_key",
+    "base_unit",
+    "forms",
+    "property_defaults",
+    "storage_rules",
+    "storage_footprint_rule"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "display_name_key": {
+      "type": "string"
+    },
+    "base_unit": {
+      "enum": [
+        "g",
+        "ml",
+        "count"
+      ]
+    },
+    "forms": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "display_name_key"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "display_name_key": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "property_defaults": {
+      "$ref": "common_defs.schema.json#/$defs/PropertyProfile"
+    },
+    "storage_rules": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [],
+        "additionalProperties": false,
+        "properties": {
+          "freshness_decay_per_day": {
+            "type": "number"
+          },
+          "microbial_risk_gain_per_day": {
+            "type": "number"
+          },
+          "crunch_decay_extra_per_day": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "market_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "seed_source": {
+      "type": "string"
+    },
+    "breedable": {
+      "type": "boolean"
+    },
+    "medicinal_potential": {
+      "$ref": "common_defs.schema.json#/$defs/PropertyProfile"
+    },
+    "feature_flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "processing_views": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [],
+        "additionalProperties": false,
+        "properties": {
+          "suitable": {
+            "type": "boolean"
+          },
+          "required_forms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "moisture_preference": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "cooking_views": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [],
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "water_release": {
+            "type": "string"
+          },
+          "heat_tolerance": {
+            "type": "string"
+          },
+          "soup_contribution": {
+            "type": "string"
+          },
+          "fishiness_suppression": {
+            "type": "number"
+          },
+          "fishiness_suppression_tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requires_aromatic": {
+            "type": "boolean"
+          },
+          "aroma_boost": {
+            "type": "number"
+          },
+          "oil_release": {
+            "type": "string"
+          },
+          "salt_transfer": {
+            "type": "string"
+          },
+          "smoky_aroma": {
+            "type": "string"
+          },
+          "oiliness_power": {
+            "type": "number"
+          },
+          "heat_transfer": {
+            "type": "string"
+          },
+          "saltiness_power": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "storage_footprint_rule": {
+      "type": "object",
+      "required": [
+        "base_quantity",
+        "footprint"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "base_quantity": {
+          "$ref": "common_defs.schema.json#/$defs/Quantity"
+        },
+        "footprint": {
+          "$ref": "common_defs.schema.json#/$defs/StorageFootprint"
+        }
+      }
+    },
+    "source_policy": {
+      "type": "object",
+      "required": [
+        "default_source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "default_source": {
+          "type": "string"
+        },
+        "suggested_npc": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

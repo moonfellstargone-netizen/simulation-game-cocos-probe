@@ -1,0 +1,39 @@
+entry_chain_catalog_id: stage_1A_entry_chain_catalog
+stage_id: stage_1A
+registered_steps:
+- step_id: plant_crop
+  stage_id: stage_1A
+  description_key: entry_chain.plant_crop.desc
+- step_id: advance_time_until_mature
+  stage_id: stage_1A
+  description_key: entry_chain.advance_time_until_mature.desc
+- step_id: harvest_crop
+  stage_id: stage_1A
+  description_key: entry_chain.harvest_crop.desc
+- step_id: storage_decay_room_temp
+  stage_id: stage_1A
+  description_key: entry_chain.storage_decay_room_temp.desc
+- step_id: move_to_cellar
+  stage_id: stage_1A
+  description_key: entry_chain.move_to_cellar.desc
+- step_id: split_lot
+  stage_id: stage_1A
+  description_key: entry_chain.split_lot.desc
+- step_id: start_processing_pickling
+  stage_id: stage_1A
+  description_key: entry_chain.start_processing_pickling.desc
+- step_id: collect_processing_result
+  stage_id: stage_1A
+  description_key: entry_chain.collect_processing_result.desc
+- step_id: cook_dish_bacon_cabbage
+  stage_id: stage_1A
+  description_key: entry_chain.cook_dish_bacon_cabbage.desc
+- step_id: submit_tavern_order
+  stage_id: stage_1A
+  description_key: entry_chain.submit_tavern_order.desc
+- step_id: save_and_load
+  stage_id: stage_1A
+  description_key: entry_chain.save_and_load.desc
+- step_id: rollback_failure_case
+  stage_id: stage_1A
+  description_key: entry_chain.rollback_failure_case.desc

@@ -1,0 +1,244 @@
+{
+  "variables": {
+    "codePackageVersion": "${project.version.codePackageVersion}",
+    "npmVersion": "${project.version.npmVersion}",
+    "qualityMetadataVersion": "${project.version.qualityMetadataVersion}",
+    "versionName": "${project.version.versionName}",
+    "chineseVersionName": "${project.version.chineseVersionName}",
+    "releaseRoot": "${project.release.root}",
+    "releaseZip": "${project.release.zip}",
+    "designPackVersion": "${project.design.designPackVersion}",
+    "previousCodePackageVersion": "${project.previous.codePackageVersion}",
+    "previousNpmVersion": "${project.previous.npmVersion}",
+    "previousSnakeVersion": "${project.previous.snakeVersion}",
+    "previousReleaseRoot": "${project.previous.releaseRoot}",
+    "previousVersionName": "${project.previous.versionName}",
+    "previousChineseVersionName": "${project.previous.chineseVersionName}"
+  },
+  "files": {
+    "README.md": {
+      "why": "README 是代码包入口，必须展示当前版本、q:affected/cache 边界、规则权威源和 release 不可替代原则。",
+      "required": [
+        "${codePackageVersion}",
+        "${npmVersion}",
+        "${versionName}",
+        "${chineseVersionName}",
+        "${releaseRoot}",
+        "project-target.json",
+        "context-doc-surface.rules.json",
+        "architecture-boundary.rules.json",
+        "architecture-boundary-check.mjs",
+        "共享插件运行时",
+        "authoritative",
+        "shadow findings",
+        "旧 validator 仍保留高风险权威阻断",
+        "arch:check",
+        "q:affected",
+        "cache",
+        "release gate 禁止 cache",
+        "不进入 Stage 1B",
+        "不接真实 Cocos",
+        "不接 wx",
+        "后续建议不是授权目标"
+      ],
+      "forbiddenCurrent": [
+        "${previousCodePackageVersion}",
+        "${previousNpmVersion}",
+        "${previousSnakeVersion}",
+        "${previousReleaseRoot}",
+        "${previousVersionName}",
+        "${previousChineseVersionName}"
+      ]
+    },
+    "docs/CHECK_ARCHITECTURE.md": {
+      "why": "检查体系文档必须说明 affected gate、changed files -> modules -> tasks、conservative fallback、cache probe 和 release 无缓存权威。",
+      "required": [
+        "${codePackageVersion}",
+        "${versionName}",
+        "architecture-boundary.rules.json",
+        "architecture-boundary-check.mjs",
+        "authoritative",
+        "shadow findings",
+        "旧 validator 仍保留高风险红线",
+        "不迁高风险规则为唯一权威",
+        "q:affected",
+        "changed files -> modules -> tasks",
+        "module graph",
+        "test registry",
+        "conservative fallback",
+        "cache probe",
+        "release gate 禁止 cache",
+        "affected 不可作为 release 验收",
+        "release gate 仍全量、无缓存、可复现"
+      ],
+      "forbiddenCurrent": [
+        "${previousCodePackageVersion}",
+        "${previousNpmVersion}",
+        "${previousSnakeVersion}",
+        "${previousReleaseRoot}",
+        "${previousVersionName}",
+        "${previousChineseVersionName}"
+      ]
+    },
+    "docs/ARCHITECTURE.md": {
+      "why": "架构文档必须登记新质量插件层，同时确认业务架构边界未被修改。",
+      "required": [
+        "${codePackageVersion}",
+        "${versionName}",
+        "tools/quality/affected",
+        "tools/quality/cache",
+        "architecture-boundary.rules.json",
+        "architecture-boundary-check.mjs",
+        "game-core 独立于 Cocos / wx / 表现层",
+        "cocos-creator-adapter 仍是 TypeScript probe",
+        "tools/quality 仍是检查工具层",
+        "不属于游戏业务逻辑",
+        "authoritative blocker",
+        "不改变 ActionPipeline",
+        "不改变 SaveFile",
+        "不改变正式 fixture"
+      ],
+      "forbiddenCurrent": [
+        "${previousCodePackageVersion}",
+        "${previousNpmVersion}",
+        "${previousSnakeVersion}",
+        "${previousReleaseRoot}",
+        "${previousVersionName}",
+        "${previousChineseVersionName}"
+      ]
+    },
+    "docs/CODE_CONTEXT_INDEX.md": {
+      "why": "上下文索引必须登记新增规则、插件、自测与执行方阅读边界。",
+      "required": [
+        "${codePackageVersion}",
+        "${versionName}",
+        "执行前必读顺序",
+        "预检报告必须包含",
+        "未覆盖模块声明",
+        "Task Intent Lock",
+        "本轮唯一目标",
+        "后续建议不是授权目标",
+        "外部执行指令",
+        "版本号出现两个不同任务意图",
+        "当前任务上下文交接来自外部执行指令或开发日志包",
+        "代码包不保存每轮具体任务上下文",
+        "代码包只保存执行端上下文治理约束",
+        "architecture-boundary.rules.json",
+        "architecture-boundary-check.mjs",
+        "architecture-boundary-plugin-contracts.test.mjs",
+        "architecture-boundary-authority-contracts.test.mjs",
+        "quality:architecture-boundary",
+        "loadArchitectureBoundaryRules",
+        "tools/quality/affected/resolveChangedFiles.mjs",
+        "tools/quality/cache/qualityCache.mjs",
+        "test:quality-affected-contracts",
+        "test:quality-cache-contracts",
+        "q:affected",
+        "不跳过 ActionPipeline",
+        "不直接改 SaveFile",
+        "不接真实 `cc / wx / fs`",
+        "UTF-8 metadata",
+        "mojibake 路径"
+      ],
+      "forbiddenCurrent": [
+        "${previousCodePackageVersion}",
+        "${previousNpmVersion}",
+        "${previousSnakeVersion}",
+        "${previousReleaseRoot}",
+        "${previousVersionName}",
+        "${previousChineseVersionName}"
+      ]
+    },
+    "docs/IMPLEMENTATION_SCOPE.md": {
+      "why": "实现范围文档必须锁定 v0.0.2.22 只做 affected/cache 探针。",
+      "required": [
+        "${codePackageVersion}",
+        "${versionName}",
+        "${chineseVersionName}",
+        "q:affected",
+        "cache probe",
+        "architecture-boundary.rules.json",
+        "architecture-boundary-check.mjs",
+        "authoritative",
+        "shadow findings",
+        "不进入 Stage 1B",
+        "不接真实 Cocos",
+        "不接 wx",
+        "不改变正式玩法",
+        "不删除旧 validator 的核心红线",
+        "不替代 q:full",
+        "不替代 q:release",
+        "release gate 禁止 cache"
+      ],
+      "forbiddenCurrent": [
+        "${previousCodePackageVersion}",
+        "${previousNpmVersion}",
+        "${previousSnakeVersion}",
+        "${previousReleaseRoot}",
+        "${previousVersionName}",
+        "${previousChineseVersionName}"
+      ]
+    },
+    "docs/SOURCE_DESIGN_PACK.md": {
+      "why": "设计来源文档必须说明正式包仍是权威，本轮只是代码包检查体系治理。",
+      "required": [
+        "${codePackageVersion}",
+        "${versionName}",
+        "${chineseVersionName}",
+        "正式包 v1.5.2.2",
+        "代码包内部检查体系治理",
+        "q:affected",
+        "cache probe",
+        "不改变正式包设定",
+        "不把日志包或规划对话作为正式设计来源"
+      ],
+      "forbiddenCurrent": [
+        "${previousCodePackageVersion}",
+        "${previousNpmVersion}",
+        "${previousSnakeVersion}",
+        "${previousReleaseRoot}",
+        "${previousVersionName}",
+        "${previousChineseVersionName}"
+      ]
+    },
+    "design_snapshot/SOURCE_DESIGN_PACK.txt": {
+      "why": "设计快照必须同步当前代码包版本与正式包来源。",
+      "required": [
+        "${codePackageVersion}",
+        "${versionName}",
+        "正式包 v1.5.2.2",
+        "代码包内部检查体系治理",
+        "q:affected",
+        "cache probe",
+        "authoritative"
+      ],
+      "forbiddenCurrent": [
+        "${previousCodePackageVersion}",
+        "${previousNpmVersion}",
+        "${previousSnakeVersion}",
+        "${previousReleaseRoot}",
+        "${previousVersionName}",
+        "${previousChineseVersionName}"
+      ]
+    },
+    "src/cocos-app/README.md": {
+      "why": "Cocos app 入口说明必须同步当前版本与边界。",
+      "required": [
+        "${codePackageVersion}",
+        "${versionName}",
+        "Cocos app",
+        "不接真实 Cocos",
+        "不接 wx",
+        "ActionPipeline"
+      ],
+      "forbiddenCurrent": [
+        "${previousCodePackageVersion}",
+        "${previousNpmVersion}",
+        "${previousSnakeVersion}",
+        "${previousReleaseRoot}",
+        "${previousVersionName}",
+        "${previousChineseVersionName}"
+      ]
+    }
+  }
+}

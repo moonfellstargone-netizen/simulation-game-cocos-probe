@@ -1,0 +1,15 @@
+{
+  "version": "0.0.2.22",
+  "moduleGraph": "tools/quality/module-graph.json",
+  "testRegistry": "tools/quality/test-registry.json",
+  "gatePolicy": "tools/quality/gate-policy.json",
+  "reportDir": "reports/quality",
+  "legacyValidators": [
+    "tools/validate_code_architecture.py"
+  ],
+  "rules": {
+    "projectTarget": "tools/quality/rules/project-target.json",
+    "contextDocSurface": "tools/quality/rules/context-doc-surface.rules.json",
+    "architectureBoundary": "tools/quality/rules/architecture-boundary.rules.json"
+  }
+}

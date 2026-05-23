@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fuel_config.schema.json",
+  "type": "object",
+  "required": [
+    "fuel_definitions",
+    "initial_fuel"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "fuel_definitions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "fuel_type",
+          "burn_value"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "fuel_type": {
+            "type": "string"
+          },
+          "burn_value": {
+            "type": "number"
+          },
+          "supported_actions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "storage_risk": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "initial_fuel": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "quantity",
+          "unit"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "enough_for_days_estimate": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

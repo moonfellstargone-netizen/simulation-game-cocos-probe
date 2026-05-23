@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "crop_config.schema.json",
+  "type": "object",
+  "required": [
+    "id",
+    "material_base_id",
+    "seed_id",
+    "growth_profile_id",
+    "display_name_key",
+    "crop_category",
+    "default_harvest_material",
+    "field_requirements",
+    "available_from_stage"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "material_base_id": {
+      "type": "string"
+    },
+    "seed_id": {
+      "type": "string"
+    },
+    "growth_profile_id": {
+      "type": "string"
+    },
+    "display_name_key": {
+      "type": "string"
+    },
+    "crop_category": {
+      "type": "string"
+    },
+    "default_harvest_material": {
+      "type": "object",
+      "required": [
+        "base_id",
+        "form"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "base_id": {
+          "type": "string"
+        },
+        "form": {
+          "type": "string"
+        }
+      }
+    },
+    "field_requirements": {
+      "type": "object",
+      "required": [],
+      "additionalProperties": false,
+      "properties": {
+        "allowed_field_definitions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "min_soil_quality": {
+          "type": "number"
+        }
+      }
+    },
+    "available_from_stage": {
+      "enum": [
+        "stage_1A",
+        "stage_1B",
+        "stage_1C_debug",
+        "stage_2",
+        "stage_3"
+      ]
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tool_state.schema.json",
+  "title": "Runtime tool state",
+  "type": "object",
+  "required": [
+    "tool_id",
+    "definition_id",
+    "status",
+    "condition",
+    "quality_tier"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "tool_id": {
+      "type": "string"
+    },
+    "definition_id": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "available",
+        "broken",
+        "lost",
+        "disabled"
+      ]
+    },
+    "condition": {
+      "enum": [
+        "usable",
+        "worn",
+        "damaged"
+      ]
+    },
+    "quality_tier": {
+      "enum": [
+        "crude",
+        "basic",
+        "fine",
+        "masterwork"
+      ]
+    },
+    "durability_current": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "durability_max": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "repairable": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  }
+}

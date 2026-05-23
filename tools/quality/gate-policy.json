@@ -1,0 +1,107 @@
+{
+  "version": "0.0.2.22",
+  "groupConcurrency": {
+    "static": 2,
+    "governance": 2,
+    "stage1a": 3,
+    "cocos-adapter": 3,
+    "cocos-ui": 3,
+    "quality": 1,
+    "release": 1
+  },
+  "gates": {
+    "tiny": {
+      "description": "最小反馈门禁：质量配置自测。",
+      "includeTests": [
+        "quality.self-test"
+      ],
+      "excludeTags": [
+        "release",
+        "nightly",
+        "experimental",
+        "quarantine"
+      ],
+      "allowCache": false,
+      "blockOnFailure": true,
+      "maxConcurrency": 1
+    },
+    "fast": {
+      "description": "本地快速反馈门禁：静态检查、冒烟测试与质量门禁自测。",
+      "includeTagsAny": [
+        "fast"
+      ],
+      "excludeTags": [
+        "release",
+        "nightly",
+        "experimental",
+        "quarantine"
+      ],
+      "allowCache": true,
+      "blockOnFailure": true,
+      "maxConcurrency": 4
+    },
+    "full": {
+      "description": "版本完成前完整检查。",
+      "includeTagsAny": [
+        "full",
+        "blocker"
+      ],
+      "includeTests": [
+        "architecture.legacy",
+        "quality.self-test"
+      ],
+      "excludeTags": [
+        "release",
+        "nightly",
+        "experimental",
+        "quarantine"
+      ],
+      "allowCache": false,
+      "blockOnFailure": true,
+      "maxConcurrency": 4
+    },
+    "release": {
+      "description": "出包前检查：full gate 成功后顺序执行 release build/check。",
+      "includeGates": [
+        "full"
+      ],
+      "includeTagsAny": [
+        "release"
+      ],
+      "excludeTags": [
+        "nightly",
+        "experimental",
+        "quarantine"
+      ],
+      "allowCache": false,
+      "blockOnFailure": true,
+      "maxConcurrency": 1
+    },
+    "affected": {
+      "description": "受影响检查探针，仅用于开发反馈，不可替代 release。",
+      "mode": "affected",
+      "releaseGate": false,
+      "allowCache": true,
+      "blockOnFailure": true,
+      "fallbackGate": "fast",
+      "neverReleaseAuthority": true,
+      "maxConcurrency": 4,
+      "excludeTags": [
+        "release",
+        "nightly",
+        "experimental",
+        "quarantine"
+      ]
+    },
+    "nightly": {
+      "description": "预留：后续承载慢测试、不稳定测试治理和平台探针。",
+      "reserved": true,
+      "releaseGate": false,
+      "allowCache": false,
+      "blockOnFailure": false
+    }
+  },
+  "deprecatedFields": {
+    "includeTags": "兼容上一版旧字段；新 gate policy 应优先使用 includeTagsAny/includeTagsAll/excludeTags。"
+  }
+}

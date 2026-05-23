@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "family_state.schema.json",
+  "type": "object",
+  "required": [
+    "ayue"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "ayue": {
+      "$ref": "ayue_state.schema.json"
+    },
+    "meal_state": {
+      "type": "object",
+      "required": [
+        "current_day_status",
+        "consecutive_missing_days",
+        "substitute_available",
+        "child_self_feed_available"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "current_day_status": {
+          "enum": [
+            "not_arranged",
+            "arranged",
+            "substituted",
+            "child_self_fed",
+            "missed"
+          ]
+        },
+        "consecutive_missing_days": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "substitute_available": {
+          "type": "boolean"
+        },
+        "child_self_feed_available": {
+          "type": "boolean"
+        },
+        "last_update_time": {
+          "type": "integer"
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

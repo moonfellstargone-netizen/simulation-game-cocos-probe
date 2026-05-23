@@ -1,0 +1,28 @@
+time_units:
+  minute: 1
+  ke_minutes: 15
+  shichen_minutes: 120
+segments:
+  dawn:
+    display_name_key: time.segment.dawn
+    start_minute: 300
+    end_minute: 420
+  morning:
+    display_name_key: time.segment.morning
+    start_minute: 420
+    end_minute: 660
+  afternoon:
+    display_name_key: time.segment.afternoon
+    start_minute: 660
+    end_minute: 1020
+  evening:
+    display_name_key: time.segment.evening
+    start_minute: 1020
+    end_minute: 1200
+  night:
+    display_name_key: time.segment.night
+    start_minute: 1200
+    end_minute: 1740
+notes:
+  night_crosses_day: true
+  world_time_base: absolute_minutes

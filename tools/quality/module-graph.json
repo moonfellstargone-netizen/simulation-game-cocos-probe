@@ -1,0 +1,148 @@
+{
+  "version": "0.0.2.22",
+  "modules": {
+    "game-core": {
+      "roots": [
+        "src/game-core/**"
+      ],
+      "dependsOn": [],
+      "forbiddenDeps": [
+        "src/cocos-app/**",
+        "src/cocos-creator-adapter/**",
+        "cc",
+        "wx",
+        "node:fs",
+        "fs"
+      ],
+      "tags": [
+        "core",
+        "headless",
+        "release-blocker"
+      ],
+      "description": "核心游戏逻辑层，必须独立于表现层、引擎层和平台层。正式状态变化只能通过 ActionPipeline。"
+    },
+    "cocos-app": {
+      "roots": [
+        "src/cocos-app/**"
+      ],
+      "dependsOn": [
+        "game-core"
+      ],
+      "forbiddenDeps": [
+        "cc",
+        "wx",
+        "node:fs",
+        "fs",
+        "tests/**"
+      ],
+      "tags": [
+        "adapter",
+        "ui-readiness",
+        "release-blocker"
+      ],
+      "description": "Cocos 试水应用适配层，只通过 Session / ViewModel / Port 访问 game-core，不直接修改 SaveFile。"
+    },
+    "cocos-creator-adapter": {
+      "roots": [
+        "src/cocos-creator-adapter/**"
+      ],
+      "dependsOn": [
+        "cocos-app",
+        "game-core"
+      ],
+      "forbiddenDeps": [
+        "cc",
+        "wx",
+        "node:fs",
+        "fs",
+        "src/game-core/dev-api.ts",
+        "src/game-core/testing-api.ts"
+      ],
+      "tags": [
+        "creator-adapter",
+        "probe",
+        "release-blocker"
+      ],
+      "description": "当前仍是纯 TypeScript、engine-neutral 的 Cocos Creator 适配探针，不是真实 Cocos 工程。"
+    },
+    "scripts": {
+      "roots": [
+        "scripts/**"
+      ],
+      "dependsOn": [
+        "game-core"
+      ],
+      "forbiddenDeps": [
+        "cc",
+        "wx"
+      ],
+      "tags": [
+        "dev-runner"
+      ],
+      "description": "开发期 headless 运行入口，不是表现层或业务规则权威。"
+    },
+    "tools": {
+      "roots": [
+        "tools/**"
+      ],
+      "dependsOn": [],
+      "forbiddenDeps": [
+        "src/game-core/**"
+      ],
+      "tags": [
+        "quality",
+        "delivery"
+      ],
+      "description": "验证与交付辅助层，不属于游戏业务逻辑层，不得反向污染 game-core。"
+    },
+    "tests": {
+      "roots": [
+        "tests/**"
+      ],
+      "dependsOn": [
+        "game-core",
+        "cocos-app",
+        "cocos-creator-adapter",
+        "tools"
+      ],
+      "forbiddenDeps": [],
+      "tags": [
+        "test"
+      ],
+      "description": "测试与契约验证层，可依赖被测模块，运行时代码不得反向依赖 tests。"
+    },
+    "docs": {
+      "roots": [
+        "README.md",
+        "docs/**",
+        "design_snapshot/SOURCE_DESIGN_PACK.txt"
+      ],
+      "dependsOn": [],
+      "forbiddenDeps": [],
+      "tags": [
+        "documentation",
+        "governance"
+      ],
+      "description": "代码包上下文、架构边界、设计来源与质量门禁说明，不替代正式玩法规则。"
+    },
+    "release-tools": {
+      "roots": [
+        "tools/build_release_package.py",
+        "tools/check_release_zip.py"
+      ],
+      "dependsOn": [
+        "tools"
+      ],
+      "forbiddenDeps": [
+        "reports/quality/**",
+        "*_logs/**"
+      ],
+      "tags": [
+        "release",
+        "delivery",
+        "release-blocker"
+      ],
+      "description": "交付打包和 release zip 复验工具，必须排除生成物、日志包和临时质量报告。"
+    }
+  }
+}

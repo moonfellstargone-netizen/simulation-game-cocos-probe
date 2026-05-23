@@ -1,0 +1,12 @@
+fuel_definitions:
+  firewood_basic:
+    fuel_type: wood
+    burn_value: 1
+    supported_actions: [stir_fry, boil, stew]
+    storage_risk: low
+
+initial_fuel:
+  - id: firewood_basic
+    quantity: 15
+    unit: bundle
+    enough_for_days_estimate: 3-5

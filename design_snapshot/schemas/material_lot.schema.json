@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "material_lot.schema.json",
+  "type": "object",
+  "required": [
+    "lot_id",
+    "base_id",
+    "category",
+    "quantity",
+    "current_form",
+    "property_profile",
+    "source_ref",
+    "created_time",
+    "last_update_time",
+    "schema_version",
+    "rules_version",
+    "definition_ref",
+    "storage_footprint"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "lot_id": {
+      "type": "string"
+    },
+    "base_id": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "quantity": {
+      "$ref": "common_defs.schema.json#/$defs/Quantity"
+    },
+    "current_form": {
+      "type": "string"
+    },
+    "property_profile": {
+      "$ref": "common_defs.schema.json#/$defs/PropertyProfile"
+    },
+    "source_ref": {
+      "$ref": "common_defs.schema.json#/$defs/SourceRef"
+    },
+    "storage_ref": {
+      "$ref": "common_defs.schema.json#/$defs/StorageRef"
+    },
+    "lineage_summary": {
+      "$ref": "common_defs.schema.json#/$defs/LineageSummary"
+    },
+    "processing_history": {
+      "type": "array",
+      "items": {
+        "$ref": "common_defs.schema.json#/$defs/ProcessingHistoryEntry"
+      },
+      "default": []
+    },
+    "quality_grade": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "market_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "created_time": {
+      "type": "integer"
+    },
+    "last_update_time": {
+      "type": "integer"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "rules_version": {
+      "type": "string"
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "definition_ref": {
+      "type": "object",
+      "required": [
+        "type",
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "material",
+            "seed",
+            "tool",
+            "story_item",
+            "purchased_meal",
+            "debug"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "canonical_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "storage_footprint": {
+      "type": "object",
+      "required": [
+        "amount",
+        "unit"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "unit": {
+          "enum": [
+            "slot_weight",
+            "g",
+            "ml"
+          ]
+        }
+      }
+    }
+  }
+}

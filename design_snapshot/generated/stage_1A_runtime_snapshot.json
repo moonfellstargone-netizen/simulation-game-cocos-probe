@@ -1,0 +1,3690 @@
+{
+  "snapshot_id": "stage_1A_runtime_snapshot",
+  "source_formal_design_version": "v1.5.2.2",
+  "source_config_profile": "configs/active_stage_1A/load_order.yaml",
+  "source_config_hash_sha256": "5a93d61d8af809fdf37495221fe359f12841adcbe794e0eee583fb2134260516",
+  "loaded_documents": {
+    "configs/core/rule_versions.yaml": {
+      "version_bundle": {
+        "game_version": "v0.1-stage1",
+        "schema_version": "schema.stage1.v1",
+        "rules_version": "rules.stage1.v1",
+        "config_version": "config.v1.5.2.2",
+        "content_pack_versions": {
+          "base": "base_content.v1.5.2.2"
+        }
+      },
+      "load_profiles": {
+        "stage_0": {
+          "description": "只加载 core/schema/空存档骨架，用于工程骨架验收。"
+        },
+        "stage_1A": {
+          "description": "白菜种植、保质期、菜窖、拆分、腌制、腊肉炒白菜、酒馆订单闭环。"
+        },
+        "stage_1B": {
+          "description": "在 1A 基础上接入家庭饭食、水缸挑水、工具耐久和燃料轻量逻辑。"
+        },
+        "stage_1C_debug": {
+          "description": "旧案空底座、医馆清淡餐调试、鱼汤扣水调试。"
+        }
+      },
+      "deprecated_fields": [
+        "old_case_enabled",
+        "water.unlimited_for_stage1",
+        "property_or_tag",
+        "source_type=split",
+        "storage_ref=home_cellar",
+        "household_water_enabled",
+        "recipe.water_cost_ml",
+        "fuel_enabled",
+        "tool_durability_enabled"
+      ],
+      "required_runtime_services": {
+        "stage_0": [
+          "ConfigRegistry",
+          "SchemaValidator",
+          "SaveManager",
+          "TimeSystem",
+          "ActionPipeline",
+          "EventLog"
+        ],
+        "stage_1A": [
+          "InventorySystem",
+          "FarmingSystem",
+          "StorageSystem",
+          "ProcessingSystem",
+          "CookingSystem",
+          "DemandResolver",
+          "TransactionManager"
+        ],
+        "stage_1B": [
+          "FamilyMealSystem",
+          "HomeWaterSystem",
+          "DurabilitySystem"
+        ],
+        "stage_1C_debug": [
+          "StorySystemStub",
+          "DebugCommandService",
+          "ConfigMigrationChecker"
+        ]
+      }
+    },
+    "configs/core/new_game_builder_mapping.yaml": {
+      "mapping_id": "stage_1A_new_game_builder_mapping",
+      "mapping_version": "new_game_builder_mapping.v1_5_2_2.storage_occupant_abstract_propagation_closure",
+      "target_schema_id": "save_file.schema.json",
+      "source_initial_world_id": "stage_1A_initial_world",
+      "coverage_policy": {
+        "all_savefile_required_fields_must_be_covered": true,
+        "all_savefile_properties_must_have_rule_or_explicit_optional_policy": true,
+        "disallow_implicit_defaults": true
+      },
+      "savefile_field_rules": {
+        "save_version": {
+          "category": "constant",
+          "target_path": "SaveFile.save_version",
+          "constant_value": "save.stage1.v1",
+          "required_non_null": true
+        },
+        "game_version": {
+          "category": "generated",
+          "target_path": "SaveFile.game_version",
+          "generator": "game_version_from_rule_versions.version_bundle.game_version",
+          "required_non_null": true,
+          "notes": "Single source: configs/core/rule_versions.yaml version_bundle.game_version. Do not hardcode a divergent SaveFile game_version constant."
+        },
+        "schema_version": {
+          "category": "direct_map",
+          "target_path": "SaveFile.schema_version",
+          "source_path": "initial_world.schema_version",
+          "required_non_null": true
+        },
+        "rules_version": {
+          "category": "direct_map",
+          "target_path": "SaveFile.rules_version",
+          "source_path": "initial_world.rules_version",
+          "required_non_null": true
+        },
+        "config_version": {
+          "category": "direct_map",
+          "target_path": "SaveFile.config_version",
+          "source_path": "initial_world.config_version",
+          "required_non_null": true
+        },
+        "content_pack_versions": {
+          "category": "generated",
+          "target_path": "SaveFile.content_pack_versions",
+          "required_non_null": true,
+          "generator": "content_pack_versions_from_rule_versions.version_bundle.content_pack_versions"
+        },
+        "created_with_build": {
+          "category": "generated",
+          "target_path": "SaveFile.created_with_build",
+          "generator": "runtime_build_id",
+          "required_non_null": true
+        },
+        "last_saved_with_build": {
+          "category": "generated",
+          "target_path": "SaveFile.last_saved_with_build",
+          "generator": "runtime_build_id",
+          "required_non_null": true
+        },
+        "created_at_real_time": {
+          "category": "generated",
+          "target_path": "SaveFile.created_at_real_time",
+          "generator": "runtime_now_iso8601",
+          "required_non_null": true
+        },
+        "last_saved_at_real_time": {
+          "category": "generated",
+          "target_path": "SaveFile.last_saved_at_real_time",
+          "generator": "runtime_now_iso8601",
+          "required_non_null": true
+        },
+        "world_time": {
+          "category": "direct_map",
+          "target_path": "SaveFile.world_time",
+          "source_path": "initial_world.world_time",
+          "required_non_null": true
+        },
+        "random_state": {
+          "category": "generated",
+          "target_path": "SaveFile.random_state",
+          "generator": "new_game_random_state_factory(seed_policy=stage1_fixed_seed)",
+          "required_non_null": true
+        },
+        "feature_flags": {
+          "category": "generated",
+          "target_path": "SaveFile.feature_flags",
+          "generator": "feature_flags_snapshot_from_effective_feature_flags_active_profile(profile_id, merge_policy, effective_flags, source_config_hash)",
+          "required_non_null": true,
+          "generator_output_schema": "schemas/feature_flags_snapshot.schema.json"
+        },
+        "player_state": {
+          "category": "direct_map",
+          "target_path": "SaveFile.player_state",
+          "source_path": "initial_world.player_state",
+          "required_non_null": true
+        },
+        "family_state": {
+          "category": "generated",
+          "target_path": "SaveFile.family_state",
+          "generator": "family_state_from_initial_world_plus_active_overlay_meal_state",
+          "required_non_null": true
+        },
+        "inventory": {
+          "category": "generated",
+          "target_path": "SaveFile.inventory",
+          "generator": "inventory_from_initial_world_plus_active_overlay_debug_inventory_additions",
+          "required_non_null": true
+        },
+        "storage_containers": {
+          "category": "generated",
+          "target_path": "SaveFile.storage_containers",
+          "generator": "storage_containers_reconciled_from_all_storage_occupants_material_lots_and_dish_lots",
+          "required_non_null": true
+        },
+        "home_water": {
+          "category": "direct_map",
+          "target_path": "SaveFile.home_water",
+          "source_path": "initial_world.home_water",
+          "required_non_null": true
+        },
+        "fields": {
+          "category": "direct_map",
+          "target_path": "SaveFile.fields",
+          "source_path": "initial_world.fields",
+          "required_non_null": true
+        },
+        "animals": {
+          "category": "default_empty",
+          "target_path": "SaveFile.animals",
+          "default_value": []
+        },
+        "processing_tasks": {
+          "category": "default_empty",
+          "target_path": "SaveFile.processing_tasks",
+          "default_value": []
+        },
+        "dish_lots": {
+          "category": "default_empty",
+          "target_path": "SaveFile.dish_lots",
+          "default_value": []
+        },
+        "orders": {
+          "category": "generated",
+          "target_path": "SaveFile.orders",
+          "generator": "orders_from_initial_world_plus_active_overlay_debug_orders",
+          "required_non_null": true
+        },
+        "npc_relations": {
+          "category": "default_empty",
+          "target_path": "SaveFile.npc_relations",
+          "default_value": {}
+        },
+        "story_flags": {
+          "category": "direct_map",
+          "target_path": "SaveFile.story_flags",
+          "source_path": "initial_world.story_flags",
+          "required_non_null": true
+        },
+        "discovered_clues": {
+          "category": "default_empty",
+          "target_path": "SaveFile.discovered_clues",
+          "default_value": []
+        },
+        "story_event_log": {
+          "category": "default_empty",
+          "target_path": "SaveFile.story_event_log",
+          "default_value": []
+        },
+        "story_choices": {
+          "category": "default_empty",
+          "target_path": "SaveFile.story_choices",
+          "default_value": {}
+        },
+        "story_items_state": {
+          "category": "default_empty",
+          "target_path": "SaveFile.story_items_state",
+          "default_value": {}
+        },
+        "tools_state": {
+          "category": "expanded_ref",
+          "target_path": "SaveFile.tools_state",
+          "source_ref_path": "initial_world.initial_tools_ref",
+          "generator": "expand_initial_tools_ref_to_tool_state",
+          "required_non_null": true,
+          "generator_output_schema": "schemas/tool_state.schema.json"
+        },
+        "facilities_state": {
+          "category": "expanded_ref",
+          "target_path": "SaveFile.facilities_state",
+          "source_ref_path": "initial_world.initial_facilities_ref",
+          "generator": "expand_initial_facilities_ref_to_facility_state",
+          "required_non_null": true,
+          "generator_output_schema": "schemas/facility_state.schema.json"
+        },
+        "fuel_state": {
+          "category": "expanded_ref",
+          "target_path": "SaveFile.fuel_state",
+          "source_ref_path": "initial_world.initial_fuel_ref",
+          "generator": "expand_initial_fuel_ref_to_fuel_state",
+          "required_non_null": true,
+          "generator_output_schema": "schemas/fuel_state.schema.json"
+        },
+        "event_log_summary": {
+          "category": "default_empty",
+          "target_path": "SaveFile.event_log_summary",
+          "default_value": {
+            "last_event_id": null,
+            "total_event_count": 0,
+            "compressed_until_absolute_minute": 0,
+            "channels": {}
+          }
+        },
+        "migration_history": {
+          "category": "default_empty",
+          "target_path": "SaveFile.migration_history",
+          "default_value": []
+        },
+        "migration_warnings": {
+          "category": "default_empty",
+          "target_path": "SaveFile.migration_warnings",
+          "default_value": []
+        },
+        "last_migration_at": {
+          "category": "default_null",
+          "target_path": "SaveFile.last_migration_at",
+          "default_value": null
+        },
+        "debug_flags": {
+          "category": "default_empty",
+          "target_path": "SaveFile.debug_flags",
+          "default_value": []
+        },
+        "crop_instances": {
+          "category": "default_empty",
+          "target_path": "SaveFile.crop_instances",
+          "default_value": []
+        },
+        "reservations": {
+          "category": "default_empty",
+          "target_path": "SaveFile.reservations",
+          "default_value": []
+        }
+      },
+      "validation_policy": {
+        "validate_source_paths_exist": true,
+        "validate_expanded_refs_exist": true,
+        "validate_generated_fields_non_null_after_build": true,
+        "validate_savefile_against_schema_after_build": true,
+        "validate_no_unmapped_savefile_required_fields": true,
+        "validate_no_unmapped_savefile_properties": true,
+        "new_game_builder_must_emit_mapping_audit": true,
+        "mapping_audit_required_fields": [
+          "field",
+          "category",
+          "source_or_generator",
+          "target_path",
+          "result_status"
+        ],
+        "overlay_merge_targets": {
+          "family_meal_state": "SaveFile.family_state.meal_state",
+          "debug_inventory_additions": "SaveFile.inventory",
+          "debug_orders": "SaveFile.orders"
+        },
+        "reconciliation_required": [
+          "storage_containers.active_object_refs",
+          "storage_containers.used_capacity"
+        ],
+        "storage_reconciliation_policy": {
+          "cache_fields": [
+            "storage_containers.active_object_refs",
+            "storage_containers.used_capacity"
+          ],
+          "rebuild_input": "merged_SaveFile_storage_occupants_after_active_overlay_merge_and_runtime_action_commit",
+          "container_source": "initial_world.storage_containers",
+          "lot_container_ref": "StorageOccupantAdapter.storage_ref_field.container_id",
+          "lot_footprint_ref": "StorageOccupantAdapter.storage_footprint_field",
+          "overlay_detection_rule": "all_loaded_configs_initial_world_yaml_except_stage_1A_initial_world",
+          "lot_storage_ref_required": true,
+          "storage_ref_match_rule": "lot.storage_ref.location_id_and_storage_type_must_match_referenced_container",
+          "stored_form_rule": "StorageOccupantAdapter.storage_form_must_be_in_referenced_container.supported_forms",
+          "unique_identity_rule": "storage_container.container_id_and_storage_occupant_object_refs_must_be_unique_per_profile",
+          "lot_definition_ref_rule": "lot.definition_ref.type_id_canonical_id_must_match_registered_base_definition",
+          "storage_occupant_positive_quantity_rule": "MaterialLot.quantity.amount_must_be_positive; DishLot.serving_count_and_total_quantity.amount_must_be_positive_when_stored",
+          "lot_category_rule": "lot.category_must_match_registered_base_definition_category",
+          "category_identity_rule": "registered_definition.category_must_be_non_blank_trimmed_string",
+          "quantity_unit_rule": "lot.quantity.unit_must_match_definition.storage_footprint_rule.base_quantity.unit",
+          "form_definition_rule": "lot.current_form_must_exist_in_registered_definition.forms",
+          "form_identity_rule": "definition_forms_current_form_and_supported_forms_must_be_non_blank_trimmed_strings",
+          "container_supported_forms_rule": "storage_container.supported_forms_must_be_non_empty_for_current_ordinary_storage",
+          "container_positive_capacity_rule": "storage_container.capacity.amount_must_be_positive_for_current_ordinary_storage",
+          "footprint_definition_rule": "definition.storage_footprint_rule.footprint.unit_and_container.capacity.unit_must_use_slot_weight_current_stage",
+          "footprint_derivation_rule": "ceil_to_integer_slot_weight_from_quantity_over_base_quantity",
+          "overlay_identity_rule": "loaded_initial_world_overlay_ids_unique_not_baseline_and_extends_immediate_previous_initial_world_layer",
+          "current_capacity_unit": "slot_weight",
+          "used_capacity_rule": "sum slot_weight storage_footprint.amount for all StorageOccupants whose storage_ref.container_id equals container_id",
+          "post_overlay_profiles": [
+            "stage_1A",
+            "stage_1B",
+            "stage_1C_debug"
+          ],
+          "overflow_policy": "NewGameBuilder must fail validation when reconciled used_capacity exceeds container capacity.amount",
+          "extension_policy": "Future water_storage/currency_storage/special containers may declare a separate capacity model, but must be registered before bypassing slot_weight reconciliation.",
+          "identity_non_blank_rule": "storage_identity_ids_must_be_non_blank_trimmed_strings",
+          "count_integer_rule": "count_unit_amounts_must_be_integers_for_current_storage_reconciliation",
+          "baseline_identity_rule": "source_initial_world_id_must_match_actual_baseline_initial_world_id",
+          "container_type_identity_rule": "storage_container.container_type_must_be_non_blank_trimmed_string",
+          "storage_location_type_identity_rule": "storage_location_id_and_storage_type_must_be_non_blank_trimmed_strings",
+          "storage_type_registry_rule": "common_defs_storage_ref_schema_must_not_hardcode_storage_type_enum_dev_tools_validates_common_enums_storage_types",
+          "finite_numeric_rule": "storage_reconciliation_numeric_fields_must_be_finite_no_nan_no_infinity",
+          "numeric_type_rule": "storage_reconciliation_numeric_fields_must_be_int_or_float_not_bool_or_string",
+          "minimum_slot_weight_rule": "positive_lot_must_occupy_at_least_one_slot_weight",
+          "registry_boundary_rule": "schema_validates_shape_registry_defines_identity_dev_tools_validates_registration_and_references",
+          "cache_rebuild_rule": "active_object_refs_and_used_capacity_must_be_rebuilt_from_storage_occupants_not_trusted_as_source",
+          "default_storage_ref_rule": "default_dish_storage_ref_must_match_referenced_container_location_and_storage_type",
+          "occupant_source": "SaveFile.inventory + SaveFile.dish_lots + future registered storable object collections",
+          "storable_object_types_current_stage": [
+            "MaterialLot",
+            "DishLot"
+          ],
+          "object_ref_cache_rule": "active_object_refs stores common_defs.StorageOccupantRef entries, not generic RuntimeObjectRef or material-only ids",
+          "dish_lot_storage_rule": "DishLot.storage_ref_storage_form_and_storage_footprint_participate_in_same_reconciliation_as_MaterialLot",
+          "action_pipeline_invariant_rule": "every_storage_mutating_formal_action_must_validate_storage_reconciliation_after_success_and_restore_pre_action_snapshot_after_failure",
+          "transaction_rollback_rule": "failed_action_must_not_leave_inventory_dish_lots_reservations_fuel_orders_storage_cache_or_domain_events_partially_mutated",
+          "storage_occupant_ref_schema_rule": "store_item.object_ref_and_StorageContainer.active_object_refs_must_use_common_defs.StorageOccupantRef",
+          "submit_order_consumption_rule": "Stage_1A_submit_order_success_removes_submitted_DishLot_from_SaveFile.dish_lots; Order_and_DomainEvent_keep_submission_history",
+          "storage_occupant_adapters": {
+            "MaterialLot": {
+              "object_type": "MaterialLot",
+              "collection": "SaveFile.inventory",
+              "id_field": "lot_id",
+              "storage_ref_field": "storage_ref",
+              "storage_footprint_field": "storage_footprint",
+              "storage_form_field": "current_form",
+              "definition_ref_field": "definition_ref",
+              "base_id_field": "base_id",
+              "quantity_fields": [
+                "quantity.amount"
+              ]
+            },
+            "DishLot": {
+              "object_type": "DishLot",
+              "collection": "SaveFile.dish_lots",
+              "id_field": "dish_lot_id",
+              "storage_ref_field": "storage_ref",
+              "storage_footprint_field": "storage_footprint",
+              "storage_form_field": "storage_form",
+              "storage_form_allowed_values": [
+                "cooked_dish",
+                "dish"
+              ],
+              "quantity_fields": [
+                "serving_count",
+                "total_quantity.amount"
+              ]
+            }
+          }
+        },
+        "runtime_lifecycle_matrix_required": "tests/expected/stage_1A_runtime_lifecycle_matrix.yaml"
+      }
+    },
+    "configs/core/common_enums.yaml": {
+      "units": [
+        "g",
+        "ml",
+        "count",
+        "serving",
+        "bundle",
+        "slot_weight"
+      ],
+      "source_types": [
+        "farming",
+        "processing",
+        "cooking",
+        "npc_trade",
+        "fishing",
+        "story",
+        "debug",
+        "inventory_split",
+        "initial_world",
+        "system"
+      ],
+      "storage_types": [
+        "room_temp",
+        "cellar",
+        "drying_rack",
+        "pickling_jar",
+        "inventory_pack",
+        "water_storage"
+      ],
+      "locations": [
+        "home",
+        "home_field",
+        "east_market",
+        "west_market_tavern",
+        "river",
+        "mountain",
+        "clinic_basic",
+        "east_market_clinic"
+      ],
+      "quality_tiers": [
+        "crude",
+        "basic",
+        "fine",
+        "masterwork"
+      ],
+      "feature_stages": [
+        "stage_0",
+        "stage_1A",
+        "stage_1B",
+        "stage_1C_debug",
+        "stage_2",
+        "stage_3"
+      ],
+      "condition_tiers": [
+        "usable",
+        "worn",
+        "damaged"
+      ],
+      "currency_ids": [
+        "copper_coin"
+      ]
+    },
+    "configs/core/entry_chain_catalog.yaml": {
+      "entry_chain_catalog_id": "stage_1A_entry_chain_catalog",
+      "stage_id": "stage_1A",
+      "registered_steps": [
+        {
+          "step_id": "plant_crop",
+          "stage_id": "stage_1A",
+          "description_key": "entry_chain.plant_crop.desc"
+        },
+        {
+          "step_id": "advance_time_until_mature",
+          "stage_id": "stage_1A",
+          "description_key": "entry_chain.advance_time_until_mature.desc"
+        },
+        {
+          "step_id": "harvest_crop",
+          "stage_id": "stage_1A",
+          "description_key": "entry_chain.harvest_crop.desc"
+        },
+        {
+          "step_id": "storage_decay_room_temp",
+          "stage_id": "stage_1A",
+          "description_key": "entry_chain.storage_decay_room_temp.desc"
+        },
+        {
+          "step_id": "move_to_cellar",
+          "stage_id": "stage_1A",
+          "description_key": "entry_chain.move_to_cellar.desc"
+        },
+        {
+          "step_id": "split_lot",
+          "stage_id": "stage_1A",
+          "description_key": "entry_chain.split_lot.desc"
+        },
+        {
+          "step_id": "start_processing_pickling",
+          "stage_id": "stage_1A",
+          "description_key": "entry_chain.start_processing_pickling.desc"
+        },
+        {
+          "step_id": "collect_processing_result",
+          "stage_id": "stage_1A",
+          "description_key": "entry_chain.collect_processing_result.desc"
+        },
+        {
+          "step_id": "cook_dish_bacon_cabbage",
+          "stage_id": "stage_1A",
+          "description_key": "entry_chain.cook_dish_bacon_cabbage.desc"
+        },
+        {
+          "step_id": "submit_tavern_order",
+          "stage_id": "stage_1A",
+          "description_key": "entry_chain.submit_tavern_order.desc"
+        },
+        {
+          "step_id": "save_and_load",
+          "stage_id": "stage_1A",
+          "description_key": "entry_chain.save_and_load.desc"
+        },
+        {
+          "step_id": "rollback_failure_case",
+          "stage_id": "stage_1A",
+          "description_key": "entry_chain.rollback_failure_case.desc"
+        }
+      ]
+    },
+    "configs/core/feature_flags.yaml": {
+      "breeding_enabled": false,
+      "fishpond_enabled": false,
+      "advanced_cooking_enabled": true,
+      "story_system_enabled": true,
+      "old_case_content_enabled": false,
+      "old_case_debug_enabled": true,
+      "clinic_order_enabled": false,
+      "clinic_order_debug_enabled": true,
+      "clinic_learning_track_enabled": false,
+      "clinic_health_event_enabled": false,
+      "clinic_reputation_enabled": false,
+      "clinic_herb_trade_enabled": false,
+      "clinic_medicine_food_enabled": false,
+      "family_meal_enabled": true,
+      "family_meal_daily_required": false,
+      "family_meal_hard_survival_penalty": false,
+      "child_can_self_feed": true,
+      "allow_buy_meal_substitute": true,
+      "water_tank_enabled": true,
+      "carry_water_enabled": true,
+      "water_quality_enabled": false,
+      "fuel_system_enabled": true,
+      "durability_system_enabled": true,
+      "quality_tier_enabled": true,
+      "medicine_food_enabled": false,
+      "npc_supply_sim_enabled": true,
+      "festival_enabled": false,
+      "player_shop_enabled": false,
+      "npc_trade_enabled": false
+    },
+    "configs/core/feature_flag_dependencies.yaml": {
+      "dependency_policy_id": "feature_flag_dependencies.v1.5.2.2",
+      "evaluation_order": "parent_before_child",
+      "extension_policy": "Parent flag false disables runtime entry gates of normal child flags. Child flags may remain true as configured defaults for later stages; they are inert until every required parent is true. Debug overlay gates are evaluated separately by allowed_stages / debug profile policy, so a normal gameplay parent can remain false while a debug-only gate is true.",
+      "dependencies": {
+        "child_can_self_feed": {
+          "requires_all": [
+            "family_meal_enabled"
+          ],
+          "disabled_behavior": "inert_until_parent_enabled",
+          "stage_1A_note": "Stage 1A may keep this configured true for future Stage 1B defaults, but UI and Action gates must not open while family_meal_enabled=false."
+        },
+        "allow_buy_meal_substitute": {
+          "requires_all": [
+            "family_meal_enabled"
+          ],
+          "disabled_behavior": "inert_until_parent_enabled",
+          "stage_1A_note": "Stage 1A may keep this configured true for future Stage 1B defaults, but UI and Action gates must not open while family_meal_enabled=false."
+        },
+        "carry_water_enabled": {
+          "requires_all": [
+            "water_tank_enabled"
+          ],
+          "disabled_behavior": "inert_until_parent_enabled"
+        },
+        "water_quality_enabled": {
+          "requires_all": [
+            "water_tank_enabled"
+          ],
+          "disabled_behavior": "inert_until_parent_enabled"
+        },
+        "clinic_order_debug_enabled": {
+          "dependency_mode": "debug_overlay_gate",
+          "allowed_stages": [
+            "stage_1C_debug"
+          ],
+          "normal_pool_parent": "clinic_order_enabled",
+          "keeps_normal_pool_closed_when": {
+            "clinic_order_enabled": false
+          },
+          "disabled_behavior": "debug_entry_hidden_outside_allowed_debug_stage",
+          "extension_note": "This gate only exposes debug validation entry in explicitly allowed debug stages. It does not open the normal clinic order pool while clinic_order_enabled=false."
+        },
+        "old_case_debug_enabled": {
+          "requires_all": [
+            "story_system_enabled"
+          ],
+          "requires_false": [
+            "old_case_content_enabled"
+          ],
+          "disabled_behavior": "debug_stub_only; no formal old-case content opens until old_case_content_enabled=true"
+        }
+      }
+    },
+    "configs/active_stage_1A/feature_flag_overrides.yaml": {
+      "stage_id": "stage_1A",
+      "override_version": "feature_flags.override.v1.5.2.2.stage_1A",
+      "merge_policy": "override_core_feature_flags_by_key",
+      "notes": [
+        "Stage 1A 只跑最小经营闭环；SaveFile 可以保留 home_water 字段，但不开放挑水、扣水、家庭饭食、医馆、旧案调试。",
+        "燃料可做轻量消耗验证；工具/设施耐久完整反馈推迟到 Stage 1B。"
+      ],
+      "feature_flag_overrides": {
+        "family_meal_enabled": false,
+        "water_tank_enabled": false,
+        "carry_water_enabled": false,
+        "clinic_order_debug_enabled": false,
+        "old_case_debug_enabled": false,
+        "durability_system_enabled": false,
+        "fuel_system_enabled": true,
+        "quality_tier_enabled": true,
+        "npc_supply_sim_enabled": true,
+        "npc_trade_enabled": false
+      }
+    },
+    "configs/core/time_segments.yaml": {
+      "time_units": {
+        "minute": 1,
+        "ke_minutes": 15,
+        "shichen_minutes": 120
+      },
+      "segments": {
+        "dawn": {
+          "display_name_key": "time.segment.dawn",
+          "start_minute": 300,
+          "end_minute": 420
+        },
+        "morning": {
+          "display_name_key": "time.segment.morning",
+          "start_minute": 420,
+          "end_minute": 660
+        },
+        "afternoon": {
+          "display_name_key": "time.segment.afternoon",
+          "start_minute": 660,
+          "end_minute": 1020
+        },
+        "evening": {
+          "display_name_key": "time.segment.evening",
+          "start_minute": 1020,
+          "end_minute": 1200
+        },
+        "night": {
+          "display_name_key": "time.segment.night",
+          "start_minute": 1200,
+          "end_minute": 1740
+        }
+      },
+      "notes": {
+        "night_crosses_day": true,
+        "world_time_base": "absolute_minutes"
+      }
+    },
+    "configs/core/property_definitions.yaml": {
+      "property_definitions": {
+        "freshness": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 100,
+          "meaning": "新鲜度",
+          "available_from_stage": "stage_1A"
+        },
+        "moisture": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 50,
+          "meaning": "含水量",
+          "available_from_stage": "stage_1A"
+        },
+        "cleanliness": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 70,
+          "meaning": "清洁度",
+          "available_from_stage": "stage_1A"
+        },
+        "damage": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "损伤程度",
+          "available_from_stage": "stage_1A"
+        },
+        "microbial_risk": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "腐败/微生物风险",
+          "available_from_stage": "stage_1A"
+        },
+        "safety_risk": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "食用安全风险",
+          "available_from_stage": "stage_1A"
+        },
+        "salinity": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "材料盐分",
+          "available_from_stage": "stage_1A"
+        },
+        "fermentation": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "发酵程度",
+          "available_from_stage": "stage_1A"
+        },
+        "dryness": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "干燥程度",
+          "available_from_stage": "stage_1A"
+        },
+        "crunch": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 50,
+          "meaning": "脆度",
+          "available_from_stage": "stage_1A"
+        },
+        "aroma": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "香气",
+          "available_from_stage": "stage_1A",
+          "stage_1A_usage": "stored_or_hidden_property_not_required_for_main_score"
+        },
+        "sweetness": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "甜味",
+          "available_from_stage": "stage_2"
+        },
+        "acidity": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "酸味",
+          "available_from_stage": "stage_2"
+        },
+        "umami": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "鲜味",
+          "available_from_stage": "stage_2"
+        },
+        "oiliness": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "油润/油腻程度",
+          "available_from_stage": "stage_1A",
+          "stage_1A_usage": "active_scoring_property"
+        },
+        "fishiness": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "腥味",
+          "available_from_stage": "stage_2"
+        },
+        "smoky_aroma": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "烟熏香",
+          "available_from_stage": "stage_1A",
+          "stage_1A_usage": "stored_or_hidden_property_not_required_for_main_score"
+        },
+        "tenderness": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 50,
+          "meaning": "软嫩度",
+          "available_from_stage": "stage_2"
+        },
+        "fiber": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 50,
+          "meaning": "纤维感",
+          "available_from_stage": "stage_2"
+        },
+        "saltiness": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "object_scope": "dish_lot",
+          "meaning": "菜品咸味感受",
+          "available_from_stage": "stage_1A"
+        },
+        "wateriness": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "object_scope": "dish_lot",
+          "meaning": "菜品出水/水气",
+          "available_from_stage": "stage_1A"
+        },
+        "heat_level": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "object_scope": "dish_lot",
+          "meaning": "火候强度",
+          "available_from_stage": "stage_1A"
+        },
+        "doneness": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 50,
+          "object_scope": "dish_lot",
+          "meaning": "成熟度",
+          "available_from_stage": "stage_1A"
+        },
+        "texture_balance": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 50,
+          "object_scope": "dish_lot",
+          "meaning": "口感平衡",
+          "available_from_stage": "stage_1A"
+        },
+        "soup_body": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "object_scope": "dish_lot",
+          "meaning": "汤感厚度",
+          "available_from_stage": "stage_1A"
+        },
+        "freshness_expression": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 50,
+          "object_scope": "dish_lot",
+          "meaning": "菜中体现的新鲜感",
+          "available_from_stage": "stage_1A"
+        },
+        "defect_score": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "object_scope": "dish_lot",
+          "meaning": "缺陷总分",
+          "available_from_stage": "stage_1A"
+        },
+        "warming_potential": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "药食温养潜力",
+          "available_from_stage": "stage_3"
+        },
+        "calming_potential": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "安神潜力",
+          "available_from_stage": "stage_3"
+        },
+        "nourishing_potential": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "滋补潜力",
+          "available_from_stage": "stage_3"
+        },
+        "medicinal_grade": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "药膳等级",
+          "available_from_stage": "stage_3"
+        },
+        "bone_risk": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "鱼刺风险",
+          "available_from_stage": "stage_1C_debug"
+        },
+        "soup_contribution": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "default": 0,
+          "meaning": "汤底贡献",
+          "available_from_stage": "stage_1C_debug"
+        }
+      },
+      "allowed_property_scopes": {
+        "material_lot": [
+          "freshness",
+          "moisture",
+          "cleanliness",
+          "damage",
+          "microbial_risk",
+          "safety_risk",
+          "salinity",
+          "fermentation",
+          "dryness",
+          "crunch",
+          "aroma",
+          "sweetness",
+          "acidity",
+          "umami",
+          "oiliness",
+          "fishiness",
+          "smoky_aroma",
+          "tenderness",
+          "fiber",
+          "warming_potential",
+          "calming_potential",
+          "nourishing_potential",
+          "medicinal_grade",
+          "bone_risk",
+          "soup_contribution"
+        ],
+        "dish_lot": [
+          "freshness_expression",
+          "moisture",
+          "safety_risk",
+          "microbial_risk",
+          "saltiness",
+          "oiliness",
+          "aroma",
+          "sweetness",
+          "acidity",
+          "umami",
+          "fishiness",
+          "smoky_aroma",
+          "tenderness",
+          "wateriness",
+          "heat_level",
+          "doneness",
+          "texture_balance",
+          "soup_body",
+          "defect_score"
+        ]
+      }
+    },
+    "configs/materials/crops/cabbage.yaml": {
+      "id": "cabbage",
+      "category": "vegetable",
+      "display_name_key": "material.cabbage.name",
+      "base_unit": "g",
+      "forms": {
+        "fresh": {
+          "display_name_key": "material.cabbage.fresh"
+        },
+        "cut": {
+          "display_name_key": "material.cabbage.cut"
+        },
+        "slightly_wilted": {
+          "display_name_key": "material.cabbage.slightly_wilted"
+        },
+        "pickling": {
+          "display_name_key": "material.cabbage.pickling"
+        },
+        "pickled": {
+          "display_name_key": "material.cabbage.pickled"
+        },
+        "pickled_risky": {
+          "display_name_key": "material.cabbage.pickled_risky"
+        }
+      },
+      "property_defaults": {
+        "freshness": 100,
+        "moisture": 82,
+        "cleanliness": 65,
+        "damage": 0,
+        "microbial_risk": 2,
+        "safety_risk": 0,
+        "salinity": 0,
+        "fermentation": 0,
+        "dryness": 0,
+        "crunch": 72
+      },
+      "storage_rules": {
+        "room_temp": {
+          "freshness_decay_per_day": 12,
+          "microbial_risk_gain_per_day": 4
+        },
+        "cellar": {
+          "freshness_decay_per_day": 5,
+          "microbial_risk_gain_per_day": 2,
+          "crunch_decay_extra_per_day": 1
+        }
+      },
+      "processing_views": {
+        "pickling": {
+          "suitable": true,
+          "required_forms": [
+            "fresh",
+            "cut"
+          ],
+          "moisture_preference": "high"
+        }
+      },
+      "cooking_views": {
+        "stir_fry": {
+          "role": "main",
+          "water_release": "high",
+          "heat_tolerance": "medium"
+        },
+        "soup": {
+          "role": "side",
+          "soup_contribution": "low"
+        }
+      },
+      "market_tags": [
+        "vegetable",
+        "leafy",
+        "winter_tolerant"
+      ],
+      "seed_source": "cabbage_seed",
+      "breedable": true,
+      "medicinal_potential": {
+        "calming_potential": 5,
+        "nourishing_potential": 8
+      },
+      "feature_flags": [],
+      "storage_footprint_rule": {
+        "base_quantity": {
+          "amount": 100,
+          "unit": "g"
+        },
+        "footprint": {
+          "amount": 1,
+          "unit": "slot_weight"
+        }
+      }
+    },
+    "configs/materials/seasonings/salt.yaml": {
+      "id": "salt",
+      "category": "seasoning",
+      "display_name_key": "material.salt.name",
+      "base_unit": "g",
+      "forms": {
+        "dry": {
+          "display_name_key": "material.salt.dry"
+        }
+      },
+      "property_defaults": {
+        "freshness": 100,
+        "moisture": 2,
+        "cleanliness": 80,
+        "damage": 0,
+        "microbial_risk": 0,
+        "safety_risk": 0,
+        "salinity": 100,
+        "fermentation": 0,
+        "dryness": 100,
+        "crunch": 0
+      },
+      "storage_rules": {
+        "room_temp": {
+          "freshness_decay_per_day": 0,
+          "microbial_risk_gain_per_day": 0
+        }
+      },
+      "cooking_views": {
+        "seasoning": {
+          "role": "seasoning",
+          "saltiness_power": 1.0
+        }
+      },
+      "processing_views": {
+        "pickling": {
+          "suitable": true
+        }
+      },
+      "market_tags": [
+        "seasoning",
+        "preservation_material"
+      ],
+      "source_policy": {
+        "default_source": "npc_trade",
+        "suggested_npc": "sun_popo"
+      },
+      "storage_footprint_rule": {
+        "base_quantity": {
+          "amount": 100,
+          "unit": "g"
+        },
+        "footprint": {
+          "amount": 1,
+          "unit": "slot_weight"
+        }
+      }
+    },
+    "configs/materials/seasonings/cooking_oil.yaml": {
+      "id": "cooking_oil",
+      "category": "seasoning",
+      "display_name_key": "material.cooking_oil.name",
+      "base_unit": "ml",
+      "forms": {
+        "liquid": {
+          "display_name_key": "material.cooking_oil.liquid"
+        }
+      },
+      "property_defaults": {
+        "freshness": 90,
+        "moisture": 0,
+        "cleanliness": 75,
+        "damage": 0,
+        "microbial_risk": 0,
+        "safety_risk": 0,
+        "oiliness": 85,
+        "aroma": 20,
+        "dryness": 100
+      },
+      "storage_rules": {
+        "room_temp": {
+          "freshness_decay_per_day": 1,
+          "microbial_risk_gain_per_day": 0
+        }
+      },
+      "cooking_views": {
+        "stir_fry": {
+          "role": "oil",
+          "oiliness_power": 1.0,
+          "heat_transfer": "medium"
+        }
+      },
+      "market_tags": [
+        "oil",
+        "cooking_basic"
+      ],
+      "source_policy": {
+        "default_source": "npc_trade",
+        "suggested_npc": "sun_popo"
+      },
+      "storage_footprint_rule": {
+        "base_quantity": {
+          "amount": 100,
+          "unit": "ml"
+        },
+        "footprint": {
+          "amount": 1,
+          "unit": "slot_weight"
+        }
+      }
+    },
+    "configs/materials/aromatics/ginger.yaml": {
+      "id": "ginger",
+      "category": "aromatic",
+      "display_name_key": "material.ginger.name",
+      "base_unit": "g",
+      "forms": {
+        "fresh": {
+          "display_name_key": "material.ginger.fresh"
+        }
+      },
+      "property_defaults": {
+        "freshness": 90,
+        "moisture": 70,
+        "cleanliness": 65,
+        "damage": 0,
+        "microbial_risk": 2,
+        "safety_risk": 0,
+        "aroma": 75,
+        "warming_potential": 10
+      },
+      "storage_rules": {
+        "room_temp": {
+          "freshness_decay_per_day": 8,
+          "microbial_risk_gain_per_day": 2
+        },
+        "cellar": {
+          "freshness_decay_per_day": 4,
+          "microbial_risk_gain_per_day": 1
+        }
+      },
+      "cooking_views": {
+        "soup": {
+          "role": "aromatic",
+          "fishiness_suppression": 45
+        },
+        "stir_fry": {
+          "role": "aromatic",
+          "aroma_boost": 25
+        }
+      },
+      "market_tags": [
+        "aromatic",
+        "medicine_food_basic"
+      ],
+      "source_policy": {
+        "default_source": "npc_trade",
+        "suggested_npc": "sun_popo"
+      },
+      "storage_footprint_rule": {
+        "base_quantity": {
+          "amount": 100,
+          "unit": "g"
+        },
+        "footprint": {
+          "amount": 1,
+          "unit": "slot_weight"
+        }
+      }
+    },
+    "configs/materials/meats/bacon.yaml": {
+      "id": "bacon",
+      "category": "meat_processed",
+      "display_name_key": "material.bacon.name",
+      "base_unit": "g",
+      "forms": {
+        "cured": {
+          "display_name_key": "material.bacon.cured"
+        }
+      },
+      "property_defaults": {
+        "freshness": 80,
+        "moisture": 32,
+        "cleanliness": 70,
+        "damage": 0,
+        "microbial_risk": 5,
+        "safety_risk": 3,
+        "salinity": 62,
+        "fermentation": 0,
+        "dryness": 50,
+        "oiliness": 68,
+        "smoky_aroma": 55,
+        "crunch": 0
+      },
+      "storage_rules": {
+        "room_temp": {
+          "freshness_decay_per_day": 3,
+          "microbial_risk_gain_per_day": 2
+        },
+        "cellar": {
+          "freshness_decay_per_day": 2,
+          "microbial_risk_gain_per_day": 1
+        }
+      },
+      "cooking_views": {
+        "stir_fry": {
+          "role": "side",
+          "oil_release": "high",
+          "salt_transfer": "high",
+          "smoky_aroma": "high"
+        }
+      },
+      "market_tags": [
+        "preserved_meat",
+        "salty",
+        "hearty"
+      ],
+      "source_policy": {
+        "default_source": "npc_trade",
+        "suggested_npc": "sun_popo"
+      },
+      "storage_footprint_rule": {
+        "base_quantity": {
+          "amount": 100,
+          "unit": "g"
+        },
+        "footprint": {
+          "amount": 1,
+          "unit": "slot_weight"
+        }
+      }
+    },
+    "configs/farming/seeds/cabbage_seed.yaml": {
+      "id": "cabbage_seed",
+      "crop_base_id": "cabbage_crop",
+      "material_base_id": "cabbage",
+      "category": "seed",
+      "display_name_key": "seed.cabbage.name",
+      "base_unit": "count",
+      "forms": {
+        "dry_seed": {
+          "display_name_key": "seed.cabbage.dry"
+        }
+      },
+      "seed_defaults": {
+        "germination_rate": 0.92,
+        "seed_quality": "normal",
+        "genetic_summary": {
+          "growth_tendency": "normal",
+          "storage_tendency": "normal",
+          "medicinal_tendency": "low"
+        }
+      },
+      "source_policy": {
+        "default_source": "npc_trade",
+        "suggested_npc": "sun_popo"
+      },
+      "storage_footprint_rule": {
+        "base_quantity": {
+          "amount": 10,
+          "unit": "count"
+        },
+        "footprint": {
+          "amount": 1,
+          "unit": "slot_weight"
+        }
+      }
+    },
+    "configs/farming/crops/cabbage_crop.yaml": {
+      "id": "cabbage_crop",
+      "material_base_id": "cabbage",
+      "seed_id": "cabbage_seed",
+      "growth_profile_id": "cabbage_growth_basic",
+      "display_name_key": "crop.cabbage.name",
+      "crop_category": "leafy_vegetable",
+      "default_harvest_material": {
+        "base_id": "cabbage",
+        "form": "fresh"
+      },
+      "field_requirements": {
+        "allowed_field_definitions": [
+          "field_plot_basic"
+        ],
+        "min_soil_quality": 20
+      },
+      "available_from_stage": "stage_1A"
+    },
+    "configs/farming/growth_profiles/cabbage_growth_basic.yaml": {
+      "id": "cabbage_growth_basic",
+      "crop_base_id": "cabbage_crop",
+      "material_base_id": "cabbage",
+      "display_name_key": "crop.cabbage.name",
+      "stage_sequence": [
+        {
+          "min_progress": 0,
+          "growth_stage": "seed"
+        },
+        {
+          "min_progress": 20,
+          "growth_stage": "sprout"
+        },
+        {
+          "min_progress": 50,
+          "growth_stage": "growing"
+        },
+        {
+          "min_progress": 100,
+          "growth_stage": "mature"
+        }
+      ],
+      "base_growth_duration_minutes": 4320,
+      "season_modifiers": {
+        "winter": {
+          "growth_speed_multiplier": 0.85,
+          "failure_risk_delta": 0
+        }
+      },
+      "weather_modifiers": {
+        "cold_clear": {
+          "growth_speed_multiplier": 0.95
+        }
+      },
+      "harvest_rule": {
+        "output_base_id": "cabbage",
+        "output_form": "fresh",
+        "min_quantity_g": 900,
+        "max_quantity_g": 1500,
+        "default_quantity_g": 1200,
+        "property_profile_from_material_defaults": true,
+        "source_type": "farming"
+      }
+    },
+    "configs/farming/field_plots.yaml": {
+      "field_plot_definitions": {
+        "field_plot_basic": {
+          "display_name_key": "field.field_plot_basic.name",
+          "location_id": "home_field",
+          "soil_quality": 45,
+          "capacity_tiles": 6,
+          "supports_crop_categories": [
+            "leafy_vegetable",
+            "vegetable"
+          ],
+          "default_water_state": "normal",
+          "unlock_stage": "stage_1A"
+        }
+      },
+      "initial_field_plots": [
+        {
+          "field_plot_id": "field_plot_01",
+          "definition_id": "field_plot_basic",
+          "location_id": "home_field",
+          "soil_quality": 45,
+          "capacity_tiles": 6,
+          "occupied_tiles": 0,
+          "flags": [
+            "old_house_land"
+          ]
+        }
+      ]
+    },
+    "configs/processing/methods/pickling_cabbage_basic.yaml": {
+      "id": "pickling_cabbage_basic",
+      "display_name_key": "processing.pickling_cabbage_basic.name",
+      "input_view_requirements": [
+        {
+          "category": "vegetable",
+          "allowed_base_ids": [
+            "cabbage"
+          ],
+          "allowed_forms": [
+            "fresh",
+            "cut"
+          ],
+          "min_freshness": 45
+        },
+        {
+          "base_id": "salt",
+          "min_quantity_g": 8
+        }
+      ],
+      "tool_requirements": [
+        "knife_basic"
+      ],
+      "facility_requirements": [
+        "pickling_jar_basic"
+      ],
+      "time_cost_minutes": 20,
+      "process_duration_minutes": 2880,
+      "environment_effects": {
+        "temperature_sensitive": true,
+        "cleanliness_sensitive": true
+      },
+      "property_transform_rules": {
+        "salt_ratio_target": {
+          "min": 0.025,
+          "ideal_min": 0.035,
+          "ideal_max": 0.055,
+          "max": 0.075
+        },
+        "moisture_reduction_base": 18,
+        "fermentation_gain_base": 35,
+        "acidity_gain_base": 12,
+        "crunch_loss_base": 10
+      },
+      "defect_rules": {
+        "under_salted": {
+          "condition": "salt_ratio < 0.025"
+        },
+        "over_salted": {
+          "condition": "salt_ratio > 0.075"
+        },
+        "watery_pickled": {
+          "condition": "moisture_after > 72"
+        },
+        "risky_pickled": {
+          "condition": "microbial_risk_after > 45 or cleanliness < 40"
+        }
+      },
+      "recovery_options": {
+        "under_salted": [
+          "add_salt_and_extend"
+        ],
+        "over_salted": [
+          "soak_before_cooking"
+        ],
+        "watery_pickled": [
+          "press_again"
+        ]
+      },
+      "output_form_rules": {
+        "success_form": "pickled",
+        "risky_form": "pickled_risky"
+      },
+      "event_log_rules": {
+        "started_key": "event.processing.pickling.started",
+        "completed_key": "event.processing.pickling.completed"
+      }
+    },
+    "configs/cooking/dish_structures/bacon_cabbage.yaml": {
+      "id": "bacon_cabbage",
+      "display_name_key": "dish.bacon_cabbage.name",
+      "dish_family": "stir_fry",
+      "required_roles": {
+        "main": {
+          "allowed_base_ids": [
+            "cabbage"
+          ],
+          "allowed_forms": [
+            "fresh",
+            "cut",
+            "pickled"
+          ],
+          "min_quantity_g": 200
+        },
+        "side": {
+          "allowed_base_ids": [
+            "bacon"
+          ],
+          "allowed_forms": [
+            "cured"
+          ],
+          "min_quantity_g": 40
+        }
+      },
+      "optional_roles": {
+        "oil": {
+          "allowed_base_ids": [
+            "cooking_oil"
+          ]
+        },
+        "aromatic": {
+          "allowed_base_ids": [
+            "ginger"
+          ]
+        }
+      },
+      "technique_expectations": {
+        "primary_action": "stir_fry",
+        "heat_level_preference": "high",
+        "time_preference_minutes": {
+          "min": 4,
+          "ideal_min": 6,
+          "ideal_max": 10,
+          "max": 15
+        }
+      },
+      "flavor_targets": {
+        "saltiness": {
+          "min": 35,
+          "ideal_min": 45,
+          "ideal_max": 65,
+          "max": 78
+        },
+        "oiliness": {
+          "min": 25,
+          "ideal_min": 35,
+          "ideal_max": 65,
+          "max": 82
+        },
+        "wateriness": {
+          "max": 55
+        }
+      },
+      "classifier_rules": {
+        "min_main_role_match": 1,
+        "min_side_role_match": 1,
+        "required_technique": "stir_fry"
+      },
+      "defect_rules": {
+        "watery_dish": {
+          "condition": "dish_profile.wateriness > 65"
+        },
+        "too_salty": {
+          "condition": "dish_profile.saltiness > 78"
+        },
+        "greasy": {
+          "condition": "dish_profile.oiliness > 85"
+        }
+      },
+      "demand_tags": [
+        "home_style",
+        "hearty",
+        "tavern_suitable"
+      ]
+    },
+    "configs/cooking/recipe_variants/bacon_cabbage_basic.yaml": {
+      "id": "bacon_cabbage_basic",
+      "dish_structure_id": "bacon_cabbage",
+      "display_name_key": "recipe.bacon_cabbage_basic.name",
+      "technique": "stir_fry",
+      "facility_requirements": [
+        "basic_stove"
+      ],
+      "tool_requirements": [
+        "knife_basic"
+      ],
+      "resource_requirements": {
+        "fuel": {
+          "base_id": "firewood_basic",
+          "amount_bundle": 1,
+          "feature_flag": "fuel_system_enabled"
+        }
+      },
+      "ingredient_requirements": {
+        "main": {
+          "base_id": "cabbage",
+          "allowed_forms": [
+            "fresh",
+            "cut",
+            "pickled"
+          ],
+          "min_quantity_g": 250
+        },
+        "side": {
+          "base_id": "bacon",
+          "min_quantity_g": 50
+        },
+        "oil": {
+          "base_id": "cooking_oil",
+          "min_quantity_ml": 10,
+          "optional": true
+        },
+        "aromatic": {
+          "base_id": "ginger",
+          "min_quantity_g": 5,
+          "optional": true
+        }
+      },
+      "operation_defaults": {
+        "heat_level": "high",
+        "time_cost_minutes": 12,
+        "stamina_cost": 8
+      },
+      "output_estimate": {
+        "serving_count": 2,
+        "total_quantity_g": 420
+      },
+      "available_from_stage": "stage_1A"
+    },
+    "configs/demands/tavern_home_dish.yaml": {
+      "id": "tavern_home_dish",
+      "demand_profile_id": "tavern_home_dish",
+      "display_name_key": "demand.tavern_home_dish.name",
+      "issuer_npc_id": "qian_xiaoman",
+      "accepted_object_types": [
+        "DishLot"
+      ],
+      "hard_requirements": [
+        {
+          "type": "property",
+          "key": "safety_risk",
+          "max_value": 25
+        }
+      ],
+      "weighted_requirements": [
+        {
+          "type": "property",
+          "key": "saltiness",
+          "target_range": [
+            40,
+            75
+          ],
+          "weight": 2,
+          "scoring_curve": "bell"
+        },
+        {
+          "type": "property",
+          "key": "oiliness",
+          "target_range": [
+            30,
+            75
+          ],
+          "weight": 1.5,
+          "scoring_curve": "bell"
+        },
+        {
+          "type": "field",
+          "key": "serving_count",
+          "min_value": 2,
+          "weight": 1,
+          "scoring_curve": "threshold",
+          "source_object_field": "DishLot.serving_count"
+        },
+        {
+          "type": "tag",
+          "key": "home_style",
+          "weight": 1,
+          "scoring_curve": "boolean"
+        }
+      ],
+      "forbidden_defects": [
+        "unsafe"
+      ],
+      "acceptable_defects": {
+        "watery_dish": "minor_penalty",
+        "too_salty": "medium_penalty"
+      },
+      "match_threshold": 60,
+      "reward_rules": {
+        "base_money": 28,
+        "score_bonus_per_10_over_threshold": 3,
+        "reputation_delta_on_success": 1,
+        "currency_id": "copper_coin"
+      },
+      "explanation_keys": {
+        "accepted": "demand.tavern_home_dish.accepted",
+        "rejected_safety": "demand.tavern_home_dish.rejected_safety",
+        "watery_feedback": "npc.qian_xiaoman.tip.high_heat"
+      },
+      "resolver_type_contract": {
+        "property": "read from dish_profile or material property_profile",
+        "field": "read from top-level object fields, such as DishLot.serving_count",
+        "tag": "read only from DishLot.suitability_tags; cook_dish must merge DishStructure.demand_tags into DishLot.suitability_tags when recognized_dish_id is set",
+        "defect": "read from defects list or defect map"
+      }
+    },
+    "configs/npc/npc_profiles.yaml": {
+      "npcs": {
+        "sun_popo": {
+          "display_name_key": "npc.sun_popo.name",
+          "role": "sauce_shop_elder",
+          "location": "east_market",
+          "supply_node": "sun_popo_sauce_shop",
+          "teaching_feedback": [
+            {
+              "trigger": "first_under_salted_pickling",
+              "text_key": "npc.sun_popo.tip.under_salted"
+            },
+            {
+              "trigger": "first_watery_pickled",
+              "text_key": "npc.sun_popo.tip.press"
+            }
+          ],
+          "story_hooks": [
+            "old_house_vague_memory"
+          ]
+        },
+        "qian_xiaoman": {
+          "display_name_key": "npc.qian_xiaoman.name",
+          "role": "tavern_counter",
+          "location": "west_market_tavern",
+          "demand_profiles": [
+            "tavern_home_dish"
+          ],
+          "teaching_feedback": [
+            {
+              "trigger": "first_watery_dish",
+              "text_key": "npc.qian_xiaoman.tip.high_heat"
+            }
+          ],
+          "story_hooks": [
+            "tavern_rumor_old_case"
+          ]
+        }
+      }
+    },
+    "configs/npc/supply_nodes.yaml": {
+      "supply_nodes": {
+        "sun_popo_sauce_shop": {
+          "owner_npc_id": "sun_popo",
+          "refresh_rule": {
+            "mode": "daily_limited",
+            "hour_minute": 420
+          },
+          "output_goods": [
+            {
+              "base_id": "salt",
+              "form": "dry",
+              "quantity_g": 2000,
+              "goods_id": "sun_popo_sauce_shop_salt_dry",
+              "price_rule": {
+                "currency_id": "copper_coin",
+                "pricing_unit": {
+                  "amount": 100,
+                  "unit": "g"
+                },
+                "price": 3
+              }
+            },
+            {
+              "base_id": "bacon",
+              "form": "cured",
+              "quantity_g": 800,
+              "goods_id": "sun_popo_sauce_shop_bacon_cured",
+              "price_rule": {
+                "currency_id": "copper_coin",
+                "pricing_unit": {
+                  "amount": 100,
+                  "unit": "g"
+                },
+                "price": 18
+              }
+            },
+            {
+              "base_id": "cooking_oil",
+              "form": "liquid",
+              "quantity_ml": 1200,
+              "goods_id": "sun_popo_sauce_shop_cooking_oil_liquid",
+              "price_rule": {
+                "currency_id": "copper_coin",
+                "pricing_unit": {
+                  "amount": 100,
+                  "unit": "ml"
+                },
+                "price": 8
+              }
+            },
+            {
+              "base_id": "ginger",
+              "form": "fresh",
+              "quantity_g": 500,
+              "goods_id": "sun_popo_sauce_shop_ginger_fresh",
+              "price_rule": {
+                "currency_id": "copper_coin",
+                "pricing_unit": {
+                  "amount": 100,
+                  "unit": "g"
+                },
+                "price": 5
+              }
+            },
+            {
+              "base_id": "cabbage_seed",
+              "quantity_count": 30,
+              "goods_id": "sun_popo_sauce_shop_cabbage_seed_unit",
+              "price_rule": {
+                "currency_id": "copper_coin",
+                "pricing_unit": {
+                  "amount": 1,
+                  "unit": "count"
+                },
+                "price": 1
+              }
+            }
+          ],
+          "capacity": {
+            "max_daily_transactions": 8
+          },
+          "event_modifiers": {
+            "salt_route_delay": {
+              "price_multiplier": 1.3,
+              "quantity_multiplier": 0.6
+            }
+          },
+          "black_box_source": "regional_salt_route"
+        }
+      }
+    },
+    "configs/facilities/tools.yaml": {
+      "tool_definitions": {
+        "knife_basic": {
+          "tool_type": "knife",
+          "allowed_actions": [
+            "cut",
+            "cook_prep"
+          ]
+        },
+        "water_bucket_basic": {
+          "tool_type": "water_container",
+          "allowed_actions": [
+            "carry_water"
+          ]
+        },
+        "hoe_basic": {
+          "tool_type": "farming_tool",
+          "allowed_actions": [
+            "till_soil",
+            "plant_seed"
+          ]
+        }
+      },
+      "initial_tools": [
+        {
+          "id": "knife_basic",
+          "quality_tier": "basic",
+          "durability_current": 60,
+          "durability_max": 100,
+          "repairable": true,
+          "definition_id": "knife_basic",
+          "status": "available",
+          "condition": "worn"
+        },
+        {
+          "id": "water_bucket_basic",
+          "quality_tier": "basic",
+          "durability_current": 80,
+          "durability_max": 100,
+          "repairable": true,
+          "definition_id": "water_bucket_basic",
+          "status": "available",
+          "condition": "worn"
+        },
+        {
+          "id": "hoe_basic",
+          "quality_tier": "basic",
+          "durability_current": 70,
+          "durability_max": 100,
+          "repairable": true,
+          "definition_id": "hoe_basic",
+          "status": "available",
+          "condition": "worn"
+        }
+      ]
+    },
+    "configs/facilities/home_facilities.yaml": {
+      "facility_definitions": {
+        "basic_stove": {
+          "facility_type": "stove",
+          "allowed_actions": [
+            "stir_fry",
+            "boil"
+          ],
+          "fuel_required": true,
+          "upgrade_to": "repaired_stove"
+        },
+        "repaired_stove": {
+          "facility_type": "stove",
+          "allowed_actions": [
+            "stir_fry",
+            "boil",
+            "stew"
+          ],
+          "fuel_required": true
+        },
+        "basic_pot": {
+          "facility_type": "cookware",
+          "allowed_actions": [
+            "boil",
+            "stew"
+          ]
+        },
+        "pickling_jar_basic": {
+          "facility_type": "processing_container",
+          "allowed_processes": [
+            "pickling"
+          ],
+          "upgrade_to": "pickling_jar_large"
+        },
+        "pickling_jar_large": {
+          "facility_type": "processing_container",
+          "allowed_processes": [
+            "pickling"
+          ]
+        },
+        "home_cellar_01": {
+          "facility_type": "storage",
+          "location_id": "home",
+          "storage_type": "cellar",
+          "container_id": "home_cellar_01",
+          "capacity_g": 20000,
+          "upgrade_to": "home_cellar_02"
+        },
+        "home_cellar_02": {
+          "facility_type": "storage",
+          "location_id": "home",
+          "storage_type": "cellar",
+          "container_id": "home_cellar_02",
+          "capacity_g": 50000
+        },
+        "water_tank_basic": {
+          "facility_type": "water_storage",
+          "location_id": "home",
+          "capacity_ml": 20000
+        },
+        "home_well_basic": {
+          "facility_type": "water_source",
+          "location_id": "home",
+          "unlock_state": "locked",
+          "available_from_stage": "stage_2"
+        }
+      },
+      "initial_facilities": [
+        {
+          "id": "basic_stove",
+          "quality_tier": "basic",
+          "durability_current": 80,
+          "durability_max": 100,
+          "definition_id": "basic_stove",
+          "status": "available",
+          "condition": "worn",
+          "upgrade_level": 0
+        },
+        {
+          "id": "basic_pot",
+          "quality_tier": "basic",
+          "durability_current": 75,
+          "durability_max": 100,
+          "definition_id": "basic_pot",
+          "status": "available",
+          "condition": "worn",
+          "upgrade_level": 0
+        },
+        {
+          "id": "pickling_jar_basic_01",
+          "quality_tier": "basic",
+          "capacity_g": 3000,
+          "definition_id": "pickling_jar_basic",
+          "container_id": "pickling_jar_basic_01",
+          "storage_type": "pickling_jar",
+          "status": "available",
+          "condition": "worn",
+          "upgrade_level": 0
+        },
+        {
+          "id": "home_cellar_01",
+          "quality_tier": "basic",
+          "capacity_g": 20000,
+          "definition_id": "home_cellar_01",
+          "status": "available",
+          "condition": "worn",
+          "upgrade_level": 0,
+          "container_id": "home_cellar_01",
+          "storage_type": "cellar"
+        },
+        {
+          "id": "water_tank_basic",
+          "quality_tier": "basic",
+          "capacity_ml": 20000,
+          "definition_id": "water_tank_basic",
+          "status": "available",
+          "condition": "worn",
+          "upgrade_level": 0,
+          "storage_type": "water_storage"
+        }
+      ]
+    },
+    "configs/facilities/fuel.yaml": {
+      "fuel_definitions": {
+        "firewood_basic": {
+          "fuel_type": "wood",
+          "burn_value": 1,
+          "supported_actions": [
+            "stir_fry",
+            "boil",
+            "stew"
+          ],
+          "storage_risk": "low"
+        }
+      },
+      "initial_fuel": [
+        {
+          "id": "firewood_basic",
+          "quantity": 15,
+          "unit": "bundle",
+          "enough_for_days_estimate": "3-5"
+        }
+      ]
+    },
+    "configs/initial_world/stage_1A_initial_world.yaml": {
+      "initial_world_id": "stage_1A_initial_world",
+      "schema_version": "schema.stage1.v1",
+      "rules_version": "rules.stage1.v1",
+      "config_version": "config.v1.5.2.2",
+      "world_time": {
+        "world_day": 1,
+        "world_minute": 360,
+        "absolute_minute": 360,
+        "season": "winter",
+        "weather": "cold_clear"
+      },
+      "player_state": {
+        "player_id": "player",
+        "name": "顾瑾",
+        "family_name_mode": "hidden",
+        "gender_config_id": "female_default",
+        "money": 100,
+        "stamina": 100,
+        "mood": 70,
+        "skills": {
+          "farming": 1,
+          "cooking": 1,
+          "processing": 1
+        },
+        "reputation_map": {
+          "west_market_tavern": 0
+        },
+        "unlocked_locations": [
+          "home",
+          "home_field",
+          "east_market",
+          "west_market_tavern"
+        ],
+        "flags": [
+          "new_arrival"
+        ],
+        "currency_id": "copper_coin"
+      },
+      "family_state": {
+        "ayue": {
+          "ayue_id": "ayue",
+          "name": "顾玥",
+          "age": 7,
+          "health": 70,
+          "mood": 60,
+          "security": 50,
+          "energy": 70,
+          "study_focus": 40,
+          "relationship": 50,
+          "trauma_pressure": 30,
+          "learning_tracks": {},
+          "preferences": {},
+          "story_attitude": "cautious",
+          "flags": []
+        }
+      },
+      "home_water": {
+        "storage_id": "water_tank_basic",
+        "capacity_ml": 20000,
+        "current_ml": 12000,
+        "quality": "clean",
+        "refill_methods": [
+          {
+            "id": "carry_water",
+            "name_key": "action.carry_water.name",
+            "time_cost_minutes": 30,
+            "amount_ml": 10000,
+            "money_cost": 0,
+            "available_from_stage": "stage_1B"
+          }
+        ],
+        "last_update_time": 360,
+        "flags": [
+          "runtime_ignored_in_stage_1A"
+        ]
+      },
+      "fields": [
+        {
+          "field_plot_id": "field_plot_01",
+          "definition_id": "field_plot_basic",
+          "location_id": "home_field",
+          "occupied_tiles": 0,
+          "active_crop_ids": []
+        }
+      ],
+      "storage_containers": [
+        {
+          "container_id": "home_room_temp_01",
+          "location_id": "home",
+          "storage_type": "room_temp",
+          "container_type": "room_temp_container",
+          "capacity": {
+            "amount": 50,
+            "unit": "slot_weight"
+          },
+          "used_capacity": 6,
+          "temperature_state": "normal",
+          "humidity_state": "normal",
+          "ventilation": "normal",
+          "cleanliness": 65,
+          "supported_forms": [
+            "fresh",
+            "cut",
+            "dry",
+            "cured",
+            "liquid",
+            "cooked_dish",
+            "dish",
+            "dry_seed"
+          ],
+          "flags": [
+            "default_inventory"
+          ],
+          "active_object_refs": [
+            {
+              "object_type": "MaterialLot",
+              "object_id": "seed_cabbage_initial_001"
+            },
+            {
+              "object_type": "MaterialLot",
+              "object_id": "salt_initial_001"
+            },
+            {
+              "object_type": "MaterialLot",
+              "object_id": "bacon_initial_001"
+            },
+            {
+              "object_type": "MaterialLot",
+              "object_id": "oil_initial_001"
+            }
+          ]
+        },
+        {
+          "container_id": "home_cellar_01",
+          "location_id": "home",
+          "storage_type": "cellar",
+          "container_type": "cellar_container",
+          "capacity": {
+            "amount": 20,
+            "unit": "slot_weight"
+          },
+          "used_capacity": 0,
+          "temperature_state": "cool",
+          "humidity_state": "humid",
+          "ventilation": "low",
+          "cleanliness": 60,
+          "supported_forms": [
+            "fresh",
+            "cut",
+            "cured",
+            "pickled"
+          ],
+          "flags": [
+            "worn"
+          ],
+          "active_object_refs": []
+        },
+        {
+          "container_id": "pickling_jar_basic_01",
+          "location_id": "home",
+          "storage_type": "pickling_jar",
+          "container_type": "pickling_jar",
+          "capacity": {
+            "amount": 3,
+            "unit": "slot_weight"
+          },
+          "used_capacity": 0,
+          "temperature_state": "normal",
+          "humidity_state": "sealed",
+          "ventilation": "sealed",
+          "cleanliness": 60,
+          "supported_forms": [
+            "pickling"
+          ],
+          "flags": [
+            "worn"
+          ],
+          "active_object_refs": []
+        }
+      ],
+      "initial_inventory": [
+        {
+          "lot_id": "seed_cabbage_initial_001",
+          "base_id": "cabbage_seed",
+          "category": "seed",
+          "quantity": {
+            "amount": 10,
+            "unit": "count"
+          },
+          "current_form": "dry_seed",
+          "property_profile": {
+            "freshness": 100,
+            "cleanliness": 75,
+            "microbial_risk": 0,
+            "safety_risk": 0
+          },
+          "source_ref": {
+            "source_type": "initial_world",
+            "source_id": "starter_supplies",
+            "source_time": 360,
+            "source_actor": "system",
+            "source_location": "home"
+          },
+          "storage_ref": {
+            "location_id": "home",
+            "storage_type": "room_temp",
+            "container_id": "home_room_temp_01"
+          },
+          "created_time": 360,
+          "last_update_time": 360,
+          "schema_version": "schema.stage1.v1",
+          "rules_version": "rules.stage1.v1",
+          "flags": [
+            "starter"
+          ],
+          "definition_ref": {
+            "type": "seed",
+            "id": "cabbage_seed",
+            "canonical_id": "base:cabbage_seed"
+          },
+          "storage_footprint": {
+            "amount": 1,
+            "unit": "slot_weight"
+          }
+        },
+        {
+          "lot_id": "salt_initial_001",
+          "base_id": "salt",
+          "category": "seasoning",
+          "quantity": {
+            "amount": 200,
+            "unit": "g"
+          },
+          "current_form": "dry",
+          "property_profile": {
+            "freshness": 100,
+            "moisture": 2,
+            "cleanliness": 80,
+            "microbial_risk": 0,
+            "safety_risk": 0,
+            "salinity": 100,
+            "dryness": 100
+          },
+          "source_ref": {
+            "source_type": "initial_world",
+            "source_id": "starter_supplies",
+            "source_time": 360,
+            "source_actor": "system",
+            "source_location": "home"
+          },
+          "storage_ref": {
+            "location_id": "home",
+            "storage_type": "room_temp",
+            "container_id": "home_room_temp_01"
+          },
+          "created_time": 360,
+          "last_update_time": 360,
+          "schema_version": "schema.stage1.v1",
+          "rules_version": "rules.stage1.v1",
+          "flags": [
+            "starter"
+          ],
+          "definition_ref": {
+            "type": "material",
+            "id": "salt",
+            "canonical_id": "base:salt"
+          },
+          "storage_footprint": {
+            "amount": 2.0,
+            "unit": "slot_weight"
+          }
+        },
+        {
+          "lot_id": "bacon_initial_001",
+          "base_id": "bacon",
+          "category": "meat_processed",
+          "quantity": {
+            "amount": 200,
+            "unit": "g"
+          },
+          "current_form": "cured",
+          "property_profile": {
+            "freshness": 80,
+            "moisture": 32,
+            "cleanliness": 70,
+            "microbial_risk": 5,
+            "safety_risk": 3,
+            "salinity": 62,
+            "dryness": 50,
+            "oiliness": 68,
+            "smoky_aroma": 55
+          },
+          "source_ref": {
+            "source_type": "initial_world",
+            "source_id": "starter_supplies",
+            "source_time": 360,
+            "source_actor": "system",
+            "source_location": "home"
+          },
+          "storage_ref": {
+            "location_id": "home",
+            "storage_type": "room_temp",
+            "container_id": "home_room_temp_01"
+          },
+          "created_time": 360,
+          "last_update_time": 360,
+          "schema_version": "schema.stage1.v1",
+          "rules_version": "rules.stage1.v1",
+          "flags": [
+            "starter"
+          ],
+          "definition_ref": {
+            "type": "material",
+            "id": "bacon",
+            "canonical_id": "base:bacon"
+          },
+          "storage_footprint": {
+            "amount": 2.0,
+            "unit": "slot_weight"
+          }
+        },
+        {
+          "lot_id": "oil_initial_001",
+          "base_id": "cooking_oil",
+          "category": "seasoning",
+          "quantity": {
+            "amount": 100,
+            "unit": "ml"
+          },
+          "current_form": "liquid",
+          "property_profile": {
+            "freshness": 90,
+            "cleanliness": 75,
+            "microbial_risk": 0,
+            "safety_risk": 0,
+            "oiliness": 85,
+            "aroma": 20
+          },
+          "source_ref": {
+            "source_type": "initial_world",
+            "source_id": "starter_supplies",
+            "source_time": 360,
+            "source_actor": "system",
+            "source_location": "home"
+          },
+          "storage_ref": {
+            "location_id": "home",
+            "storage_type": "room_temp",
+            "container_id": "home_room_temp_01"
+          },
+          "created_time": 360,
+          "last_update_time": 360,
+          "schema_version": "schema.stage1.v1",
+          "rules_version": "rules.stage1.v1",
+          "flags": [
+            "starter"
+          ],
+          "definition_ref": {
+            "type": "material",
+            "id": "cooking_oil",
+            "canonical_id": "base:cooking_oil"
+          },
+          "storage_footprint": {
+            "amount": 1,
+            "unit": "slot_weight"
+          }
+        }
+      ],
+      "initial_tools_ref": "../facilities/tools.yaml#initial_tools",
+      "initial_facilities_ref": "../facilities/home_facilities.yaml#initial_facilities",
+      "initial_fuel_ref": "../facilities/fuel.yaml#initial_fuel",
+      "initial_orders": [
+        {
+          "order_id": "tavern_home_dish_001",
+          "issuer_id": "qian_xiaoman",
+          "demand_profile_id": "tavern_home_dish",
+          "quantity_required": {
+            "amount": 1,
+            "unit": "serving"
+          },
+          "base_reward": 28,
+          "bonus_rules": [],
+          "penalty_rules": [],
+          "match_threshold": 60,
+          "status": "available",
+          "submitted_object_refs": [],
+          "result_summary": null,
+          "deadline_policy": "absolute_world_minute",
+          "notes": [
+            "订单截止时间允许 Stage 1A 自动验收链完成作物成长、存储对比、腌制、烹饪和提交。"
+          ],
+          "deadline_absolute_minute": 14400
+        }
+      ],
+      "story_flags": {
+        "old_case_system_stub": {
+          "flag_id": "old_case_system_stub",
+          "value": true,
+          "state": "hidden",
+          "visibility": "hidden",
+          "locked": true,
+          "notes": [
+            "formal_content_disabled"
+          ],
+          "version": "story.stub.v1"
+        }
+      },
+      "runtime_initialization_policy": {
+        "mapping_config_ref": "../core/new_game_builder_mapping.yaml",
+        "mapping_id": "stage_1A_new_game_builder_mapping",
+        "new_game_builder_required": true,
+        "new_game_builder_output": "SaveFile",
+        "no_implicit_defaults": true,
+        "savefile_schema_ref": "schemas/save_file.schema.json",
+        "mapping_coverage_required": "Every SaveFile property must have a direct_map, renamed_map, expanded_ref, generated, constant, default_empty, or default_null rule.",
+        "validation_steps": [
+          "load_active_profile_and_compute_effective_feature_flags",
+          "validate_initial_world_against_initial_world_schema",
+          "load_new_game_builder_mapping",
+          "verify_all_savefile_required_fields_covered",
+          "verify_all_source_paths_and_refs_exist",
+          "build_savefile_fields_by_mapping_rules",
+          "expand_initial_tools_ref_to_tools_state",
+          "expand_initial_facilities_ref_to_facilities_state",
+          "expand_initial_fuel_ref_to_fuel_state",
+          "validate_built_savefile_against_save_file_schema",
+          "emit_new_game_builder_mapping_audit"
+        ],
+        "generated_field_policy": {
+          "save_version": "constant from mapping",
+          "game_version": "generated from rule_versions.version_bundle.game_version",
+          "created_with_build": "runtime build id",
+          "last_saved_with_build": "runtime build id",
+          "created_at_real_time": "runtime ISO-8601 time",
+          "last_saved_at_real_time": "runtime ISO-8601 time",
+          "random_state": "NewGameBuilder deterministic random state factory",
+          "feature_flags": "effective flags from active stage profile",
+          "empty_collections": "must be emitted explicitly, never omitted",
+          "storage_containers": "generated from initial_world.storage_containers, then reconciled from every storable runtime object with storage_ref and storage_footprint after all active overlays are merged; current Stage 1A storable types are MaterialLot and DishLot",
+          "inventory": "generated from initial_world.initial_inventory plus active overlay inventory additions when a higher stage explicitly enables them; MaterialLot entries participate in StorageOccupant reconciliation",
+          "orders": "generated from initial_world.initial_orders plus active overlay debug_orders when a debug profile explicitly enables them",
+          "family_state": "generated from initial_world.family_state plus active overlay family_meal_state mapped to SaveFile.family_state.meal_state when Stage 1B or later is active",
+          "crop_instances": "default empty list; plant_crop creates CropInstance and field active_crop_ids indexes it",
+          "reservations": "default empty list; only cross-action/cross-save reservations persist here",
+          "dish_lots": "default empty list; cook_dish creates DishLot entries and those entries participate in the same StorageOccupant reconciliation as MaterialLot"
+        },
+        "expanded_ref_policy": {
+          "initial_tools_ref": "must resolve to a non-empty initial_tools list and emit SaveFile.tools_state",
+          "initial_facilities_ref": "must resolve to a non-empty initial_facilities list and emit SaveFile.facilities_state",
+          "initial_fuel_ref": "must resolve to a non-empty initial_fuel object and emit SaveFile.fuel_state"
+        },
+        "expanded_ref_output_schema_policy": {
+          "tools_state": "schemas/tool_state.schema.json",
+          "facilities_state": "schemas/facility_state.schema.json",
+          "fuel_state": "schemas/fuel_state.schema.json",
+          "validation_required": "NewGameBuilder must validate every expanded runtime state entry against its schema before SaveFile validation."
+        },
+        "tools_and_facilities_state_semantics": {
+          "quality_tier": "crude/basic/fine/masterwork craftsmanship tier only",
+          "condition": "usable/worn/damaged wear condition; quality_tier stores craftsmanship tier only",
+          "status": "availability state such as available/broken/locked/disabled"
+        },
+        "default_dish_storage_ref": {
+          "location_id": "home",
+          "storage_type": "room_temp",
+          "container_id": "home_room_temp_01"
+        },
+        "cook_dish_output_storage_policy": "cook_dish may pass target_storage_ref; if omitted, NewGameBuilder/runtime uses default_dish_storage_ref. DishLot storage_ref must be filled before ActionResult is returned.",
+        "overlay_merge_policy": {
+          "stage_1B_life_overlay.family_meal_state": "merge into SaveFile.family_state.meal_state when Stage 1B profile is active",
+          "stage_1C_debug_overlay.debug_inventory_additions": "append to SaveFile.inventory before storage reconciliation when Stage 1C debug profile is active",
+          "stage_1C_debug_overlay.debug_orders": "append to SaveFile.orders when Stage 1C debug profile is active",
+          "post_merge_storage_reconciliation": "rebuild StorageContainer.active_object_refs and used_capacity from merged SaveFile inventory plus dish_lots storable objects; validate container existence, slot_weight unit, capacity overflow, and object-type/id uniqueness"
+        },
+        "storage_occupant_policy": {
+          "storable_object_types_current_stage": [
+            "MaterialLot",
+            "DishLot"
+          ],
+          "object_ref_cache_field": "StorageContainer.active_object_refs",
+          "capacity_cache_field": "StorageContainer.used_capacity",
+          "storage_source": "all SaveFile runtime objects whose schema requires storage_ref and storage_footprint",
+          "object_id_fields": {
+            "MaterialLot": "lot_id",
+            "DishLot": "dish_lot_id"
+          },
+          "capacity_rule": "sum slot_weight storage_footprint.amount across all active StorageOccupants referencing the container",
+          "material_lot_view_rule": "MaterialLot-specific views may be derived for UI/debug, but the persisted storage cache authority is active_object_refs over all StorageOccupants."
+        },
+        "action_pipeline_storage_invariant": {
+          "applies_to_actions": [
+            "harvest_crop",
+            "store_item",
+            "split_lot",
+            "start_processing",
+            "collect_processing_result",
+            "cook_dish",
+            "submit_order"
+          ],
+          "post_success_rule": "after every successful storage-mutating action, rebuild or incrementally update active_object_refs and used_capacity from StorageOccupants and then validate against full reconciliation",
+          "rollback_rule": "if an action fails after reserving, consuming, creating, moving, or storing an object, restore inventory, dish_lots, reservations, fuel_state, orders, storage_containers, and domain_events to the pre-action transaction snapshot",
+          "event_rule": "domain_events are committed only after storage and object lifecycle validation succeeds"
+        }
+      }
+    },
+    "configs/story/flags.yaml": {
+      "story_config_type": "flags",
+      "status": "locked_stub",
+      "entries": []
+    },
+    "configs/story/clues.yaml": {
+      "story_config_type": "clues",
+      "status": "locked_stub",
+      "entries": []
+    },
+    "configs/story/events.yaml": {
+      "story_config_type": "events",
+      "status": "locked_stub",
+      "entries": []
+    },
+    "configs/story/items.yaml": {
+      "story_config_type": "items",
+      "status": "locked_stub",
+      "entries": []
+    },
+    "configs/text/zh_cn.yaml": {
+      "time.segment.dawn": "清晨",
+      "time.segment.morning": "上午",
+      "time.segment.afternoon": "下午",
+      "time.segment.evening": "傍晚",
+      "time.segment.night": "夜晚",
+      "field.field_plot_basic.name": "旧宅小田",
+      "crop.cabbage.name": "白菜",
+      "seed.cabbage.name": "白菜种",
+      "seed.cabbage.dry": "干白菜种",
+      "material.cabbage.name": "白菜",
+      "material.cabbage.fresh": "鲜白菜",
+      "material.cabbage.cut": "切开的白菜",
+      "material.cabbage.slightly_wilted": "有些蔫的白菜",
+      "material.cabbage.pickling": "腌制中的白菜",
+      "material.cabbage.pickled": "腌白菜",
+      "material.cabbage.pickled_risky": "风味不稳的腌白菜",
+      "material.salt.name": "盐",
+      "material.salt.dry": "干盐",
+      "material.cooking_oil.name": "食用油",
+      "material.cooking_oil.liquid": "清油",
+      "material.bacon.name": "腊肉",
+      "material.bacon.cured": "腌熏腊肉",
+      "material.river_fish.name": "河鱼",
+      "material.river_fish.fresh": "鲜河鱼",
+      "material.river_fish.cleaned": "收拾好的河鱼",
+      "material.ginger.name": "姜",
+      "material.ginger.fresh": "鲜姜",
+      "processing.pickling_cabbage_basic.name": "腌白菜",
+      "dish.bacon_cabbage.name": "腊肉炒白菜",
+      "dish.fish_soup.name": "鱼汤",
+      "recipe.bacon_cabbage_basic.name": "家常腊肉炒白菜",
+      "recipe.fish_soup_basic.name": "家常鱼汤",
+      "demand.tavern_home_dish.name": "酒馆家常下饭菜",
+      "demand.tavern_home_dish.accepted": "钱小曼收下了这道家常下饭菜。",
+      "demand.tavern_home_dish.rejected_safety": "这道菜看着不太稳妥，酒馆不敢收。",
+      "demand.clinic_light_meal.name": "医馆清淡餐",
+      "demand.family_meal_basic.name": "家庭饭食",
+      "npc.sun_popo.name": "孙婆婆",
+      "npc.sun_popo.tip.under_salted": "盐少了些，腌菜容易坏，还是要稳妥点。",
+      "npc.sun_popo.tip.press": "水气重了，压一压、控一控会好些。",
+      "npc.qian_xiaoman.name": "钱小曼",
+      "npc.qian_xiaoman.tip.high_heat": "这菜香是香，就是水气略重，下回火再利些。",
+      "npc.clinic.name": "医馆",
+      "npc.clinic.tip.ginger": "鱼汤若腥，添些姜能压味。",
+      "action.carry_water.name": "挑水",
+      "action.home_well_refill.name": "井水补充",
+      "event.processing.pickling.started": "开始腌白菜。",
+      "event.processing.pickling.completed": "腌白菜完成。",
+      "entry_chain.plant_crop.desc": "plant_crop",
+      "entry_chain.advance_time_until_mature.desc": "advance_time_until_mature",
+      "entry_chain.harvest_crop.desc": "harvest_crop",
+      "entry_chain.storage_decay_room_temp.desc": "storage_decay_room_temp",
+      "entry_chain.move_to_cellar.desc": "move_to_cellar",
+      "entry_chain.split_lot.desc": "split_lot",
+      "entry_chain.start_processing_pickling.desc": "start_processing_pickling",
+      "entry_chain.collect_processing_result.desc": "collect_processing_result",
+      "entry_chain.cook_dish_bacon_cabbage.desc": "cook_dish_bacon_cabbage",
+      "entry_chain.submit_tavern_order.desc": "submit_tavern_order",
+      "entry_chain.save_and_load.desc": "save_and_load",
+      "entry_chain.rollback_failure_case.desc": "rollback_failure_case",
+      "action_result.ok": "操作成功。",
+      "action_result.inventory_item_missing": "没有可用的{item_name}。",
+      "action_result.inventory_item_insufficient": "{item_name}数量不足，需要 {required_quantity}{unit}，当前只有 {current_quantity}{unit}。",
+      "action_result.field_already_occupied": "{field_name}已经有作物，不能重复播种。",
+      "action_result.field_empty": "{field_name}里没有可操作的作物。",
+      "action_result.crop_not_mature": "{crop_name}还没有成熟。",
+      "action_result.storage_full": "这个地方放不下了。",
+      "action_result.unsafe_food": "这份食物风险偏高，不适合食用或提交。",
+      "action_result.already_reserved": "这批材料已经被其他加工占用了。",
+      "action_result.feature_disabled": "这个功能暂未开放。",
+      "action_result.unknown_action": "未知操作：{action_name}。"
+    },
+    "configs/active_stage_1A/stage_1A_active_config.yaml": {
+      "stage_id": "stage_1A",
+      "purpose": "最小可玩经营闭环，不包含家庭饭食、水资源、医馆正式订单、旧案正式内容。",
+      "entry_chain": [
+        "plant_crop",
+        "advance_time_until_mature",
+        "harvest_crop",
+        "storage_decay_room_temp",
+        "move_to_cellar",
+        "split_lot",
+        "start_processing_pickling",
+        "collect_processing_result",
+        "cook_dish_bacon_cabbage",
+        "submit_tavern_order",
+        "save_and_load",
+        "rollback_failure_case"
+      ],
+      "active_recipe_variants": [
+        "bacon_cabbage_basic"
+      ],
+      "active_demands": [
+        "tavern_home_dish"
+      ],
+      "active_npcs": [
+        "sun_popo",
+        "qian_xiaoman"
+      ],
+      "active_material_base_ids": [
+        "cabbage",
+        "salt",
+        "bacon",
+        "cooking_oil",
+        "ginger"
+      ],
+      "active_seed_ids": [
+        "cabbage_seed"
+      ],
+      "notes": [
+        "Stage 1A 可以读取 home_water 字段以满足 SaveFile schema，但不得把扣水/挑水作为 Stage 1A 通过条件。",
+        "工具、设施、燃料在 Stage 1A 可以作为存在性与轻量消耗验证；完整耐久反馈归 Stage 1B。",
+        "ginger 作为可选调味料和供货引用进入 Stage 1A 配置闭环，但不是主线通关必需材料。",
+        "feature flags 以 active_stage_*/feature_flag_overrides.yaml 覆盖 core 默认值。"
+      ]
+    },
+    "tests/fixtures/stage_1A_action_sequence.yaml": {
+      "fixture_id": "stage_1A_action_sequence",
+      "action_sequence": [
+        {
+          "step_id": "T01_load_config",
+          "action_type": "system.load_config_profile",
+          "parameters": {
+            "profile_path": "configs/active_stage_1A/load_order.yaml"
+          },
+          "expected": {
+            "success": true,
+            "no_missing_refs": true,
+            "no_deprecated_fields": true
+          }
+        },
+        {
+          "step_id": "T02_start_new_game",
+          "action_type": "system.start_new_game",
+          "parameters": {
+            "initial_world_path": "configs/initial_world/stage_1A_initial_world.yaml"
+          },
+          "save_aliases": {
+            "seed_lot": "seed_cabbage_initial_001",
+            "salt_lot": "salt_initial_001",
+            "bacon_lot": "bacon_initial_001",
+            "oil_lot": "oil_initial_001"
+          }
+        },
+        {
+          "step_id": "T03_plant_cabbage",
+          "action_type": "plant_crop",
+          "parameters": {
+            "field_plot_id": "field_plot_01",
+            "seed_lot_id": "$seed_lot",
+            "seed_quantity": {
+              "amount": 1,
+              "unit": "count"
+            }
+          },
+          "save_result_aliases": {
+            "crop": "created_objects[0].object_id"
+          }
+        },
+        {
+          "step_id": "T03B_save_load_mid_growth",
+          "action_type": "system.save_and_load_roundtrip",
+          "parameters": {
+            "slot_id": "test_stage_1A_mid_growth_slot"
+          },
+          "expected": {
+            "success": true,
+            "crop_instance_persisted": true,
+            "field_active_crop_ids_include_saved_crop": true,
+            "loaded_game_can_continue_growth_and_harvest": true
+          }
+        },
+        {
+          "step_id": "T04_advance_until_mature",
+          "action_type": "advance_time",
+          "parameters": {
+            "minutes": 5400
+          },
+          "expected": {
+            "crop_reaches_mature": true
+          },
+          "test_driver_hints": {
+            "settlement_mode": "daily_and_crop_growth",
+            "growth_time_policy": "winter_cold_clear_multiplier_included"
+          }
+        },
+        {
+          "step_id": "T05_harvest_cabbage",
+          "action_type": "harvest_crop",
+          "parameters": {
+            "crop_id": "$crop"
+          },
+          "save_result_aliases": {
+            "cabbage_lot": "created_objects[0].object_id"
+          }
+        },
+        {
+          "step_id": "T06_room_temp_decay",
+          "action_type": "advance_time",
+          "parameters": {
+            "minutes": 1440
+          },
+          "save_result_aliases": {
+            "room_temp_freshness_after_day": "inventory[$cabbage_lot].property_profile.freshness"
+          },
+          "test_driver_hints": {
+            "settlement_mode": "storage_decay"
+          }
+        },
+        {
+          "step_id": "T07_move_to_cellar",
+          "action_type": "store_item",
+          "parameters": {
+            "storage_ref": {
+              "location_id": "home",
+              "storage_type": "cellar",
+              "container_id": "home_cellar_01"
+            },
+            "object_ref": {
+              "object_type": "MaterialLot",
+              "object_id": "$cabbage_lot"
+            }
+          }
+        },
+        {
+          "step_id": "T08_cellar_decay",
+          "action_type": "advance_time",
+          "parameters": {
+            "minutes": 1440
+          },
+          "save_result_aliases": {
+            "cellar_freshness_after_day": "inventory[$cabbage_lot].property_profile.freshness"
+          },
+          "test_driver_hints": {
+            "settlement_mode": "storage_decay"
+          }
+        },
+        {
+          "step_id": "T09_split_cabbage_300g",
+          "action_type": "split_lot",
+          "parameters": {
+            "source_lot_id": "$cabbage_lot",
+            "quantity": {
+              "amount": 300,
+              "unit": "g"
+            }
+          },
+          "save_result_aliases": {
+            "cabbage_split_lot": "created_objects[0].object_id"
+          }
+        },
+        {
+          "step_id": "T10_start_pickling",
+          "action_type": "start_processing",
+          "parameters": {
+            "method_id": "pickling_cabbage_basic",
+            "input_lots": [
+              {
+                "lot_id": "$cabbage_split_lot",
+                "quantity": {
+                  "amount": 300,
+                  "unit": "g"
+                }
+              },
+              {
+                "lot_id": "$salt_lot",
+                "quantity": {
+                  "amount": 15,
+                  "unit": "g"
+                }
+              }
+            ],
+            "facility_ref": {
+              "location_id": "home",
+              "storage_type": "pickling_jar",
+              "container_id": "pickling_jar_basic_01",
+              "definition_id": "pickling_jar_basic",
+              "facility_id": "pickling_jar_basic_01"
+            }
+          },
+          "save_result_aliases": {
+            "pickling_task": "created_objects[0].object_id"
+          }
+        },
+        {
+          "step_id": "T11_advance_pickling_until_ready",
+          "action_type": "advance_time",
+          "parameters": {
+            "minutes": 2880
+          },
+          "expected": {
+            "processing_task_ready_to_collect": true
+          },
+          "test_driver_hints": {
+            "settlement_mode": "processing_progress"
+          }
+        },
+        {
+          "step_id": "T12_collect_pickled_cabbage",
+          "action_type": "collect_processing_result",
+          "parameters": {
+            "task_id": "$pickling_task"
+          },
+          "save_result_aliases": {
+            "pickled_cabbage_lot": "created_objects[0].object_id"
+          }
+        },
+        {
+          "step_id": "T13_cook_bacon_cabbage",
+          "action_type": "cook_dish",
+          "parameters": {
+            "recipe_variant_id": "bacon_cabbage_basic",
+            "ingredients": {
+              "main": {
+                "lot_id": "$pickled_cabbage_lot",
+                "quantity": {
+                  "amount": 250,
+                  "unit": "g"
+                }
+              },
+              "side": {
+                "lot_id": "$bacon_lot",
+                "quantity": {
+                  "amount": 50,
+                  "unit": "g"
+                }
+              },
+              "oil": {
+                "lot_id": "$oil_lot",
+                "quantity": {
+                  "amount": 10,
+                  "unit": "ml"
+                }
+              }
+            },
+            "technique": "stir_fry",
+            "operation_profile": {
+              "heat_level": "high",
+              "active_minutes": 8
+            },
+            "target_storage_ref": {
+              "location_id": "home",
+              "storage_type": "room_temp",
+              "container_id": "home_room_temp_01"
+            }
+          },
+          "save_result_aliases": {
+            "dish_lot": "created_objects[0].object_id"
+          }
+        },
+        {
+          "step_id": "T14_submit_tavern_order",
+          "action_type": "submit_order",
+          "parameters": {
+            "order_id": "tavern_home_dish_001",
+            "submitted_object_refs": [
+              {
+                "object_type": "DishLot",
+                "object_id": "$dish_lot"
+              }
+            ]
+          }
+        },
+        {
+          "step_id": "T15_save_and_load",
+          "action_type": "system.save_and_load_roundtrip",
+          "parameters": {
+            "slot_id": "test_stage_1A_slot"
+          }
+        },
+        {
+          "step_id": "T16_invalid_lot_failure",
+          "action_type": "start_processing",
+          "parameters": {
+            "method_id": "pickling_cabbage_basic",
+            "input_lots": [
+              {
+                "lot_id": "$pickled_cabbage_lot",
+                "quantity": {
+                  "amount": 250,
+                  "unit": "g"
+                }
+              },
+              {
+                "lot_id": "$salt_lot",
+                "quantity": {
+                  "amount": 15,
+                  "unit": "g"
+                }
+              }
+            ],
+            "facility_ref": {
+              "location_id": "home",
+              "storage_type": "pickling_jar",
+              "container_id": "pickling_jar_basic_01",
+              "definition_id": "pickling_jar_basic",
+              "facility_id": "pickling_jar_basic_01"
+            }
+          },
+          "expected": {
+            "success": false,
+            "status_code_any_of": [
+              "ERR_INVALID_LOT_STATE",
+              "ERR_NOT_ENOUGH_RESOURCE"
+            ],
+            "rollback_required": true,
+            "no_new_task": true,
+            "no_new_lot": true
+          }
+        },
+        {
+          "step_id": "T17_split_for_reservation_test",
+          "action_type": "split_lot",
+          "parameters": {
+            "source_lot_id": "$cabbage_lot",
+            "quantity": {
+              "amount": 100,
+              "unit": "g"
+            }
+          },
+          "save_result_aliases": {
+            "reservation_test_lot": "created_objects[0].object_id"
+          }
+        },
+        {
+          "step_id": "T18_inject_active_reservation",
+          "action_type": "system.inject_active_reservation",
+          "parameters": {
+            "target_ref": {
+              "object_type": "MaterialLot",
+              "object_id": "$reservation_test_lot"
+            },
+            "quantity": {
+              "amount": 50,
+              "unit": "g"
+            },
+            "reason": "reservation_rollback_contract_test"
+          },
+          "save_result_aliases": {
+            "injected_reservation": "created_objects[0].object_id"
+          },
+          "expected": {
+            "success": true,
+            "created_object_type": "Reservation"
+          }
+        },
+        {
+          "step_id": "T19_reserved_lot_rollback_failure",
+          "action_type": "start_processing",
+          "parameters": {
+            "method_id": "pickling_cabbage_basic",
+            "input_lots": [
+              {
+                "lot_id": "$reservation_test_lot",
+                "quantity": {
+                  "amount": 50,
+                  "unit": "g"
+                }
+              },
+              {
+                "lot_id": "$salt_lot",
+                "quantity": {
+                  "amount": 5,
+                  "unit": "g"
+                }
+              }
+            ],
+            "facility_ref": {
+              "location_id": "home",
+              "storage_type": "pickling_jar",
+              "container_id": "pickling_jar_basic_01",
+              "definition_id": "pickling_jar_basic",
+              "facility_id": "pickling_jar_basic_01"
+            }
+          },
+          "expected": {
+            "success": false,
+            "status_code_any_of": [
+              "ERR_ALREADY_RESERVED"
+            ],
+            "rollback_required": true,
+            "no_extra_reservation_created": true,
+            "resources_not_double_consumed": true
+          }
+        },
+        {
+          "step_id": "T20_release_injected_reservation",
+          "action_type": "system.release_reservation",
+          "parameters": {
+            "reservation_id": "$injected_reservation"
+          },
+          "expected": {
+            "success": true,
+            "reservation_status": "released"
+          }
+        }
+      ]
+    },
+    "tests/expected/stage_1A_runtime_lifecycle_matrix.yaml": {
+      "fixture_id": "stage_1A_runtime_lifecycle_matrix",
+      "authority": "Formal Stage 1A Action lifecycle contract for AI code generation and transaction tests.",
+      "global_invariants": {
+        "storage_occupant_types_current_stage": [
+          "MaterialLot",
+          "DishLot"
+        ],
+        "storage_cache_fields": [
+          "StorageContainer.active_object_refs",
+          "StorageContainer.used_capacity"
+        ],
+        "post_success_storage_rule": "Every successful storage-mutating action must leave active_object_refs and used_capacity equal to a full rebuild from StorageOccupants.",
+        "rollback_rule": "Every failed action must restore inventory, dish_lots, reservations, fuel_state, orders, storage_containers, and domain_events to the pre-action snapshot for objects touched by that action.",
+        "domain_event_rule": "DomainEvents are appended only after object writes and storage reconciliation validation succeed.",
+        "storage_occupant_ref_type": "common_defs.StorageOccupantRef",
+        "storage_occupant_adapters_ref": "configs/core/new_game_builder_mapping.yaml.validation_policy.storage_reconciliation_policy.storage_occupant_adapters",
+        "submit_order_consumption_rule": "Stage 1A success: submitted DishLot is removed from SaveFile.dish_lots; Order.submitted_object_refs and DomainEvent retain submission history."
+      },
+      "actions": {
+        "plant_crop": {
+          "reads": [
+            "MaterialLot(seed)",
+            "FieldPlotState",
+            "CropDefinition",
+            "GrowthProfile"
+          ],
+          "writes": [
+            "CropInstance",
+            "FieldPlotState.active_crop_ids",
+            "MaterialLot(seed quantity)",
+            "DomainEvent"
+          ],
+          "storage_mutation": true,
+          "storage_cache_invariant": "seed MaterialLot footprint/capacity must be reconciled after quantity change or lot consumption",
+          "rollback_assertions": [
+            "seed quantity unchanged on failure",
+            "no CropInstance leaked on failure",
+            "field active_crop_ids unchanged on failure"
+          ]
+        },
+        "advance_time": {
+          "reads": [
+            "TimeState",
+            "CropInstance",
+            "ProcessingTask",
+            "MaterialLot",
+            "DishLot"
+          ],
+          "writes": [
+            "TimeState",
+            "CropInstance.growth_state",
+            "ProcessingTask.status",
+            "freshness_state where decay applies",
+            "DomainEvent"
+          ],
+          "storage_mutation": false,
+          "storage_cache_invariant": "active_object_refs unchanged unless decay deletes or transforms a stored object; any such transform must reconcile storage cache",
+          "rollback_assertions": [
+            "world_time unchanged on failure",
+            "task progress unchanged on failure",
+            "no domain_event committed on failure"
+          ]
+        },
+        "harvest_crop": {
+          "reads": [
+            "CropInstance",
+            "FieldPlotState",
+            "MaterialDefinition"
+          ],
+          "writes": [
+            "MaterialLot",
+            "FieldPlotState.active_crop_ids",
+            "CropInstance.status",
+            "StorageContainer.active_object_refs",
+            "StorageContainer.used_capacity",
+            "DomainEvent"
+          ],
+          "storage_mutation": true,
+          "storage_cache_invariant": "created MaterialLot must enter active_object_refs with object_type MaterialLot before action result is returned",
+          "rollback_assertions": [
+            "no harvested MaterialLot leaked on failure",
+            "field active_crop_ids restored on failure",
+            "crop status restored on failure"
+          ]
+        },
+        "store_item": {
+          "reads": [
+            "StorageOccupantRef(MaterialLot or DishLot)",
+            "StorageContainer",
+            "StorageOccupantAdapter"
+          ],
+          "writes": [
+            "StorageOccupant.storage_ref",
+            "StorageContainer.active_object_refs",
+            "StorageContainer.used_capacity",
+            "DomainEvent"
+          ],
+          "storage_mutation": true,
+          "storage_cache_invariant": "moved object appears once in target container active_object_refs and zero times in previous container",
+          "rollback_assertions": [
+            "object storage_ref restored on failure",
+            "source and target container caches restored on failure"
+          ]
+        },
+        "split_lot": {
+          "reads": [
+            "MaterialLot(source)",
+            "StorageContainer"
+          ],
+          "writes": [
+            "MaterialLot(source quantity)",
+            "MaterialLot(new split)",
+            "StorageContainer.active_object_refs",
+            "StorageContainer.used_capacity",
+            "DomainEvent"
+          ],
+          "storage_mutation": true,
+          "storage_cache_invariant": "source and split MaterialLot footprints must be regenerated from definitions and reconciled",
+          "rollback_assertions": [
+            "source lot quantity restored on failure",
+            "split lot not leaked on failure",
+            "storage capacity restored on failure"
+          ]
+        },
+        "start_processing": {
+          "reads": [
+            "MaterialLot inputs",
+            "FacilityState",
+            "Reservation",
+            "ProcessingMethod"
+          ],
+          "writes": [
+            "ProcessingTask",
+            "Reservation or consumed MaterialLot quantities",
+            "StorageContainer.active_object_refs",
+            "StorageContainer.used_capacity",
+            "DomainEvent"
+          ],
+          "storage_mutation": true,
+          "storage_cache_invariant": "reserved/consumed input lots and facility container occupancy must reconcile before task is committed",
+          "rollback_assertions": [
+            "no ProcessingTask leaked on failure",
+            "input MaterialLot quantities restored on failure",
+            "reservations restored on failure"
+          ]
+        },
+        "collect_processing_result": {
+          "reads": [
+            "ProcessingTask",
+            "ProcessingMethod",
+            "StorageContainer"
+          ],
+          "writes": [
+            "ProcessingTask.status",
+            "MaterialLot(output)",
+            "StorageContainer.active_object_refs",
+            "StorageContainer.used_capacity",
+            "DomainEvent"
+          ],
+          "storage_mutation": true,
+          "storage_cache_invariant": "output MaterialLot must enter active_object_refs and task cannot be collected twice",
+          "rollback_assertions": [
+            "output MaterialLot not leaked on failure",
+            "task status restored on failure",
+            "storage cache restored on failure"
+          ]
+        },
+        "cook_dish": {
+          "reads": [
+            "MaterialLot ingredients",
+            "FuelState",
+            "ToolState",
+            "FacilityState",
+            "RecipeVariant",
+            "DishStructure",
+            "StorageContainer"
+          ],
+          "writes": [
+            "MaterialLot ingredient quantities",
+            "FuelState",
+            "ToolState or FacilityState when enabled",
+            "DishLot",
+            "StorageContainer.active_object_refs",
+            "StorageContainer.used_capacity",
+            "DomainEvent"
+          ],
+          "storage_mutation": true,
+          "storage_cache_invariant": "created DishLot must enter active_object_refs with object_type DishLot; ingredient lots and capacity must reconcile after consumption",
+          "rollback_assertions": [
+            "ingredient quantities restored on failure",
+            "fuel_state restored on failure",
+            "DishLot not leaked on failure",
+            "storage cache restored on failure"
+          ]
+        },
+        "submit_order": {
+          "reads": [
+            "Order",
+            "DishLot or accepted submitted object",
+            "DemandProfile"
+          ],
+          "writes": [
+            "Order.status",
+            "Order.submitted_object_refs",
+            "PlayerState.money",
+            "DishLot or submitted object consumed/marked submitted",
+            "StorageContainer.active_object_refs",
+            "StorageContainer.used_capacity",
+            "DomainEvent"
+          ],
+          "storage_mutation": true,
+          "storage_cache_invariant": "submitted DishLot must be removed from SaveFile.dish_lots and absent from every StorageContainer.active_object_refs before order completion is committed; Order and DomainEvent retain submission history",
+          "rollback_assertions": [
+            "order status restored on failure",
+            "submitted object storage state restored on failure",
+            "money unchanged on failure",
+            "domain_events not committed on failure"
+          ]
+        }
+      },
+      "post_action_storage_snapshots": {
+        "after_cook_dish": {
+          "trigger_action": "cook_dish",
+          "created_ref": {
+            "object_type": "DishLot",
+            "object_id_alias": "created_dish_lot"
+          },
+          "required_storage_form": "cooked_dish",
+          "required_cache_effect": "created_ref appears exactly once in target StorageContainer.active_object_refs and its storage_footprint.amount is included in used_capacity"
+        },
+        "after_submit_order": {
+          "trigger_action": "submit_order",
+          "submitted_ref": {
+            "object_type": "DishLot",
+            "object_id_alias": "submitted_dish_lot"
+          },
+          "required_savefile_effect": "submitted DishLot is removed from SaveFile.dish_lots in Stage 1A",
+          "required_cache_effect": "submitted_ref is absent from all StorageContainer.active_object_refs and used_capacity is rebuilt after removal",
+          "history_retention": "Order.submitted_object_refs and DomainEvent payload retain audit history; Stage 1A removes the DishLot runtime object instead of retaining a detached runtime object."
+        }
+      }
+    },
+    "tests/expected/stage_1A_expected_assertions.yaml": {
+      "assertion_set_id": "stage_1A_expected_assertions",
+      "config_assertions": [
+        "no_yaml_parse_errors",
+        "no_json_schema_parse_errors",
+        "no_missing_material_refs_for_stage_1A",
+        "no_missing_text_keys_for_stage_1A",
+        {
+          "no_deprecated_fields": [
+            "old_case_enabled",
+            "water.unlimited_for_stage1",
+            "property_or_tag",
+            "source_type=split",
+            "storage_ref=home_cellar",
+            "household_water_enabled",
+            "recipe.water_cost_ml",
+            "fuel_enabled",
+            "tool_durability_enabled"
+          ]
+        },
+        "stage_1A_feature_flag_overrides_applied",
+        "demand_field_requirements_are_not_treated_as_properties",
+        "tavern_order_deadline_covers_full_action_sequence",
+        "domain_event_type_payload_binding",
+        "cook_dish_output_storage_target_or_default",
+        "feature_flags_snapshot_has_metadata_and_known_flags_only",
+        "fixture_gameplay_parameters_are_subset_of_formal_schema",
+        "test_driver_hints_are_not_formal_action_parameters",
+        "feature_flag_dependencies_apply_without_destroying_future_defaults",
+        "stage_profile_explicitly_references_stage_active_config",
+        "storage_occupant_cache_uses_active_object_refs",
+        "dish_lot_participates_in_storage_reconciliation",
+        "action_lifecycle_matrix_covers_all_formal_actions",
+        "storage_mutating_actions_have_transaction_rollback_assertions",
+        "storage_occupant_ref_schema_is_narrow",
+        "storage_occupant_adapters_define_materiallot_and_dishlot",
+        "module04_action_contract_table_matches_formal_schema"
+      ],
+      "world_assertions": [
+        {
+          "initial_inventory_contains": [
+            "cabbage_seed",
+            "salt",
+            "bacon",
+            "cooking_oil"
+          ]
+        },
+        {
+          "initial_world_contains": [
+            "field_plot_01",
+            "home_room_temp_01",
+            "home_cellar_01",
+            "pickling_jar_basic_01",
+            "tavern_home_dish_001"
+          ]
+        },
+        {
+          "initial_order_deadline_absolute_minute_gte": 12000
+        }
+      ],
+      "chain_assertions": [
+        {
+          "mid_growth_save_roundtrip": {
+            "step_id": "T03B_save_load_mid_growth",
+            "crop_instance_persisted": true,
+            "field_active_crop_ids_include_saved_crop": true,
+            "loaded_game_can_continue_growth_and_harvest": true
+          }
+        },
+        {
+          "harvest_creates_material_lot": {
+            "base_id": "cabbage",
+            "current_form": "fresh",
+            "source_ref.source_type": "farming"
+          }
+        },
+        {
+          "storage_decay_differs": {
+            "room_temp_freshness_loss_per_day_gt_cellar": true
+          }
+        },
+        {
+          "split_uses_source_ref": {
+            "source_type": "inventory_split",
+            "forbidden_source_type": "split"
+          }
+        },
+        {
+          "processing_task_created": {
+            "method_id": "pickling_cabbage_basic",
+            "status_initial": "active",
+            "status_final": "completed"
+          }
+        },
+        {
+          "collect_processing_result": {
+            "step_id": "T12_collect_pickled_cabbage",
+            "action_type": "collect_processing_result",
+            "creates_output_lot": true
+          }
+        },
+        {
+          "pickling_output": {
+            "base_id": "cabbage",
+            "current_form": "pickled",
+            "source_ref.source_type": "processing"
+          }
+        },
+        {
+          "cooking_output": {
+            "object_type": "DishLot",
+            "recognized_dish_id": "bacon_cabbage",
+            "forbidden_object_type": "MaterialLot",
+            "source_ref.source_type": "cooking"
+          }
+        },
+        {
+          "tavern_order_completed": {
+            "demand_profile_id": "tavern_home_dish",
+            "min_match_score": 60
+          }
+        },
+        {
+          "save_roundtrip": {
+            "inventory_hash_equal": true,
+            "orders_hash_equal": true,
+            "random_state_equal": true
+          }
+        },
+        {
+          "invalid_lot_failure": {
+            "step_id": "T16_invalid_lot_failure",
+            "no_new_task": true,
+            "no_new_lot": true,
+            "resources_not_double_consumed": true
+          }
+        },
+        {
+          "reservation_rollback_failure": {
+            "step_id": "T19_reserved_lot_rollback_failure",
+            "status_code": "ERR_ALREADY_RESERVED",
+            "no_extra_reservation_created": true,
+            "resources_not_double_consumed": true
+          }
+        },
+        {
+          "runtime_lifecycle_matrix": {
+            "matrix_path": "tests/expected/stage_1A_runtime_lifecycle_matrix.yaml",
+            "all_formal_actions_covered": true,
+            "storage_mutating_actions_have_post_success_reconciliation": true,
+            "failure_rollback_scope_declared": true
+          }
+        },
+        {
+          "cook_dish_storage_occupant": {
+            "created_object_type": "DishLot",
+            "must_appear_in_storage_container_active_object_refs": true,
+            "capacity_recalculated_from_dish_storage_footprint": true
+          }
+        },
+        {
+          "submit_order_storage_occupant_consumption": {
+            "submitted_object_type": "DishLot",
+            "must_be_removed_from_savefile_dish_lots_before_completion": true,
+            "must_be_absent_from_all_storage_container_active_object_refs": true,
+            "history_retained_by_order_and_domain_event": true,
+            "storage_cache_reconciled_after_completion": true
+          }
+        }
+      ]
+    },
+    "tests/expected/stage_1A_runtime_feature_gates.yaml": {
+      "stage_id": "stage_1A",
+      "source": "effective_feature_flags + configs/core/feature_flag_dependencies.yaml",
+      "runtime_gate_policy": "normal child gates require parents; debug_overlay_gate uses allowed_stages and does not open normal gameplay parent pools",
+      "runtime_feature_gates": {
+        "breeding_enabled": false,
+        "fishpond_enabled": false,
+        "advanced_cooking_enabled": true,
+        "story_system_enabled": true,
+        "old_case_content_enabled": false,
+        "old_case_debug_enabled": false,
+        "clinic_order_enabled": false,
+        "clinic_order_debug_enabled": false,
+        "clinic_learning_track_enabled": false,
+        "clinic_health_event_enabled": false,
+        "clinic_reputation_enabled": false,
+        "clinic_herb_trade_enabled": false,
+        "clinic_medicine_food_enabled": false,
+        "family_meal_enabled": false,
+        "family_meal_daily_required": false,
+        "family_meal_hard_survival_penalty": false,
+        "child_can_self_feed": false,
+        "allow_buy_meal_substitute": false,
+        "water_tank_enabled": false,
+        "carry_water_enabled": false,
+        "water_quality_enabled": false,
+        "fuel_system_enabled": true,
+        "durability_system_enabled": false,
+        "quality_tier_enabled": true,
+        "medicine_food_enabled": false,
+        "npc_supply_sim_enabled": true,
+        "festival_enabled": false,
+        "player_shop_enabled": false,
+        "npc_trade_enabled": false
+      }
+    },
+    "tests/expected/stage_1A_effective_feature_flags.yaml": {
+      "stage_id": "stage_1A",
+      "merge_policy": "override_core_feature_flags_by_effective_load_order_extends_chain",
+      "merge_sources": [
+        "configs/core/feature_flags.yaml",
+        "configs/active_stage_1A/feature_flag_overrides.yaml"
+      ],
+      "effective_feature_flags": {
+        "breeding_enabled": false,
+        "fishpond_enabled": false,
+        "advanced_cooking_enabled": true,
+        "story_system_enabled": true,
+        "old_case_content_enabled": false,
+        "old_case_debug_enabled": false,
+        "clinic_order_enabled": false,
+        "clinic_order_debug_enabled": false,
+        "clinic_learning_track_enabled": false,
+        "clinic_health_event_enabled": false,
+        "clinic_reputation_enabled": false,
+        "clinic_herb_trade_enabled": false,
+        "clinic_medicine_food_enabled": false,
+        "family_meal_enabled": false,
+        "family_meal_daily_required": false,
+        "family_meal_hard_survival_penalty": false,
+        "child_can_self_feed": true,
+        "allow_buy_meal_substitute": true,
+        "water_tank_enabled": false,
+        "carry_water_enabled": false,
+        "water_quality_enabled": false,
+        "fuel_system_enabled": true,
+        "durability_system_enabled": false,
+        "quality_tier_enabled": true,
+        "medicine_food_enabled": false,
+        "npc_supply_sim_enabled": true,
+        "festival_enabled": false,
+        "player_shop_enabled": false,
+        "npc_trade_enabled": false
+      }
+    }
+  },
+  "schema_paths": [
+    "schemas/action_request.schema.json",
+    "schemas/action_result.schema.json",
+    "schemas/actions/formal_stage_1A_action_request.schema.json",
+    "schemas/actions/stage_1A_action_params.schema.json",
+    "schemas/animal_instance.schema.json",
+    "schemas/ayue_learning_tracks.schema.json",
+    "schemas/ayue_preferences.schema.json",
+    "schemas/ayue_state.schema.json",
+    "schemas/common_defs.schema.json",
+    "schemas/config/common_enums_config.schema.json",
+    "schemas/config/crop_config.schema.json",
+    "schemas/config/dish_structure_config.schema.json",
+    "schemas/config/entry_chain_catalog_config.schema.json",
+    "schemas/config/facility_config.schema.json",
+    "schemas/config/feature_flag_dependencies_config.schema.json",
+    "schemas/config/feature_flag_overrides_config.schema.json",
+    "schemas/config/feature_flags_config.schema.json",
+    "schemas/config/field_plots_config.schema.json",
+    "schemas/config/fuel_config.schema.json",
+    "schemas/config/growth_profile_config.schema.json",
+    "schemas/config/home_water_config.schema.json",
+    "schemas/config/load_order_config.schema.json",
+    "schemas/config/material_config.schema.json",
+    "schemas/config/npc_config.schema.json",
+    "schemas/config/processing_method_config.schema.json",
+    "schemas/config/property_definitions_config.schema.json",
+    "schemas/config/recipe_variant_config.schema.json",
+    "schemas/config/rule_versions_config.schema.json",
+    "schemas/config/seed_config.schema.json",
+    "schemas/config/stage_active_config.schema.json",
+    "schemas/config/story_stub_config.schema.json",
+    "schemas/config/supply_nodes_config.schema.json",
+    "schemas/config/text_config.schema.json",
+    "schemas/config/time_segments_config.schema.json",
+    "schemas/config/tools_config.schema.json",
+    "schemas/crop_instance.schema.json",
+    "schemas/demand_profile.schema.json",
+    "schemas/dish_component.schema.json",
+    "schemas/dish_lot.schema.json",
+    "schemas/domain_event.schema.json",
+    "schemas/facility_state.schema.json",
+    "schemas/family_state.schema.json",
+    "schemas/feature_flags_snapshot.schema.json",
+    "schemas/field_plot_state.schema.json",
+    "schemas/fuel_state.schema.json",
+    "schemas/home_water_state.schema.json",
+    "schemas/initial_world.schema.json",
+    "schemas/initial_world_overlay.schema.json",
+    "schemas/material_lot.schema.json",
+    "schemas/new_game_builder_mapping.schema.json",
+    "schemas/order.schema.json",
+    "schemas/package_manifest.schema.json",
+    "schemas/processing_task.schema.json",
+    "schemas/reservation.schema.json",
+    "schemas/save_file.schema.json",
+    "schemas/storage_container.schema.json",
+    "schemas/time_state.schema.json",
+    "schemas/tool_state.schema.json"
+  ]
+}

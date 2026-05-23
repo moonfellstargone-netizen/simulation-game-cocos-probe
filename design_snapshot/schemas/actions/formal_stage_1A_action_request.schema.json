@@ -1,0 +1,404 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "formal_stage_1A_action_request.schema.json",
+  "type": "object",
+  "required": [
+    "request_id",
+    "actor_id",
+    "action_type",
+    "created_time",
+    "idempotency_key",
+    "parameters"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "request_id": {
+      "type": "string"
+    },
+    "actor_id": {
+      "type": "string"
+    },
+    "action_type": {
+      "type": "string"
+    },
+    "created_time": {
+      "type": "integer"
+    },
+    "idempotency_key": {
+      "type": "string"
+    },
+    "target_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "common_defs.schema.json#/$defs/ObjectRef"
+      }
+    },
+    "context_ref": {
+      "$ref": "common_defs.schema.json#/$defs/ActionContextRef"
+    },
+    "desired_outcome": {
+      "$ref": "common_defs.schema.json#/$defs/DesiredOutcome"
+    },
+    "preview_only": {
+      "type": "boolean"
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "integer",
+          "boolean",
+          "null",
+          "array",
+          "object"
+        ]
+      },
+      "description": "Base envelope only. Do not use this schema alone to validate formal gameplay actions; stage-specific formal schemas must bind action_type to parameters."
+    }
+  },
+  "oneOf": [
+    {
+      "required": [
+        "action_type",
+        "parameters"
+      ],
+      "properties": {
+        "action_type": {
+          "const": "plant_crop"
+        },
+        "parameters": {
+          "type": "object",
+          "required": [
+            "field_plot_id",
+            "seed_lot_id",
+            "seed_quantity"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "field_plot_id": {
+              "type": "string"
+            },
+            "seed_lot_id": {
+              "type": "string"
+            },
+            "seed_quantity": {
+              "$ref": "common_defs.schema.json#/$defs/Quantity"
+            }
+          }
+        }
+      }
+    },
+    {
+      "required": [
+        "action_type",
+        "parameters"
+      ],
+      "properties": {
+        "action_type": {
+          "const": "advance_time"
+        },
+        "parameters": {
+          "type": "object",
+          "required": [
+            "minutes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "minutes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "required": [
+        "action_type",
+        "parameters"
+      ],
+      "properties": {
+        "action_type": {
+          "const": "harvest_crop"
+        },
+        "parameters": {
+          "type": "object",
+          "required": [
+            "crop_id"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "crop_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "required": [
+        "action_type",
+        "parameters"
+      ],
+      "properties": {
+        "action_type": {
+          "const": "store_item"
+        },
+        "parameters": {
+          "type": "object",
+          "required": [
+            "object_ref",
+            "storage_ref"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "storage_ref": {
+              "$ref": "common_defs.schema.json#/$defs/StorageRef"
+            },
+            "object_ref": {
+              "$ref": "common_defs.schema.json#/$defs/StorageOccupantRef"
+            }
+          }
+        }
+      }
+    },
+    {
+      "required": [
+        "action_type",
+        "parameters"
+      ],
+      "properties": {
+        "action_type": {
+          "const": "split_lot"
+        },
+        "parameters": {
+          "type": "object",
+          "required": [
+            "source_lot_id",
+            "quantity"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "source_lot_id": {
+              "type": "string"
+            },
+            "quantity": {
+              "$ref": "common_defs.schema.json#/$defs/Quantity"
+            }
+          }
+        }
+      }
+    },
+    {
+      "required": [
+        "action_type",
+        "parameters"
+      ],
+      "properties": {
+        "action_type": {
+          "const": "start_processing"
+        },
+        "parameters": {
+          "type": "object",
+          "required": [
+            "method_id",
+            "input_lots",
+            "facility_ref"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "method_id": {
+              "type": "string"
+            },
+            "input_lots": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "lot_id",
+                  "quantity"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "lot_id": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "$ref": "common_defs.schema.json#/$defs/Quantity"
+                  }
+                }
+              }
+            },
+            "facility_ref": {
+              "type": "object",
+              "required": [
+                "location_id",
+                "storage_type",
+                "container_id",
+                "definition_id",
+                "facility_id"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "location_id": {
+                  "type": "string"
+                },
+                "storage_type": {
+                  "enum": [
+                    "pickling_jar",
+                    "cellar",
+                    "room_temp",
+                    "drying_rack",
+                    "inventory_pack"
+                  ]
+                },
+                "container_id": {
+                  "type": "string"
+                },
+                "definition_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "facility_id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "required": [
+        "action_type",
+        "parameters"
+      ],
+      "properties": {
+        "action_type": {
+          "const": "collect_processing_result"
+        },
+        "parameters": {
+          "type": "object",
+          "required": [
+            "task_id"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "task_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "required": [
+        "action_type",
+        "parameters"
+      ],
+      "properties": {
+        "action_type": {
+          "const": "cook_dish"
+        },
+        "parameters": {
+          "type": "object",
+          "required": [
+            "recipe_variant_id",
+            "ingredients",
+            "technique",
+            "operation_profile"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "recipe_variant_id": {
+              "type": "string"
+            },
+            "ingredients": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "lot_id",
+                  "quantity"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "lot_id": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "$ref": "common_defs.schema.json#/$defs/Quantity"
+                  }
+                }
+              }
+            },
+            "technique": {
+              "type": "string"
+            },
+            "operation_profile": {
+              "type": "object",
+              "required": [
+                "heat_level",
+                "active_minutes"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "heat_level": {
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ]
+                },
+                "active_minutes": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "target_storage_ref": {
+              "$ref": "common_defs.schema.json#/$defs/StorageRef",
+              "description": "Optional. If omitted, runtime uses initial_world.runtime_initialization_policy.default_dish_storage_ref."
+            }
+          }
+        }
+      }
+    },
+    {
+      "required": [
+        "action_type",
+        "parameters"
+      ],
+      "properties": {
+        "action_type": {
+          "const": "submit_order"
+        },
+        "parameters": {
+          "type": "object",
+          "required": [
+            "order_id",
+            "submitted_object_refs"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "order_id": {
+              "type": "string"
+            },
+            "submitted_object_refs": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "common_defs.schema.json#/$defs/SubmittedObjectRef"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

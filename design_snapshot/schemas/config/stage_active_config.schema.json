@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stage_active_config.schema.json",
+  "type": "object",
+  "required": [
+    "stage_id",
+    "purpose",
+    "entry_chain",
+    "active_recipe_variants",
+    "active_demands",
+    "active_npcs",
+    "active_material_base_ids",
+    "active_seed_ids",
+    "notes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "stage_id": {
+      "enum": [
+        "stage_1A",
+        "stage_1B",
+        "stage_1C_debug"
+      ]
+    },
+    "purpose": {
+      "type": "string"
+    },
+    "entry_chain": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "active_recipe_variants": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "active_demands": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "active_npcs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "active_material_base_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "active_seed_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

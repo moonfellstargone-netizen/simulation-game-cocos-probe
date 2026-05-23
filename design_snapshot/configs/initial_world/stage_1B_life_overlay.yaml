@@ -1,0 +1,18 @@
+initial_world_overlay_id: stage_1B_life_overlay
+extends: stage_1A_initial_world
+enable_runtime_systems:
+- HomeWaterSystem
+- FamilyMealSystem
+- DurabilitySystem
+family_meal_state:
+  current_day_status: not_arranged
+  consecutive_missing_days: 0
+  substitute_available: true
+  child_self_feed_available: true
+home_water_runtime:
+  enabled: true
+  allow_carry_water: true
+  quality_affects_score: false
+merge_policy:
+  family_meal_state: merge_to_SaveFile.family_state.meal_state
+  home_water_runtime: enable_runtime_rules_without_replacing_SaveFile.home_water

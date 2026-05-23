@@ -1,0 +1,837 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "common_defs.schema.json",
+  "$defs": {
+    "Quantity": {
+      "type": "object",
+      "required": [
+        "amount",
+        "unit"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "unit": {
+          "enum": [
+            "g",
+            "ml",
+            "count",
+            "serving",
+            "bundle"
+          ]
+        },
+        "base_weight_g": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "SourceRef": {
+      "type": "object",
+      "required": [
+        "source_type",
+        "source_time"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source_type": {
+          "enum": [
+            "farming",
+            "processing",
+            "cooking",
+            "npc_trade",
+            "fishing",
+            "story",
+            "debug",
+            "inventory_split",
+            "initial_world",
+            "system"
+          ]
+        },
+        "source_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_time": {
+          "type": "integer"
+        },
+        "source_actor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_location": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "summary_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "StorageRef": {
+      "type": "object",
+      "required": [
+        "location_id",
+        "storage_type",
+        "container_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "location_id": {
+          "type": "string"
+        },
+        "storage_type": {
+          "type": "string"
+        },
+        "container_id": {
+          "type": "string"
+        },
+        "definition_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "facility_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "PropertyProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "freshness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "moisture": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "cleanliness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "damage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "microbial_risk": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "safety_risk": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "salinity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "fermentation": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "dryness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "crunch": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "aroma": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "sweetness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "acidity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "umami": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "oiliness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "fishiness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "smoky_aroma": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "tenderness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "fiber": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "saltiness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "wateriness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "heat_level": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "doneness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "texture_balance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "soup_body": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "freshness_expression": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "defect_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "warming_potential": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "calming_potential": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "nourishing_potential": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "medicinal_grade": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "bone_risk": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "soup_contribution": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "LineageSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key_origins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LineageOriginEntry"
+          },
+          "default": []
+        },
+        "important_flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "lineage_depth": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "compressed": {
+          "type": "boolean"
+        },
+        "summary_text_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "debug_trace_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "ObjectRef": {
+      "type": "object",
+      "required": [
+        "object_type",
+        "object_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "object_type": {
+          "$ref": "#/$defs/RuntimeObjectType"
+        },
+        "object_id": {
+          "type": "string"
+        }
+      }
+    },
+    "NonEmptyFacilityStorageRef": {
+      "type": "object",
+      "required": [
+        "location_id",
+        "storage_type",
+        "container_id",
+        "definition_id",
+        "facility_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "location_id": {
+          "type": "string"
+        },
+        "storage_type": {
+          "type": "string"
+        },
+        "container_id": {
+          "type": "string"
+        },
+        "definition_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "facility_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "StorageFootprint": {
+      "type": "object",
+      "required": [
+        "amount",
+        "unit"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "unit": {
+          "enum": [
+            "slot_weight",
+            "g",
+            "ml"
+          ]
+        }
+      }
+    },
+    "LineageOriginEntry": {
+      "type": "object",
+      "required": [
+        "origin_type",
+        "origin_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "origin_type": {
+          "type": "string"
+        },
+        "origin_id": {
+          "type": "string"
+        },
+        "source_ref": {
+          "$ref": "#/$defs/SourceRef"
+        },
+        "note_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "ProcessingHistoryEntry": {
+      "type": "object",
+      "required": [
+        "history_id",
+        "operation_type",
+        "world_minute"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "history_id": {
+          "type": "string"
+        },
+        "operation_type": {
+          "type": "string"
+        },
+        "method_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "action_request_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "world_minute": {
+          "type": "integer"
+        },
+        "quantity": {
+          "$ref": "#/$defs/Quantity"
+        },
+        "result_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "TransformationHistoryEntry": {
+      "type": "object",
+      "required": [
+        "operation_type",
+        "world_minute"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "operation_type": {
+          "type": "string"
+        },
+        "action_request_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "world_minute": {
+          "type": "integer"
+        },
+        "method_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "OrderRule": {
+      "type": "object",
+      "required": [
+        "rule_id",
+        "rule_type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": {
+          "type": "string"
+        },
+        "rule_type": {
+          "enum": [
+            "bonus",
+            "penalty"
+          ]
+        },
+        "condition_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "effect_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "effect_value": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "StoryClueRef": {
+      "type": "object",
+      "required": [
+        "clue_id",
+        "state"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "clue_id": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "hidden",
+            "known",
+            "interpreted",
+            "resolved",
+            "archived"
+          ]
+        },
+        "source_event_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "StoryEventEntry": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "event_type",
+        "world_minute"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "event_id": {
+          "type": "string"
+        },
+        "event_type": {
+          "type": "string"
+        },
+        "world_minute": {
+          "type": "integer"
+        },
+        "story_flag_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "summary_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "StoryChoiceEntry": {
+      "type": "object",
+      "required": [
+        "choice_id",
+        "state"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "choice_id": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "selected_world_minute": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "StoryItemState": {
+      "type": "object",
+      "required": [
+        "item_id",
+        "state"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "item_id": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "owner_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "RuntimeObjectType": {
+      "enum": [
+        "CropInstance",
+        "MaterialLot",
+        "ProcessingTask",
+        "DishLot",
+        "Order",
+        "Reservation",
+        "StorageContainer",
+        "ToolState",
+        "FacilityState",
+        "FuelState",
+        "PlayerState",
+        "FamilyState",
+        "HomeWaterState",
+        "FieldPlotState",
+        "SupplyNodeState",
+        "EconomyState",
+        "LocationState",
+        "ActionHistoryEntry",
+        "EventLogSummary",
+        "StoryFlag",
+        "NpcRelationState",
+        "AnimalInstance",
+        "PurchasedMeal",
+        "DebugObject"
+      ]
+    },
+    "ActionContextRef": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "primary_object_ref": {
+              "$ref": "#/$defs/ObjectRef"
+            },
+            "location_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "source_action_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "ui_context_key": {
+              "type": "string",
+              "minLength": 1
+            },
+            "debug_context_key": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "primary_object_ref"
+              ]
+            },
+            {
+              "required": [
+                "location_id"
+              ]
+            },
+            {
+              "required": [
+                "source_action_id"
+              ]
+            },
+            {
+              "required": [
+                "ui_context_key"
+              ]
+            },
+            {
+              "required": [
+                "debug_context_key"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "DesiredOutcome": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "intent": {
+              "type": "string",
+              "minLength": 1
+            },
+            "preview_tags": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            },
+            "expected_object_type": {
+              "$ref": "#/$defs/RuntimeObjectType"
+            },
+            "notes_key": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "intent"
+              ]
+            },
+            {
+              "required": [
+                "preview_tags"
+              ]
+            },
+            {
+              "required": [
+                "expected_object_type"
+              ]
+            },
+            {
+              "required": [
+                "notes_key"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "StorageOccupantRef": {
+      "type": "object",
+      "required": [
+        "object_type",
+        "object_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "object_type": {
+          "enum": [
+            "MaterialLot",
+            "DishLot"
+          ]
+        },
+        "object_id": {
+          "type": "string"
+        }
+      },
+      "description": "Current Stage 1A storable runtime object reference. Storage movement/cache/audit boundaries must use StorageOccupantRef so non-storable RuntimeObject refs cannot enter storage semantics."
+    },
+    "SubmittedObjectRef": {
+      "type": "object",
+      "required": [
+        "object_type",
+        "object_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "object_type": {
+          "enum": [
+            "DishLot",
+            "MaterialLot",
+            "PurchasedMeal"
+          ]
+        },
+        "object_id": {
+          "type": "string"
+        }
+      },
+      "description": "Current Stage 1A order-submittable runtime object reference. Submit/order audit boundaries must use SubmittedObjectRef so Order/DomainEvent cannot record arbitrary RuntimeObject submissions."
+    }
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "home_water_config.schema.json",
+  "type": "object",
+  "required": [
+    "home_water"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "home_water": {
+      "type": "object",
+      "required": [
+        "storage_id",
+        "capacity_ml",
+        "current_ml",
+        "quality",
+        "refill_methods"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "storage_id": {
+          "type": "string"
+        },
+        "capacity_ml": {
+          "type": "number",
+          "minimum": 0
+        },
+        "current_ml": {
+          "type": "number",
+          "minimum": 0
+        },
+        "quality": {
+          "type": "string"
+        },
+        "refill_methods": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name_key",
+              "time_cost_minutes",
+              "amount_ml",
+              "money_cost",
+              "available_from_stage"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name_key": {
+                "type": "string"
+              },
+              "time_cost_minutes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "amount_ml": {
+                "type": "number",
+                "minimum": 0
+              },
+              "money_cost": {
+                "type": "number",
+                "minimum": 0
+              },
+              "available_from_stage": {
+                "enum": [
+                  "stage_0",
+                  "stage_1A",
+                  "stage_1B",
+                  "stage_1C_debug",
+                  "stage_2",
+                  "stage_3"
+                ]
+              },
+              "requires_facility": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

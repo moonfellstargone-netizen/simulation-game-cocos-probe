@@ -1,0 +1,94 @@
+facility_definitions:
+  basic_stove:
+    facility_type: stove
+    allowed_actions:
+    - stir_fry
+    - boil
+    fuel_required: true
+    upgrade_to: repaired_stove
+  repaired_stove:
+    facility_type: stove
+    allowed_actions:
+    - stir_fry
+    - boil
+    - stew
+    fuel_required: true
+  basic_pot:
+    facility_type: cookware
+    allowed_actions:
+    - boil
+    - stew
+  pickling_jar_basic:
+    facility_type: processing_container
+    allowed_processes:
+    - pickling
+    upgrade_to: pickling_jar_large
+  pickling_jar_large:
+    facility_type: processing_container
+    allowed_processes:
+    - pickling
+  home_cellar_01:
+    facility_type: storage
+    location_id: home
+    storage_type: cellar
+    container_id: home_cellar_01
+    capacity_g: 20000
+    upgrade_to: home_cellar_02
+  home_cellar_02:
+    facility_type: storage
+    location_id: home
+    storage_type: cellar
+    container_id: home_cellar_02
+    capacity_g: 50000
+  water_tank_basic:
+    facility_type: water_storage
+    location_id: home
+    capacity_ml: 20000
+  home_well_basic:
+    facility_type: water_source
+    location_id: home
+    unlock_state: locked
+    available_from_stage: stage_2
+initial_facilities:
+- id: basic_stove
+  quality_tier: basic
+  durability_current: 80
+  durability_max: 100
+  definition_id: basic_stove
+  status: available
+  condition: worn
+  upgrade_level: 0
+- id: basic_pot
+  quality_tier: basic
+  durability_current: 75
+  durability_max: 100
+  definition_id: basic_pot
+  status: available
+  condition: worn
+  upgrade_level: 0
+- id: pickling_jar_basic_01
+  quality_tier: basic
+  capacity_g: 3000
+  definition_id: pickling_jar_basic
+  container_id: pickling_jar_basic_01
+  storage_type: pickling_jar
+  status: available
+  condition: worn
+  upgrade_level: 0
+- id: home_cellar_01
+  quality_tier: basic
+  capacity_g: 20000
+  definition_id: home_cellar_01
+  status: available
+  condition: worn
+  upgrade_level: 0
+  container_id: home_cellar_01
+  storage_type: cellar
+- id: water_tank_basic
+  quality_tier: basic
+  capacity_ml: 20000
+  definition_id: water_tank_basic
+  status: available
+  condition: worn
+  upgrade_level: 0
+  storage_type: water_storage

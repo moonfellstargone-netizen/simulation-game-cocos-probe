@@ -1,0 +1,41 @@
+id: pickling_cabbage_basic
+display_name_key: processing.pickling_cabbage_basic.name
+input_view_requirements:
+  - category: vegetable
+    allowed_base_ids: [cabbage]
+    allowed_forms: [fresh, cut]
+    min_freshness: 45
+  - base_id: salt
+    min_quantity_g: 8
+tool_requirements: [knife_basic]
+facility_requirements: [pickling_jar_basic]
+time_cost_minutes: 20
+process_duration_minutes: 2880
+environment_effects:
+  temperature_sensitive: true
+  cleanliness_sensitive: true
+property_transform_rules:
+  salt_ratio_target:
+    min: 0.025
+    ideal_min: 0.035
+    ideal_max: 0.055
+    max: 0.075
+  moisture_reduction_base: 18
+  fermentation_gain_base: 35
+  acidity_gain_base: 12
+  crunch_loss_base: 10
+defect_rules:
+  under_salted: {condition: salt_ratio < 0.025}
+  over_salted: {condition: salt_ratio > 0.075}
+  watery_pickled: {condition: moisture_after > 72}
+  risky_pickled: {condition: microbial_risk_after > 45 or cleanliness < 40}
+recovery_options:
+  under_salted: [add_salt_and_extend]
+  over_salted: [soak_before_cooking]
+  watery_pickled: [press_again]
+output_form_rules:
+  success_form: pickled
+  risky_form: pickled_risky
+event_log_rules:
+  started_key: event.processing.pickling.started
+  completed_key: event.processing.pickling.completed

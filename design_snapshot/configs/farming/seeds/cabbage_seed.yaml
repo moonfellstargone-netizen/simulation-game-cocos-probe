@@ -1,0 +1,26 @@
+id: cabbage_seed
+crop_base_id: cabbage_crop
+material_base_id: cabbage
+category: seed
+display_name_key: seed.cabbage.name
+base_unit: count
+forms:
+  dry_seed:
+    display_name_key: seed.cabbage.dry
+seed_defaults:
+  germination_rate: 0.92
+  seed_quality: normal
+  genetic_summary:
+    growth_tendency: normal
+    storage_tendency: normal
+    medicinal_tendency: low
+source_policy:
+  default_source: npc_trade
+  suggested_npc: sun_popo
+storage_footprint_rule:
+  base_quantity:
+    amount: 10
+    unit: count
+  footprint:
+    amount: 1
+    unit: slot_weight

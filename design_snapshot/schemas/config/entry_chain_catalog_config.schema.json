@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "entry_chain_catalog_config.schema.json",
+  "type": "object",
+  "required": [
+    "entry_chain_catalog_id",
+    "stage_id",
+    "registered_steps"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "entry_chain_catalog_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stage_id": {
+      "enum": [
+        "stage_1A",
+        "stage_1B",
+        "stage_1C_debug",
+        "stage_2",
+        "stage_3"
+      ]
+    },
+    "registered_steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "step_id",
+          "stage_id",
+          "description_key"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "step_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "stage_id": {
+            "enum": [
+              "stage_1A",
+              "stage_1B",
+              "stage_1C_debug",
+              "stage_2",
+              "stage_3"
+            ]
+          },
+          "description_key": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}
