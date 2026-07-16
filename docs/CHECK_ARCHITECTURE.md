@@ -1,10 +1,10 @@
-# CHECK_ARCHITECTURE — v0.0.2.25
+# CHECK_ARCHITECTURE — v0.0.2.26
 
-v0.0.2.25 / Project Map Auto Index & Traceability Lite 是项目地图轻量可追踪矩阵版，**不是业务架构修改版**。
+v0.0.2.26 / Quality Test Registry Closure 是检查体系测试登记闭合版，**不是业务架构修改版**。
 
 ## 1. 本轮检查目标
 
-本轮不推进业务功能，只建立 traceability 地基：`TRACEABILITY_MATRIX.md`、`traceability-map.json`、`test:traceability-contracts`，并在 `quality.config.json` 登记 `rules.traceabilityMap`。
+本轮不推进业务功能，只做检查体系测试登记闭合：把已存在的 `test:cocos-session` / `tests/cocos-runtime-session.test.ts` 正式登记进 `test-registry.json`（`test.cocos-session`，带 `full`+`blocker`），使 `q:full` 实际执行该任务，并在 `trace.cocos.session-viewmodel-port` 与 `TRACEABILITY_MATRIX.md` 闭合追踪链。traceability 地基（`traceability-map.json`、`test:traceability-contracts`、`quality.config.json` 的 `rules.traceabilityMap`）继续沿用。
 
 ## 2. traceability-contracts
 
@@ -42,7 +42,7 @@ cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affe
 
 ## 10. 后续路线（不是授权目标）
 
-Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.25 范围。traceability map 中 `planned` 条目**不是**当前实现。
+Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.26 范围。traceability map 中 `planned` 条目**不是**当前实现。
 
 ## 11. 固定检查短语
 

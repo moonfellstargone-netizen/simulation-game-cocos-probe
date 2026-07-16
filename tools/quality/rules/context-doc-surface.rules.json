@@ -62,6 +62,9 @@
         "project-map-contracts",
         "traceability-contracts",
         "traceability-map.json",
+        "test:cocos-session",
+        "test.cocos-session",
+        "test-registry",
         "GITHUB_WORKFLOW",
         "PROJECT_MAP",
         "q:affected",
@@ -140,12 +143,13 @@
       ]
     },
     "docs/IMPLEMENTATION_SCOPE.md": {
-      "why": "实现范围文档必须锁定 v0.0.2.25 只做 traceability 轻量追踪地基。",
+      "why": "实现范围文档必须锁定本轮只做检查体系测试登记闭合，不扩展玩法或平台接入；当前版本名以 project-target 动态派生，不再逐版硬编码。",
       "required": [
         "${codePackageVersion}",
         "${versionName}",
         "${chineseVersionName}",
-        "Project Map Auto Index & Traceability Lite",
+        "test:cocos-session",
+        "test.cocos-session",
         "traceability",
         "traceability-map.json",
         "TRACEABILITY_MATRIX",
@@ -208,6 +212,7 @@
         "不接 wx",
         "不接真实 Cocos",
         "traceability-map.json",
+        "test.cocos-session",
         "q:affected",
         "不可",
         "release 验收"

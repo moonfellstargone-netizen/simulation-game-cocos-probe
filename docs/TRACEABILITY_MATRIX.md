@@ -9,9 +9,9 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.25
+# TRACEABILITY_MATRIX — v0.0.2.26
 
-**Project Map Auto Index & Traceability Lite / 项目地图自动索引与轻量可追踪矩阵版**
+**Quality Test Registry Closure / 检查体系测试登记闭合版**
 
 ## 1. 定位
 
@@ -84,7 +84,7 @@ related:
 | 契约/系统 | Session / ViewModel / Port 访问 game-core |
 | 源码模块 | `cocos-app`, `game-core` |
 | 关键路径 | `src/cocos-app/runtime/CocosAppRuntimeSession.ts` |
-| 测试任务 | `test.cocos-adapter`（registry）；补充文件 `tests/cocos-runtime-session.test.ts` |
+| 测试任务 | `test.cocos-adapter`、`test.cocos-session`（均为 registry `full`+`blocker`；`test.cocos-session` 覆盖 `tests/cocos-runtime-session.test.ts`） |
 | 文档入口 | `docs/module-cards/cocos-app.md` |
 | gate | `full` |
 | 当前状态 | `active` |

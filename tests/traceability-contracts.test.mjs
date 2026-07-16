@@ -159,6 +159,32 @@ test('test.traceability-contracts is registered for full gate with governance ta
   assert.equal(typeof packageJson.scripts['test:traceability-contracts'], 'string');
 });
 
+test('trace.cocos.session-viewmodel-port closes over the cocos session test as a full/blocker registry task', () => {
+  const { traceabilityMap, registry } = loadTraceabilityContext();
+
+  const entry = traceabilityMap.entries.find((item) => item.id === 'trace.cocos.session-viewmodel-port');
+  assert.ok(entry, 'trace.cocos.session-viewmodel-port must exist');
+
+  const testRefs = entry.testRefs ?? [];
+  assert.ok(
+    testRefs.includes('test.cocos-session'),
+    `trace.cocos.session-viewmodel-port testRefs must at least include test.cocos-session (got ${JSON.stringify(testRefs)})`
+  );
+
+  const task = registry.tests['test.cocos-session'];
+  assert.ok(task, 'test.cocos-session must exist in test-registry');
+  assert.ok(task.tags?.includes('full'), 'test.cocos-session must carry the full tag so q:full executes it');
+  assert.ok(task.tags?.includes('blocker'), 'test.cocos-session must carry the blocker tag');
+  assert.ok(
+    (task.files ?? []).includes('tests/cocos-runtime-session.test.ts'),
+    'test.cocos-session.files must include tests/cocos-runtime-session.test.ts'
+  );
+  assert.ok(
+    (task.args ?? []).includes('tests/cocos-runtime-session.test.ts'),
+    'test.cocos-session command args must actually cover tests/cocos-runtime-session.test.ts'
+  );
+});
+
 test('q:affected is not represented as release authority in traceability entries', () => {
   const { traceabilityMap } = loadTraceabilityContext();
   const affectedEntry = traceabilityMap.entries.find(

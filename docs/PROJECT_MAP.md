@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.25
+﻿# PROJECT_MAP — v0.0.2.26
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.25：**Project Map Auto Index & Traceability Lite**。在上一版项目地图与 version surface 基础上，建立轻量可追踪矩阵（`TRACEABILITY_MATRIX` + `traceability-map.json`）；**不改业务逻辑**。
+v0.0.2.26：**Quality Test Registry Closure**。在上一版轻量可追踪矩阵基础上，把 `test:cocos-session` / `tests/cocos-runtime-session.test.ts` 登记进 `test-registry`（`test.cocos-session`）、`q:full` 与 `trace.cocos.session-viewmodel-port`，完成检查体系测试登记闭合；**不改业务逻辑**。
 
 ## 3. 权威边界
 

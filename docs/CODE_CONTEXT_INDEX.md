@@ -1,6 +1,6 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.2.25
+﻿# CODE_CONTEXT_INDEX — v0.0.2.26
 
-版本：v0.0.2.25 / Project Map Auto Index & Traceability Lite。
+版本：v0.0.2.26 / Quality Test Registry Closure / 检查体系测试登记闭合版。
 
 ## 执行前必读顺序
 
@@ -30,8 +30,9 @@
 
 后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包；代码包不保存每轮具体任务上下文；代码包只保存执行端上下文治理约束。
 
-## v0.0.2.25 测试索引
+## v0.0.2.26 测试索引
 
+- `tests/cocos-runtime-session.test.ts`（`test:cocos-session` / registry `test.cocos-session`）
 - `tests/traceability-contracts.test.mjs`
 - `tests/project-map-contracts.test.mjs`
 - `tests/context-governance-contracts.test.mjs`

@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.25
+﻿# Code Index — Files — v0.0.2.26
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -32,4 +32,5 @@
 | `tools/build_release_package.py` | release-tools | 打包 | release | `release:build` |
 | `tools/check_release_zip.py` | release-tools | zip 复验 | release | `release:check` |
 | `tests/traceability-contracts.test.mjs` | tests | traceability 契约 | 改 map/docs | `test:traceability-contracts` |
+| `tests/cocos-runtime-session.test.ts` | tests | Session / ViewModel / SaveStoragePort / ActionPipeline 边界（registry `test.cocos-session`） | 改 Cocos app Session 边界 | `test:cocos-session` |
 | `tests/**` | tests | 契约与回归 | 改代码/文档 | `q:full` |

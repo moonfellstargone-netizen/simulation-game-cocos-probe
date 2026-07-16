@@ -1,4 +1,4 @@
-﻿# Quality Map — v0.0.2.25
+﻿# Quality Map — v0.0.2.26
 
 ## 系统职责
 
@@ -28,6 +28,7 @@
 - `tests/quality-affected-policy-hardening.test.mjs`
 - `tests/version-surface-contracts.test.mjs`
 - `tests/context-governance-contracts.test.mjs`
+- `tests/cocos-runtime-session.test.ts`（registry `test.cocos-session`：Session/ViewModel/SaveStoragePort 边界，登记闭合进 `q:full`）
 
 ## 修改前必读
 
