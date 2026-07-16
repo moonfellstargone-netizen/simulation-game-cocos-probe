@@ -1,6 +1,6 @@
 {
   "schemaVersion": "traceability-lite/v1",
-  "projectVersion": "v0.0.2.25",
+  "projectVersion": "v0.0.2.26",
   "currentFullReleaseTraceIds": [
     "trace.stage1a.actionpipeline",
     "trace.stage1a.save-load",
@@ -76,7 +76,7 @@
         "src/cocos-app/runtime/CocosAppRuntimeSession.ts",
         "src/cocos-app/adapters/CocosRuntimeFacade.ts"
       ],
-      "testRefs": ["test.cocos-adapter"],
+      "testRefs": ["test.cocos-adapter", "test.cocos-session"],
       "docRefs": ["docs/module-cards/cocos-app.md"],
       "gateRefs": ["full"],
       "designRefs": ["docs/module_contracts/CocosAppRuntimeSession.contract.md"]

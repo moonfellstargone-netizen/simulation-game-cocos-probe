@@ -32,7 +32,10 @@ QUALITY_REPORT_DIR = 'reports/quality'
 DEFAULT_PROJECT_TARGET_PATH = 'tools/quality/rules/project-target.json'
 DEFAULT_SOURCE_ROOT = '.'
 DEFAULT_KIND = 'code'
-# release-surface marker (non-authoritative): 模拟游戏_Cocos微信试水代码包_v0_0_2_25 / 模拟游戏_Cocos微信试水代码包_v0_0_2_25.zip
+# Release root and zip names are derived from project-target.json (release.root / release.zip);
+# no versioned default root is assigned in code here.
+# release-surface marker (non-authoritative, must mirror project-target release root/zip):
+#   模拟游戏_Cocos微信试水代码包_v0_0_2_26 / 模拟游戏_Cocos微信试水代码包_v0_0_2_26.zip
 
 
 def load_project_target(path: Path) -> dict:

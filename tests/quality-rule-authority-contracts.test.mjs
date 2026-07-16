@@ -27,10 +27,10 @@ const runtimeFiles = readdirSync(join(root, 'tools/quality/plugin-runtime'))
   .map((name) => `tools/quality/plugin-runtime/${name}`);
 
 test('project target and context doc rules are the rule authority source', () => {
-  assert.equal(projectTarget.version.codePackageVersion, 'v0.0.2.25');
-  assert.equal(projectTarget.version.npmVersion, '0.0.2-25');
-  assert.equal(projectTarget.version.qualityMetadataVersion, '0.0.2.25');
-  assert.equal(projectTarget.release.root, '模拟游戏_Cocos微信试水代码包_v0_0_2_25');
+  assert.equal(projectTarget.version.codePackageVersion, 'v0.0.2.26');
+  assert.equal(projectTarget.version.npmVersion, '0.0.2-26');
+  assert.equal(projectTarget.version.qualityMetadataVersion, '0.0.2.26');
+  assert.equal(projectTarget.release.root, '模拟游戏_Cocos微信试水代码包_v0_0_2_26');
   assert.equal(projectTarget.design.designPackVersion, 'v1.5.2.2');
   assert.ok(staleMarkers.includes(projectTarget.previous.codePackageVersion));
   assert.ok(staleMarkers.includes(projectTarget.previous.releaseRoot));
@@ -43,8 +43,8 @@ test('quality rule loader expands variables from project target', () => {
   const context = loadQualityRuleContext(root, findings);
   assert.deepEqual(findings, []);
   const readmeRules = context.contextDocSurfaceRules.files['README.md'];
-  assert.ok(readmeRules.required.includes('v0.0.2.25'));
-  assert.ok(readmeRules.required.includes('Project Map Auto Index & Traceability Lite'));
+  assert.ok(readmeRules.required.includes('v0.0.2.26'));
+  assert.ok(readmeRules.required.includes('Quality Test Registry Closure'));
   assert.ok(readmeRules.forbiddenCurrent.includes(projectTarget.previous.codePackageVersion));
   assert.equal(context.architectureBoundaryRules.defaultMode, 'shadow');
   assert.ok(context.architectureBoundaryRules.rules.importBoundaries.some((rule) => rule.mode === 'authoritative'));

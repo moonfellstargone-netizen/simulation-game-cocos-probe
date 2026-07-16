@@ -7,7 +7,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # v0.0.2.22 起，中风险 token/state-leak 架构边界规则进入 architecture-boundary shadow_aligned 双跑对齐。
 # legacy validator 仍保留核心游戏架构红线和兼容入口。
-# 本轮 Project Map Auto Index & Traceability Lite 只做轻量 traceability 地基，不删除高风险红线。
+# 本轮为检查体系测试登记闭合（Quality Test Registry Closure）：把 test:cocos-session /
+# tests/cocos-runtime-session.test.ts 纳入 test-registry、q:full 与 traceability 闭合，
+# 只做版本面传播与最小同步，不删除高风险红线，也不改动业务架构语义。
+# 当前版本名从 project-target.json 动态派生，不再逐版硬编码。
 
 FORBIDDEN_TASK_CONTEXT_FILES = [
     'docs/CURRENT_TASK_CONTEXT.md',
@@ -430,6 +433,8 @@ if 'tools/check_release_zip.py' not in package_json['scripts']['release:check'] 
 project_target = json.loads((ROOT / 'tools/quality/rules/project-target.json').read_text(encoding='utf-8'))
 expected_npm_version = project_target['version']['npmVersion']
 expected_code_version = project_target['version']['codePackageVersion']
+expected_version_name = project_target['version']['versionName']
+expected_chinese_version_name = project_target['version']['chineseVersionName']
 if package_json.get('version') != expected_npm_version:
     print(f"package.json version must encode code package {expected_code_version}, got {package_json.get('version')}")
     sys.exit(1)
@@ -461,6 +466,12 @@ for required_phrase in ['authoritative', 'shadow', 'importBoundaries', 'tokenBou
         print(f'architecture-boundary rule source missing required token: {required_phrase}')
         sys.exit(1)
 
+cocos_session_registration_surface = quality_registry_text + json.dumps(package_json.get('scripts', {}), ensure_ascii=False)
+for required_phrase in ['test.cocos-session', 'test:cocos-session', 'tests/cocos-runtime-session.test.ts']:
+    if required_phrase not in cocos_session_registration_surface:
+        print(f'cocos session test registry closure missing: {required_phrase}')
+        sys.exit(1)
+
 source_design_text = (ROOT / 'design_snapshot/SOURCE_DESIGN_PACK.txt').read_text(encoding='utf-8')
 if f"code_package_version: {expected_code_version}" not in source_design_text:
     print(f'design_snapshot/SOURCE_DESIGN_PACK.txt must declare code_package_version: {expected_code_version}')
@@ -468,7 +479,7 @@ if f"code_package_version: {expected_code_version}" not in source_design_text:
 for rel in ['README.md', 'docs/ARCHITECTURE.md', 'docs/IMPLEMENTATION_SCOPE.md', 'docs/SOURCE_DESIGN_PACK.md', 'design_snapshot/SOURCE_DESIGN_PACK.txt', 'src/cocos-app/README.md']:
     text = (ROOT / rel).read_text(encoding='utf-8')
     old_marker_patterns = []
-    for patch in range(0, 24):
+    for patch in range(0, 26):
         old_marker_patterns.extend([
             rf'v0\.0\.2\.{patch}(?![0-9])',
             rf'v0_0_2_{patch}(?![0-9])',
@@ -481,8 +492,8 @@ for rel in ['README.md', 'docs/ARCHITECTURE.md', 'docs/IMPLEMENTATION_SCOPE.md',
 
 current_scope_requirements = {
     'README.md': [
-        'Project Map Auto Index & Traceability Lite',
-        '项目地图自动索引与轻量可追踪矩阵版',
+        expected_version_name,
+        expected_chinese_version_name,
         'traceability',
         'TRACEABILITY_MATRIX',
         'traceability-map.json',
@@ -503,8 +514,8 @@ current_scope_requirements = {
         'test:traceability-contracts',
     ],
     'docs/IMPLEMENTATION_SCOPE.md': [
-        'Project Map Auto Index & Traceability Lite',
-        '项目地图自动索引与轻量可追踪矩阵版',
+        expected_version_name,
+        expected_chinese_version_name,
         'traceability',
         'traceability-map.json',
         'TRACEABILITY_MATRIX',
@@ -558,7 +569,7 @@ current_scope_requirements = {
         'Scope Discovery',
     ],
     'docs/CHECK_ARCHITECTURE.md': [
-        'Project Map Auto Index & Traceability Lite',
+        expected_version_name,
         'traceability',
         'traceability-map.json',
         'traceability-contracts',
@@ -665,7 +676,7 @@ for required_phrase in [
         sys.exit(1)
 
 context_test_text = (ROOT / 'tests/context-governance-contracts.test.mjs').read_text(encoding='utf-8')
-for required_phrase in ['CODE_CONTEXT_INDEX', 'ADR', 'module contracts', 'CocosUiShellController', 'CocosUiShellCommandQueue', 'CocosUiShellSnapshotDiff', 'CocosSceneBindingController', 'CocosSceneBindingPort', 'CocosComponentNodeBindingPort', 'QinglanUiSceneProbeComponent', expected_npm_version, 'Task Intent Lock', '后续建议不是授权目标', '外部执行指令', 'tests/context-governance-contracts.test.mjs', 'Project Map Auto Index & Traceability Lite', 'test:traceability-contracts']:
+for required_phrase in ['CODE_CONTEXT_INDEX', 'ADR', 'module contracts', 'CocosUiShellController', 'CocosUiShellCommandQueue', 'CocosUiShellSnapshotDiff', 'CocosSceneBindingController', 'CocosSceneBindingPort', 'CocosComponentNodeBindingPort', 'QinglanUiSceneProbeComponent', expected_npm_version, 'Task Intent Lock', '后续建议不是授权目标', '外部执行指令', 'tests/context-governance-contracts.test.mjs', expected_version_name, 'test:traceability-contracts']:
     if required_phrase not in context_test_text:
         print(f'context-governance-contracts.test.mjs missing required governance assertion token: {required_phrase}')
         sys.exit(1)
@@ -673,7 +684,7 @@ for required_phrase in ['CODE_CONTEXT_INDEX', 'ADR', 'module contracts', 'CocosU
 
 
 escaped_old_marker_patterns = []
-for patch in range(0, 24):
+for patch in range(0, 26):
     escaped_old_marker_patterns.extend([
         rf'v0\\\.0\\\.2\\\.{patch}(?![0-9])',
         rf'0\\\.0\\\.2-{patch}(?![0-9])',

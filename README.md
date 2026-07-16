@@ -1,12 +1,12 @@
-# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.25
+# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.26
 
-**Project Map Auto Index & Traceability Lite / 项目地图自动索引与轻量可追踪矩阵版**
+**Quality Test Registry Closure / 检查体系测试登记闭合版**
 
 本仓库是 Cocos 微信试水代码项目**日常代码权威源**。正式玩法与契约权威仍为正式三包 v1.5.2.2。
 
-- 代码包版本：`v0.0.2.25`
-- npm package version：`0.0.2-25`
-- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_25`（权威源：`tools/quality/rules/project-target.json`）
+- 代码包版本：`v0.0.2.26`
+- npm package version：`0.0.2-26`
+- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_26`（权威源：`tools/quality/rules/project-target.json`）
 - 设计来源：`模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip`
 - 规则权威源：`tools/quality/rules/project-target.json`、`tools/quality/rules/context-doc-surface.rules.json`、`tools/quality/rules/architecture-boundary.rules.json`、`tools/quality/rules/traceability-map.json`
 - 代码权威：本 GitHub 仓库（非 zip 归档包）
@@ -22,7 +22,7 @@
 
 ## Task Intent Lock
 
-本轮唯一目标是建立轻量 traceability 地基：`TRACEABILITY_MATRIX`、`traceability-map.json` 与 `traceability-contracts`，使 Stage 1A / Cocos probe / quality / release 核心链路能在模块、源码、测试、文档与 gate 之间互相追踪。
+本轮唯一目标是检查体系测试登记闭合：把已存在的 `test:cocos-session` / `tests/cocos-runtime-session.test.ts` 正式纳入 `test-registry`（`test.cocos-session`，带 `full`+`blocker`）、`q:full` 检查链与 `trace.cocos.session-viewmodel-port`，完成轻量 traceability 与防回退契约闭合。本轮只做该目标必需的版本面传播与最小同步。
 
 本轮明确不进入 Stage 1B，不接真实 Cocos，不接 wx storage，不新增玩法，不新增 formal action，不修改 ActionPipeline，不修改 SaveFile，不修改正式 fixture，不做 Nightly 实装，不做完整 AST/symbol 自动索引。
 

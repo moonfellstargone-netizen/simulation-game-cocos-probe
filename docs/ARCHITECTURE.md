@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.25
+﻿# ARCHITECTURE — v0.0.2.26
 
-当前版本：v0.0.2.25 / Project Map Auto Index & Traceability Lite。业务架构边界与上一版一致，本轮不改变 ActionPipeline、SaveFile 或 fixture。
+当前版本：v0.0.2.26 / Quality Test Registry Closure。业务架构边界与上一版一致，本轮不改变 ActionPipeline、SaveFile 或 fixture。
 
 ## 1. 业务架构不变
 

@@ -42,6 +42,7 @@ source_of_truth: false
 - `tests/quality-gate-contracts.test.mjs`
 - `tests/quality-affected-policy-hardening.test.mjs`
 - `tests/version-surface-contracts.test.mjs`
+- `tests/cocos-runtime-session.test.ts`（registry `test.cocos-session`：`test:cocos-session` 登记闭合进 `q:full`，`trace.cocos.session-viewmodel-port` 追踪）
 
 ## 修改前必须读取
 

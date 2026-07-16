@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.25
+﻿# Code Index — Public API — v0.0.2.26
 
 只记录公开入口与关键流程（非完整符号索引）。
 

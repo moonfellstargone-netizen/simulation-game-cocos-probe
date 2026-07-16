@@ -1,10 +1,10 @@
-# IMPLEMENTATION_SCOPE — v0.0.2.25
+# IMPLEMENTATION_SCOPE — v0.0.2.26
 
-版本：v0.0.2.25 / Project Map Auto Index & Traceability Lite / 项目地图自动索引与轻量可追踪矩阵版。
+版本：v0.0.2.26 / Quality Test Registry Closure / 检查体系测试登记闭合版。
 
 ## 本轮范围
 
-本轮只做 Project Map Auto Index & Traceability Lite：新增 `docs/TRACEABILITY_MATRIX.md`、`tools/quality/rules/traceability-map.json`、`tests/traceability-contracts.test.mjs`，登记 `test:traceability-contracts`，并在 `quality.config.json` 配置 `rules.traceabilityMap` 与 `project-target.json` 版本传播；同步项目地图、code-index、module-card 与文档。
+本轮只做检查体系测试登记闭合：把已存在的 `test:cocos-session` / `tests/cocos-runtime-session.test.ts` 正式登记进 `tools/quality/test-registry.json`（新增 `test.cocos-session`，带 `full`+`blocker`），使 `q:full` 实际执行该任务，并在 `tools/quality/rules/traceability-map.json` 的 `trace.cocos.session-viewmodel-port` 与 `docs/TRACEABILITY_MATRIX.md` 之间闭合 traceability 追踪链；`tests/traceability-contracts.test.mjs` 增加轻量防回退契约。其余为该目标必需的 `project-target.json` 版本面传播与项目地图、code-index、module-card、文档最小同步。
 
 ## 明确不做
 
@@ -16,7 +16,7 @@ q:affected 不替代 q:full，不替代 q:release。release gate 禁止 cache。
 
 ## 正式包来源
 
-本轮仍基于正式包 v1.5.2.2。v0.0.2.25 是文档治理与质量追踪地基，不改变正式包设定。
+本轮仍基于正式包 v1.5.2.2。v0.0.2.26 是检查体系测试登记闭合，不改变正式包设定。
 
 ## module_contracts 保留
 
