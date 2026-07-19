@@ -1,8 +1,9 @@
-﻿# Code Index — Files — v0.0.2.26
+﻿# Code Index — Files — v0.0.2.27
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
 | `README.md` | docs | 仓库入口、Task Intent Lock | 每轮开始 | `quality:contextDocSurface` |
+| `.github/workflows/quality-gate.yml` | quality-tools | GitHub Actions 远端 PR/main `q:full` 门禁（仓库治理，非业务） | 改 CI / 门禁边界 | `test:github-actions-workflow-contracts` |
 | `package.json` | config | 版本与 scripts | 每轮开始 | `quality:version` |
 | `docs/CODE_CONTEXT_INDEX.md` | docs | 必读顺序、预检要求 | 执行前 | `test:context-governance` |
 | `docs/CHECK_ARCHITECTURE.md` | docs | 门禁与 affected 边界 | 改 quality/docs | `q:full` |
@@ -32,5 +33,6 @@
 | `tools/build_release_package.py` | release-tools | 打包 | release | `release:build` |
 | `tools/check_release_zip.py` | release-tools | zip 复验 | release | `release:check` |
 | `tests/traceability-contracts.test.mjs` | tests | traceability 契约 | 改 map/docs | `test:traceability-contracts` |
+| `tests/github-actions-workflow-contracts.test.mjs` | tests | GitHub Actions workflow 契约（触发/Node/权限/q:full） | 改 workflow | `test:github-actions-workflow-contracts` |
 | `tests/cocos-runtime-session.test.ts` | tests | Session / ViewModel / SaveStoragePort / ActionPipeline 边界（registry `test.cocos-session`） | 改 Cocos app Session 边界 | `test:cocos-session` |
 | `tests/**` | tests | 契约与回归 | 改代码/文档 | `q:full` |

@@ -1,6 +1,6 @@
 {
-  "version": "v0.0.2.26",
-  "description": "Architecture boundary rules remain active for v0.0.2.26 quality test registry closure work. Low-risk import/path ownership rules remain authoritative; token/state-leak rules stay shadow_aligned/shadow until later authority migration.",
+  "version": "v0.0.2.27",
+  "description": "Architecture boundary rules remain active for v0.0.2.27 PR CI quality gate baseline work. Low-risk import/path ownership rules remain authoritative; token/state-leak rules stay shadow_aligned/shadow until later authority migration.",
   "ruleTypes": [
     "importBoundaries",
     "tokenBoundaries",

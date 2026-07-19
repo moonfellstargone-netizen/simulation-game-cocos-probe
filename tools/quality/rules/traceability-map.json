@@ -1,6 +1,6 @@
 {
   "schemaVersion": "traceability-lite/v1",
-  "projectVersion": "v0.0.2.26",
+  "projectVersion": "v0.0.2.27",
   "currentFullReleaseTraceIds": [
     "trace.stage1a.actionpipeline",
     "trace.stage1a.save-load",
@@ -9,6 +9,7 @@
     "trace.cocos.creator-adapter-probe",
     "trace.quality.version-surface",
     "trace.quality.affected-full-release-boundary",
+    "trace.quality.github-actions-pr-gate",
     "trace.release.zip-hygiene"
   ],
   "entries": [
@@ -138,6 +139,36 @@
         "docs/GITHUB_WORKFLOW.md"
       ],
       "gateRefs": ["affected", "full", "release"]
+    },
+    {
+      "id": "trace.quality.github-actions-pr-gate",
+      "status": "active",
+      "stage": "quality",
+      "riskLevel": "medium",
+      "moduleRefs": [
+        "tools",
+        "tests",
+        "docs"
+      ],
+      "sourceRefs": [
+        ".github/workflows/quality-gate.yml",
+        "tests/github-actions-workflow-contracts.test.mjs",
+        "tools/quality/test-registry.json"
+      ],
+      "testRefs": [
+        "test.github-actions-workflow-contracts"
+      ],
+      "docRefs": [
+        "docs/GITHUB_WORKFLOW.md",
+        "docs/maps/quality-map.md",
+        "docs/module-cards/quality-tools.md"
+      ],
+      "gateRefs": [
+        "full"
+      ],
+      "designRefs": [
+        "docs/CHECK_ARCHITECTURE.md"
+      ]
     },
     {
       "id": "trace.release.zip-hygiene",

@@ -1,13 +1,13 @@
 source_design_pack: 模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip
 design_pack_version: v1.5.2.2
-code_package_version: v0.0.2.26
-code_package_npm_version: 0.0.2-26
-code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_26
-version_name: Quality Test Registry Closure
-chinese_version_name: 检查体系测试登记闭合版
-scope: quality test registry closure only; register test:cocos-session into test-registry, q:full and traceability; no gameplay expansion, no Stage 1B, no real Cocos, no wx storage.
+code_package_version: v0.0.2.27
+code_package_npm_version: 0.0.2-27
+code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_27
+version_name: Pull Request CI Quality Gate Baseline
+chinese_version_name: PR 远端质量门禁基线版
+scope: PR CI quality gate baseline only; add GitHub Actions remote q:full for PR/main; workflow contracts; no gameplay expansion, no Stage 1B, no real Cocos, no wx storage.
 
 formal_source_statement: 正式包 v1.5.2.2 remains authoritative
-context_statement: 代码包内部检查体系治理；本轮为检查体系测试登记闭合
-quality_surface: traceability-map.json, TRACEABILITY_MATRIX, traceability-contracts, test.cocos-session registry closure, project-target authority, q:affected, cache probe, authoritative rules
+context_statement: 代码包内部检查体系治理；本轮为 PR 远端质量门禁基线
+quality_surface: quality-gate.yml, github-actions-workflow-contracts, traceability-map.json, TRACEABILITY_MATRIX, project-target authority, q:affected, cache probe, authoritative rules
 authority_statement: design pack remains authoritative; GitHub repo is daily code authority

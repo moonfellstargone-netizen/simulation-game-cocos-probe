@@ -9,9 +9,9 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.26
+# TRACEABILITY_MATRIX — v0.0.2.27
 
-**Quality Test Registry Closure / 检查体系测试登记闭合版**
+**Pull Request CI Quality Gate Baseline / PR 远端质量门禁基线版**
 
 ## 1. 定位
 
@@ -124,6 +124,19 @@ related:
 | 文档入口 | `docs/CHECK_ARCHITECTURE.md`, `docs/GITHUB_WORKFLOW.md` |
 | gate | `affected`, `full`, `release`（affected **非** release 权威） |
 | 当前状态 | `active` |
+
+### trace.quality.github-actions-pr-gate
+
+| 维度 | 内容 |
+|---|---|
+| 契约/系统 | GitHub Actions 远端 PR/main 质量门禁：仅执行 `q:full` |
+| 源码模块 | `tools`, `tests`, `docs` |
+| 关键路径 | `.github/workflows/quality-gate.yml`, `tests/github-actions-workflow-contracts.test.mjs` |
+| 测试任务 | `test.github-actions-workflow-contracts` |
+| 文档入口 | `docs/GITHUB_WORKFLOW.md`, `docs/maps/quality-map.md`, `docs/module-cards/quality-tools.md` |
+| gate | `full` |
+| 当前状态 | `active` |
+| 边界说明 | workflow **只**执行 `npm run q:full`；`q:affected` **不是** PR 正式门禁；PR 检出 `github.event.pull_request.head.sha`；main push / `workflow_dispatch` 使用 `github.sha`；workflow 顶层权限为 `contents: read`（无 write）；远端真实运行成功前**不得**宣称远端验收完成；本条目**不**配置 branch protection |
 
 ### trace.release.zip-hygiene
 

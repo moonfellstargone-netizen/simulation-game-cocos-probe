@@ -1,4 +1,4 @@
-﻿# GITHUB_WORKFLOW — v0.0.2.26
+﻿# GITHUB_WORKFLOW — v0.0.2.27
 
 GitHub 工作流与 Cursor 执行约束。
 
@@ -85,14 +85,62 @@ L5 源码与测试（src/** / tests/**）
 - `q:release`：出包前全量 + release build/check
 - release gate **禁止 cache**
 
-## 10. 日志包、zip、reports、cache 禁入仓库
+## 10. GitHub Actions 远端质量门禁（v0.0.2.27）
+
+工作流文件：[`.github/workflows/quality-gate.yml`](../.github/workflows/quality-gate.yml)。
+
+### 10.1 触发条件
+
+| 触发 | 说明 |
+|---|---|
+| `pull_request` → `main` | 面向 main 的 PR 自动跑远端 `q:full` |
+| `push` → `main` | main 推送自动跑远端 `q:full` |
+| `workflow_dispatch` | 手动触发同一门禁 |
+
+### 10.2 PR head commit 选择
+
+- PR 事件检出：`github.event.pull_request.head.sha`（PR head，不是 merge commit）
+- `push` / `workflow_dispatch` 检出：`github.sha`
+- checkout 后用 `git rev-parse HEAD` 与期望 SHA 比对，防止检错提交
+
+### 10.3 权限与并发
+
+- 顶层 `permissions.contents: read`（无 write；不授予 contents 写权限）
+- `concurrency.cancel-in-progress: true`，同 PR / 同 ref 的旧 run 可被取消
+
+### 10.4 远端执行内容
+
+远端 job 在干净环境执行：
+
+1. `npm ci`（锁定依赖）
+2. `npm run q:full`（正式完整检查）
+
+Node 版本：`20`。workflow **不**单独再跑 `arch:check`（`q:full` 已包含架构检查链）。
+
+### 10.5 本地 vs 远端验收边界
+
+| 场景 | 权威命令 | 说明 |
+|---|---|---|
+| 本地开发反馈 | `q:affected` | **不**替代正式门禁 |
+| 本地 / 远端完整验收 | `q:full` | 远端 CI 只跑此项 |
+| 本地 release 出包 | `q:release` + `release:build` / `release:check` | **不**由本 workflow 自动执行 |
+
+本轮**不**配置 branch protection，**不**自动 release / tag / merge。
+
+### 10.6 远端运行证据
+
+在 GitHub Actions 上针对目标 commit 的真实成功 run 出现之前，**不得**宣称“远端验收完成”。本地 `q:full` 通过只证明本地；远端完成须有对应 workflow run 证据。
+
+防回退契约：`npm run test:github-actions-workflow-contracts`（registry：`test.github-actions-workflow-contracts`）。
+
+## 11. 日志包、zip、reports、cache 禁入仓库
 
 禁止把开发日志包、临时 reports、`.cache/quality` 产物当作代码权威或提交进 release zip。
 
-## 11. 冲突处理
+## 12. 冲突处理
 
 指导与仓库、正式三包、流程权威冲突时，**不得自行选边**，必须停止并报告，由用户 / GPT 确认。
 
-## 12. Cursor 执行门禁
+## 13. Cursor 执行门禁
 
 Cursor 执行方必须先输出预检报告，用户或 GPT 确认后才可修改文件。**不得**跳过预检直接执行。

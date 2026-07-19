@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.26
+﻿# PROJECT_MAP — v0.0.2.27
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.26：**Quality Test Registry Closure**。在上一版轻量可追踪矩阵基础上，把 `test:cocos-session` / `tests/cocos-runtime-session.test.ts` 登记进 `test-registry`（`test.cocos-session`）、`q:full` 与 `trace.cocos.session-viewmodel-port`，完成检查体系测试登记闭合；**不改业务逻辑**。
+v0.0.2.27：**Pull Request CI Quality Gate Baseline**。在不改业务源码、不改 full/release gate 语义的前提下，为面向 `main` 的 PR 与 `main` 推送建立 GitHub Actions 远端质量门禁（`.github/workflows/quality-gate.yml` → `npm ci` + `npm run q:full`），并以 workflow 契约测试防回退；**不**配置 branch protection，**不**自动 release/tag/merge；仍仅 Stage 1A。
 
 ## 3. 权威边界
 
@@ -25,6 +25,7 @@ v0.0.2.26：**Quality Test Registry Closure**。在上一版轻量可追踪矩�
 | `src/game-core/` | 核心逻辑，ActionPipeline 唯一正式状态入口 |
 | `src/cocos-app/` | Cocos 应用适配，Session / ViewModel |
 | `src/cocos-creator-adapter/` | engine-neutral 探针，非真实 Cocos 工程 |
+| `.github/workflows/` | 仓库治理：远端 PR/main 质量门禁（非业务代码） |
 | `tools/quality/` | 质量门禁与 affected 策略 |
 | `tools/quality/rules/traceability-map.json` | 机器可读轻量追踪矩阵 |
 | `tools/build_release_package.py` | release 打包 |
@@ -48,6 +49,7 @@ v0.0.2.26：**Quality Test Registry Closure**。在上一版轻量可追踪矩�
 - 模块边界 → `docs/module-cards/*`
 - 路径与 API → `docs/code-index/*`
 - 轻量追踪 → [`TRACEABILITY_MATRIX.md`](TRACEABILITY_MATRIX.md) + `tools/quality/rules/traceability-map.json`
+- 远端质量门禁 → [`.github/workflows/quality-gate.yml`](../.github/workflows/quality-gate.yml) + [`maps/quality-map.md`](maps/quality-map.md) + `tests/github-actions-workflow-contracts.test.mjs`
 - 遗留模块契约（上下文治理）→ `docs/module_contracts/*`（**保留**，不是新版 module-card 主入口）
 
 ## 7. 修改代码时同步哪些地图
@@ -57,11 +59,12 @@ v0.0.2.26：**Quality Test Registry Closure**。在上一版轻量可追踪矩�
 | 新模块 / 目录 | module-card、domain-map、files.md、traceability active entry |
 | 公开 API | public-api.md、相关 module-card |
 | 质量 / 门禁 | quality-map、test-registry、traceability-map |
+| GitHub Actions workflow / 触发 / 权限 / 正式检查命令 | `GITHUB_WORKFLOW.md`、quality-map、quality-tools module-card、`test:github-actions-workflow-contracts`、files.md |
 | 版本 bump | README、project-target、CODE_CONTEXT_INDEX、TRACEABILITY_MATRIX |
 | 仅内部 refactor | 若路径不变可不动地图；路径变必须更新索引与 traceability |
 
 ## 8. 与其他文档关系
 
-- [`GITHUB_WORKFLOW.md`](GITHUB_WORKFLOW.md)：分支、PR、预检、Scope Discovery
+- [`GITHUB_WORKFLOW.md`](GITHUB_WORKFLOW.md)：分支、PR、预检、Scope Discovery、远端 CI 边界
 - [`DOCS_GOVERNANCE.md`](DOCS_GOVERNANCE.md)：文档状态、DoR/DoD、PR 责任
 - [`GLOSSARY.md`](GLOSSARY.md)：术语，防止 zip / 日志包 / q:affected 混淆

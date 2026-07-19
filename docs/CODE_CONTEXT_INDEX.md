@@ -1,6 +1,6 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.2.26
+﻿# CODE_CONTEXT_INDEX — v0.0.2.27
 
-版本：v0.0.2.26 / Quality Test Registry Closure / 检查体系测试登记闭合版。
+版本：v0.0.2.27 / Pull Request CI Quality Gate Baseline / PR 远端质量门禁基线版。
 
 ## 执行前必读顺序
 
@@ -20,7 +20,8 @@
 14. `tools/quality/test-registry.json`
 15. `tools/quality/gate-policy.json`
 16. `tools/quality/rules/traceability-map.json`
-17. 本轮 Scope Discovery 指定的 module-cards / maps / code-index
+17. `.github/workflows/quality-gate.yml`（本轮远端门禁）
+18. 本轮 Scope Discovery 指定的 module-cards / maps / code-index
 
 ## 预检报告必须包含
 
@@ -30,8 +31,9 @@
 
 后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包；代码包不保存每轮具体任务上下文；代码包只保存执行端上下文治理约束。
 
-## v0.0.2.26 测试索引
+## v0.0.2.27 测试索引
 
+- `tests/github-actions-workflow-contracts.test.mjs`（`test:github-actions-workflow-contracts` / registry `test.github-actions-workflow-contracts`）
 - `tests/cocos-runtime-session.test.ts`（`test:cocos-session` / registry `test.cocos-session`）
 - `tests/traceability-contracts.test.mjs`
 - `tests/project-map-contracts.test.mjs`
@@ -52,11 +54,13 @@ release zip 仍检查 UTF-8 metadata 与 mojibake 路径，并排除 `reports/qu
 - `q:affected`
 - `q:full`
 - `q:release`
+- `test:github-actions-workflow-contracts`
 - `test:traceability-contracts`
 - `test:project-map-contracts`
 - `traceability-map.json`
 - `context-doc-surface.rules.json`
 - `project-target.json`
+- `.github/workflows/quality-gate.yml`
 
 ## 遗留 module_contracts 说明
 
