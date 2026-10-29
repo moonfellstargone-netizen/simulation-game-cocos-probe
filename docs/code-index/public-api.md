@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.26
+﻿# Code Index — Public API — v0.0.2.27
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -34,6 +34,14 @@
 - CLI：`npm run q:fast` / `q:affected` / `q:full` / `q:release`
 - 实现：`tools/quality/run-quality-gate.mjs`（本轮不改核心逻辑）
 - 配置：`tools/quality/gate-policy.json`、`tools/quality/test-registry.json`、`tools/quality/quality.config.json`
+
+## PR CI 入口（非业务 API）
+
+- 工作流：`.github/workflows/quality.yml`（PR 到 main，另有 workflow_dispatch）
+- 执行：Ubuntu 24.04、Node 24、Python 3.12，`npm ci` → `npm run q:full`
+- 契约：`npm run test:ci-workflow-contracts` / registry `test.ci-workflow-contracts`
+- 报告：成功或失败均尝试保留 `reports/quality/latest.json` / `latest.md`，7 天
+- 追踪：`trace.quality.pr-ci`；操作说明见 `docs/GITHUB_WORKFLOW.md`
 
 ## Traceability / 文档治理入口（非业务 API）
 

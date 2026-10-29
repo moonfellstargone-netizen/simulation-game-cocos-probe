@@ -1,10 +1,14 @@
-# IMPLEMENTATION_SCOPE — v0.0.2.26
+# IMPLEMENTATION_SCOPE — v0.0.2.27
 
-版本：v0.0.2.26 / Quality Test Registry Closure / 检查体系测试登记闭合版。
+版本：v0.0.2.27 / PR Quality Gate / PR 自动质量验证版。
 
 ## 本轮范围
 
-本轮只做检查体系测试登记闭合：把已存在的 `test:cocos-session` / `tests/cocos-runtime-session.test.ts` 正式登记进 `tools/quality/test-registry.json`（新增 `test.cocos-session`，带 `full`+`blocker`），使 `q:full` 实际执行该任务，并在 `tools/quality/rules/traceability-map.json` 的 `trace.cocos.session-viewmodel-port` 与 `docs/TRACEABILITY_MATRIX.md` 之间闭合 traceability 追踪链；`tests/traceability-contracts.test.mjs` 增加轻量防回退契约。其余为该目标必需的 `project-target.json` 版本面传播与项目地图、code-index、module-card、文档最小同步。
+本轮只做 PR 自动质量验证：新增 `.github/workflows/quality.yml`，PR 到 `main` 时，在单个 Ubuntu 24.04 job 使用 Node 24、Python 3.12，执行 `npm ci` 和现有 `npm run q:full`；另提供 `workflow_dispatch`。成功或失败均尝试上传 JSON / Markdown 质量报告，保留 7 天；缺失报告必须明确报错，不以 artifact 上传掩盖门禁失败。
+
+`tests/ci-workflow-contracts.test.mjs` 校验 YAML 语义与负向变体，正式登记为 `test.ci-workflow-contracts`（`full`+`blocker`）；`trace.quality.pr-ci` 在 `traceability-map.json` 与 `TRACEABILITY_MATRIX` 闭合工作流、模块、测试和 gate。包卫生检查只排除根 `.git` 元数据，补齐跨平台路径与项目日志、缓存反例，保持实际交付卫生约束。其余为该目标必需的 `project-target.json` 版本面传播及项目地图、code-index、module-cards 的最小同步。
+
+既有 `test:cocos-session` / `test.cocos-session` 与 `trace.cocos.session-viewmodel-port` 继续有效，不因新增 CI 入口退出完整检查。云端运行通过情况以具体 PR 的 Checks / Actions 和报告为证，不能由本机结果推定。
 
 ## 明确不做
 
@@ -16,7 +20,7 @@ q:affected 不替代 q:full，不替代 q:release。release gate 禁止 cache。
 
 ## 正式包来源
 
-本轮仍基于正式包 v1.5.2.2。v0.0.2.26 是检查体系测试登记闭合，不改变正式包设定。
+本轮仍基于正式包 v1.5.2.2。v0.0.2.27 是 PR 自动质量验证，不改变正式包设定。
 
 ## module_contracts 保留
 

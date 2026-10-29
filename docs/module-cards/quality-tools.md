@@ -9,7 +9,7 @@ source_of_truth: false
 
 ## 模块职责
 
-质量门禁配置与插件：module-graph、test-registry、gate-policy、affected/cache、architecture-boundary 插件、**traceability-map**。
+质量门禁配置与插件：module-graph、test-registry、gate-policy、affected/cache、architecture-boundary 插件、**traceability-map**；归属 tools 的 PR CI 工作流复用 q:full，保留执行报告。
 
 ## 不负责什么
 
@@ -26,6 +26,7 @@ source_of_truth: false
 
 ## 关键文件
 
+- `.github/workflows/quality.yml`
 - `tools/quality/run-quality-gate.mjs`
 - `tools/quality/module-graph.json`
 - `tools/quality/test-registry.json`
@@ -38,6 +39,7 @@ source_of_truth: false
 
 ## 关键测试
 
+- `tests/ci-workflow-contracts.test.mjs`（registry `test.ci-workflow-contracts`，full+blocker；追踪 `trace.quality.pr-ci`）
 - `tests/traceability-contracts.test.mjs`
 - `tests/quality-gate-contracts.test.mjs`
 - `tests/quality-affected-policy-hardening.test.mjs`
@@ -59,7 +61,8 @@ source_of_truth: false
 - q:affected 语义扩写成 release 替代
 - project-target 与 package 版本漂移
 - planned traceability entry 误标为 active 当前实现
+- 忽略 PR 门禁失败，或把上传 artifact 成功当作质量门禁成功
 
 ## 代码—地图同步
 
-quality-map、TRACEABILITY_MATRIX、GLOSSARY 中 q:* 与 traceability 术语。
+quality-map、TRACEABILITY_MATRIX、GLOSSARY 中 q:*、PR CI 与 traceability 术语；CI 工作流、契约测试及 test-registry 入口保持一致。

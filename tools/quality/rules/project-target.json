@@ -1,29 +1,29 @@
 {
   "version": {
-    "codePackageVersion": "v0.0.2.26",
-    "npmVersion": "0.0.2-26",
-    "qualityMetadataVersion": "0.0.2.26",
-    "snakeVersion": "v0_0_2_26",
-    "versionName": "Quality Test Registry Closure",
-    "chineseVersionName": "检查体系测试登记闭合版"
+    "codePackageVersion": "v0.0.2.27",
+    "npmVersion": "0.0.2-27",
+    "qualityMetadataVersion": "0.0.2.27",
+    "snakeVersion": "v0_0_2_27",
+    "versionName": "PR Quality Gate",
+    "chineseVersionName": "PR 自动质量验证版"
   },
   "release": {
-    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_26",
-    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_26.zip"
+    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_27",
+    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_27.zip"
   },
   "design": {
     "designPackVersion": "v1.5.2.2",
     "designPackName": "模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip"
   },
   "previous": {
-    "codePackageVersion": "v0.0.2.25",
-    "npmVersion": "0.0.2-25",
-    "qualityMetadataVersion": "0.0.2.25",
-    "snakeVersion": "v0_0_2_25",
-    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_25",
-    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_25.zip",
-    "versionName": "Project Map Auto Index & Traceability Lite",
-    "chineseVersionName": "项目地图自动索引与轻量可追踪矩阵版"
+    "codePackageVersion": "v0.0.2.26",
+    "npmVersion": "0.0.2-26",
+    "qualityMetadataVersion": "0.0.2.26",
+    "snakeVersion": "v0_0_2_26",
+    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_26",
+    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_26.zip",
+    "versionName": "Quality Test Registry Closure",
+    "chineseVersionName": "检查体系测试登记闭合版"
   },
   "staleMarkers": {
     "forbiddenCurrentMarkers": [
@@ -72,7 +72,18 @@
       "项目地图自动索引与轻量可追踪矩阵版",
       "fixture_baseline_v0_0_2_25",
       "headless_baseline_v0_0_2_25",
-      "cocos_baseline_v0_0_2_25"
+      "cocos_baseline_v0_0_2_25",
+      "v0.0.2.26",
+      "0.0.2-26",
+      "0.0.2.26",
+      "v0_0_2_26",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_26",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_26.zip",
+      "Quality Test Registry Closure",
+      "检查体系测试登记闭合版",
+      "fixture_baseline_v0_0_2_26",
+      "headless_baseline_v0_0_2_26",
+      "cocos_baseline_v0_0_2_26"
     ],
     "allowedHistoricalScopes": [
       "tools/quality/rules/project-target.json",

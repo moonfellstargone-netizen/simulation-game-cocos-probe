@@ -1,6 +1,6 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.2.26
+﻿# CODE_CONTEXT_INDEX — v0.0.2.27
 
-版本：v0.0.2.26 / Quality Test Registry Closure / 检查体系测试登记闭合版。
+版本：v0.0.2.27 / PR Quality Gate / PR 自动质量验证版。
 
 ## 执行前必读顺序
 
@@ -30,8 +30,9 @@
 
 后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包；代码包不保存每轮具体任务上下文；代码包只保存执行端上下文治理约束。
 
-## v0.0.2.26 测试索引
+## v0.0.2.27 测试索引
 
+- `tests/ci-workflow-contracts.test.mjs`（`test:ci-workflow-contracts` / registry `test.ci-workflow-contracts`）
 - `tests/cocos-runtime-session.test.ts`（`test:cocos-session` / registry `test.cocos-session`）
 - `tests/traceability-contracts.test.mjs`
 - `tests/project-map-contracts.test.mjs`
@@ -40,6 +41,10 @@
 - `tests/quality-affected-policy-hardening.test.mjs`
 - `tests/version-surface-contracts.test.mjs`
 - `tests/package-hygiene.test.mjs`
+
+## PR CI 入口
+
+先读 `.github/workflows/quality.yml` 与 `docs/GITHUB_WORKFLOW.md`，再核对 YAML 契约、test-registry 和 `trace.quality.pr-ci`。CI 在 PR 到 main 时使用 Ubuntu 24.04、Node 24、Python 3.12，`npm ci` 后执行现有 q:full；成功或失败均尝试保留 JSON / Markdown 报告 7 天。具体云端通过记录、报告及分支保护状态应现场核对，不能由本地通过推定。
 
 ## 既有架构边界索引
 
@@ -52,6 +57,7 @@ release zip 仍检查 UTF-8 metadata 与 mojibake 路径，并排除 `reports/qu
 - `q:affected`
 - `q:full`
 - `q:release`
+- `test:ci-workflow-contracts`
 - `test:traceability-contracts`
 - `test:project-map-contracts`
 - `traceability-map.json`

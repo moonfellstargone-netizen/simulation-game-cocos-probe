@@ -1,5 +1,5 @@
 {
-  "version": "0.0.2.26",
+  "version": "0.0.2.27",
   "tests": {
     "static.typecheck": {
       "command": "node",
@@ -769,9 +769,9 @@
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--root-name",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_26",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_27",
         "--output",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_26.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_27.zip",
         "--kind",
         "code"
       ],
@@ -792,11 +792,11 @@
       "command": "python3",
       "args": [
         "tools/check_release_zip.py",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_26.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_27.zip",
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--expected-root",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_26",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_27",
         "--kind",
         "code"
       ],
@@ -1077,6 +1077,32 @@
       ],
       "files": [
         "tests/traceability-contracts.test.mjs"
+      ],
+      "group": "governance"
+    },
+    "test.ci-workflow-contracts": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/ci-workflow-contracts.test.mjs"
+      ],
+      "covers": [
+        "tools",
+        "tests",
+        "docs"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 60,
+      "tags": [
+        "quality",
+        "ci",
+        "governance",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/ci-workflow-contracts.test.mjs"
       ],
       "group": "governance"
     }

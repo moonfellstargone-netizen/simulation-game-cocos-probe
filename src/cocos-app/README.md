@@ -1,6 +1,6 @@
-﻿# Cocos app — v0.0.2.26 / Quality Test Registry Closure
+﻿# Cocos app — v0.0.2.27 / PR Quality Gate
 
-Cocos app 层说明：本目录只保存 Cocos 表现层适配代码。当前 v0.0.2.26 为检查体系测试登记闭合版，不提供真实 Cocos Component、Cocos Creator 场景、Prefab、节点资源绑定、微信小游戏构建或 wx storage 接入。
+Cocos app 层说明：本目录只保存 Cocos 表现层适配代码。当前 v0.0.2.27 为 PR 自动质量验证版，不提供真实 Cocos Component、Cocos Creator 场景、Prefab、节点资源绑定、微信小游戏构建或 wx storage 接入。
 
 日常代码权威见 GitHub 仓库；项目地图入口见 `docs/PROJECT_MAP.md` 与 `docs/GITHUB_WORKFLOW.md`；追踪矩阵见 `docs/TRACEABILITY_MATRIX.md`。
 

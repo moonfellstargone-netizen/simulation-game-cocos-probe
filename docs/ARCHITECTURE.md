@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.26
+﻿# ARCHITECTURE — v0.0.2.27
 
-当前版本：v0.0.2.26 / Quality Test Registry Closure。业务架构边界与上一版一致，本轮不改变 ActionPipeline、SaveFile 或 fixture。
+当前版本：v0.0.2.27 / PR Quality Gate。业务架构边界与上一版一致，本轮不改变 ActionPipeline、SaveFile 或 fixture。
 
 ## 1. 业务架构不变
 
@@ -33,3 +33,7 @@ affected policy 的风险分级、fallbackLevel、minimumRequiredTasks、taskSel
 ## 7. 固定边界短语
 
 game-core 独立于 Cocos / wx / 表现层。tools/quality 仍是检查工具层，不属于游戏业务逻辑。不改变 ActionPipeline。不改变 SaveFile。不改变正式 fixture。
+
+## 8. PR CI 执行入口
+
+`.github/workflows/quality.yml` 归属 tools 检查基础设施，只调用锁定依赖安装和既有 `q:full`；工作流 YAML 契约、报告 artifact 与 `trace.quality.pr-ci` 提供执行追踪。它不进入 game-core 运行时依赖，不增加平台适配或正式状态入口，也不改变 full / release 的失败与缓存边界。
