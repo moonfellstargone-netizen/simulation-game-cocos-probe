@@ -1,6 +1,6 @@
 {
   "schemaVersion": "traceability-lite/v1",
-  "projectVersion": "v0.0.2.26",
+  "projectVersion": "v0.0.2.27",
   "currentFullReleaseTraceIds": [
     "trace.stage1a.actionpipeline",
     "trace.stage1a.save-load",
@@ -9,9 +9,35 @@
     "trace.cocos.creator-adapter-probe",
     "trace.quality.version-surface",
     "trace.quality.affected-full-release-boundary",
-    "trace.release.zip-hygiene"
+    "trace.release.zip-hygiene",
+    "trace.quality.pr-ci"
   ],
   "entries": [
+    {
+      "id": "trace.quality.pr-ci",
+      "status": "active",
+      "stage": "quality",
+      "riskLevel": "medium",
+      "moduleRefs": [
+        "tools",
+        "tests"
+      ],
+      "sourceRefs": [
+        ".github/workflows/quality.yml"
+      ],
+      "testRefs": [
+        "test.ci-workflow-contracts"
+      ],
+      "docRefs": [
+        "docs/GITHUB_WORKFLOW.md",
+        "docs/module-cards/quality-tools.md",
+        "docs/maps/quality-map.md"
+      ],
+      "gateRefs": [
+        "full",
+        "release"
+      ]
+    },
     {
       "id": "trace.stage1a.actionpipeline",
       "status": "active",

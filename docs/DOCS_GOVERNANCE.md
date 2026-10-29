@@ -1,4 +1,4 @@
-﻿# DOCS_GOVERNANCE — v0.0.2.26
+﻿# DOCS_GOVERNANCE — v0.0.2.27
 
 文档治理规范。
 
@@ -47,6 +47,7 @@
 | 模块边界 | module-cards/*, module-graph.json | arch:check, api-boundary tests |
 | 上下文治理 | ADR, module_contracts/* | test:context-governance |
 | 质量门禁 | CHECK_ARCHITECTURE, gate-policy | q:full, q:release |
+| PR 自动质量验证 | GITHUB_WORKFLOW, quality-map, trace.quality.pr-ci | test:ci-workflow-contracts, q:full |
 
 ## 7. PR 模板与目录责任
 

@@ -143,7 +143,7 @@
       ]
     },
     "docs/IMPLEMENTATION_SCOPE.md": {
-      "why": "实现范围文档必须锁定本轮只做检查体系测试登记闭合，不扩展玩法或平台接入；当前版本名以 project-target 动态派生，不再逐版硬编码。",
+      "why": "实现范围文档必须锁定本轮只做 PR 自动质量验证，不扩展玩法或平台接入；当前版本名以 project-target 动态派生，不再逐版硬编码。",
       "required": [
         "${codePackageVersion}",
         "${versionName}",

@@ -1,10 +1,16 @@
-# CHECK_ARCHITECTURE — v0.0.2.26
+# CHECK_ARCHITECTURE — v0.0.2.27
 
-v0.0.2.26 / Quality Test Registry Closure 是检查体系测试登记闭合版，**不是业务架构修改版**。
+v0.0.2.27 / PR Quality Gate 是 PR 自动质量验证版。质量执行入口扩展到 GitHub Actions，业务架构保持不变。
 
 ## 1. 本轮检查目标
 
-本轮不推进业务功能，只做检查体系测试登记闭合：把已存在的 `test:cocos-session` / `tests/cocos-runtime-session.test.ts` 正式登记进 `test-registry.json`（`test.cocos-session`，带 `full`+`blocker`），使 `q:full` 实际执行该任务，并在 `trace.cocos.session-viewmodel-port` 与 `TRACEABILITY_MATRIX.md` 闭合追踪链。traceability 地基（`traceability-map.json`、`test:traceability-contracts`、`quality.config.json` 的 `rules.traceabilityMap`）继续沿用。
+本轮只做 PR 自动质量验证：`.github/workflows/quality.yml` 在 PR 到 `main` 时执行现有 `q:full`，使用 Ubuntu 24.04、Node 24 和 Python 3.12，先 `npm ci` 再运行完整门禁；也提供 `workflow_dispatch`。CI 保留门禁退出码，成功或失败均尝试上传本轮 `reports/quality/latest.json` 与 `latest.md`，保留 7 天；报告缺失明确报错。
+
+新增 `test:ci-workflow-contracts` 通过 YAML 语义及负向变体验证触发、权限、固定 Action 提交、失败可见性和报告保留；在 `test-registry` 中登记为 `test.ci-workflow-contracts`，带 `full`+`blocker`。`trace.quality.pr-ci` 与 `TRACEABILITY_MATRIX.md` 追踪这条链路，quality-map / module-card / code-index 同步入口。
+
+包卫生扫描只排除根 `.git` 元数据，项目内日志与缓存仍受反例约束。既有 `test:cocos-session` / `tests/cocos-runtime-session.test.ts`（`test.cocos-session`）继续进入 `q:full`，保留 `trace.cocos.session-viewmodel-port`。traceability 地基（`traceability-map.json`、`test:traceability-contracts`、`quality.config.json` 的 `rules.traceabilityMap`）继续沿用。
+
+PR CI 不执行 release 打包；GitHub 具体运行与分支保护设置分别核对，不把本地通过记录或工作流文件存在当作云端通过或保护已启用。
 
 ## 2. traceability-contracts
 
@@ -42,7 +48,7 @@ cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affe
 
 ## 10. 后续路线（不是授权目标）
 
-Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.26 范围。traceability map 中 `planned` 条目**不是**当前实现。
+Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.27 范围。traceability map 中 `planned` 条目**不是**当前实现。
 
 ## 11. 固定检查短语
 

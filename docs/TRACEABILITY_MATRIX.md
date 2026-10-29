@@ -9,9 +9,9 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.26
+# TRACEABILITY_MATRIX — v0.0.2.27
 
-**Quality Test Registry Closure / 检查体系测试登记闭合版**
+**PR Quality Gate / PR 自动质量验证版**
 
 ## 1. 定位
 
@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 本轮只建立**轻量追踪地基**；完整 AST / symbol 自动索引、Nightly 实装、wx storage、真实 Cocos 均**不是**当前实现。
+- 本轮沿用**轻量追踪地基**并登记 PR CI 链路；完整 AST / symbol 自动索引、Nightly 实装、wx storage、真实 Cocos 均**不是**当前实现。
 
 ## 2. 状态语义
 
@@ -123,6 +123,18 @@ related:
 | 测试任务 | `test.quality-affected-policy-hardening`, `test.quality-affected-contracts` |
 | 文档入口 | `docs/CHECK_ARCHITECTURE.md`, `docs/GITHUB_WORKFLOW.md` |
 | gate | `affected`, `full`, `release`（affected **非** release 权威） |
+| 当前状态 | `active` |
+
+### trace.quality.pr-ci
+
+| 维度 | 内容 |
+|---|---|
+| 契约/系统 | PR 自动复用 q:full，保留失败语义和本轮质量报告 |
+| 源码模块 | `tools`, `tests` |
+| 关键路径 | `.github/workflows/quality.yml` |
+| 测试任务 | `test.ci-workflow-contracts`（`full`+`blocker`；`tests/ci-workflow-contracts.test.mjs`） |
+| 文档入口 | `docs/GITHUB_WORKFLOW.md`, `docs/maps/quality-map.md`, `docs/module-cards/quality-tools.md` |
+| gate | `full`, `release`（PR CI 本身执行 full，release 继承契约检查） |
 | 当前状态 | `active` |
 
 ### trace.release.zip-hygiene

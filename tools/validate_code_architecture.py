@@ -7,9 +7,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # v0.0.2.22 起，中风险 token/state-leak 架构边界规则进入 architecture-boundary shadow_aligned 双跑对齐。
 # legacy validator 仍保留核心游戏架构红线和兼容入口。
-# 本轮为检查体系测试登记闭合（Quality Test Registry Closure）：把 test:cocos-session /
-# tests/cocos-runtime-session.test.ts 纳入 test-registry、q:full 与 traceability 闭合，
-# 只做版本面传播与最小同步，不删除高风险红线，也不改动业务架构语义。
+# GitHub PR 与本地复用 q:full，保留现有架构检查、test-registry 与 traceability 闭合。
+# 不删除高风险红线，也不因 CI 入口变化改动业务架构语义。
 # 当前版本名从 project-target.json 动态派生，不再逐版硬编码。
 
 FORBIDDEN_TASK_CONTEXT_FILES = [

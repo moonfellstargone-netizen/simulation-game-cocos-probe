@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.26
+﻿# PROJECT_MAP — v0.0.2.27
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.26：**Quality Test Registry Closure**。在上一版轻量可追踪矩阵基础上，把 `test:cocos-session` / `tests/cocos-runtime-session.test.ts` 登记进 `test-registry`（`test.cocos-session`）、`q:full` 与 `trace.cocos.session-viewmodel-port`，完成检查体系测试登记闭合；**不改业务逻辑**。
+v0.0.2.27：**PR Quality Gate**。通过 `.github/workflows/quality.yml` 在 PR 中执行既有 `q:full`，保留质量报告；以 `test.ci-workflow-contracts`、`trace.quality.pr-ci` 闭合工作流、测试登记及轻量追踪。包卫生检查兼容真实 Git 检出环境，业务逻辑保持不变。
 
 ## 3. 权威边界
 
@@ -26,6 +26,7 @@ v0.0.2.26：**Quality Test Registry Closure**。在上一版轻量可追踪矩�
 | `src/cocos-app/` | Cocos 应用适配，Session / ViewModel |
 | `src/cocos-creator-adapter/` | engine-neutral 探针，非真实 Cocos 工程 |
 | `tools/quality/` | 质量门禁与 affected 策略 |
+| `.github/workflows/quality.yml` | PR 自动完整检查与报告保留，归属 tools |
 | `tools/quality/rules/traceability-map.json` | 机器可读轻量追踪矩阵 |
 | `tools/build_release_package.py` | release 打包 |
 | `docs/` | 架构、范围、地图、治理 |

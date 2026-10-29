@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, relative, resolve } from 'node:path';
 
 const root = process.cwd();
 
@@ -19,27 +20,61 @@ const forbiddenLogPatterns = [
 const localGeneratedRoots = new Set(['node_modules', 'dist', 'coverage', '.cache']);
 
 test('code package source tree contains no generated Python cache or log artifacts', () => {
-  const violations = [];
-  walk(root, (abs) => {
-    const rel = normalize(relative(root, abs));
-    if (!rel) return;
-    const first = rel.split('/')[0];
-    if (localGeneratedRoots.has(first)) return;
-    const name = rel.split('/').at(-1);
-    if (forbiddenNames.has(name) || forbiddenSuffixes.some((suffix) => rel.endsWith(suffix)) || rel.endsWith('.log')) {
-      violations.push(rel);
-      return;
+  assert.deepEqual(scanSourceTree(root), []);
+});
+
+test('source hygiene excludes only root Git metadata, including worktree pointer files', (t) => {
+  for (const metadataKind of ['directory', 'pointer']) {
+    const sourceRoot = temporarySourceRoot(t);
+    if (metadataKind === 'directory') {
+      mkdirSync(join(sourceRoot, '.git', 'logs'), { recursive: true });
+      writeFileSync(join(sourceRoot, '.git', 'logs', 'HEAD'), 'Git reflog metadata\n');
+    } else {
+      writeFileSync(join(sourceRoot, '.git'), 'gitdir: ../repository/.git/worktrees/probe\n');
     }
-    if (forbiddenLogPatterns.some((pattern) => pattern.test(rel))) {
-      violations.push(rel);
-    }
-  });
-  assert.deepEqual(violations.sort(), []);
+    mkdirSync(join(sourceRoot, 'src'));
+    writeFileSync(join(sourceRoot, 'src', 'module.ts'), 'export {};\n');
+    assert.deepEqual(scanSourceTree(sourceRoot), [], metadataKind);
+  }
+});
+
+test('source hygiene still rejects source logs, nested caches and generated files', (t) => {
+  const sourceRoot = temporarySourceRoot(t);
+  const directories = [
+    'logs',
+    'nested/logs',
+    'nested/run_logs',
+    'nested/__pycache__',
+    'nested/.git/logs',
+    'nested/开发日志包',
+    'nested/开发记录'
+  ];
+  const files = [
+    'logs/root.txt',
+    'nested/logs/activity.txt',
+    'nested/run_logs/activity.txt',
+    'nested/.git/logs/HEAD',
+    'nested/compiled.pyc',
+    'nested/activity.log',
+    'nested/.DS_Store'
+  ];
+  for (const directory of directories) {
+    mkdirSync(join(sourceRoot, directory), { recursive: true });
+  }
+  for (const file of files) {
+    writeFileSync(join(sourceRoot, file), 'source artifact\n');
+  }
+  assert.deepEqual(scanSourceTree(sourceRoot), [...directories, ...files].sort());
+});
+
+test('source hygiene normalizes Windows and POSIX paths consistently', () => {
+  assert.equal(normalize('nested\\logs\\activity.log'), 'nested/logs/activity.log');
+  assert.equal(normalize('nested/logs/activity.log'), 'nested/logs/activity.log');
 });
 
 test('package hygiene policy is wired into scripts and architecture validator', () => {
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  assert.equal(packageJson.version, '0.0.2-26');
+  assert.equal(packageJson.version, '0.0.2-27');
   assert.equal(packageJson.scripts['test:package-hygiene'], 'node --test tests/package-hygiene.test.mjs');
 
   const registry = readFileSync(join(root, 'tools/quality/test-registry.json'), 'utf8');
@@ -82,19 +117,47 @@ test('generated dependency and build directories are excluded from package polic
   }
 });
 
-function walk(dir, visit) {
+function scanSourceTree(sourceRoot) {
+  const violations = [];
+  walk(sourceRoot, sourceRoot, (abs) => {
+    const rel = normalize(relative(sourceRoot, abs));
+    const name = rel.split('/').at(-1);
+    if (forbiddenNames.has(name) || forbiddenSuffixes.some((suffix) => rel.endsWith(suffix)) || rel.endsWith('.log')) {
+      violations.push(rel);
+      return;
+    }
+    if (forbiddenLogPatterns.some((pattern) => pattern.test(rel))) {
+      violations.push(rel);
+    }
+  });
+  return violations.sort();
+}
+
+function walk(dir, sourceRoot, visit) {
   for (const entry of readdirSync(dir)) {
     const abs = join(dir, entry);
-    const rel = normalize(relative(root, abs));
+    const rel = normalize(relative(sourceRoot, abs));
     const first = rel.split('/')[0];
-    if (localGeneratedRoots.has(first)) continue;
+    // Git's own reflogs are metadata, while nested source logs remain forbidden.
+    if (first === '.git' || localGeneratedRoots.has(first)) continue;
     visit(abs);
     if (statSync(abs).isDirectory()) {
-      walk(abs, visit);
+      walk(abs, sourceRoot, visit);
     }
   }
 }
 
 function normalize(path) {
-  return path.replaceAll('\\\\', '/');
+  return path.replaceAll('\\', '/');
+}
+
+function temporarySourceRoot(t) {
+  const prefix = join(resolve(tmpdir()), 'qinglan-package-hygiene-');
+  const sourceRoot = mkdtempSync(prefix);
+  t.after(() => {
+    const resolvedRoot = resolve(sourceRoot);
+    assert.equal(resolvedRoot.startsWith(prefix), true, 'cleanup must stay within the temporary fixture directory');
+    rmSync(resolvedRoot, { recursive: true, force: true });
+  });
+  return sourceRoot;
 }

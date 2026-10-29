@@ -1,8 +1,8 @@
-﻿# Quality Map — v0.0.2.26
+﻿# Quality Map — v0.0.2.27
 
 ## 系统职责
 
-质量门禁：typecheck、architecture boundary、affected/full/release、版本一致性、release surface 与 **轻量 traceability**。
+质量门禁：typecheck、architecture boundary、affected/full/release、版本一致性、release surface、**轻量 traceability**，以及复用 q:full 的 PR 自动执行入口。
 
 ## 涉及模块
 
@@ -11,6 +11,7 @@
 
 ## 关键文件
 
+- `.github/workflows/quality.yml`（tools：Ubuntu PR 检查与报告保留）
 - `tools/quality/run-quality-gate.mjs`
 - `tools/quality/module-graph.json`
 - `tools/quality/test-registry.json`
@@ -23,6 +24,7 @@
 
 ## 关键测试
 
+- `tests/ci-workflow-contracts.test.mjs`（registry `test.ci-workflow-contracts`，追踪 `trace.quality.pr-ci`）
 - `tests/traceability-contracts.test.mjs`
 - `tests/quality-gate-contracts.test.mjs`
 - `tests/quality-affected-policy-hardening.test.mjs`
@@ -47,6 +49,8 @@
 - 修改 gate 核心逻辑超出 Task Intent Lock
 - traceability active/planned 语义混淆
 - project-target 与 README 版本不一致
+- 报告上传掩盖门禁失败、旧运行报告误作新提交通过证据
+- 把 CI 文件存在误认为云端已通过或分支保护已启用
 
 ## 关联 module-cards
 

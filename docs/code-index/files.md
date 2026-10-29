@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.26
+﻿# Code Index — Files — v0.0.2.27
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -25,6 +25,8 @@
 | `tools/quality/module-graph.json` | quality-tools | 模块图 | affected/arch | `arch:check` |
 | `tools/quality/test-registry.json` | quality-tools | 测试登记 | 新测试 | `quality:test-registry` |
 | `tools/quality/gate-policy.json` | quality-tools | 门禁策略 | 改 gate | `test:quality-gate-contracts` |
+| `.github/workflows/quality.yml` | tools | PR 完整检查与报告保留 | 改 CI 触发/权限/执行步骤 | `test:ci-workflow-contracts` |
+| `tests/ci-workflow-contracts.test.mjs` | tests | PR CI YAML 语义与负向约束 | 改工作流 | `test:ci-workflow-contracts` |
 | `src/game-core/**` | game-core | 核心逻辑 | 玩法/状态 | `test:stage1a-baseline` |
 | `src/cocos-app/**` | cocos-app | 应用适配 | Session/UI VM | `test:cocos-session` |
 | `src/cocos-creator-adapter/**` | cocos-creator-adapter | Creator 探针 | UI binding | `test:cocos-ui-readiness` |

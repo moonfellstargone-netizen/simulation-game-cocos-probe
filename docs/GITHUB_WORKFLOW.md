@@ -1,4 +1,4 @@
-﻿# GITHUB_WORKFLOW — v0.0.2.26
+﻿# GITHUB_WORKFLOW — v0.0.2.27
 
 GitHub 工作流与 Cursor 执行约束。
 
@@ -96,3 +96,16 @@ L5 源码与测试（src/** / tests/**）
 ## 12. Cursor 执行门禁
 
 Cursor 执行方必须先输出预检报告，用户或 GPT 确认后才可修改文件。**不得**跳过预检直接执行。
+
+## 13. PR 自动质量验证
+
+工作流入口：[`.github/workflows/quality.yml`](../.github/workflows/quality.yml)。PR 目标分支为 `main` 时自动触发，不使用路径过滤；另提供 `workflow_dispatch`。首个引入版本通过 PR 验证；手动入口须在默认分支已有该工作流后使用。
+
+- 单个 Ubuntu 24.04 job，Node 24、Python 3.12，依次执行 `npm ci`、`npm run q:full`。版本与任务集合仍由 `project-target.json`、test-registry、gate-policy 决定，CI 不另建检查清单。
+- 仓库权限仅 `contents: read`；checkout 不持久化凭据，官方 Actions 使用完整提交 SHA；同一 PR 的新提交取消旧运行。不使用 `pull_request_target`、Nightly 或多平台 matrix。
+- 质量门禁失败时保留失败结果；报告上传使用 `always()`，尝试上传本轮 `reports/quality/latest.json` 和 `latest.md`，保留 7 天。报告不存在时明确报错；不把上一次运行的报告混作本次通过证据。
+- `test:ci-workflow-contracts` / registry `test.ci-workflow-contracts` 是 `full`+`blocker` 契约，验证 YAML 语义和负向变体；`trace.quality.pr-ci` 连接工作流、测试与文档。
+
+审查 PR 时先查看 Checks / Actions 的对应提交运行，再读取失败任务输出与质量报告 artifact；依赖安装失败或报告缺失时以该次 job 日志定位。云端执行结果只对实际测试的提交成立，取消的旧运行不能作为最新提交已通过的证据。
+
+PR CI 只运行完整开发门禁；出包仍须运行 `q:release`，release gate 禁止 cache。工作流文件不修改 GitHub 分支保护设置；是否启用 required checks、是否允许合并必须另行核对，不能据文件存在宣称已经保护 main。
