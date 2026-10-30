@@ -1,16 +1,18 @@
-# CHECK_ARCHITECTURE — v0.0.2.27
+# CHECK_ARCHITECTURE — v0.0.2.28
 
-v0.0.2.27 / PR Quality Gate 是 PR 自动质量验证版。质量执行入口扩展到 GitHub Actions，业务架构保持不变。
+v0.0.2.28 / Save Storage Failure Contracts 是存储端口故障契约与恢复验证版。通过现有 Session、UI 和命令队列验证存储故障保护，业务架构保持不变。
 
 ## 1. 本轮检查目标
 
-本轮只做 PR 自动质量验证：`.github/workflows/quality.yml` 在 PR 到 `main` 时执行现有 `q:full`，使用 Ubuntu 24.04、Node 24 和 Python 3.12，先 `npm ci` 再运行完整门禁；也提供 `workflow_dispatch`。CI 保留门禁退出码，成功或失败均尝试上传本轮 `reports/quality/latest.json` 与 `latest.md`，保留 7 天；报告缺失明确报错。
+本轮只做存储端口故障契约与恢复验证：`tests/support/controlledSaveStoragePort.ts` 包装既有内存端口，注入即时或手动控制的延迟读写拒绝。验证失败不污染 session、UI 呈现错误且不保留旧成功结果、队列不超车且后续健康命令可恢复。状态保护同时核对公开视图和健康存储路径的完整序列化内容，不以固定等待时长代替因果控制。
 
-新增 `test:ci-workflow-contracts` 通过 YAML 语义及负向变体验证触发、权限、固定 Action 提交、失败可见性和报告保留；在 `test-registry` 中登记为 `test.ci-workflow-contracts`，带 `full`+`blocker`。`trace.quality.pr-ci` 与 `TRACEABILITY_MATRIX.md` 追踪这条链路，quality-map / module-card / code-index 同步入口。
+故障用例由既有 `test:cocos-session`、`test:cocos-save-load` 和 `test:cocos-ui-command-queue`（registry `test.cocos-session`、`test.cocos-save-load`、`test.cocos-command-queue`）执行，均保留 `full`+`blocker` 登记；`trace.save.storage-failure-recovery` 连接端口、Session、Controller、Queue、契约和 ADR-0003。不新增正式错误码或存储原子回滚权威。
 
-包卫生扫描只排除根 `.git` 元数据，项目内日志与缓存仍受反例约束。既有 `test:cocos-session` / `tests/cocos-runtime-session.test.ts`（`test.cocos-session`）继续进入 `q:full`，保留 `trace.cocos.session-viewmodel-port`。traceability 地基（`traceability-map.json`、`test:traceability-contracts`、`quality.config.json` 的 `rules.traceabilityMap`）继续沿用。
+既有 `.github/workflows/quality.yml`、`test:ci-workflow-contracts`、`trace.quality.pr-ci` 继续有效：PR 到 main 时执行 Ubuntu 的 `npm ci` 与 `q:full`，成功或失败均尝试上传本轮两份报告，保留 7 天；报告缺失明确报错。包卫生仍只排除根 `.git` 元数据；`trace.cocos.session-viewmodel-port` 和既有 traceability 地基继续沿用。
 
 PR CI 不执行 release 打包；GitHub 具体运行与分支保护设置分别核对，不把本地通过记录或工作流文件存在当作云端通过或保护已启用。
+
+追踪由`traceability-map.json`与`TRACEABILITY_MATRIX.md`对齐，实际执行任务以`test-registry.json`为准。三个故障测试消费者均登记受控端口辅助，并覆盖tests模块，使辅助文件单独变化时也能被affected选择；该登记不改变affected算法。
 
 ## 2. traceability-contracts
 
@@ -48,7 +50,7 @@ cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affe
 
 ## 10. 后续路线（不是授权目标）
 
-Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.27 范围。traceability map 中 `planned` 条目**不是**当前实现。
+Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.28 范围。traceability map 中 `planned` 条目**不是**当前实现。
 
 ## 11. 固定检查短语
 

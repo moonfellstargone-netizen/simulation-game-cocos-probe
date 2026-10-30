@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.27
+﻿# Code Index — Public API — v0.0.2.28
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -12,6 +12,8 @@
 
 - `SaveManager.serialize` / `deserializeSaveFile`（`src/game-core/save/SaveManager.ts`）
 - `SaveStoragePort`（`src/game-core/save/SaveStoragePort.ts`）— 端口，由外层注入
+  - `read(slotId): Promise<string | null>` — null 为空槽，Promise 拒绝表示读取失败
+  - `write(slotId, serializedSave): Promise<void>` — 成功后 Session 才返回保存摘要；不在端口接口承诺真实存储原子回滚
 - `NewGameBuilder.buildStage1A` — 新局构建
 
 ## Session / ViewModel / Port
@@ -23,6 +25,12 @@
   - `getViewModel()` / `getSelectableViewModel()`
 - `CocosActionSessionPort` — session dispatch 接口
 - `CocosSessionHost`（`src/cocos-creator-adapter/CocosSessionHost.ts`）— 创建/require session
+
+## 存储故障展示与命令恢复
+
+- `SaveLoadInteractionController.save / load` — 清除旧成功结果、呈现现有错误，失败时保留 session；恢复后可正常重试。
+- `CocosUiCommandQueue.enqueue / execute` — 串行等待当前命令，返回 completed / failed 与 snapshot；拒绝后的已排队命令继续执行。
+- 契约与测试追踪：`trace.save.storage-failure-recovery`，ADR-0003 与 save-load 模块卡；没有新增业务公开 API、稳定错误码或真实存储适配。
 
 ## Cocos app runtime
 

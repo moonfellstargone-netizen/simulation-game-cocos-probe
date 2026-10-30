@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.27
+﻿# ARCHITECTURE — v0.0.2.28
 
-当前版本：v0.0.2.27 / PR Quality Gate。业务架构边界与上一版一致，本轮不改变 ActionPipeline、SaveFile 或 fixture。
+当前版本：v0.0.2.28 / Save Storage Failure Contracts。业务架构边界与上一版一致，本轮不改变 ActionPipeline、SaveFile 或 fixture。
 
 ## 1. 业务架构不变
 
@@ -37,3 +37,9 @@ game-core 独立于 Cocos / wx / 表现层。tools/quality 仍是检查工具层
 ## 8. PR CI 执行入口
 
 `.github/workflows/quality.yml` 归属 tools 检查基础设施，只调用锁定依赖安装和既有 `q:full`；工作流 YAML 契约、报告 artifact 与 `trace.quality.pr-ci` 提供执行追踪。它不进入 game-core 运行时依赖，不增加平台适配或正式状态入口，也不改变 full / release 的失败与缓存边界。
+
+## 9. 存储故障验证边界
+
+现有 `SaveStoragePort` 只隔离平台读写；Session 保持候选读档提交策略，Controller 展示错误并清除旧成功结果，Queue 保持串行执行和失败后继续。`tests/support/controlledSaveStoragePort.ts` 组合既有内存端口，验证即时或延迟拒绝及恢复，不接真实平台，不注入游戏运行时依赖。
+
+本轮不新增 ErrorCode 权威、不改变 byte_length、不承诺真实存储部分写入后的原子回滚；参见 ADR-0003、SaveStoragePort 契约与 `trace.save.storage-failure-recovery`。

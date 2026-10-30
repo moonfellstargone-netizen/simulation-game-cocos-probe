@@ -43,6 +43,13 @@ src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts
 - load 失败不得污染当前 session；该不变量由既有 save/load/session 边界保证，Queue 不得破坏。
 - 前一个命令失败后，后续命令默认继续按入队顺序执行。
 
+## 延迟存储拒绝与继续执行
+
+- 当前 save/load 的存储 Promise 未完成时，后续命令保持排队，不得超车。测试使用手动控制的 `entered / resume / reject`，不依赖固定延时。
+- 存储 Promise 拒绝后，当前命令返回 `failed` 及现有错误 snapshot；当前 session 仍受 Session / save-load 边界保护。
+- 已排队的后续健康命令继续执行，恢复后的重试可以完成；失败 snapshot 不得把旧 save/load 成功摘要作为本次结果。
+- Queue 只保证命令顺序及失败后的继续执行，不提供业务补偿、自动重试、持久化事务或原子写回滚。
+
 ## 关联测试
 
 ```text

@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.27
+﻿# Code Index — Files — v0.0.2.28
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -35,4 +35,8 @@
 | `tools/check_release_zip.py` | release-tools | zip 复验 | release | `release:check` |
 | `tests/traceability-contracts.test.mjs` | tests | traceability 契约 | 改 map/docs | `test:traceability-contracts` |
 | `tests/cocos-runtime-session.test.ts` | tests | Session / ViewModel / SaveStoragePort / ActionPipeline 边界（registry `test.cocos-session`） | 改 Cocos app Session 边界 | `test:cocos-session` |
+| `tests/cocos-save-load-ui-binding.test.ts` | tests | 存储拒绝时 UI 错误、旧成功清除及恢复（registry `test.cocos-save-load`） | 改 save/load UI 边界 | `test:cocos-save-load` |
+| `tests/cocos-ui-command-queue.test.ts` | tests | 受控延迟拒绝、串行顺序和健康命令继续（registry `test.cocos-command-queue`） | 改命令队列和恢复边界 | `test:cocos-ui-command-queue` |
+| `tests/support/controlledSaveStoragePort.ts` | tests | ControlledSaveStoragePort / PendingStorageOperation / captureSerializedSession，故障时序与完整状态捕获辅助 | 读写故障用例；不作为平台或玩法权威 | 上述三个存储故障任务，`trace.save.storage-failure-recovery` |
+| `docs/adr/ADR-0003-load-failure-must-not-mutate-current-session.md` | docs | 失败不污染 session，区分调用方保护与底层写入保证 | 改存读档故障边界 | `test:context-governance`、上述三个存储故障任务 |
 | `tests/**` | tests | 契约与回归 | 改代码/文档 | `q:full` |

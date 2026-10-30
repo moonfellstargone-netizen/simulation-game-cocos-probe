@@ -1,4 +1,4 @@
-﻿# Quality Map — v0.0.2.27
+﻿# Quality Map — v0.0.2.28
 
 ## 系统职责
 
@@ -31,6 +31,7 @@
 - `tests/version-surface-contracts.test.mjs`
 - `tests/context-governance-contracts.test.mjs`
 - `tests/cocos-runtime-session.test.ts`（registry `test.cocos-session`：Session/ViewModel/SaveStoragePort 边界，登记闭合进 `q:full`）
+- `tests/cocos-save-load-ui-binding.test.ts`、`tests/cocos-ui-command-queue.test.ts`：与 Session 测试共同扩充存储故障保护及恢复用例，沿用既有 full/blocker 任务，追踪 `trace.save.storage-failure-recovery`。
 
 ## 修改前必读
 

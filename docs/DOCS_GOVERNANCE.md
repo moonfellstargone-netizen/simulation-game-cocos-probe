@@ -1,4 +1,4 @@
-﻿# DOCS_GOVERNANCE — v0.0.2.27
+﻿# DOCS_GOVERNANCE — v0.0.2.28
 
 文档治理规范。
 
@@ -48,6 +48,7 @@
 | 上下文治理 | ADR, module_contracts/* | test:context-governance |
 | 质量门禁 | CHECK_ARCHITECTURE, gate-policy | q:full, q:release |
 | PR 自动质量验证 | GITHUB_WORKFLOW, quality-map, trace.quality.pr-ci | test:ci-workflow-contracts, q:full |
+| 存储故障保护与恢复 | save-load module-card, SaveStoragePort contract, ADR-0003, trace.save.storage-failure-recovery | test:cocos-session, test:cocos-save-load, test:cocos-ui-command-queue |
 
 ## 7. PR 模板与目录责任
 

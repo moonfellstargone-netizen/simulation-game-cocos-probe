@@ -28,6 +28,7 @@ source_of_truth: false
 
 - `src/cocos-creator-adapter/CocosSessionHost.ts`
 - `src/cocos-creator-adapter/shell/CocosUiShellController.ts`
+- `src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts`
 - `src/cocos-creator-adapter/menu/MinimalMenuInteractionController.ts`
 - `src/cocos-creator-adapter/save/SaveLoadInteractionController.ts`
 
@@ -36,6 +37,8 @@ source_of_truth: false
 - `tests/cocos-ui-readiness.test.ts`
 - `tests/cocos-minimal-menu-binding.test.ts`
 - `tests/cocos-ui-shell-composition.test.ts`
+- `tests/cocos-save-load-ui-binding.test.ts`
+- `tests/cocos-ui-command-queue.test.ts`
 
 ## 修改前必须读取
 
@@ -45,11 +48,13 @@ source_of_truth: false
 ## 修改后必须运行
 
 - `npm run test:cocos-ui-readiness`
+- 涉及存储故障呈现与恢复时运行 `npm run test:cocos-save-load`、`npm run test:cocos-ui-command-queue`。
 
 ## 常见失败模式
 
 - 把探针写成真实 Cocos 实现
 - UI 命令队列当作业务事务
+- 存储拒绝后旧成功结果未清除、错误未呈现或后续命令不再执行
 
 ## 代码—地图同步
 

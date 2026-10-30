@@ -1,6 +1,6 @@
-﻿# Cocos app — v0.0.2.27 / PR Quality Gate
+﻿# Cocos app — v0.0.2.28 / Save Storage Failure Contracts
 
-Cocos app 层说明：本目录只保存 Cocos 表现层适配代码。当前 v0.0.2.27 为 PR 自动质量验证版，不提供真实 Cocos Component、Cocos Creator 场景、Prefab、节点资源绑定、微信小游戏构建或 wx storage 接入。
+Cocos app 层说明：本目录只保存 Cocos 表现层适配代码。当前 v0.0.2.28 为存储端口故障契约与恢复验证版，通过既有端口验证 Session 的读写拒绝保护，并联动 UI 错误展示与命令恢复测试；不提供真实 Cocos Component、Cocos Creator 场景、Prefab、节点资源绑定、微信小游戏构建或 wx storage 接入。
 
 日常代码权威见 GitHub 仓库；项目地图入口见 `docs/PROJECT_MAP.md` 与 `docs/GITHUB_WORKFLOW.md`；追踪矩阵见 `docs/TRACEABILITY_MATRIX.md`。
 

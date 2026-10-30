@@ -49,7 +49,9 @@ Cocos 试水应用层：Session、ViewModel、Action 适配（Dispatcher、Previ
 
 - dispatch 不经过 ActionPipeline
 - preview 产生正式状态变化
+- 将存储读取拒绝与空槽混同，或写入拒绝后返回成功摘要
+- 只比较单一显示标签，漏掉故障前后完整存档状态的变化
 
 ## 代码—地图同步
 
-runtime-map、cocos-map、public-api。
+runtime-map、cocos-map、public-api；存储故障保证见 save-load 模块卡、ADR-0003 与 `trace.save.storage-failure-recovery`。

@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { CocosSessionHost, CocosUiShellCommandQueue, CocosUiShellController } from '../src/cocos-creator-adapter';
 import { InMemorySaveStoragePort, type SaveStoragePort } from '../src/game-core';
 import { buildRuntimeWithoutState, cloneForCompare } from './support/runtimeHarness';
+import { ControlledSaveStoragePort, captureSerializedSession } from './support/controlledSaveStoragePort';
 
 function makeQueuedShell(storage: SaveStoragePort = new InMemorySaveStoragePort()) {
   const { configs, contracts } = buildRuntimeWithoutState();
@@ -59,14 +60,23 @@ test('Cocos UI command queue executes shell commands and returns render snapshot
 });
 
 test('Cocos UI command queue serializes async save/load commands in enqueue order', async () => {
-  const storage = new DelayedMemoryStorage();
+  const storage = new ControlledSaveStoragePort();
   const { queue } = makeQueuedShell(storage);
   await queue.execute({ name: 'create_session' });
 
+  const pendingWrite = storage.deferNext('write');
   const firstSave = queue.enqueue({ name: 'save', selection: { slot_id: 'queue_initial' } });
+  await pendingWrite.entered;
   const confirm = queue.enqueue({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
   const secondSave = queue.enqueue({ name: 'save', selection: { slot_id: 'queue_advanced' } });
   const loadInitial = queue.enqueue({ name: 'load', selection: { slot_id: 'queue_initial' } });
+  try {
+    await Promise.resolve();
+    assert.deepEqual(storage.operations, ['write:queue_initial']);
+    assert.equal(queue.status(), 'running');
+  } finally {
+    pendingWrite.resume();
+  }
 
   const results = await Promise.all([firstSave, confirm, secondSave, loadInitial]);
   assert.deepEqual(results.map((result) => result.command_name), ['save', 'menu_confirm', 'save', 'load']);
@@ -96,6 +106,72 @@ test('Cocos UI command queue exposes failed command status while preserving late
   assert.equal(queue.status(), 'completed');
   assert.equal(loadedGood.snapshot.save_load.last_load_result?.slot_id, 'queue_good');
 });
+
+for (const operation of ['read', 'write'] as const) {
+  test(`Command queue waits for delayed ${operation} rejection, preserves state, and continues queued work`, async () => {
+    const storage = new ControlledSaveStoragePort();
+    const { host, queue } = makeQueuedShell(storage);
+    await queue.execute({ name: 'create_session' });
+    const initialView = host.requireSession().getViewModel();
+    await queue.execute({ name: 'save', selection: { slot_id: 'queue_recovery' } });
+    const savedState = await storage.read('queue_recovery');
+    assert.notEqual(savedState, null);
+    await queue.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+    const session = host.requireSession();
+    const beforeView = session.getViewModel();
+    const beforeSelectable = session.getSelectableViewModel();
+    const beforeState = await captureSerializedSession(session, storage, `queue_before_${operation}`);
+    const failure = new Error(`delayed storage ${operation} interrupted`);
+    const pending = storage.deferNext(operation);
+    const command = operation === 'read'
+      ? { name: 'load' as const, selection: { slot_id: 'queue_recovery' } }
+      : { name: 'save' as const, selection: { slot_id: 'queue_write_retry' } };
+    const failedCommand = queue.enqueue(command);
+    await pending.entered;
+    const enteredOperationCount = storage.operations.length;
+    const laterSave = queue.enqueue({ name: 'save', selection: { slot_id: 'queue_after_failure' } });
+
+    try {
+      await Promise.resolve();
+      assert.equal(queue.status(), 'running');
+      assert.equal(storage.operations.length, enteredOperationCount);
+      assert.deepEqual(session.getViewModel(), beforeView);
+      assert.deepEqual(session.getSelectableViewModel(), beforeSelectable);
+    } finally {
+      pending.reject(failure);
+    }
+
+    const [failed, continued] = await Promise.all([failedCommand, laterSave]);
+    assert.equal(failed.command_name, command.name);
+    assert.equal(failed.status, 'failed');
+    assert.equal(failed.error_message, failure.message);
+    assert.equal(failed.snapshot.save_load.last_save_result, null);
+    assert.equal(failed.snapshot.save_load.last_load_result, null);
+    assert.deepEqual(failed.snapshot.save_load.errors, [{ code: null, message: failure.message }]);
+    assert.deepEqual(failed.snapshot.save_load.view_model, beforeView);
+    assert.deepEqual(failed.snapshot.menu.view_model, beforeView);
+    assert.equal(continued.status, 'completed');
+    assert.equal(continued.snapshot.save_load.last_save_result?.slot_id, 'queue_after_failure');
+    assert.deepEqual(continued.snapshot.save_load.errors, []);
+    assert.equal(queue.status(), 'completed');
+    assert.equal(queue.lastExecutionResult()?.snapshot.save_load.last_save_result?.slot_id, 'queue_after_failure');
+    assert.deepEqual(session.getViewModel(), beforeView);
+    assert.equal(await storage.read('queue_after_failure'), beforeState);
+    assert.equal(await captureSerializedSession(session, storage, `queue_after_${operation}_failure`), beforeState);
+
+    const retried = await queue.execute(command);
+    assert.equal(retried.status, 'completed');
+    assert.deepEqual(retried.snapshot.save_load.errors, []);
+    if (operation === 'read') {
+      assert.equal(retried.snapshot.save_load.last_load_result?.slot_id, 'queue_recovery');
+      assert.deepEqual(session.getViewModel(), initialView);
+      assert.equal(await captureSerializedSession(session, storage, 'queue_after_read_retry'), savedState);
+    } else {
+      assert.equal(retried.snapshot.save_load.last_save_result?.slot_id, 'queue_write_retry');
+      assert.equal(await storage.read('queue_write_retry'), beforeState);
+    }
+  });
+}
 
 test('Cocos UI command queue source stays a shell wrapper without platform or core shortcuts', () => {
   const text = readFileSync(join(process.cwd(), 'src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts'), 'utf8');
@@ -134,23 +210,3 @@ test('Cocos UI command queue source stays a shell wrapper without platform or co
     assert.equal(text.includes(forbidden), false, `queue source leaked forbidden token ${forbidden}`);
   }
 });
-
-class DelayedMemoryStorage extends InMemorySaveStoragePort {
-  readonly operations: string[] = [];
-
-  override async write(slotId: string, serializedSave: string): Promise<void> {
-    await delay(5);
-    this.operations.push(`write:${slotId}`);
-    await super.write(slotId, serializedSave);
-  }
-
-  override async read(slotId: string): Promise<string | null> {
-    await delay(5);
-    this.operations.push(`read:${slotId}`);
-    return await super.read(slotId);
-  }
-}
-
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { resolveGateTasks } from '../tools/quality/lib/resolveGateTasks.mjs';
 
 const root = process.cwd();
 const readJson = (rel) => JSON.parse(readFileSync(join(root, rel), 'utf8'));
@@ -183,6 +184,31 @@ test('trace.cocos.session-viewmodel-port closes over the cocos session test as a
     (task.args ?? []).includes('tests/cocos-runtime-session.test.ts'),
     'test.cocos-session command args must actually cover tests/cocos-runtime-session.test.ts'
   );
+});
+
+test('storage failure recovery is traced to all three executed full/blocker test surfaces', () => {
+  const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
+  const id = 'trace.save.storage-failure-recovery';
+  const entry = traceabilityMap.entries.find((item) => item.id === id);
+  assert.equal(entry?.status, 'active');
+  assert.ok(traceabilityMap.currentFullReleaseTraceIds.includes(id));
+  for (const [taskId, file] of [
+    ['test.cocos-session', 'tests/cocos-runtime-session.test.ts'],
+    ['test.cocos-save-load', 'tests/cocos-save-load-ui-binding.test.ts'],
+    ['test.cocos-command-queue', 'tests/cocos-ui-command-queue.test.ts']
+  ]) {
+    assert.ok(entry.testRefs.includes(taskId));
+    const task = registry.tests[taskId];
+    assert.equal(task?.stability, 'blocker');
+    for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
+    assert.ok(task.files.includes(file), `${taskId} must register ${file}`);
+    assert.ok(task.files.includes('tests/support/controlledSaveStoragePort.ts'));
+    assert.ok(task.covers.includes('tests'), `${taskId} must be selected for test helper changes`);
+    assert.ok(task.args.includes(file), `${taskId} must actually execute ${file}`);
+    for (const gate of ['full', 'release']) {
+      assert.ok(resolveGateTasks(gate, gatePolicy, registry).some((selected) => selected.id === taskId));
+    }
+  }
 });
 
 test('q:affected is not represented as release authority in traceability entries', () => {

@@ -1,12 +1,12 @@
-# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.27
+# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.28
 
-**PR Quality Gate / PR 自动质量验证版**
+**Save Storage Failure Contracts / 存储端口故障契约与恢复验证版**
 
 本仓库是 Cocos 微信试水代码项目**日常代码权威源**。正式玩法与契约权威仍为正式三包 v1.5.2.2。
 
-- 代码包版本：`v0.0.2.27`
-- npm package version：`0.0.2-27`
-- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_27`（权威源：`tools/quality/rules/project-target.json`）
+- 代码包版本：`v0.0.2.28`
+- npm package version：`0.0.2-28`
+- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_28`（权威源：`tools/quality/rules/project-target.json`）
 - 设计来源：`模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip`
 - 规则权威源：`tools/quality/rules/project-target.json`、`tools/quality/rules/context-doc-surface.rules.json`、`tools/quality/rules/architecture-boundary.rules.json`、`tools/quality/rules/traceability-map.json`
 - 代码权威：本 GitHub 仓库（非 zip 归档包）
@@ -22,7 +22,9 @@
 
 ## Task Intent Lock
 
-本轮唯一目标是 PR 自动质量验证：PR 到 `main` 时，在 GitHub Actions 的 Ubuntu 环境执行现有 `npm run q:full`，保留质量报告。相应 YAML 契约、测试登记、active traceability 和版本面同步共同保护这一入口；包卫生检查只排除根 `.git` 元数据，继续拒绝项目日志及缓存，不改变原有门禁失败语义。
+本轮唯一目标是存储端口故障契约与恢复验证：通过现有 `SaveStoragePort` 注入即时或延迟读写拒绝，验证 Session 状态保护、save/load UI 错误展示与旧结果清除，以及命令队列失败后的顺序执行和健康重试。测试使用平台无关的受控端口辅助，沿用既有 Session / UI / Queue 门禁任务，并由 `trace.save.storage-failure-recovery` 追踪。
+
+本轮澄清并验证已有行为，不新增稳定错误码或底层写入原子回滚保证；现有 PR 自动完整检查与报告保留继续有效。
 
 本轮明确不进入 Stage 1B，不接真实 Cocos，不接 wx storage，不新增玩法，不新增 formal action，不修改 ActionPipeline，不修改 SaveFile，不修改正式 fixture，不做 Nightly 实装，不做完整 AST/symbol 自动索引。
 
@@ -36,6 +38,10 @@
 
 ## 常用命令
 
+- `npm run test:cocos-session`
+- `npm run test:cocos-save-load`
+- `npm run test:cocos-ui-command-queue`
+- `npm run typecheck`
 - `npm run test:ci-workflow-contracts`
 - `npm run test:traceability-contracts`
 - `npm run test:project-map-contracts`
