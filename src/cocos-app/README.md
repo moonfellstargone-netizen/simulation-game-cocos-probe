@@ -1,6 +1,6 @@
-﻿# Cocos app — v0.0.2.28 / Save Storage Failure Contracts
+﻿# Cocos app — v0.0.2.29 / Runtime Bootstrap & Resource Contracts
 
-Cocos app 层说明：本目录只保存 Cocos 表现层适配代码。当前 v0.0.2.28 为存储端口故障契约与恢复验证版，通过既有端口验证 Session 的读写拒绝保护，并联动 UI 错误展示与命令恢复测试；不提供真实 Cocos Component、Cocos Creator 场景、Prefab、节点资源绑定、微信小游戏构建或 wx storage 接入。
+Cocos app层说明：本目录保存Session、ViewModel与Action适配代码。当前v0.0.2.29交付运行启动装配与资源契约，外层组装代码复用本层公开Session能力；本层不反向依赖creator-adapter。既有存储故障回归保持，不提供真实Cocos Component、Creator场景、Prefab、节点资源绑定、微信小游戏构建或wx storage接入。
 
 日常代码权威见 GitHub 仓库；项目地图入口见 `docs/PROJECT_MAP.md` 与 `docs/GITHUB_WORKFLOW.md`；追踪矩阵见 `docs/TRACEABILITY_MATRIX.md`。
 

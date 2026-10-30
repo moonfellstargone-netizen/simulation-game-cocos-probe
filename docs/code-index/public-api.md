@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.28
+﻿# Code Index — Public API — v0.0.2.29
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -31,6 +31,16 @@
 - `SaveLoadInteractionController.save / load` — 清除旧成功结果、呈现现有错误，失败时保留 session；恢复后可正常重试。
 - `CocosUiCommandQueue.enqueue / execute` — 串行等待当前命令，返回 completed / failed 与 snapshot；拒绝后的已排队命令继续执行。
 - 契约与测试追踪：`trace.save.storage-failure-recovery`，ADR-0003 与 save-load 模块卡；没有新增业务公开 API、稳定错误码或真实存储适配。
+
+## Stage1A启动装配
+
+- `Stage1ABootstrapResources`：外部已解析的`snapshot`、`schemas`、`storage`及明确的`buildId`、`nowIso8601`。
+- `createStage1AHost(input): CocosSessionHost`（`src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts`）：资源与契约就绪、新局校验成功后才返回已创建Session的Host；失败抛错，不进行存储读写或正式Action。
+- 导出：bootstrap子目录及`src/cocos-creator-adapter/index.ts`。
+- `RuntimeSchemaValidator.assertSchemasAvailable(ids)`：真实编译指定Schema及引用闭包。
+- `RuntimeContractValidator.assertReady()`：由既有契约校验器集中维护的必需Schema映射检查操作契约就绪。
+- 成功Host通过`requireSession()`或现有UI Shell/Queue使用，以`destroySession()`结束；不得再调用Probe.onLoad创建同一会话。
+- 追踪：`trace.runtime.bootstrap-resources`；本地`test:stage1a-bootstrap` / registry `test.stage1a-bootstrap`。
 
 ## Cocos app runtime
 

@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.28
+﻿# Code Index — Files — v0.0.2.29
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -30,6 +30,11 @@
 | `src/game-core/**` | game-core | 核心逻辑 | 玩法/状态 | `test:stage1a-baseline` |
 | `src/cocos-app/**` | cocos-app | 应用适配 | Session/UI VM | `test:cocos-session` |
 | `src/cocos-creator-adapter/**` | cocos-creator-adapter | Creator 探针 | UI binding | `test:cocos-ui-readiness` |
+| `src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts` | cocos-creator-adapter | 外部正式资源装配已创建Session的Host，失败不发布可用宿主 | 改资源输入、就绪或启动边界 | `test:stage1a-bootstrap` |
+| `src/game-core/validation/RuntimeSchemaValidator.ts` | game-core | Schema校验及assertSchemasAvailable引用闭包就绪检查 | 改编译与Schema可用性 | `test:stage1a-bootstrap`、`test:cocos-session` |
+| `src/game-core/validation/RuntimeContractValidator.ts` | game-core | 既有契约断言与集中Schema映射的assertReady | 改必要操作契约就绪 | `test:stage1a-bootstrap`、`test:contract` |
+| `tests/stage1a-bootstrap.test.ts` | tests | 正式资源经公共入口的独立启动/失败/动作/存读档/生命周期验收 | 改装配与资源契约；不借用runtimeHarness构造 | `test:stage1a-bootstrap` / registry `test.stage1a-bootstrap` |
+| `docs/module_contracts/Stage1ABootstrap.contract.md` | docs | 装配输入、失败保护和已ready宿主生命周期 | 以creator模块卡为主入口后补读边界契约 | `test:context-governance`、`test:stage1a-bootstrap` |
 | `tools/quality/**` | quality-tools | 质量工具 | 门禁改动 | `q:full` |
 | `tools/build_release_package.py` | release-tools | 打包 | release | `release:build` |
 | `tools/check_release_zip.py` | release-tools | zip 复验 | release | `release:check` |

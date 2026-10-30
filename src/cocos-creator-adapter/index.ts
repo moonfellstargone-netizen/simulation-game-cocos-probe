@@ -9,3 +9,4 @@ export * from './shell';
 export * from './scene';
 
 export * from './component';
+export * from './bootstrap';

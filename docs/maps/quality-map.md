@@ -1,4 +1,4 @@
-﻿# Quality Map — v0.0.2.28
+﻿# Quality Map — v0.0.2.29
 
 ## 系统职责
 
@@ -24,6 +24,7 @@
 
 ## 关键测试
 
+- `tests/stage1a-bootstrap.test.ts`（registry `test.stage1a-bootstrap`：正式资源经公共入口的独立集成验收，追踪`trace.runtime.bootstrap-resources`）
 - `tests/ci-workflow-contracts.test.mjs`（registry `test.ci-workflow-contracts`，追踪 `trace.quality.pr-ci`）
 - `tests/traceability-contracts.test.mjs`
 - `tests/quality-gate-contracts.test.mjs`

@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.28
+﻿# ARCHITECTURE — v0.0.2.29
 
-当前版本：v0.0.2.28 / Save Storage Failure Contracts。业务架构边界与上一版一致，本轮不改变 ActionPipeline、SaveFile 或 fixture。
+当前版本：v0.0.2.29 / Runtime Bootstrap & Resource Contracts。本轮增加外层启动装配与必要校验就绪能力；既有玩法、状态流转及架构依赖方向保持，不改变ActionPipeline、SaveFile或正式fixture。
 
 ## 1. 业务架构不变
 
@@ -42,4 +42,12 @@ game-core 独立于 Cocos / wx / 表现层。tools/quality 仍是检查工具层
 
 现有 `SaveStoragePort` 只隔离平台读写；Session 保持候选读档提交策略，Controller 展示错误并清除旧成功结果，Queue 保持串行执行和失败后继续。`tests/support/controlledSaveStoragePort.ts` 组合既有内存端口，验证即时或延迟拒绝及恢复，不接真实平台，不注入游戏运行时依赖。
 
-本轮不新增 ErrorCode 权威、不改变 byte_length、不承诺真实存储部分写入后的原子回滚；参见 ADR-0003、SaveStoragePort 契约与 `trace.save.storage-failure-recovery`。
+本轮不扩展存储错误码治理、不改变byte_length、不承诺真实存储部分写入后的原子回滚；参见ADR-0003、SaveStoragePort契约与`trace.save.storage-failure-recovery`。
+
+## 10. 启动装配与资源就绪
+
+宿主装配属于既有运行模块外层，只接收外部提供的已解析快照、Schema集合、存储端口与明确启动参数，不导入文件系统、测试辅助或开发API。资源契约描述输入和装配关系，不替代正式配置或Schema权威，也不凭元数据字符串证明来源真实性。
+
+就绪检查复用现有校验器，覆盖必要Schema及引用的编译可用性；新局仍经既有SaveFile校验与StorageAudit。只有检查和初始化成功才交付可操作宿主，失败不发生存储读写或正式Action副作用。创建Host的入口不能放在需要反向依赖creator-adapter的cocos-app内部。
+
+该链路由`trace.runtime.bootstrap-resources`追踪。测试可在边界外读取正式样本，但运行装配不能依赖runtimeHarness；Node集成结果仅证明平台无关链路，不证明真实Cocos资源加载、打包或依赖兼容。

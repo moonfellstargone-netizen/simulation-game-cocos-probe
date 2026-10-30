@@ -1,4 +1,4 @@
-﻿# DOCS_GOVERNANCE — v0.0.2.28
+﻿# DOCS_GOVERNANCE — v0.0.2.29
 
 文档治理规范。
 
@@ -49,6 +49,7 @@
 | 质量门禁 | CHECK_ARCHITECTURE, gate-policy | q:full, q:release |
 | PR 自动质量验证 | GITHUB_WORKFLOW, quality-map, trace.quality.pr-ci | test:ci-workflow-contracts, q:full |
 | 存储故障保护与恢复 | save-load module-card, SaveStoragePort contract, ADR-0003, trace.save.storage-failure-recovery | test:cocos-session, test:cocos-save-load, test:cocos-ui-command-queue |
+| 启动装配与资源就绪 | creator模块卡、Stage1ABootstrap契约、trace.runtime.bootstrap-resources | test:stage1a-bootstrap、test:cocos-session |
 
 ## 7. PR 模板与目录责任
 
