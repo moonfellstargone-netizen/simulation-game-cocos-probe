@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.30
+﻿# ARCHITECTURE — v0.0.2.31
 
-当前版本：v0.0.2.30 / Async Scene Binding Ordering & Recovery。本轮修复绑定实例内异步应用顺序与失败后视图重同步；既有玩法、状态流转及架构依赖方向保持，不改变ActionPipeline、SaveFile或正式fixture。
+当前版本：v0.0.2.31 / Cocos Web Bootstrap Probe。本轮新增单向消费公共runtime的真实引擎外层；现有三层继续engine-neutral，玩法与状态流转不变。
 
 ## 1. 业务架构不变
 
@@ -57,3 +57,11 @@ game-core 独立于 Cocos / wx / 表现层。tools/quality 仍是检查工具层
 `CocosSceneBindingController`以实例级顺序管理完整操作：执行前读取Shell快照、等待既有命令队列、生成差异并等待全部端口更新。`applyInitialSnapshot`进入同一顺序；组件mount/refresh/execute/unmount复用此入口。该顺序不替代业务事务，也不覆盖多个controller或外部直接Host调用。
 
 端口批次失败使视图需要重同步，调用仍拒绝原始端口错误，后续排队可继续。下一次绑定操作全量刷新当前四区；成功后恢复普通diff。`diff`仅表示Shell前后变化，恢复的`applied_updates`可多于差异区。正式Action可能已提交，绑定恢复不能回滚或重发业务；端口已产生的部分副作用不保证撤销。由`trace.cocos.binding-async-recovery`追踪，使用受控端口的实际节点状态验收。
+
+## 12. 真实Cocos Web外层
+
+仓库内apps/cocos-probe保存最小工程源模板及外层桥接；tools/cocos-probe/prepare.mjs从现有src/design_snapshot派生浏览器runtime与全部58个声明Schema，在仓库外生成可打开工作副本。probe-source-manifest.json记录sourceCommit、sourceDirty、输入/产物摘要及project-target派生BuildId，副本不成为第二套代码或配置权威。
+
+旧game-core、cocos-app、cocos-creator-adapter仍不接真实 Cocos、不接 wx或fs；只有新增cocos-engine-probe外层可导入cc，并受单向公开runtime边界约束。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture，不新增玩法、微信存储、AOT或资源热更新。旧模块禁止反向依赖apps/cocos-probe。新外层只能消费派生公共runtime，不直接访问核心内部、tests、dev/testing API或平台存储。
+
+Node中的准备契约和外层生命周期测试登记为full/blocker，由trace.cocos.web-bootstrap-probe追踪；它们验证实际派生产物、资源完整性、异常路径和确定性生命周期，不冒充引擎运行证据。根typecheck仍仅覆盖src。真实Creator预览与Web构建另行执行，缺引擎时明确失败或未执行，不能静默skip或使用假cc类型声称通过。

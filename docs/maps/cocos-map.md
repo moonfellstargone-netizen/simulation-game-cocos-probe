@@ -1,15 +1,22 @@
-﻿# Cocos Map — v0.0.2.30
+﻿# Cocos Map — v0.0.2.31
 
 ## 系统职责
 
-Cocos 试水适配与 Creator 探针：UI readiness、menu/save-load binding、scene/component binding。**非真实 Cocos 工程**。
+Cocos 试水适配与 Creator 探针：UI readiness、menu/save-load binding、scene/component binding。旧creator-adapter仍是**非真实 Cocos 工程**；新增cocos-engine-probe为真实Web外层源模板，派生工作副本位于仓库外。
 
 ## 涉及模块
 
 - `cocos-app`
 - `cocos-creator-adapter`
+- `cocos-engine-probe`
 
 ## 关键文件
+
+- `apps/cocos-probe/`（真实外层源模板）
+- `apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts`（cc组件、正式资源加载与Label/Button端口）
+- `apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts`（异步启动、销毁和迟到结果保护）
+- `tools/cocos-probe/prepare.mjs`（仓库外派生准备）
+- `tools/cocos-probe/build.mjs`（真实Creator构建入口）
 
 - `src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts`
 - `src/cocos-creator-adapter/scene/CocosSceneBindingController.ts`
@@ -22,6 +29,9 @@ Cocos 试水适配与 Creator 探针：UI readiness、menu/save-load binding、s
 - `src/cocos-creator-adapter/save/SaveLoadInteractionController.ts`
 
 ## 关键测试
+
+- `tests/cocos-probe-preparation.test.mjs`
+- `tests/cocos-engine-probe-lifecycle.test.ts`
 
 - `tests/stage1a-bootstrap.test.ts`（正式资源经公共入口的独立装配、失败保护与生命周期）
 - `tests/cocos-ui-readiness.test.ts`
@@ -48,7 +58,7 @@ Cocos 试水适配与 Creator 探针：UI readiness、menu/save-load binding、s
 
 ## 常见风险
 
-- 接入真实 `cc` / wx API（当前禁止）
+- 在旧三层接入真实`cc`或任何层接wx（新outer只开放cc）
 - 把探针写成 Stage 1B 已实现
 - UI 层绕过 Session 直写 SaveFile
 - 存储拒绝后仍展示旧成功摘要、队列超车或健康命令无法继续；追踪 `trace.save.storage-failure-recovery`
@@ -61,7 +71,6 @@ Cocos 试水适配与 Creator 探针：UI readiness、menu/save-load binding、s
 
 cocos-app, cocos-creator-adapter
 
-## 后续候选（未进入）
+## 真实Web外层与后续范围
 
-- 真实 Cocos Component / Scene / Prefab
-- wx storage port
+新增outer源模板由[引擎探针模块卡](../module-cards/cocos-engine-probe.md)导航，trace.cocos.web-bootstrap-probe连接自动准备与生命周期验证；真实Creator预览/构建独立验收。微信导出、真实wx storage及AOT仍未进入。

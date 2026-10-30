@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.30
+﻿# Code Index — Files — v0.0.2.31
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -49,3 +49,15 @@
 | `tests/support/controlledSaveStoragePort.ts` | tests | ControlledSaveStoragePort / PendingStorageOperation / captureSerializedSession，故障时序与完整状态捕获辅助 | 读写故障用例；不作为平台或玩法权威 | 上述三个存储故障任务，`trace.save.storage-failure-recovery` |
 | `docs/adr/ADR-0003-load-failure-must-not-mutate-current-session.md` | docs | 失败不污染 session，区分调用方保护与底层写入保证 | 改存读档故障边界 | `test:context-governance`、上述三个存储故障任务 |
 | `tests/**` | tests | 契约与回归 | 改代码/文档 | `q:full` |
+
+## Cocos Web探针
+
+| 文件 | 模块 | 职责 | 何时读 | 验证 |
+|---|---|---|---|---|
+| `apps/cocos-probe/` | cocos-engine-probe | 真实Creator Web外层源模板 | 改资源加载、节点或外层生命周期 | `test:cocos-engine-probe-lifecycle`、真实Creator构建 |
+| `tools/cocos-probe/prepare.mjs` | tools | 唯一来源派生仓库外工程及摘要 | 改准备/资源输入/产物 | `test:cocos-probe-preparation` |
+| `tools/cocos-probe/build.mjs` | tools | 显式Creator的独立Web构建 | 真实引擎验收 | `cocos:build` |
+| `tests/cocos-probe-preparation.test.mjs` | tests | 实际prepare、坏资源、来源及bundle验证 | 改工具或模板 | `test:cocos-probe-preparation` |
+| `tests/cocos-engine-probe-lifecycle.test.ts` | tests | 加载中销毁与公开宿主生命周期 | 改新outer | `test:cocos-engine-probe-lifecycle` |
+| `apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts` | cocos-engine-probe | 真实cc组件、资源加载、Label/Button端口 | 改引擎节点和按钮动作 | 真实Creator类型检查、Web构建与浏览器冒烟 |
+| `apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts` | cocos-engine-probe | 无cc依赖的加载、挂载和销毁代际保护 | 改加载与宿主生命周期 | `test:cocos-engine-probe-lifecycle` |

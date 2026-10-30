@@ -1,23 +1,18 @@
-# IMPLEMENTATION_SCOPE — v0.0.2.30
+# IMPLEMENTATION_SCOPE — v0.0.2.31
 
-版本：v0.0.2.30 / Async Scene Binding Ordering & Recovery / 场景绑定异步顺序与失败恢复版。
+版本：v0.0.2.31 / Cocos Web Bootstrap Probe / Cocos网页端最小启动探针版。
 
 ## 本轮范围
 
-本轮只做场景绑定异步顺序与失败恢复：在同一`CocosSceneBindingController`实例内，将快照读取、Queue命令、差异生成及异步端口应用作为一个有序操作。`applyInitialSnapshot`与组件的mount/refresh/execute/unmount共享该顺序，卸载成功后不受先前调用的迟到更新覆盖。
+本轮唯一目标是在固定Creator3.8.8的真实Web预览与构建中，从仓库唯一正式资源经公共bootstrap建立会话，真实节点显示时间、按钮提交已有advance_time并正确卸载。资源加载失败与加载中销毁必须明确处理，不能发布迟到Host或更新失效节点。
 
-- 失败恢复：端口同步抛错或Promise拒绝仍使调用失败，内部排队恢复后继续处理后续调用。失败批次后的下一次绑定操作全量同步当前四区视图；仅重新渲染，不回滚已提交Action、不自动重发正式命令。
-- 差异语义：`diff`仍描述Shell前后差异；恢复时`applied_updates`可以包含全量四区并使用`initial_render`原因。健康且无变化的快照仍不产生多余刷新。
-- 确定性验收：现有scene/component应用测试使用`tests/support/controlledBindingPort.ts`的手动信号，覆盖并发、部分应用后拒绝、重同步和卸载交错，检查端口实际状态及正式动作只执行一次。
-- 追踪与版本：`trace.cocos.binding-async-recovery`连接场景控制器、两个既有full/blocker任务及边界契约。两任务补齐tests覆盖和辅助files；`quality-affected-contracts`断言单文件实际选择，`traceability-contracts`断言执行闭合，不修改门禁算法。轻量traceability由`traceability-map.json`与`TRACEABILITY_MATRIX.md`对齐，版本元数据仍由`project-target.json`派生。
+仓库内apps/cocos-probe保存最小工程源模板及外层桥接；tools/cocos-probe/prepare.mjs从现有src/design_snapshot派生浏览器runtime与全部58个声明Schema，在仓库外生成可打开工作副本。probe-source-manifest.json记录sourceCommit、sourceDirty、输入/产物摘要及project-target派生BuildId，副本不成为第二套代码或配置权威。
 
-既有`test:stage1a-bootstrap` / registry `test.stage1a-bootstrap`继续执行独立资源装配集成验收，`trace.runtime.bootstrap-resources`保持有效。成功返回的Host已创建Session，不再由Probe.onLoad重复创建；明确接口见creator模块卡和Stage1ABootstrap边界契约。
-
-既有`test:cocos-session`、`test:cocos-save-load`和`test:cocos-ui-command-queue`（registry为`test.cocos-session`、`test.cocos-save-load`、`test.cocos-command-queue`）继续执行存储故障回归，`trace.save.storage-failure-recovery`保持有效。`test.ci-workflow-contracts`与`trace.quality.pr-ci`继续保护PR到main时的Ubuntu完整检查及两份报告保留。云端通过情况以对应提交的Checks / Actions和报告为证。
+Node中的准备契约和外层生命周期测试登记为full/blocker，由trace.cocos.web-bootstrap-probe追踪；它们验证实际派生产物、资源完整性、异常路径和确定性生命周期，不冒充引擎运行证据。根typecheck仍仅覆盖src。真实Creator预览与Web构建另行执行，缺引擎时明确失败或未执行，不能静默skip或使用假cc类型声称通过。既有`test:cocos-session` / registry `test.cocos-session`、`test:stage1a-bootstrap`及绑定/存储回归继续执行。traceability仍由traceability-map.json与TRACEABILITY_MATRIX对齐，版本由project-target.json派生。
 
 ## 明确不做
 
-不进入 Stage 1B；不接真实 Cocos；不接 wx storage；不创建真实 Cocos Component/Scene/Prefab；不改变正式玩法；不新增 formal action；不改变 ActionPipeline；不改变 SaveFile；不改变正式 fixture；不做 flake/nightly 实装；不做完整 AST/symbol 自动索引；不重构 quality runner 或 q:affected 核心 fallback。不改game-core/cocos-app业务实现，不建立跨controller全局锁，不保证取消永不完成的端口Promise或撤回部分端口副作用；不建立资源缓存、热更新、通用依赖注入框架或真实存储适配；不修改byte_length含义，不承诺持久化原子回滚。不将Node验收写成真实Cocos运行证明。
+旧game-core、cocos-app、cocos-creator-adapter仍不接真实 Cocos、不接 wx或fs；只有新增cocos-engine-probe外层可导入cc，并受单向公开runtime边界约束。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture，不新增玩法、微信存储、AOT或资源热更新。不改quality runner、q:affected算法或gate策略，不做Windows CI、Nightly、跨controller全局锁或持久化原子回滚。
 
 ## 门禁边界
 
@@ -25,7 +20,7 @@ q:affected 不替代 q:full，不替代 q:release。release gate 禁止 cache。
 
 ## 正式包来源
 
-本轮仍基于正式包 v1.5.2.2。v0.0.2.30交付场景绑定异步顺序与失败恢复，不改变正式包设定。
+本轮仍基于正式包 v1.5.2.2。v0.0.2.31交付Cocos网页端最小启动探针，不改变正式包设定。
 
 ## module_contracts 保留
 

@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.30
+﻿# PROJECT_MAP — v0.0.2.31
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.30：**Async Scene Binding Ordering & Recovery**。同一场景绑定实例按序完成命令和界面应用，端口拒绝后重新同步当前视图，卸载完成后不被先前更新覆盖，由`trace.cocos.binding-async-recovery`追踪。既有启动装配、Session/UI/Queue存储故障回归、PR自动完整检查及报告保留继续有效；玩法与状态流转语义保持。
+v0.0.2.31：**Cocos Web Bootstrap Probe**。真实引擎外层单向消费公共runtime，准备工具从唯一来源派生仓库外工程；Node契约与真实Creator验收分别报告，由trace.cocos.web-bootstrap-probe追踪。既有启动、绑定恢复与存储故障回归继续有效。
 
 ## 3. 权威边界
 
@@ -25,6 +25,8 @@ v0.0.2.30：**Async Scene Binding Ordering & Recovery**。同一场景绑定实�
 | `src/game-core/` | 核心逻辑，ActionPipeline 唯一正式状态入口 |
 | `src/cocos-app/` | Cocos 应用适配，Session / ViewModel |
 | `src/cocos-creator-adapter/` | engine-neutral 探针，非真实 Cocos 工程 |
+| `apps/cocos-probe/` | 真实Creator Web外层源模板，独立模块 |
+| `tools/cocos-probe/` | 仓库外工程准备与真实构建入口 |
 | `tools/quality/` | 质量门禁与 affected 策略 |
 | `.github/workflows/quality.yml` | PR 自动完整检查与报告保留，归属 tools |
 | `tools/quality/rules/traceability-map.json` | 机器可读轻量追踪矩阵 |

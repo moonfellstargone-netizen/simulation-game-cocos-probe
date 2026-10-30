@@ -1,6 +1,6 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.2.30
+﻿# CODE_CONTEXT_INDEX — v0.0.2.31
 
-版本：v0.0.2.30 / Async Scene Binding Ordering & Recovery / 场景绑定异步顺序与失败恢复版。
+版本：v0.0.2.31 / Cocos Web Bootstrap Probe / Cocos网页端最小启动探针版。
 
 ## 执行前必读顺序
 
@@ -30,7 +30,10 @@
 
 后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包；代码包不保存每轮具体任务上下文；代码包只保存执行端上下文治理约束。
 
-## v0.0.2.30 测试索引
+## v0.0.2.31 测试索引
+
+- `tests/cocos-probe-preparation.test.mjs`（`test:cocos-probe-preparation`）
+- `tests/cocos-engine-probe-lifecycle.test.ts`（`test:cocos-engine-probe-lifecycle`）
 
 - `tests/cocos-scene-binding-application.test.ts`（`test:cocos-scene-binding` / registry `test.cocos-scene-binding`）
 - `tests/cocos-component-node-binding-application.test.ts`（`test:cocos-component-node-binding` / registry `test.cocos-component-node-binding`）
@@ -48,6 +51,12 @@
 - `tests/quality-affected-policy-hardening.test.mjs`
 - `tests/version-surface-contracts.test.mjs`
 - `tests/package-hygiene.test.mjs`
+
+## 真实Cocos Web探针入口
+
+先读[引擎探针模块卡](module-cards/cocos-engine-probe.md)与[外层契约](module_contracts/CocosEngineProbe.contract.md)，再核对apps/cocos-probe、tools/cocos-probe/prepare.mjs及两项新测试。仓库内apps/cocos-probe保存最小工程源模板及外层桥接；tools/cocos-probe/prepare.mjs从现有src/design_snapshot派生浏览器runtime与全部58个声明Schema，在仓库外生成可打开工作副本。probe-source-manifest.json记录sourceCommit、sourceDirty、输入/产物摘要及project-target派生BuildId，副本不成为第二套代码或配置权威。
+
+Node中的准备契约和外层生命周期测试登记为full/blocker，由trace.cocos.web-bootstrap-probe追踪；它们验证实际派生产物、资源完整性、异常路径和确定性生命周期，不冒充引擎运行证据。根typecheck仍仅覆盖src。真实Creator预览与Web构建另行执行，缺引擎时明确失败或未执行，不能静默skip或使用假cc类型声称通过。旧三层不接真实 `cc / wx / fs`；首次真实cc仅属于新outer模块，不能删旧禁令或扩大历史白名单。
 
 ## PR CI 入口
 

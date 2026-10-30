@@ -9,7 +9,28 @@ import { runArchitectureBoundaryCheck } from '../tools/quality/plugins/architect
 const root = process.cwd();
 const readJson = (rel) => JSON.parse(readFileSync(join(root, rel), 'utf8'));
 
-test('low-risk architecture boundary rules are authoritative while token boundaries remain shadow', () => {
+test('new engine layer permits cc while blocking internal imports and reverse dependencies', () => {
+  const tempRoot = mkdtempSync(join(tmpdir(), 'cocos-outer-boundary-'));
+  for (const dir of ['tools/quality/rules', 'apps/cocos-probe', 'src/game-core', 'src/cocos-app', 'src/cocos-creator-adapter']) mkdirSync(join(tempRoot, dir), { recursive: true });
+  writeFileSync(join(tempRoot, 'tools/quality/module-graph.json'), JSON.stringify(readJson('tools/quality/module-graph.json')));
+  writeFileSync(join(tempRoot, 'tools/quality/rules/architecture-boundary.rules.json'), JSON.stringify(readJson('tools/quality/rules/architecture-boundary.rules.json')));
+  writeFileSync(join(tempRoot, 'apps/cocos-probe/clean.ts'), "import { Component } from 'cc';\nexport const component = Component;\n");
+  const clean = runArchitectureBoundaryCheck({ rootDir: tempRoot });
+  assert.equal(clean.status, 'passed');
+  const outerImports = ['wx', 'node:fs', '../../tests/helper', '../../tools/helper', '../../src/game-core/action/ActionPipeline', '../../src/game-core/dev-api'];
+  outerImports.forEach((specifier, index) => writeFileSync(join(tempRoot, 'apps/cocos-probe/bad-' + index + '.ts'), "import x from '" + specifier + "';\nexport default x;\n"));
+  for (const dir of ['game-core', 'cocos-app', 'cocos-creator-adapter']) writeFileSync(join(tempRoot, 'src/' + dir + '/reverse.ts'), "import x from '../../apps/cocos-probe/clean';\nexport default x;\n");
+  writeFileSync(join(tempRoot, 'src/cocos-creator-adapter/engine.ts'), "import { Component } from 'cc';\nexport { Component };\n");
+  writeFileSync(join(tempRoot, 'apps/cocos-probe/global.ts'), "export const storage = wx.getStorageSync('save');\n");
+  const invalid = runArchitectureBoundaryCheck({ rootDir: tempRoot });
+  assert.equal(invalid.status, 'failed');
+  for (let index = 0; index < outerImports.length; index += 1) assert.ok(invalid.findings.some((finding) => finding.mode === 'authoritative' && finding.file === 'apps/cocos-probe/bad-' + index + '.ts'));
+  for (const dir of ['game-core', 'cocos-app', 'cocos-creator-adapter']) assert.ok(invalid.findings.some((finding) => finding.mode === 'authoritative' && finding.file === 'src/' + dir + '/reverse.ts'));
+  assert.ok(invalid.findings.some((finding) => finding.mode === 'authoritative' && finding.file === 'src/cocos-creator-adapter/engine.ts'));
+  assert.ok(invalid.findings.some((finding) => finding.mode === 'authoritative' && finding.file === 'apps/cocos-probe/global.ts'));
+});
+
+test('low-risk architecture boundary rules are authoritative while existing state-leak tokens remain shadow', () => {
   const rules = readJson('tools/quality/rules/architecture-boundary.rules.json');
   const allRules = Object.values(rules.rules).flat();
   const byId = Object.fromEntries(allRules.map((rule) => [rule.id, rule]));
@@ -24,6 +45,8 @@ test('low-risk architecture boundary rules are authoritative while token boundar
   }
   assert.ok(['shadow', 'shadow_aligned'].includes(byId['component-binding-no-savefile-state-leak']?.mode));
   assert.equal(byId['component-binding-no-savefile-state-leak']?.severity, 'shadow_error');
+  assert.equal(byId['cocos-engine-probe-no-wx-global']?.mode, 'authoritative');
+  assert.equal(byId['cocos-engine-probe-no-wx-global']?.severity, 'error');
 });
 
 test('arch:check covers both legacy validator and architecture-boundary authoritative rules', () => {

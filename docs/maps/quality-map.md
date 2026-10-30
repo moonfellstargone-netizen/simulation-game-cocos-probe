@@ -1,4 +1,4 @@
-﻿# Quality Map — v0.0.2.30
+﻿# Quality Map — v0.0.2.31
 
 ## 系统职责
 
@@ -23,6 +23,8 @@
 - `tools/quality/plugins/*`
 
 ## 关键测试
+
+- `tests/cocos-probe-preparation.test.mjs`、`tests/cocos-engine-probe-lifecycle.test.ts`（新full/blocker，trace.cocos.web-bootstrap-probe）
 
 - `tests/stage1a-bootstrap.test.ts`（registry `test.stage1a-bootstrap`：正式资源经公共入口的独立集成验收，追踪`trace.runtime.bootstrap-resources`）
 - `tests/cocos-scene-binding-application.test.ts`、`tests/cocos-component-node-binding-application.test.ts`（现有full/blocker绑定任务，受控辅助`tests/support/controlledBindingPort.ts`，追踪`trace.cocos.binding-async-recovery`）
@@ -60,3 +62,5 @@
 ## 关联 module-cards
 
 quality-tools, release-tools
+
+新outer与prepare工具的归属、单向依赖、来源摘要和实际affected选择纳入自动契约；真实Creator预览/Web构建另行验收，不能让无引擎CI的q:full冒充引擎通过。

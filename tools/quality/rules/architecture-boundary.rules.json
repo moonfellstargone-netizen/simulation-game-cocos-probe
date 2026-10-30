@@ -1,6 +1,6 @@
 {
-  "version": "v0.0.2.30",
-  "description": "Architecture boundary rules remain active for v0.0.2.30 scene binding ordering and recovery work. Low-risk import/path ownership rules remain authoritative; token/state-leak rules stay shadow_aligned/shadow until later authority migration.",
+  "version": "v0.0.2.31",
+  "description": "Architecture boundaries retain all engine-neutral restrictions and add an authoritative outer Creator module boundary for the Web probe.",
   "ruleTypes": [
     "importBoundaries",
     "tokenBoundaries",
@@ -23,7 +23,8 @@
           "cc",
           "wx",
           "node:fs",
-          "fs"
+          "fs",
+          "apps/cocos-probe/"
         ],
         "severity": "error",
         "description": "game-core 必须独立于 Cocos、微信、Node 文件系统、表现层和平台层。",
@@ -41,7 +42,8 @@
         "forbiddenImports": [
           "src/game-core/dev-api",
           "src/game-core/testing-api",
-          "tools/"
+          "tools/",
+          "apps/cocos-probe/"
         ],
         "severity": "error",
         "description": "cocos-app 不得依赖 game-core dev/testing API 或工具层。",
@@ -62,10 +64,35 @@
           "node:fs",
           "fs",
           "src/game-core/dev-api",
-          "src/game-core/testing-api"
+          "src/game-core/testing-api",
+          "apps/cocos-probe/"
         ],
         "severity": "error",
         "description": "cocos-creator-adapter 当前仍是 TypeScript probe，不得直接接入真实 cc、wx、fs、dev-api 或 testing-api。",
+        "mode": "authoritative"
+      },
+      {
+        "id": "cocos-engine-probe-public-runtime-only",
+        "owner": "cocos-engine-probe",
+        "roots": [
+          "apps/cocos-probe/**"
+        ],
+        "includeExtensions": [
+          ".ts",
+          ".js"
+        ],
+        "forbiddenImports": [
+          "wx",
+          "fs",
+          "node:fs",
+          "tests/",
+          "tools/",
+          "src/game-core/",
+          "src/cocos-app/",
+          "src/cocos-creator-adapter/"
+        ],
+        "severity": "error",
+        "description": "真实cc仅属于新outer工程；通过派生公共runtime访问会话，不直接导入核心内部、测试、工具或平台存储。",
         "mode": "authoritative"
       }
     ],
@@ -209,6 +236,36 @@
         "severity": "shadow_error",
         "description": "adapter 不得直接感知 runtime state shape；本轮只收窄 scope，不转 authoritative。",
         "mode": "shadow"
+      },
+      {
+        "id": "cocos-engine-probe-no-wx-global",
+        "owner": "cocos-engine-probe",
+        "roots": [
+          "apps/cocos-probe/**"
+        ],
+        "includeExtensions": [
+          ".ts",
+          ".js"
+        ],
+        "forbiddenTokens": [
+          "wx"
+        ],
+        "allowedPhrases": [],
+        "ignore": {
+          "lineComments": true,
+          "blockComments": true,
+          "stringLiterals": true
+        },
+        "severity": "error",
+        "description": "真实Creator外层也不得通过wx全局接入微信平台API。",
+        "mode": "authoritative",
+        "includeFiles": [
+          "**/*.ts",
+          "**/*.js"
+        ],
+        "excludeFiles": [
+          "**/*.d.ts"
+        ]
       }
     ],
     "pathOwnership": [

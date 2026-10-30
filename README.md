@@ -1,12 +1,12 @@
-# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.30
+# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.31
 
-**Async Scene Binding Ordering & Recovery / 场景绑定异步顺序与失败恢复版**
+**Cocos Web Bootstrap Probe / Cocos网页端最小启动探针版**
 
 本仓库是 Cocos 微信试水代码项目**日常代码权威源**。正式玩法与契约权威仍为正式三包 v1.5.2.2。
 
-- 代码包版本：`v0.0.2.30`
-- npm package version：`0.0.2-30`
-- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_30`（权威源：`tools/quality/rules/project-target.json`）
+- 代码包版本：`v0.0.2.31`
+- npm package version：`0.0.2-31`
+- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_31`（权威源：`tools/quality/rules/project-target.json`）
 - 设计来源：`模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip`
 - 规则权威源：`tools/quality/rules/project-target.json`、`tools/quality/rules/context-doc-surface.rules.json`、`tools/quality/rules/architecture-boundary.rules.json`、`tools/quality/rules/traceability-map.json`
 - 代码权威：本 GitHub 仓库（非 zip 归档包）
@@ -22,13 +22,13 @@
 
 ## Task Intent Lock
 
-本轮唯一目标是场景绑定异步顺序与失败恢复：同一绑定实例中的命令、界面应用及初始渲染按调用顺序完成，卸载完成后不被先前调用的旧更新覆盖。绑定端口拒绝时保留原Promise失败，后续调用仍可继续，并重新同步当前视图；恢复不重放正式Action、不回滚已提交业务。
+本轮唯一目标是在固定Creator3.8.8的真实Web预览与构建中，从仓库唯一正式资源经公共bootstrap建立会话，真实节点显示时间、按钮提交已有advance_time并正确卸载。资源加载失败与加载中销毁必须明确处理，不能发布迟到Host或更新失效节点。
 
-由`trace.cocos.binding-async-recovery`连接场景控制器、两个既有full/blocker绑定任务和边界契约。受控端口用手动信号验证延迟、拒绝、恢复及卸载交错，检查实际节点内容。测试登记补齐两项任务对tests模块及共享辅助的覆盖，不改变affected算法。
+仓库内apps/cocos-probe保存最小工程源模板及外层桥接；tools/cocos-probe/prepare.mjs从现有src/design_snapshot派生浏览器runtime与全部58个声明Schema，在仓库外生成可打开工作副本。probe-source-manifest.json记录sourceCommit、sourceDirty、输入/产物摘要及project-target派生BuildId，副本不成为第二套代码或配置权威。
 
-既有公共启动入口与`trace.runtime.bootstrap-resources`、存储故障回归、PR自动完整检查和报告保留继续有效。顺序保证只适用于同一绑定实例管理的调用，不覆盖多个controller或外部直接调用Host；不撤回端口已产生的部分副作用。Node验收不证明真实Cocos兼容。
+旧game-core、cocos-app、cocos-creator-adapter仍不接真实 Cocos、不接 wx或fs；只有新增cocos-engine-probe外层可导入cc，并受单向公开runtime边界约束。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture，不新增玩法、微信存储、AOT或资源热更新。
 
-本轮明确不进入 Stage 1B，不接真实 Cocos，不接 wx storage，不新增玩法，不新增 formal action，不修改 ActionPipeline，不修改 SaveFile，不修改正式 fixture，不做 Nightly 实装，不做完整 AST/symbol 自动索引。
+Node中的准备契约和外层生命周期测试登记为full/blocker，由trace.cocos.web-bootstrap-probe追踪；它们验证实际派生产物、资源完整性、异常路径和确定性生命周期，不冒充引擎运行证据。根typecheck仍仅覆盖src。真实Creator预览与Web构建另行执行，缺引擎时明确失败或未执行，不能静默skip或使用假cc类型声称通过。既有启动、绑定恢复、存储故障回归与PR质量验证继续有效。
 
 执行方使用 Cursor 时**必须先做预检报告**，用户或 GPT 确认后才可修改文件。复杂任务须先做 Scope Discovery。
 
@@ -39,6 +39,11 @@
 详见 [`docs/CHECK_ARCHITECTURE.md`](docs/CHECK_ARCHITECTURE.md) 与 [`docs/GITHUB_WORKFLOW.md`](docs/GITHUB_WORKFLOW.md)。
 
 ## 常用命令
+
+- `npm run cocos:prepare -- --output <仓库外空目录>`
+- `npm run cocos:build -- --creator <Creator绝对路径> --project <派生工程绝对路径> --log-dir <仓库外日志目录>`
+- `npm run test:cocos-probe-preparation`
+- `npm run test:cocos-engine-probe-lifecycle`
 
 - `npm run test:cocos-scene-binding`
 - `npm run test:cocos-component-node-binding`
@@ -68,7 +73,7 @@ CI 使用只读仓库权限、固定官方 Action 提交，不持久化 checkout
 
 启动入口为`src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts`中的`createStage1AHost`。成功返回的Host已创建Session，可交给现有UI Shell/Queue或通过requireSession使用；结束时调用destroySession，不再执行Probe.onLoad二次创建。
 
-模块导航主入口为[creator模块卡](docs/module-cards/cocos-creator-adapter.md)。
+模块导航主入口为[creator模块卡](docs/module-cards/cocos-creator-adapter.md)，真实引擎外层见[引擎探针模块卡](docs/module-cards/cocos-engine-probe.md)。
 
 [装配边界契约](docs/module_contracts/Stage1ABootstrap.contract.md)保留为资源输入、失败保护及生命周期的边界说明，不替代模块卡导航。
 

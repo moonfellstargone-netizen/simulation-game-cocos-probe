@@ -1,5 +1,5 @@
 {
-  "version": "0.0.2.30",
+  "version": "0.0.2.31",
   "modules": {
     "game-core": {
       "roots": [
@@ -12,7 +12,8 @@
         "cc",
         "wx",
         "node:fs",
-        "fs"
+        "fs",
+        "apps/cocos-probe/**"
       ],
       "tags": [
         "core",
@@ -33,7 +34,8 @@
         "wx",
         "node:fs",
         "fs",
-        "tests/**"
+        "tests/**",
+        "apps/cocos-probe/**"
       ],
       "tags": [
         "adapter",
@@ -56,7 +58,8 @@
         "node:fs",
         "fs",
         "src/game-core/dev-api.ts",
-        "src/game-core/testing-api.ts"
+        "src/game-core/testing-api.ts",
+        "apps/cocos-probe/**"
       ],
       "tags": [
         "creator-adapter",
@@ -144,6 +147,30 @@
         "release-blocker"
       ],
       "description": "交付打包和 release zip 复验工具，必须排除生成物、日志包和临时质量报告。"
+    },
+    "cocos-engine-probe": {
+      "roots": [
+        "apps/cocos-probe/**"
+      ],
+      "dependsOn": [
+        "cocos-creator-adapter",
+        "cocos-app",
+        "game-core"
+      ],
+      "forbiddenDeps": [
+        "wx",
+        "fs",
+        "node:fs",
+        "tests/**",
+        "src/game-core/dev-api.ts",
+        "src/game-core/testing-api.ts"
+      ],
+      "tags": [
+        "cocos-engine",
+        "web-probe",
+        "release-blocker"
+      ],
+      "description": "真实Creator外层工程源模板，单向消费派生的公共runtime；可用cc，禁止业务内部和测试依赖。可打开副本及缓存/构建位于仓库外。"
     }
   }
 }
