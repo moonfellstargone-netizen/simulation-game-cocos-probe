@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.27
+﻿# PROJECT_MAP — v0.0.2.28
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.27：**PR Quality Gate**。通过 `.github/workflows/quality.yml` 在 PR 中执行既有 `q:full`，保留质量报告；以 `test.ci-workflow-contracts`、`trace.quality.pr-ci` 闭合工作流、测试登记及轻量追踪。包卫生检查兼容真实 Git 检出环境，业务逻辑保持不变。
+v0.0.2.28：**Save Storage Failure Contracts**。通过现有 `SaveStoragePort` 注入受控故障，验证 Session 状态保护、save/load UI 错误展示和队列恢复；沿用三个既有完整门禁任务，由 `trace.save.storage-failure-recovery` 追踪契约与 ADR-0003。业务逻辑保持不变，现有 PR 自动质量检查与报告保留继续有效。
 
 ## 3. 权威边界
 

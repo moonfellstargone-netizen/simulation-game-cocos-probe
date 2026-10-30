@@ -1,29 +1,29 @@
 {
   "version": {
-    "codePackageVersion": "v0.0.2.27",
-    "npmVersion": "0.0.2-27",
-    "qualityMetadataVersion": "0.0.2.27",
-    "snakeVersion": "v0_0_2_27",
-    "versionName": "PR Quality Gate",
-    "chineseVersionName": "PR 自动质量验证版"
+    "codePackageVersion": "v0.0.2.28",
+    "npmVersion": "0.0.2-28",
+    "qualityMetadataVersion": "0.0.2.28",
+    "snakeVersion": "v0_0_2_28",
+    "versionName": "Save Storage Failure Contracts",
+    "chineseVersionName": "存储端口故障契约与恢复验证版"
   },
   "release": {
-    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_27",
-    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_27.zip"
+    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_28",
+    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_28.zip"
   },
   "design": {
     "designPackVersion": "v1.5.2.2",
     "designPackName": "模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip"
   },
   "previous": {
-    "codePackageVersion": "v0.0.2.26",
-    "npmVersion": "0.0.2-26",
-    "qualityMetadataVersion": "0.0.2.26",
-    "snakeVersion": "v0_0_2_26",
-    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_26",
-    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_26.zip",
-    "versionName": "Quality Test Registry Closure",
-    "chineseVersionName": "检查体系测试登记闭合版"
+    "codePackageVersion": "v0.0.2.27",
+    "npmVersion": "0.0.2-27",
+    "qualityMetadataVersion": "0.0.2.27",
+    "snakeVersion": "v0_0_2_27",
+    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_27",
+    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_27.zip",
+    "versionName": "PR Quality Gate",
+    "chineseVersionName": "PR 自动质量验证版"
   },
   "staleMarkers": {
     "forbiddenCurrentMarkers": [
@@ -83,7 +83,18 @@
       "检查体系测试登记闭合版",
       "fixture_baseline_v0_0_2_26",
       "headless_baseline_v0_0_2_26",
-      "cocos_baseline_v0_0_2_26"
+      "cocos_baseline_v0_0_2_26",
+      "v0.0.2.27",
+      "0.0.2-27",
+      "0.0.2.27",
+      "v0_0_2_27",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_27",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_27.zip",
+      "PR Quality Gate",
+      "PR 自动质量验证版",
+      "fixture_baseline_v0_0_2_27",
+      "headless_baseline_v0_0_2_27",
+      "cocos_baseline_v0_0_2_27"
     ],
     "allowedHistoricalScopes": [
       "tools/quality/rules/project-target.json",

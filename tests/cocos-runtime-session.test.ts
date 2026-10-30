@@ -6,10 +6,11 @@ import { join } from 'node:path';
 import { CocosAppRuntimeSession } from '../src/cocos-app/runtime/CocosAppRuntimeSession';
 import { FieldMenuController } from '../src/cocos-app/controllers/FieldMenuController';
 import { InventoryMenuController } from '../src/cocos-app/controllers/InventoryMenuController';
-import { InMemorySaveStoragePort, type ActionResult } from '../src/game-core';
+import { InMemorySaveStoragePort, type ActionResult, type SaveStoragePort } from '../src/game-core';
 import { buildRuntimeWithoutState } from './support/runtimeHarness';
+import { ControlledSaveStoragePort, captureSerializedSession } from './support/controlledSaveStoragePort';
 
-function makeSession(storage = new InMemorySaveStoragePort()) {
+function makeSession(storage: SaveStoragePort = new InMemorySaveStoragePort()) {
   const { configs, contracts } = buildRuntimeWithoutState();
   return {
     session: new CocosAppRuntimeSession(configs, contracts, storage, {
@@ -123,6 +124,55 @@ test('CocosAppRuntimeSession saves and loads only through SaveManager plus SaveS
   assert.equal(loaded.view_model.money, 137);
   assert.equal(second.getViewModel().orders.find((order) => order.id === 'tavern_home_dish_001')?.status, 'completed');
   assert.equal(second.getViewModel().dish_lot_count, 0);
+});
+
+test('Session distinguishes a read rejection from a missing slot, preserves complete state, and can retry', async () => {
+  const storage = new ControlledSaveStoragePort();
+  const { session } = makeSession(storage);
+  const initialView = session.getViewModel();
+  const savedState = await captureSerializedSession(session, storage, 'session_recovery');
+  dispatchAndAssert(session.dispatch('advance_time', { minutes: 60 }), 'advance_time');
+  const beforeView = session.getViewModel();
+  const beforeSelectable = session.getSelectableViewModel();
+  const beforeState = await captureSerializedSession(session, storage, 'session_before_read');
+  assert.notEqual(beforeState, savedState);
+
+  const failure = new Error('storage read interrupted');
+  storage.failNext('read', failure);
+  await assert.rejects(session.load('session_recovery'), { message: failure.message });
+  assert.deepEqual(session.getViewModel(), beforeView);
+  assert.deepEqual(session.getSelectableViewModel(), beforeSelectable);
+  assert.equal(await captureSerializedSession(session, storage, 'session_after_read_failure'), beforeState);
+
+  assert.equal(await storage.read('session_missing'), null);
+  await assert.rejects(session.load('session_missing'), /ERR_SAVE_SLOT_NOT_FOUND:session_missing/);
+  assert.deepEqual(session.getViewModel(), beforeView);
+  assert.equal(await captureSerializedSession(session, storage, 'session_after_missing'), beforeState);
+
+  const loaded = await session.load('session_recovery');
+  assert.deepEqual(loaded.view_model, initialView);
+  assert.equal(await captureSerializedSession(session, storage, 'session_after_read_retry'), savedState);
+});
+
+test('Session rejects a failed write without changing complete state and permits a healthy retry', async () => {
+  const storage = new ControlledSaveStoragePort();
+  const { session } = makeSession(storage);
+  dispatchAndAssert(session.dispatch('advance_time', { minutes: 60 }), 'advance_time');
+  const beforeView = session.getViewModel();
+  const beforeSelectable = session.getSelectableViewModel();
+  const beforeState = await captureSerializedSession(session, storage, 'session_before_write');
+
+  const failure = new Error('storage write interrupted');
+  storage.failNext('write', failure);
+  await assert.rejects(session.save('session_write_retry'), { message: failure.message });
+  assert.deepEqual(session.getViewModel(), beforeView);
+  assert.deepEqual(session.getSelectableViewModel(), beforeSelectable);
+  assert.equal(await captureSerializedSession(session, storage, 'session_after_write_failure'), beforeState);
+
+  const saved = await session.save('session_write_retry');
+  assert.equal(saved.slot_id, 'session_write_retry');
+  assert.equal(await storage.read('session_write_retry'), beforeState);
+  assert.deepEqual(session.getViewModel(), beforeView);
 });
 
 test('Cocos menu controllers depend on session dispatch boundary rather than raw dispatcher state access', () => {

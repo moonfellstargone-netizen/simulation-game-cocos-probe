@@ -9,9 +9,9 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.27
+# TRACEABILITY_MATRIX — v0.0.2.28
 
-**PR Quality Gate / PR 自动质量验证版**
+**Save Storage Failure Contracts / 存储端口故障契约与恢复验证版**
 
 ## 1. 定位
 
@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 本轮沿用**轻量追踪地基**并登记 PR CI 链路；完整 AST / symbol 自动索引、Nightly 实装、wx storage、真实 Cocos 均**不是**当前实现。
+- 本轮沿用**轻量追踪地基**，新增存储故障保护与恢复链路，保留既有 PR CI 追踪；完整 AST / symbol 自动索引、Nightly 实装、wx storage、真实 Cocos 均**不是**当前实现。
 
 ## 2. 状态语义
 
@@ -64,6 +64,20 @@ related:
 | 文档入口 | `docs/module-cards/save-load.md` |
 | gate | `full` |
 | 当前状态 | `active` |
+
+### trace.save.storage-failure-recovery
+
+| 维度 | 内容 |
+|---|---|
+| 契约/系统 | 现有 SaveStoragePort 读写拒绝时的状态保护、错误展示及后续健康命令恢复 |
+| 源码模块 | `game-core`, `cocos-app`, `cocos-creator-adapter`, `tests` |
+| 关键路径 | `src/game-core/save/SaveStoragePort.ts`, `src/cocos-app/runtime/CocosAppRuntimeSession.ts`, `src/cocos-creator-adapter/save/SaveLoadInteractionController.ts`, `src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts` |
+| 测试任务 | `test.cocos-session`, `test.cocos-save-load`, `test.cocos-command-queue`（既有 `full`+`blocker`；受控故障辅助见 `tests/support/controlledSaveStoragePort.ts`） |
+| 文档入口 | `docs/module-cards/save-load.md`, `docs/module_contracts/SaveStoragePort.contract.md`, `docs/adr/ADR-0003-load-failure-must-not-mutate-current-session.md` |
+| gate | `full`, `release` |
+| 当前状态 | `active` |
+
+本项验证即时或延迟读写拒绝、旧成功结果清除、命令顺序及健康重试；不新增平台错误码、真实 wx 接入或底层持久化原子回滚保证。既有 `trace.stage1a.save-load` 与 `trace.cocos.session-viewmodel-port` 保留各自职责。
 
 ### trace.stage1a.baseline-runtime
 

@@ -4,12 +4,12 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { CocosSessionHost, SaveLoadInteractionController } from '../src/cocos-creator-adapter';
-import { InMemorySaveStoragePort } from '../src/game-core';
+import { InMemorySaveStoragePort, type SaveStoragePort } from '../src/game-core';
 import { buildRuntimeWithoutState, cloneForCompare } from './support/runtimeHarness';
+import { ControlledSaveStoragePort, captureSerializedSession } from './support/controlledSaveStoragePort';
 
-function makeSaveUi() {
+function makeSaveUi(storage: SaveStoragePort = new InMemorySaveStoragePort()) {
   const { configs, contracts } = buildRuntimeWithoutState();
-  const storage = new InMemorySaveStoragePort();
   const host = new CocosSessionHost(configs, contracts, storage, {
     buildId: testBuildId('cocos_save_load_ui_test'),
     nowIso8601: '2026-05-21T00:00:00.000Z'
@@ -60,6 +60,54 @@ test('Failed load is presented as an error and does not damage the current sessi
   assert.equal(afterFailureSave.last_save_result?.slot_id, 'slot_after_failed_load');
   assert.equal(afterFailureSave.errors.length, 0);
 });
+
+for (const operation of ['read', 'write'] as const) {
+  test(`Save/load UI presents ordinary ${operation} errors, clears old success results, and recovers`, async () => {
+    const storage = new ControlledSaveStoragePort();
+    const { host, controller } = makeSaveUi(storage);
+    const session = host.requireSession();
+    const initialView = session.getViewModel();
+    const initialSave = await controller.save({ slot_id: 'ui_recovery' });
+    assert.equal(initialSave.last_save_result?.slot_id, 'ui_recovery');
+    const savedState = await storage.read('ui_recovery');
+    assert.notEqual(savedState, null);
+    if (operation === 'read') {
+      const loaded = await controller.load({ slot_id: 'ui_recovery' });
+      assert.equal(loaded.last_load_result?.slot_id, 'ui_recovery');
+    }
+    assert.equal(session.dispatch('advance_time', { minutes: 60 }).success, true);
+    const beforeView = session.getViewModel();
+    const beforeSelectable = session.getSelectableViewModel();
+    const beforeState = await captureSerializedSession(session, storage, `ui_before_${operation}`);
+    const failure = new Error(`storage ${operation} interrupted`);
+    storage.failNext(operation, failure);
+
+    const failed = operation === 'read'
+      ? await controller.load({ slot_id: 'ui_recovery' })
+      : await controller.save({ slot_id: 'ui_write_retry' });
+    assert.equal(failed.last_save_result, null);
+    assert.equal(failed.last_load_result, null);
+    assert.deepEqual(failed.errors, [{ code: null, message: failure.message }]);
+    assert.deepEqual(failed.view_model, beforeView);
+    assert.deepEqual(failed.selectable_view_model, beforeSelectable);
+    assert.deepEqual(session.getViewModel(), beforeView);
+    assert.equal(await captureSerializedSession(session, storage, `ui_after_${operation}_failure`), beforeState);
+
+    const retried = operation === 'read'
+      ? await controller.load({ slot_id: 'ui_recovery' })
+      : await controller.save({ slot_id: 'ui_write_retry' });
+    assert.deepEqual(retried.errors, []);
+    if (operation === 'read') {
+      assert.equal(retried.last_load_result?.slot_id, 'ui_recovery');
+      assert.deepEqual(retried.view_model, initialView);
+      assert.equal(await captureSerializedSession(session, storage, 'ui_after_read_retry'), savedState);
+    } else {
+      assert.equal(retried.last_save_result?.slot_id, 'ui_write_retry');
+      assert.equal(await storage.read('ui_write_retry'), beforeState);
+      assert.deepEqual(retried.view_model, beforeView);
+    }
+  });
+}
 
 test('Save/load UI binding rejects invalid slot selections before storage access', async () => {
   const { host, controller } = makeSaveUi();

@@ -33,6 +33,14 @@
 - `load` 失败不得污染当前 session。
 - 不得向 UI 暴露可变 SaveFile 引用。
 
+## 存储故障契约
+
+- 读取 Promise 拒绝时不提交候选状态；空槽 `null` 走既有槽位不存在错误，两者保持区别。
+- 写入 Promise 拒绝时不返回成功保存摘要，不由该故障引入 session 状态变更。
+- 故障前后通过 `getViewModel / getSelectableViewModel` 及健康保存、读取取得的完整序列化内容核对状态，不向测试或 UI 增加可变 SaveFile 出口。
+- 后续正常 `save / load` 可以继续使用同一 session；即时拒绝与受控等待后拒绝均遵循现有边界。
+- 保持既有错误传播与呈现方式，不新增平台错误码、自动重试或真实存储原子回滚保证。
+
 ## 关联测试
 
 ```text
