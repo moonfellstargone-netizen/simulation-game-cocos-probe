@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.29
+﻿# Code Index — Public API — v0.0.2.30
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -34,6 +34,8 @@
 
 ## Stage1A启动装配
 
+已有启动装配与资源就绪能力继续作为公共边界。
+
 - `Stage1ABootstrapResources`：外部已解析的`snapshot`、`schemas`、`storage`及明确的`buildId`、`nowIso8601`。
 - `createStage1AHost(input): CocosSessionHost`（`src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts`）：资源与契约就绪、新局校验成功后才返回已创建Session的Host；失败抛错，不进行存储读写或正式Action。
 - 导出：bootstrap子目录及`src/cocos-creator-adapter/index.ts`。
@@ -41,6 +43,14 @@
 - `RuntimeContractValidator.assertReady()`：由既有契约校验器集中维护的必需Schema映射检查操作契约就绪。
 - 成功Host通过`requireSession()`或现有UI Shell/Queue使用，以`destroySession()`结束；不得再调用Probe.onLoad创建同一会话。
 - 追踪：`trace.runtime.bootstrap-resources`；本地`test:stage1a-bootstrap` / registry `test.stage1a-bootstrap`。
+
+## 场景绑定异步顺序与失败恢复
+
+- `CocosSceneBindingController.execute(command)`：同一实例内按序完成读取快照、命令执行和端口批次。返回diff仍是Shell前后差异；失败重同步时applied_updates可全量四区。
+- `CocosSceneBindingController.applyInitialSnapshot()`：经同一实例顺序全量刷新；与execute互不超车。
+- `QinglanUiSceneProbeComponent.mount / refresh / execute / applyInitialSnapshot / unmount`：复用上述控制器；卸载成功后不被先前调用的旧更新覆盖。
+- `CocosSceneBindingPort.applySceneBindingUpdate`与`CocosComponentNodeBindingPort.applyNodeBindingPatch`保留`void | Promise<void>`，同步抛错或异步拒绝原样可观察。后续绑定操作全量重同步当前视图，不重放或回滚正式Action。
+- 顺序只覆盖同一实例管理的调用，不承诺跨controller全局锁或端口副作用回滚。追踪`trace.cocos.binding-async-recovery`，使用现有两个full/blocker绑定任务。
 
 ## Cocos app runtime
 

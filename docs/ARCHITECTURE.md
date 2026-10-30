@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.29
+﻿# ARCHITECTURE — v0.0.2.30
 
-当前版本：v0.0.2.29 / Runtime Bootstrap & Resource Contracts。本轮增加外层启动装配与必要校验就绪能力；既有玩法、状态流转及架构依赖方向保持，不改变ActionPipeline、SaveFile或正式fixture。
+当前版本：v0.0.2.30 / Async Scene Binding Ordering & Recovery。本轮修复绑定实例内异步应用顺序与失败后视图重同步；既有玩法、状态流转及架构依赖方向保持，不改变ActionPipeline、SaveFile或正式fixture。
 
 ## 1. 业务架构不变
 
@@ -51,3 +51,9 @@ game-core 独立于 Cocos / wx / 表现层。tools/quality 仍是检查工具层
 就绪检查复用现有校验器，覆盖必要Schema及引用的编译可用性；新局仍经既有SaveFile校验与StorageAudit。只有检查和初始化成功才交付可操作宿主，失败不发生存储读写或正式Action副作用。创建Host的入口不能放在需要反向依赖creator-adapter的cocos-app内部。
 
 该链路由`trace.runtime.bootstrap-resources`追踪。测试可在边界外读取正式样本，但运行装配不能依赖runtimeHarness；Node集成结果仅证明平台无关链路，不证明真实Cocos资源加载、打包或依赖兼容。
+
+## 11. 场景绑定顺序与重同步
+
+`CocosSceneBindingController`以实例级顺序管理完整操作：执行前读取Shell快照、等待既有命令队列、生成差异并等待全部端口更新。`applyInitialSnapshot`进入同一顺序；组件mount/refresh/execute/unmount复用此入口。该顺序不替代业务事务，也不覆盖多个controller或外部直接Host调用。
+
+端口批次失败使视图需要重同步，调用仍拒绝原始端口错误，后续排队可继续。下一次绑定操作全量刷新当前四区；成功后恢复普通diff。`diff`仅表示Shell前后变化，恢复的`applied_updates`可多于差异区。正式Action可能已提交，绑定恢复不能回滚或重发业务；端口已产生的部分副作用不保证撤销。由`trace.cocos.binding-async-recovery`追踪，使用受控端口的实际节点状态验收。

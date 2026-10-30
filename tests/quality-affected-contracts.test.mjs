@@ -107,3 +107,29 @@ test('unknown changed files trigger fallback and affected report contract is doc
     assert.ok(reportWriter.includes(required), `affected report writer must include ${required}`);
   }
 });
+
+test('binding source, application tests and shared helper changes select both binding tasks', () => {
+  for (const file of [
+    'src/cocos-creator-adapter/scene/CocosSceneBindingController.ts',
+    'tests/cocos-scene-binding-application.test.ts',
+    'tests/cocos-component-node-binding-application.test.ts',
+    'tests/support/controlledBindingPort.ts'
+  ]) {
+    const changedFiles = [file];
+    const modules = resolveAffectedModules(changedFiles, moduleGraph);
+    const result = resolveAffectedTasks({
+      changedFiles,
+      affectedModules: modules.affectedModules,
+      fallback: modules.fallback,
+      fallbackReason: modules.fallbackReason,
+      gatePolicy: policy,
+      testRegistry: registry
+    });
+    const ids = result.selectedTasks.map((task) => task.id);
+    for (const id of ['test.cocos-scene-binding', 'test.cocos-component-node-binding']) {
+      assert.ok(ids.includes(id), `${file} alone must select ${id}`);
+    }
+    assert.equal(ids.includes('release.build'), false);
+    assert.equal(ids.includes('release.check'), false);
+  }
+});

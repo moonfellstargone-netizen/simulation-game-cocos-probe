@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.29
+﻿# Code Index — Files — v0.0.2.30
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -30,6 +30,10 @@
 | `src/game-core/**` | game-core | 核心逻辑 | 玩法/状态 | `test:stage1a-baseline` |
 | `src/cocos-app/**` | cocos-app | 应用适配 | Session/UI VM | `test:cocos-session` |
 | `src/cocos-creator-adapter/**` | cocos-creator-adapter | Creator 探针 | UI binding | `test:cocos-ui-readiness` |
+| `src/cocos-creator-adapter/scene/CocosSceneBindingController.ts` | cocos-creator-adapter | 实例内命令与端口完整顺序、失败后全量重同步 | 改异步绑定、初始渲染或恢复 | `test:cocos-scene-binding`、`test:cocos-component-node-binding` |
+| `src/cocos-creator-adapter/component/QinglanUiSceneProbeComponent.ts` | cocos-creator-adapter | 公开mount/execute/refresh/初始渲染/unmount复用场景控制器 | 改组件生命周期及绑定交错 | `test:cocos-component-node-binding` |
+| `tests/cocos-scene-binding-application.test.ts`、`tests/cocos-component-node-binding-application.test.ts` | tests | 手动延迟/拒绝、实际端口状态、恢复与卸载顺序回归 | 改场景/节点异步应用 | 两项现有full/blocker绑定任务 |
+| `tests/support/controlledBindingPort.ts` | tests | 手动gate与实际绑定记录辅助，非运行时依赖 | 改绑定故障时序；单独变更也应选中绑定任务 | `test:cocos-scene-binding`、`test:cocos-component-node-binding` |
 | `src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts` | cocos-creator-adapter | 外部正式资源装配已创建Session的Host，失败不发布可用宿主 | 改资源输入、就绪或启动边界 | `test:stage1a-bootstrap` |
 | `src/game-core/validation/RuntimeSchemaValidator.ts` | game-core | Schema校验及assertSchemasAvailable引用闭包就绪检查 | 改编译与Schema可用性 | `test:stage1a-bootstrap`、`test:cocos-session` |
 | `src/game-core/validation/RuntimeContractValidator.ts` | game-core | 既有契约断言与集中Schema映射的assertReady | 改必要操作契约就绪 | `test:stage1a-bootstrap`、`test:contract` |

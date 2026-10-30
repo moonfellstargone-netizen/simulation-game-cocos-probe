@@ -16,12 +16,12 @@ const root = process.cwd();
 
 test('project-target helper exposes current version markers and baseline buildIds', () => {
   const surface = loadVersionSurface(root);
-  assert.equal(surface.markers.codePackageVersion, 'v0.0.2.29');
-  assert.equal(surface.markers.npmVersion, '0.0.2-29');
-  assert.equal(surface.markers.snakeVersion, 'v0_0_2_29');
-  assert.equal(surface.markers.releaseRoot, '模拟游戏_Cocos微信试水代码包_v0_0_2_29');
-  assert.deepEqual(surface.baselineBuildIds, deriveBaselineBuildIds('v0_0_2_29'));
-  assert.equal(deriveBuildId('fixture_runner', surface.markers.snakeVersion), 'fixture_runner_v0_0_2_29');
+  assert.equal(surface.markers.codePackageVersion, 'v0.0.2.30');
+  assert.equal(surface.markers.npmVersion, '0.0.2-30');
+  assert.equal(surface.markers.snakeVersion, 'v0_0_2_30');
+  assert.equal(surface.markers.releaseRoot, '模拟游戏_Cocos微信试水代码包_v0_0_2_30');
+  assert.deepEqual(surface.baselineBuildIds, deriveBaselineBuildIds('v0_0_2_30'));
+  assert.equal(deriveBuildId('fixture_runner', surface.markers.snakeVersion), 'fixture_runner_v0_0_2_30');
 });
 
 test('version-consistency-check reports no stale buildId markers in current repo surface', () => {

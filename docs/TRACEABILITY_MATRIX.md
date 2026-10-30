@@ -9,9 +9,9 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.29
+# TRACEABILITY_MATRIX — v0.0.2.30
 
-**Runtime Bootstrap & Resource Contracts / 运行启动装配与资源契约版**
+**Async Scene Binding Ordering & Recovery / 场景绑定异步顺序与失败恢复版**
 
 ## 1. 定位
 
@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 本轮沿用**轻量追踪地基**，新增运行启动装配与资源契约链路，保留存储故障和PR CI追踪；完整AST / symbol自动索引、Nightly实装、wx storage、真实Cocos均**不是**当前实现。
+- 本轮沿用**轻量追踪地基**，新增场景绑定异步顺序与失败恢复链路，保留启动装配、存储故障和PR CI追踪；完整AST / symbol自动索引、Nightly实装、wx storage、真实Cocos均**不是**当前实现。
 
 ## 2. 状态语义
 
@@ -40,6 +40,20 @@ related:
 - `test:traceability-contracts` 校验 map、registry、module-graph 与 gate 一致性。
 
 ## 4. Active entries（与 traceability-map.json 对齐）
+
+### trace.cocos.binding-async-recovery
+
+| 维度 | 内容 |
+|---|---|
+| 契约/系统 | 同一绑定实例内完整命令/端口顺序；失败后重新同步当前四区，卸载完成后不被先前更新覆盖 |
+| 源码模块 | `cocos-creator-adapter`, `tests` |
+| 关键路径 | `src/cocos-creator-adapter/scene/CocosSceneBindingController.ts` |
+| 测试任务 | `test.cocos-scene-binding`, `test.cocos-component-node-binding`（既有full/blocker；共享`tests/support/controlledBindingPort.ts`） |
+| 文档入口 | `docs/module-cards/cocos-creator-adapter.md`, `docs/module_contracts/CocosSceneBindingController.contract.md`, `docs/module_contracts/QinglanUiSceneProbeComponent.contract.md` |
+| gate | `full`, `release` |
+| 当前状态 | `active` |
+
+端口错误仍通过Promise拒绝可观察，后续操作不被阻断。恢复仅重新渲染，不重发或回滚正式Action；diff保持Shell差异语义，恢复applied_updates可全量。两项任务登记tests覆盖及辅助files，实际选择由quality-affected-contracts验证，执行关系由traceability-contracts验证，不修改门禁算法。
 
 ### trace.runtime.bootstrap-resources
 

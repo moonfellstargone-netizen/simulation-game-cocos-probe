@@ -7,10 +7,13 @@ import {
   CocosSessionHost,
   CocosUiShellController,
   RecordingCocosSceneBindingPort,
-  diffCocosUiShellSnapshots
+  diffCocosUiShellSnapshots,
+  type CocosSceneBindingUpdate,
+  type CocosUiShellRenderSnapshot
 } from '../src/cocos-creator-adapter';
 import { InMemorySaveStoragePort } from '../src/game-core';
 import { buildRuntimeWithoutState, cloneForCompare } from './support/runtimeHarness';
+import { ControlledBindingPort, settleBindingTurn } from './support/controlledBindingPort';
 
 function makeSceneBinding() {
   const { configs, contracts } = buildRuntimeWithoutState();
@@ -112,4 +115,157 @@ test('scene binding observes command failure and continues later queued commands
   const created = await binding.execute({ name: 'create_session' });
   assert.equal(created.command_result.status, 'completed');
   assert.equal(created.command_result.snapshot.lifecycle.has_session, true);
+});
+
+function makeControlledSceneBinding() {
+  const { host, shell } = makeSceneBinding();
+  const port = new ControlledBindingPort<CocosSceneBindingUpdate>();
+  const binding = CocosSceneBindingController.fromShell(shell, {
+    applySceneBindingUpdate: (update) => port.apply(update)
+  });
+  return { host, shell, port, binding };
+}
+
+function assertSceneMatchesShell(port: ControlledBindingPort<CocosSceneBindingUpdate>, shell: CocosUiShellController) {
+  const snapshot = shell.currentSnapshot();
+  for (const section of ['lifecycle', 'menu', 'save_load', 'errors'] as const) {
+    assert.deepEqual(port.latest(section)?.snapshot, snapshot[section], `actual ${section} binding must match the shell`);
+  }
+}
+
+test('scene binding serializes commands through async section application and takes before at execution time', async (t) => {
+  const { host, shell, port, binding } = makeControlledSceneBinding();
+  await binding.execute({ name: 'create_session' });
+  await binding.applyInitialSnapshot();
+  port.clearHistory();
+
+  const gate = port.pauseNext('lifecycle');
+  const first = binding.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+  await gate.entered;
+  const second = binding.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 120 } });
+  t.after(async () => {
+    gate.resume();
+    await Promise.allSettled([first, second]);
+  });
+  await settleBindingTurn();
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 420', 'the second command waits for the first binding batch');
+  assert.equal(port.recordedUpdates().length, 0);
+
+  gate.resume();
+  const [firstResult, secondResult] = await Promise.all([first, second]);
+  assert.equal(firstResult.command_result.status, 'completed');
+  assert.equal(secondResult.command_result.status, 'completed');
+  assert.equal(secondResult.diff.before_operation, 'menu_confirm');
+  assert.equal(secondResult.diff.after_operation, 'menu_confirm');
+  assert.equal(secondResult.diff.lifecycle_changed, false, 'before is read after the previous command finishes');
+  assert.deepEqual(port.recordedUpdates().filter((update) => update.section === 'menu').map((update) =>
+    (update.snapshot as CocosUiShellRenderSnapshot['menu']).view_model?.time_label), ['day 1 minute 420', 'day 1 minute 540']);
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 540');
+  assertSceneMatchesShell(port, shell);
+});
+
+test('initial rendering and commands share one binding order and capture snapshots when their turn starts', async (t) => {
+  const { host, shell, port, binding } = makeControlledSceneBinding();
+  await binding.execute({ name: 'create_session' });
+  const gate = port.pauseNext('lifecycle');
+  const initial = binding.applyInitialSnapshot();
+  await gate.entered;
+  const action = binding.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+  const latestInitial = binding.applyInitialSnapshot();
+  t.after(async () => {
+    gate.resume();
+    await Promise.allSettled([initial, action, latestInitial]);
+  });
+  await settleBindingTurn();
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 360');
+
+  gate.resume();
+  const [, , latest] = await Promise.all([initial, action, latestInitial]);
+  assert.deepEqual(latest.map((update) => update.section), ['lifecycle', 'menu', 'save_load', 'errors']);
+  assert.deepEqual(latest.find((update) => update.section === 'menu')?.snapshot, shell.currentSnapshot().menu);
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 420');
+  assertSceneMatchesShell(port, shell);
+});
+
+test('rejected binding leaves the formal action committed and the queued refresh resynchronizes all sections once', async (t) => {
+  const { host, shell, port, binding } = makeControlledSceneBinding();
+  await binding.execute({ name: 'create_session' });
+  await binding.applyInitialSnapshot();
+  const gate = port.pauseNext('menu');
+  const error = new Error('controlled-scene-binding-rejection');
+  const action = binding.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+  const rejection = assert.rejects(action, (caught) => caught === error);
+  await gate.entered;
+  const recovery = binding.execute({ name: 'refresh' });
+  t.after(async () => {
+    gate.resume();
+    await Promise.allSettled([rejection, recovery]);
+  });
+  gate.reject(error);
+  await rejection;
+  const recovered = await recovery;
+
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 420', 'render recovery must not replay the action');
+  assert.equal(recovered.command_result.status, 'completed');
+  assert.deepEqual(recovered.diff.changed_sections, ['lifecycle']);
+  assert.deepEqual(recovered.applied_updates.map((update) => update.section), ['lifecycle', 'menu', 'save_load', 'errors']);
+  assert.ok(recovered.applied_updates.every((update) => update.reason === 'initial_render'));
+  assertSceneMatchesShell(port, shell);
+  const healthy = await binding.execute({ name: 'refresh' });
+  assert.deepEqual(healthy.applied_updates, [], 'a healthy unchanged refresh must keep the diff optimization');
+});
+
+test('failed initial rendering and repeated recovery failures stay dirty until a whole batch succeeds', async (t) => {
+  const { host, shell, port, binding } = makeControlledSceneBinding();
+  await binding.execute({ name: 'create_session' });
+  const initialGate = port.pauseNext('menu');
+  const initialError = new Error('controlled-initial-rejection');
+  const initial = binding.applyInitialSnapshot();
+  const initialRejection = assert.rejects(initial, (caught) => caught === initialError);
+  await initialGate.entered;
+  initialGate.reject(initialError);
+  await initialRejection;
+
+  const retryGate = port.pauseNext('errors');
+  const retryError = new Error('controlled-recovery-rejection');
+  const retry = binding.execute({ name: 'refresh' });
+  const retryRejection = assert.rejects(retry, (caught) => caught === retryError);
+  t.after(async () => {
+    initialGate.resume();
+    retryGate.resume();
+    await Promise.allSettled([initialRejection, retryRejection]);
+  });
+  await retryGate.entered;
+  retryGate.reject(retryError);
+  await retryRejection;
+
+  const recovered = await binding.execute({ name: 'refresh' });
+  assert.deepEqual(recovered.diff.changed_sections, []);
+  assert.deepEqual(recovered.applied_updates.map((update) => update.section), ['lifecycle', 'menu', 'save_load', 'errors']);
+  assertSceneMatchesShell(port, shell);
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 360');
+});
+
+test('synchronously throwing ports reject the caller without poisoning later binding work', async () => {
+  const { host, shell } = makeSceneBinding();
+  const port = new ControlledBindingPort<CocosSceneBindingUpdate>();
+  const error = new Error('controlled-synchronous-binding-throw');
+  let fail = false;
+  const binding = CocosSceneBindingController.fromShell(shell, {
+    applySceneBindingUpdate(update) {
+      if (fail && update.section === 'menu') {
+        fail = false;
+        throw error;
+      }
+      return port.apply(update);
+    }
+  });
+  await binding.execute({ name: 'create_session' });
+  fail = true;
+  await assert.rejects(binding.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } }),
+    (caught) => caught === error);
+  const recovered = await binding.execute({ name: 'refresh' });
+  assert.equal(recovered.command_result.status, 'completed');
+  assertSceneMatchesShell(port, shell);
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 420');
 });

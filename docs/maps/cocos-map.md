@@ -1,4 +1,4 @@
-﻿# Cocos Map — v0.0.2.29
+﻿# Cocos Map — v0.0.2.30
 
 ## 系统职责
 
@@ -12,6 +12,8 @@ Cocos 试水适配与 Creator 探针：UI readiness、menu/save-load binding、s
 ## 关键文件
 
 - `src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts`
+- `src/cocos-creator-adapter/scene/CocosSceneBindingController.ts`
+- `src/cocos-creator-adapter/component/QinglanUiSceneProbeComponent.ts`
 - `src/cocos-app/runtime/CocosAppRuntimeSession.ts`
 - `src/cocos-creator-adapter/CocosSessionHost.ts`
 - `src/cocos-creator-adapter/shell/CocosUiShellController.ts`
@@ -28,6 +30,8 @@ Cocos 试水适配与 Creator 探针：UI readiness、menu/save-load binding、s
 - `tests/cocos-runtime-session.test.ts`
 - `tests/cocos-ui-command-queue.test.ts`（受控延迟读写拒绝和恢复）
 - `tests/cocos-scene-binding-application.test.ts`
+- `tests/cocos-component-node-binding-application.test.ts`
+- `tests/support/controlledBindingPort.ts`（手动延迟/拒绝和实际端口状态）
 
 ## 修改前必读
 
@@ -37,6 +41,8 @@ Cocos 试水适配与 Creator 探针：UI readiness、menu/save-load binding、s
 ## 修改后必跑
 
 - `npm run test:stage1a-bootstrap`
+- `npm run test:cocos-scene-binding`
+- `npm run test:cocos-component-node-binding`
 - `npm run test:cocos-ui-readiness`
 - 相关 cocos-ui 测试组
 
@@ -47,6 +53,9 @@ Cocos 试水适配与 Creator 探针：UI readiness、menu/save-load binding、s
 - UI 层绕过 Session 直写 SaveFile
 - 存储拒绝后仍展示旧成功摘要、队列超车或健康命令无法继续；追踪 `trace.save.storage-failure-recovery`
 - 对createStage1AHost返回的已创建Host重复执行Probe.onLoad，或把装配验收当作真实Cocos工程运行证明
+- 异步旧绑定覆盖新视图或卸载结果；失败后diff遗漏未应用区，恢复错误地重发正式Action
+
+`trace.cocos.binding-async-recovery`覆盖同一绑定实例的完整顺序及失败后重同步；两项既有full/blocker任务登记tests覆盖和共享辅助，不修改affected算法。
 
 ## 关联 module-cards
 

@@ -1,4 +1,4 @@
-﻿# Quality Map — v0.0.2.29
+﻿# Quality Map — v0.0.2.30
 
 ## 系统职责
 
@@ -25,6 +25,8 @@
 ## 关键测试
 
 - `tests/stage1a-bootstrap.test.ts`（registry `test.stage1a-bootstrap`：正式资源经公共入口的独立集成验收，追踪`trace.runtime.bootstrap-resources`）
+- `tests/cocos-scene-binding-application.test.ts`、`tests/cocos-component-node-binding-application.test.ts`（现有full/blocker绑定任务，受控辅助`tests/support/controlledBindingPort.ts`，追踪`trace.cocos.binding-async-recovery`）
+- `tests/quality-affected-contracts.test.mjs`（验证各绑定测试及辅助单独变化时真实任务选择，不改算法）
 - `tests/ci-workflow-contracts.test.mjs`（registry `test.ci-workflow-contracts`，追踪 `trace.quality.pr-ci`）
 - `tests/traceability-contracts.test.mjs`
 - `tests/quality-gate-contracts.test.mjs`
@@ -53,6 +55,7 @@
 - project-target 与 README 版本不一致
 - 报告上传掩盖门禁失败、旧运行报告误作新提交通过证据
 - 把 CI 文件存在误认为云端已通过或分支保护已启用
+- 测试已登记但仅改测试或共享辅助时affected漏选；只断言返回snapshot而未验证端口实际内容
 
 ## 关联 module-cards
 

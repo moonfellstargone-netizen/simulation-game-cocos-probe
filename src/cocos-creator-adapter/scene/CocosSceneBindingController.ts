@@ -10,6 +10,9 @@ export interface CocosSceneBindingCommandResult {
 }
 
 export class CocosSceneBindingController {
+  private tail: Promise<void> = Promise.resolve();
+  private needsResync = false;
+
   constructor(
     private readonly shell: CocosUiShellController,
     private readonly queue: CocosUiShellCommandQueue,
@@ -22,26 +25,45 @@ export class CocosSceneBindingController {
   }
 
   async execute(command: CocosUiShellCommand): Promise<CocosSceneBindingCommandResult> {
-    const before = this.shell.currentSnapshot();
-    const commandResult = await this.queue.execute(command);
-    const diff = diffCocosUiShellSnapshots(before, commandResult.snapshot);
-    const updates = this.applier.createUpdates({ before, after: commandResult.snapshot, diff });
-    for (const update of updates) {
-      await this.port.applySceneBindingUpdate(update);
-    }
-    return {
-      command_result: commandResult,
-      diff,
-      applied_updates: structuredClone(updates)
-    };
+    return await this.schedule(async () => {
+      const before = this.shell.currentSnapshot();
+      const commandResult = await this.queue.execute(command);
+      const diff = diffCocosUiShellSnapshots(before, commandResult.snapshot);
+      const updates = this.applier.createUpdates({
+        before: this.needsResync ? null : before,
+        after: commandResult.snapshot,
+        diff
+      });
+      await this.applyUpdates(updates);
+      return {
+        command_result: commandResult,
+        diff,
+        applied_updates: structuredClone(updates)
+      };
+    });
   }
 
   async applyInitialSnapshot(): Promise<CocosSceneBindingUpdate[]> {
-    const snapshot = this.shell.currentSnapshot();
-    const updates = this.applier.createUpdates({ before: null, after: snapshot, diff: null });
+    return await this.schedule(async () => {
+      const snapshot = this.shell.currentSnapshot();
+      const updates = this.applier.createUpdates({ before: null, after: snapshot, diff: null });
+      await this.applyUpdates(updates);
+      return structuredClone(updates);
+    });
+  }
+
+  private schedule<T>(operation: () => Promise<T>): Promise<T> {
+    const scheduled = this.tail.then(operation, operation);
+    this.tail = scheduled.then(() => undefined, () => undefined);
+    return scheduled;
+  }
+
+  private async applyUpdates(updates: CocosSceneBindingUpdate[]): Promise<void> {
+    // A rejected batch may already have applied some sections; the next batch must resync all.
+    this.needsResync = true;
     for (const update of updates) {
       await this.port.applySceneBindingUpdate(update);
     }
-    return structuredClone(updates);
+    this.needsResync = false;
   }
 }
