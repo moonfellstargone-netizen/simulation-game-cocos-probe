@@ -39,8 +39,10 @@ src/cocos-creator-adapter/scene/CocosSceneBindingSnapshotApplier.ts
 - Scene Binding Port 不负责存档读写。
 - Scene Binding Port 不负责业务错误生成，只显示 shell / presenter 已提供的错误状态。
 - `changed_sections` 转换后的 updates 顺序必须稳定。
-- 初始渲染按 lifecycle / menu / save_load / errors 全量刷新；普通 diff 只刷新变化 section。
-- 无变化快照不产生多余刷新。
+- 初始渲染按 lifecycle / menu / save_load / errors 全量刷新；健康的普通diff只刷新变化section。失败后下一绑定操作也按同一顺序全量重同步，原因仍为`initial_render`。
+- 无变化快照不产生多余刷新，适用于健康且无需重同步的普通diff；显式初始渲染及失败恢复允许全量更新。
+- `applySceneBindingUpdate`允许同步完成或返回Promise。同步抛错和Promise拒绝均原样传回调用方，不被改写成业务Action失败，也不保证撤回已应用的section。
+- 同一SceneBindingController等待整个批次完成后处理下一操作；直接操作端口或多个控制器不在该实例顺序保证内。端口不能等待自己触发的同实例后续调用，以免重入等待。
 
 ## 关联测试
 

@@ -1,6 +1,6 @@
 {
-  "version": "v0.0.2.29",
-  "description": "Architecture boundary rules remain active for v0.0.2.29 runtime bootstrap work. Low-risk import/path ownership rules remain authoritative; token/state-leak rules stay shadow_aligned/shadow until later authority migration.",
+  "version": "v0.0.2.30",
+  "description": "Architecture boundary rules remain active for v0.0.2.30 scene binding ordering and recovery work. Low-risk import/path ownership rules remain authoritative; token/state-leak rules stay shadow_aligned/shadow until later authority migration.",
   "ruleTypes": [
     "importBoundaries",
     "tokenBoundaries",

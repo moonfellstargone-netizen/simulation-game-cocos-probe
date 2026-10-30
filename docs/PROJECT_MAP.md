@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.29
+﻿# PROJECT_MAP — v0.0.2.30
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.29：**Runtime Bootstrap & Resource Contracts**。从外部正式资源与存储端口经公共入口装配Stage1A宿主，验证资源缺失、无效及引用损坏时的失败保护，由`trace.runtime.bootstrap-resources`追踪。既有Session/UI/Queue存储故障回归、PR自动完整检查及报告保留继续有效；玩法与状态流转语义保持。
+v0.0.2.30：**Async Scene Binding Ordering & Recovery**。同一场景绑定实例按序完成命令和界面应用，端口拒绝后重新同步当前视图，卸载完成后不被先前更新覆盖，由`trace.cocos.binding-async-recovery`追踪。既有启动装配、Session/UI/Queue存储故障回归、PR自动完整检查及报告保留继续有效；玩法与状态流转语义保持。
 
 ## 3. 权威边界
 

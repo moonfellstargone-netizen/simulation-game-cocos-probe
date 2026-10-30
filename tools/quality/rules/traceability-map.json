@@ -1,6 +1,6 @@
 {
   "schemaVersion": "traceability-lite/v1",
-  "projectVersion": "v0.0.2.29",
+  "projectVersion": "v0.0.2.30",
   "currentFullReleaseTraceIds": [
     "trace.stage1a.actionpipeline",
     "trace.stage1a.save-load",
@@ -12,7 +12,8 @@
     "trace.release.zip-hygiene",
     "trace.quality.pr-ci",
     "trace.save.storage-failure-recovery",
-    "trace.runtime.bootstrap-resources"
+    "trace.runtime.bootstrap-resources",
+    "trace.cocos.binding-async-recovery"
   ],
   "entries": [
     {
@@ -279,6 +280,32 @@
       "docRefs": [
         "docs/module_contracts/Stage1ABootstrap.contract.md",
         "docs/module-cards/cocos-creator-adapter.md"
+      ],
+      "gateRefs": [
+        "full",
+        "release"
+      ]
+    },
+    {
+      "id": "trace.cocos.binding-async-recovery",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": [
+        "cocos-creator-adapter",
+        "tests"
+      ],
+      "sourceRefs": [
+        "src/cocos-creator-adapter/scene/CocosSceneBindingController.ts"
+      ],
+      "testRefs": [
+        "test.cocos-scene-binding",
+        "test.cocos-component-node-binding"
+      ],
+      "docRefs": [
+        "docs/module-cards/cocos-creator-adapter.md",
+        "docs/module_contracts/CocosSceneBindingController.contract.md",
+        "docs/module_contracts/QinglanUiSceneProbeComponent.contract.md"
       ],
       "gateRefs": [
         "full",

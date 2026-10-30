@@ -229,6 +229,32 @@ test('runtime bootstrap is traced to an executed full/blocker integration test',
   }
 });
 
+test('binding async recovery closes over both executed full/blocker binding tasks', () => {
+  const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
+  const id = 'trace.cocos.binding-async-recovery';
+  const entry = traceabilityMap.entries.find((item) => item.id === id);
+  assert.equal(entry?.status, 'active');
+  assert.ok(traceabilityMap.currentFullReleaseTraceIds.includes(id));
+  assert.ok(entry.sourceRefs.includes('src/cocos-creator-adapter/scene/CocosSceneBindingController.ts'));
+  for (const gate of ['full', 'release']) assert.ok(entry.gateRefs.includes(gate));
+  for (const [taskId, file] of [
+    ['test.cocos-scene-binding', 'tests/cocos-scene-binding-application.test.ts'],
+    ['test.cocos-component-node-binding', 'tests/cocos-component-node-binding-application.test.ts']
+  ]) {
+    assert.ok(entry.testRefs.includes(taskId));
+    const task = registry.tests[taskId];
+    assert.equal(task?.stability, 'blocker');
+    for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
+    assert.ok(task.files.includes(file), `${taskId} must register ${file}`);
+    assert.ok(task.files.includes('tests/support/controlledBindingPort.ts'));
+    assert.ok(task.covers.includes('tests'), `${taskId} must cover test-only changes`);
+    assert.ok(task.args.includes(file), `${taskId} must actually execute ${file}`);
+    for (const gate of ['full', 'release']) {
+      assert.ok(resolveGateTasks(gate, gatePolicy, registry).some((selected) => selected.id === taskId));
+    }
+  }
+});
+
 test('q:affected is not represented as release authority in traceability entries', () => {
   const { traceabilityMap } = loadTraceabilityContext();
   const affectedEntry = traceabilityMap.entries.find(

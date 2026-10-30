@@ -42,6 +42,9 @@ src/cocos-creator-adapter/component/index.ts
 - `unmount` 必须通过 shell command `destroy_session` 释放 session。
 - 组件探针不保存每轮具体任务上下文，也不承担正式玩法逻辑。
 - load 失败不得污染当前 session；组件层只能观察并转发错误刷新 patch。
+- 同一组件的mount/refresh/execute/applyInitialSnapshot/unmount复用同一场景控制器顺序。卸载成功表示先前调用的绑定批次已经结束，不会再以旧更新覆盖卸载结果。
+- 绑定Promise拒绝可观察，后续调用仍可继续并全量重新同步当前视图。正式Action可能已提交，恢复不能再次执行该Action或回滚业务。
+- 只保证本组件管理的调用顺序，不覆盖其他控制器、外部直接Host操作或撤回端口的部分副作用；端口不得等待同实例后续调用造成重入等待。
 
 ## 关联测试
 

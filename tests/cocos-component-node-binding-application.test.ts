@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   CocosComponentNodeBindingAdapter,
   QinglanUiSceneProbeComponent,
@@ -9,11 +10,14 @@ import {
   mapSceneSectionToNodeTarget,
   CocosSessionHost,
   CocosUiShellController,
-  CocosSceneBindingController
+  CocosSceneBindingController,
+  createStage1AHost,
+  type CocosComponentNodeBindingPatch
 } from '../src/cocos-creator-adapter';
-import { InMemorySaveStoragePort } from '../src/game-core';
+import { InMemorySaveStoragePort, type RuntimeConfigSnapshot } from '../src/game-core';
 import { buildRuntimeWithoutState, cloneForCompare } from './support/runtimeHarness';
 import { testBuildId } from './support/buildId.mjs';
+import { ControlledBindingPort, settleBindingTurn } from './support/controlledBindingPort';
 
 function makeComponentProbe() {
   const { configs, contracts } = buildRuntimeWithoutState();
@@ -122,4 +126,148 @@ test('component probe can unmount without retaining a session', async () => {
   assert.equal(destroyed.command_result.status, 'completed');
   assert.equal(host.hasSession(), false);
   assert.deepEqual(nodePort.recordedPatches().map((patch) => patch.target), ['lifecycle_panel']);
+});
+
+// The async component regressions enter through the public bootstrap, not the runtime harness.
+function makeControlledComponentProbe() {
+  const snapshot = JSON.parse(readFileSync('design_snapshot/generated/stage_1A_runtime_snapshot.json', 'utf8')) as RuntimeConfigSnapshot;
+  const schemas = Object.fromEntries(snapshot.schema_paths.map((path) => [path,
+    JSON.parse(readFileSync(`design_snapshot/${path}`, 'utf8')) as unknown]));
+  const host = createStage1AHost({
+    snapshot,
+    schemas,
+    storage: new InMemorySaveStoragePort(),
+    buildId: testBuildId('component_async_binding'),
+    nowIso8601: '2026-05-21T00:00:00.000Z'
+  });
+  const shell = new CocosUiShellController(host);
+  const nodePort = new ControlledBindingPort<CocosComponentNodeBindingPatch>();
+  const component = new QinglanUiSceneProbeComponent(host, {
+    applyNodeBindingPatch: (patch) => nodePort.apply(patch)
+  }, { shell });
+  return { host, shell, nodePort, component };
+}
+
+function assertNodesMatchShell(port: ControlledBindingPort<CocosComponentNodeBindingPatch>, shell: CocosUiShellController) {
+  const snapshot = shell.currentSnapshot();
+  for (const section of ['lifecycle', 'menu', 'save_load', 'errors'] as const) {
+    assert.deepEqual(port.latest(section)?.payload, snapshot[section], `actual ${section} node must match the shell`);
+  }
+}
+
+test('public component keeps async node updates in command order', async (t) => {
+  const { host, shell, nodePort, component } = makeControlledComponentProbe();
+  await component.mount();
+  await component.applyInitialSnapshot();
+  nodePort.clearHistory();
+  const gate = nodePort.pauseNext('lifecycle');
+  const first = component.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+  await gate.entered;
+  const second = component.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 120 } });
+  t.after(async () => {
+    gate.resume();
+    await Promise.allSettled([first, second]);
+  });
+  await settleBindingTurn();
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 420');
+  assert.equal(nodePort.recordedUpdates().length, 0);
+  gate.resume();
+  await Promise.all([first, second]);
+
+  assert.deepEqual(nodePort.recordedUpdates().filter((patch) => patch.section === 'menu').map((patch) =>
+    (patch.payload as { view_model: { time_label: string } }).view_model.time_label), ['day 1 minute 420', 'day 1 minute 540']);
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 540');
+  assertNodesMatchShell(nodePort, shell);
+});
+
+test('public component refresh repairs a partially failed node batch without replaying the formal action', async (t) => {
+  const { host, shell, nodePort, component } = makeControlledComponentProbe();
+  await component.mount();
+  await component.applyInitialSnapshot();
+  const gate = nodePort.pauseNext('menu');
+  const error = new Error('controlled-node-binding-rejection');
+  const action = component.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+  const rejection = assert.rejects(action, (caught) => caught === error);
+  await gate.entered;
+  const refresh = component.refresh();
+  t.after(async () => {
+    gate.resume();
+    await Promise.allSettled([rejection, refresh]);
+  });
+  gate.reject(error);
+  await rejection;
+  const recovered = await refresh;
+
+  assert.equal(recovered.command_result.status, 'completed');
+  assert.deepEqual(recovered.applied_updates.map((update) => update.section), ['lifecycle', 'menu', 'save_load', 'errors']);
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 420');
+  assertNodesMatchShell(nodePort, shell);
+  assert.deepEqual((await component.refresh()).applied_updates, []);
+});
+
+test('public component unmount waits for old node applications and cannot be overwritten by a late batch', async (t) => {
+  const { host, shell, nodePort, component } = makeControlledComponentProbe();
+  await component.mount();
+  const gate = nodePort.pauseNext('lifecycle');
+  const action = component.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+  await gate.entered;
+  const unmount = component.unmount();
+  t.after(async () => {
+    gate.resume();
+    await Promise.allSettled([action, unmount]);
+  });
+  await settleBindingTurn();
+  assert.equal(host.hasSession(), true, 'unmount remains behind the pending binding operation');
+  gate.resume();
+  await Promise.all([action, unmount]);
+  assert.equal(host.hasSession(), false);
+  assert.deepEqual(nodePort.latest('lifecycle')?.payload, { has_session: false, last_operation: 'destroy_session' });
+  const applied = nodePort.recordedUpdates().length;
+  await settleBindingTurn();
+  assert.equal(nodePort.recordedUpdates().length, applied, 'no older operation applies after unmount completes');
+  assert.deepEqual(nodePort.latest('lifecycle')?.payload, shell.currentSnapshot().lifecycle);
+});
+
+test('component mount, explicit initial rendering and unmount share their public call order', async (t) => {
+  const { host, nodePort, component } = makeControlledComponentProbe();
+  const gate = nodePort.pauseNext('lifecycle');
+  const mount = component.mount();
+  await gate.entered;
+  const initial = component.applyInitialSnapshot();
+  const unmount = component.unmount();
+  t.after(async () => {
+    gate.resume();
+    await Promise.allSettled([mount, initial, unmount]);
+  });
+  await settleBindingTurn();
+  assert.equal(host.hasSession(), true);
+  assert.equal(nodePort.recordedUpdates().length, 0);
+  gate.resume();
+  const [, initialUpdates] = await Promise.all([mount, initial, unmount]);
+  assert.deepEqual(initialUpdates.map((update) => update.section), ['lifecycle', 'menu', 'save_load', 'errors']);
+  assert.deepEqual(initialUpdates.find((update) => update.section === 'lifecycle')?.snapshot,
+    { has_session: true, last_operation: 'create_session' });
+  assert.deepEqual(nodePort.latest('lifecycle')?.payload, { has_session: false, last_operation: 'destroy_session' });
+  assert.equal(host.hasSession(), false);
+});
+
+test('a node failure can be repaired by explicit initial rendering while business command failure stays visible', async () => {
+  const { host, shell, nodePort, component } = makeControlledComponentProbe();
+  await component.mount();
+  const gate = nodePort.pauseNext('menu');
+  const error = new Error('controlled-node-initial-repair');
+  const action = component.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+  const rejection = assert.rejects(action, (caught) => caught === error);
+  await gate.entered;
+  gate.reject(error);
+  await rejection;
+  await component.applyInitialSnapshot();
+  assertNodesMatchShell(nodePort, shell);
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 420');
+
+  const failedLoad = await component.execute({ name: 'load', selection: { slot_id: 'missing_binding_slot' } });
+  assert.equal(failedLoad.command_result.status, 'failed');
+  assert.ok(failedLoad.command_result.snapshot.save_load.errors.length > 0);
+  assertNodesMatchShell(nodePort, shell);
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 420');
 });

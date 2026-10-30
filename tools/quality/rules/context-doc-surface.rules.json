@@ -143,7 +143,7 @@
       ]
     },
     "docs/IMPLEMENTATION_SCOPE.md": {
-      "why": "实现范围文档必须锁定运行启动装配与资源契约，不扩展玩法或平台接入；版本名由project-target派生。",
+      "why": "实现范围文档必须锁定场景绑定异步顺序与失败恢复，不扩展玩法或平台接入；版本名由project-target派生。",
       "required": [
         "${codePackageVersion}",
         "${versionName}",

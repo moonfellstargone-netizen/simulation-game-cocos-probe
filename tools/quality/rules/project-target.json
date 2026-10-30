@@ -1,29 +1,29 @@
 {
   "version": {
-    "codePackageVersion": "v0.0.2.29",
-    "npmVersion": "0.0.2-29",
-    "qualityMetadataVersion": "0.0.2.29",
-    "snakeVersion": "v0_0_2_29",
-    "versionName": "Runtime Bootstrap & Resource Contracts",
-    "chineseVersionName": "运行启动装配与资源契约版"
+    "codePackageVersion": "v0.0.2.30",
+    "npmVersion": "0.0.2-30",
+    "qualityMetadataVersion": "0.0.2.30",
+    "snakeVersion": "v0_0_2_30",
+    "versionName": "Async Scene Binding Ordering & Recovery",
+    "chineseVersionName": "场景绑定异步顺序与失败恢复版"
   },
   "release": {
-    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_29",
-    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_29.zip"
+    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_30",
+    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_30.zip"
   },
   "design": {
     "designPackVersion": "v1.5.2.2",
     "designPackName": "模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip"
   },
   "previous": {
-    "codePackageVersion": "v0.0.2.28",
-    "npmVersion": "0.0.2-28",
-    "qualityMetadataVersion": "0.0.2.28",
-    "snakeVersion": "v0_0_2_28",
-    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_28",
-    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_28.zip",
-    "versionName": "Save Storage Failure Contracts",
-    "chineseVersionName": "存储端口故障契约与恢复验证版"
+    "codePackageVersion": "v0.0.2.29",
+    "npmVersion": "0.0.2-29",
+    "qualityMetadataVersion": "0.0.2.29",
+    "snakeVersion": "v0_0_2_29",
+    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_29",
+    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_29.zip",
+    "versionName": "Runtime Bootstrap & Resource Contracts",
+    "chineseVersionName": "运行启动装配与资源契约版"
   },
   "staleMarkers": {
     "forbiddenCurrentMarkers": [
@@ -105,7 +105,18 @@
       "存储端口故障契约与恢复验证版",
       "fixture_baseline_v0_0_2_28",
       "headless_baseline_v0_0_2_28",
-      "cocos_baseline_v0_0_2_28"
+      "cocos_baseline_v0_0_2_28",
+      "v0.0.2.29",
+      "0.0.2-29",
+      "0.0.2.29",
+      "v0_0_2_29",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_29",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_29.zip",
+      "Runtime Bootstrap & Resource Contracts",
+      "运行启动装配与资源契约版",
+      "fixture_baseline_v0_0_2_29",
+      "headless_baseline_v0_0_2_29",
+      "cocos_baseline_v0_0_2_29"
     ],
     "allowedHistoricalScopes": [
       "tools/quality/rules/project-target.json",

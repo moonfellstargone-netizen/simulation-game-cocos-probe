@@ -40,6 +40,8 @@ src/cocos-creator-adapter/component/CocosComponentNodeBindingAdapter.ts
 - Patch payload 必须拷贝，避免外部节点端口反向污染 shell snapshot。
 - errors section 为空时 `error_panel` 应标记为不可见；非 error section 默认可见。
 - section 到 target 的映射顺序和命名必须稳定，便于未来真实 Cocos 组件逐步接入。
+- `applyNodeBindingPatch`允许同步或异步完成。适配器等待端口并保留原拒绝，不生成业务失败或尝试回滚已经提交的Action。
+- 在同一场景控制器管理下，节点批次与命令共享顺序；部分patch失败后由下一绑定操作全量重同步当前视图。不保证撤销已经发生的节点副作用，直接调用adapter或多个控制器不具备共享全局锁。
 
 ## 关联测试
 

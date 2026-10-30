@@ -27,6 +27,8 @@ source_of_truth: false
 ## 关键文件
 
 - `src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts`
+- `src/cocos-creator-adapter/scene/CocosSceneBindingController.ts`
+- `src/cocos-creator-adapter/component/QinglanUiSceneProbeComponent.ts`
 - `src/cocos-creator-adapter/CocosSessionHost.ts`
 - `src/cocos-creator-adapter/shell/CocosUiShellController.ts`
 - `src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts`
@@ -36,6 +38,9 @@ source_of_truth: false
 ## 关键测试
 
 - `tests/stage1a-bootstrap.test.ts`
+- `tests/cocos-scene-binding-application.test.ts`
+- `tests/cocos-component-node-binding-application.test.ts`
+- `tests/support/controlledBindingPort.ts`（手动控制异步绑定，记录实际端口内容）
 - `tests/cocos-ui-readiness.test.ts`
 - `tests/cocos-minimal-menu-binding.test.ts`
 - `tests/cocos-ui-shell-composition.test.ts`
@@ -46,11 +51,14 @@ source_of_truth: false
 
 - `docs/module_contracts/Stage1ABootstrap.contract.md`（装配边界说明；本模块卡仍为导航入口）
 - `docs/maps/cocos-map.md`
+- `docs/module_contracts/CocosSceneBindingController.contract.md`及scene/component端口与组件契约（按本模块卡定位边界说明）
 - 相关 `docs/module_contracts/*.contract.md`
 
 ## 修改后必须运行
 
 - `npm run test:stage1a-bootstrap`
+- `npm run test:cocos-scene-binding`
+- `npm run test:cocos-component-node-binding`
 - `npm run test:cocos-ui-readiness`
 - 涉及存储故障呈现与恢复时运行 `npm run test:cocos-save-load`、`npm run test:cocos-ui-command-queue`。
 
@@ -61,7 +69,14 @@ source_of_truth: false
 - 存储拒绝后旧成功结果未清除、错误未呈现或后续命令不再执行
 - 资源未就绪即发布可用Host，或把Node集成结果当作真实Cocos兼容证明
 - 对createStage1AHost返回的已创建Host再调用Probe.onLoad或createSession
+- 异步绑定超出命令队列顺序、before在排队前读取或卸载被旧更新覆盖
+- 绑定失败后普通diff漏掉未应用内容；将恢复错误地实现为重发Action或业务回滚
+- 把实例级顺序承诺为全局锁，或端口重入等待同一控制器后续调用
+
+## 绑定顺序与恢复
+
+同一SceneBindingController实例的execute与applyInitialSnapshot按完整操作排序，组件生命周期复用该顺序。端口错误保持Promise拒绝，下一绑定操作全量同步当前四区；成功后恢复普通diff。diff仅表示Shell变化，恢复的applied_updates可全量，原因仍为initial_render。正式Action不重发、不回滚，端口部分副作用不保证撤销。
 
 ## 代码—地图同步
 
-cocos-map、runtime-map、code-index/files.md与public-api.md；装配链路由`trace.runtime.bootstrap-resources`追踪。
+cocos-map、runtime-map、code-index/files.md与public-api.md；绑定顺序与恢复由`trace.cocos.binding-async-recovery`追踪，装配链路由`trace.runtime.bootstrap-resources`追踪。
