@@ -1,6 +1,6 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.2.31
+﻿# CODE_CONTEXT_INDEX — v0.0.2.32
 
-版本：v0.0.2.31 / Cocos Web Bootstrap Probe / Cocos网页端最小启动探针版。
+版本：v0.0.2.32 / Cocos Web Viewport & Input Reliability / Cocos网页视口与输入可靠性版。
 
 ## 执行前必读顺序
 
@@ -30,7 +30,9 @@
 
 后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包；代码包不保存每轮具体任务上下文；代码包只保存执行端上下文治理约束。
 
-## v0.0.2.31 测试索引
+## v0.0.2.32 测试索引
+
+- `tests/cocos-web-verification-contracts.test.mjs`（`test:cocos-web-verification-contracts`，Node工具契约）
 
 - `tests/cocos-probe-preparation.test.mjs`（`test:cocos-probe-preparation`）
 - `tests/cocos-engine-probe-lifecycle.test.ts`（`test:cocos-engine-probe-lifecycle`）
@@ -51,6 +53,12 @@
 - `tests/quality-affected-policy-hardening.test.mjs`
 - `tests/version-surface-contracts.test.mjs`
 - `tests/package-hygiene.test.mjs`
+
+## 真实Cocos Web视口与输入入口
+
+先读`apps/cocos-probe/template/build-templates/web-desktop/`源模板、`tools/cocos-probe/build.mjs`、`tools/cocos-probe/verify-web.mjs`及`tools/cocos-probe/lib/webProbeSupport.mjs`；确认`trace.cocos.web-viewport-input`的Node契约与真实鼠标点击证据分离。源模板是修复位置，仓库外生成Web页面不能手改。
+
+保留准备/生命周期full/blocker回归，新增test:cocos-web-verification-contracts / registry test.cocos-web-verification-contracts验证浏览器工具的参数、来源、HTTP服务和断言失败保护；Node契约不执行真实浏览器。独立cocos:verify:web运行固定Creator构建产物的真实Chrome鼠标点击，记录Button事件、时间变化、Label同步与清理证据；根typecheck只覆盖src，不能代替实际Creator类型、构建或浏览器验收。
 
 ## 真实Cocos Web探针入口
 

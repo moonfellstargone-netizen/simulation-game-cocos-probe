@@ -1,5 +1,5 @@
 {
-  "version": "0.0.2.31",
+  "version": "0.0.2.32",
   "tests": {
     "static.typecheck": {
       "command": "node",
@@ -779,9 +779,9 @@
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--root-name",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_31",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_32",
         "--output",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_31.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_32.zip",
         "--kind",
         "code"
       ],
@@ -802,11 +802,11 @@
       "command": "python3",
       "args": [
         "tools/check_release_zip.py",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_31.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_32.zip",
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--expected-root",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_31",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_32",
         "--kind",
         "code"
       ],
@@ -1200,6 +1200,34 @@
       "files": [
         "tests/cocos-engine-probe-lifecycle.test.ts",
         "apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts"
+      ],
+      "group": "cocos-adapter"
+    },
+    "test.cocos-web-verification-contracts": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/cocos-web-verification-contracts.test.mjs"
+      ],
+      "covers": [
+        "tools",
+        "tests",
+        "cocos-engine-probe"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "cocos",
+        "web-verification",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/cocos-web-verification-contracts.test.mjs",
+        "tools/cocos-probe/verify-web.mjs",
+        "tools/cocos-probe/lib/webProbeSupport.mjs",
+        "tools/cocos-probe/build.mjs"
       ],
       "group": "cocos-adapter"
     }

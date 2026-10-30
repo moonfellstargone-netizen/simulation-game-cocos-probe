@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.31
+﻿# Code Index — Files — v0.0.2.32
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -61,3 +61,16 @@
 | `tests/cocos-engine-probe-lifecycle.test.ts` | tests | 加载中销毁与公开宿主生命周期 | 改新outer | `test:cocos-engine-probe-lifecycle` |
 | `apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts` | cocos-engine-probe | 真实cc组件、资源加载、Label/Button端口 | 改引擎节点和按钮动作 | 真实Creator类型检查、Web构建与浏览器冒烟 |
 | `apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts` | cocos-engine-probe | 无cc依赖的加载、挂载和销毁代际保护 | 改加载与宿主生命周期 | `test:cocos-engine-probe-lifecycle` |
+
+## Web视口与输入
+
+| 文件 | 模块 | 职责 | 何时读 | 验证 |
+|---|---|---|---|---|
+| `apps/cocos-probe/template/build-templates/web-desktop/index.ejs` | cocos-engine-probe | 官方Web构建模板及cocosTemplate注入 | 改视口或真实浏览器验收 | `test:cocos-web-verification-contracts`、真实`cocos:verify:web` |
+| `apps/cocos-probe/template/build-templates/web-desktop/probe-viewport.css` | cocos-engine-probe | 可见桌面视口与无溢出的页面容器 | 改视口或真实浏览器验收 | `test:cocos-web-verification-contracts`、真实`cocos:verify:web` |
+| `apps/cocos-probe/template/build-templates/web-desktop/probe-viewport.js` | cocos-engine-probe | 同步像素尺寸及窗口resize | 改视口或真实浏览器验收 | `test:cocos-web-verification-contracts`、真实`cocos:verify:web` |
+| `tools/cocos-probe/verify-web.mjs` | tools | 真实Chrome鼠标/窗口矩阵验收CLI | 改视口或真实浏览器验收 | `test:cocos-web-verification-contracts`、真实`cocos:verify:web` |
+| `tools/cocos-probe/lib/webProbeSupport.mjs` | tools | 参数、HTTP、来源及Web产物摘要共享辅助 | 改视口或真实浏览器验收 | `test:cocos-web-verification-contracts`、真实`cocos:verify:web` |
+| `tests/cocos-web-verification-contracts.test.mjs` | tests | Node工具边界、HTTP、来源与失败契约 | 改视口或真实浏览器验收 | `test:cocos-web-verification-contracts`、真实`cocos:verify:web` |
+
+Node契约只验证工具边界，真实输入与引擎表现另由Creator/Chrome独立验收；trace.cocos.web-viewport-input连接两者，不互相冒充。

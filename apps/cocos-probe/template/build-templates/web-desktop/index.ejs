@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title><%= projectName %></title>
+    <link rel="stylesheet" href="<%= cssUrl %>">
+    <link rel="stylesheet" href="./probe-viewport.css">
+    <link rel="icon" href="favicon.ico">
+  </head>
+  <body>
+    <div id="GameDiv" cc_exact_fit_screen="false">
+      <div id="Cocos3dGameContainer">
+        <canvas id="GameCanvas" tabindex="99"></canvas>
+      </div>
+    </div>
+    <script src="./probe-viewport.js"></script>
+    <%- include(cocosTemplate, {}) %>
+  </body>
+</html>

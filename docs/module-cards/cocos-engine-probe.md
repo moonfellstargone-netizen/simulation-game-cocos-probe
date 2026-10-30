@@ -9,49 +9,52 @@ source_of_truth: false
 
 ## 模块职责
 
-`apps/cocos-probe/`保存Creator3.8.8真实Web探针的最小工程源模板及外层生命周期桥接。只有这一外层使用`cc`；既有game-core、cocos-app、cocos-creator-adapter保持engine-neutral。
+apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期桥接。只有该outer可使用cc；旧game-core、cocos-app、cocos-creator-adapter保持engine-neutral。当前目标是约定桌面视口和resize后显示与真实按钮命中一致，不新增玩法或正式Action。
 
-工程从仓库唯一`src`和`design_snapshot`派生公共runtime及全部58个声明Schema；可打开工作副本、依赖、缓存与构建产物位于仓库外，禁止手改副本建立第二套实现。
-
-模板settings/v2/packages/project.json的script.loose=false不可省略。真实浏览器已复现Creator默认loose转译使Ajv继承getter丢失正确接收者；标准模式保持JavaScript语义，不涉及核心或正式资源变更。准备测试锁定实际派生配置，修复后的引擎结果仍以独立Creator构建和浏览器验收为准。
+工程从唯一src/design_snapshot派生runtime、snapshot及全部58项Schema；工作副本、依赖、缓存、报告和构建均在仓库外，禁止手改副本成为第二源码权威。script.loose=false保留标准JavaScript语义，不能恢复Creator默认loose破坏Ajv继承getter的已知转换。
 
 ## 允许依赖
 
-- `cc`引擎类型与节点API。
-- 由公开入口派生的`probe-runtime.js`：createStage1AHost、QinglanUiSceneProbeComponent、InMemorySaveStoragePort。
-- 派生资源与明确启动参数；BuildId由project-target派生。
+- cc引擎类型与节点API。
+- 派生公共probe-runtime.js：createStage1AHost、QinglanUiSceneProbeComponent、InMemorySaveStoragePort。
+- 派生正式资源与project-target派生BuildId；不散落第二版本权威。
 
 ## 禁止依赖
 
-不直接导入game-core/cocos-app/creator-adapter内部源码、tools、tests或dev/testing API；不接wx/fs，不直接改SaveFile或调用ActionPipeline。旧运行模块不得反向依赖该外层。
+不直接导入核心内部、tools、tests或dev/testing API，不接wx/fs，不直接改SaveFile或调用ActionPipeline。旧三层不得反向依赖此outer；浏览器验证工具不能成为游戏运行时依赖。
 
 ## 关键入口与读取顺序
 
-- `apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts`：真实cc组件、资源加载和界面端口。
-- `apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts`：纯TypeScript异步加载与销毁桥接。
-- `apps/cocos-probe/template/assets/Probe.scene`及同级.meta：场景与稳定资源标识，属于源模板。
-- `tools/cocos-probe/prepare.mjs`：生成仓库外空目录中的可打开工程。
-- `tools/cocos-probe/build.mjs`：显式Creator路径、工程和日志目录的真实Web构建。
-- [边界契约](../module_contracts/CocosEngineProbe.contract.md)：输入、迟到加载保护与验收限制。
-- [Cocos地图](../maps/cocos-map.md)、[运行地图](../maps/runtime-map.md)及[公开API索引](../code-index/public-api.md)。
+- apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts：真实cc组件、资源加载及Label/Button端口。
+- apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts：无cc的异步加载和销毁保护。
+- apps/cocos-probe/template/build-templates/web-desktop/index.ejs、probe-viewport.css、probe-viewport.js：官方构建模板上的页面容器和视口同步；保留cocosTemplate注入，不能手改派生index.html。
+- tools/cocos-probe/prepare.mjs：唯一来源派生仓库外工程。
+- tools/cocos-probe/build.mjs：真实构建及Web逐文件/目录摘要。
+- tools/cocos-probe/verify-web.mjs：verifyWebProbe(options)与独立真实浏览器CLI。
+- tools/cocos-probe/lib/webProbeSupport.mjs：构建/验收共享的HTTP、参数、来源与Web摘要辅助。
+- [边界契约](../module_contracts/CocosEngineProbe.contract.md)、[Cocos地图](../maps/cocos-map.md)、[运行地图](../maps/runtime-map.md)、[API索引](../code-index/public-api.md)。
 
 ## 修改后验证
 
-`test:cocos-probe-preparation`实际执行prepare，核对资源、来源摘要、坏资源和生成runtime的Node冒烟。`test:cocos-engine-probe-lifecycle`用受控异步信号验证加载/销毁，均为full/blocker；`trace.cocos.web-bootstrap-probe`连接执行登记与边界。
+test:cocos-probe-preparation实际prepare并验证资源、来源及生成runtime；test:cocos-engine-probe-lifecycle验证受控异步生命周期；test:cocos-web-verification-contracts验证参数、HTTP安全、来源与失败保护。三项登记full/blocker，trace.cocos.web-bootstrap-probe和trace.cocos.web-viewport-input分别保留启动与视口追踪。Node契约不执行真实浏览器。
 
-根typecheck只覆盖src，不证明外层Creator编译。真实Creator预览与Web构建独立验收；缺引擎时明确失败或未执行，不能用假cc类型、Node模拟或CI通过代替。版本完成仍运行q:full/q:release并核对对应提交PR检查。
+根typecheck只覆盖src；真实Creator类型、构建、预览和浏览器独立验收。cocos:verify:web要求--project、--browser、--report-dir、--build-record均为显式绝对路径；可选--preview-url只接受loopback HTTP。实际浏览器或引擎缺失必须失败或未执行，不能静默skip。
 
-真实onDestroy须同步捕获asset与lifetime引用，诊断observer须独立保留lifetime；异步释放和退出观测不能读取可能已被Creator清空的Component字段。当前Web桌面运行页默认1280×960，使用足够的桌面窗口做真实按钮验收；本版不承诺小视口滚动、输入适配或移动端布局。
+真实鼠标点击按mode区分：built-web覆盖1440×1200、1280×720、960×640、800×600/DPR1与960×640/DPR2仿真，并执行960×640→1440×1200→800×600→960×640四次resize点击；editor-preview只覆盖1440×1200与960×640/DPR1，并执行960×640→1440×1200→960×640三次resize点击。每次完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、时间+60与Label同步，所有断言保持。官方Default设备模拟器在800窗口会裁剪固定960px内容，该预览范围未支持；不将预览裁剪写成构建网页800失败。内存存读档和退出释放保留，built-web另验证资源404及加载中销毁。禁止调用observer.advance代替点击。预览URL模式独立标记，不把构建摘要当作livepreview页面字节证明。
+
+真实onDestroy必须同步捕获asset/lifetime引用，observer独立保留lifetime；异步释放和退出诊断不能读取已被Creator清空的Component字段。窗口变化不能重建Host或重复注册按钮。
+
+桌面范围按约定尺寸验收，DPR仿真不等于手机、触摸、微信或Windows系统缩放通过；不承诺未测浏览器和引擎版本。版本完成仍须q:full/q:release及对应候选PR检查。
 
 ## 常见失败模式
 
-- 把加载完成后的迟到Host交给已销毁节点。
-- 在异步清理或诊断中读取销毁后已被清空的Component字段。
-- 对bootstrap已创建Host重复执行旧Probe.onLoad。
-- 在源码checkout打开工程，混入library/temp/build/嵌套依赖。
-- 无引擎时跳过实际验证，却宣称真实Cocos通过。
-- 把内存端口冒烟写成微信或持久化保证。
+- canvas.focus触发页面滚动，使按下和释放位置偏离同一个按钮。
+- 只改CSS尺寸却没有同步引擎容器像素尺寸和resize。
+- 手改生成页面或修改SDK隐藏故障。
+- 构建被替换后仍使用旧result.json声称验证了对应提交。
+- 将Node契约或CI通过写成真实引擎/浏览器通过。
+- 将内存冒烟写成真实持久化或微信保证。
 
 ## 代码—地图同步
 
-同步module-graph、architecture边界、test-registry、traceability、cocos/runtime/quality地图、files/public-api及本模块卡。真实引擎证据不改变正式玩法权威。
+同步module-graph、单向architecture边界、test-registry、traceability、cocos/runtime/quality地图及files/public-api。禁止通过降低旧规则、扩白名单或跳过失败完成版本。

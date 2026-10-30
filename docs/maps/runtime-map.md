@@ -1,4 +1,4 @@
-﻿# Runtime Map — v0.0.2.31
+﻿# Runtime Map — v0.0.2.32
 
 ## 系统职责
 
@@ -60,3 +60,5 @@ game-core, cocos-app, save-load
 场景绑定的实例内完整顺序与失败后重同步由`trace.cocos.binding-async-recovery`追踪；仅管理同一控制器调用，不提供业务事务或跨实例全局锁。
 
 真实Web宿主位于新cocos-engine-probe外层，准备工具从唯一运行源码和正式资源派生工程；异步加载期间销毁保护属于外层生命周期，不能由已有绑定队列代替。见[引擎探针模块卡](../module-cards/cocos-engine-probe.md)和trace.cocos.web-bootstrap-probe。
+
+桌面视口和输入修复仅在既有Web外层及构建模板，resize不重新创建Host、不重注册Action事件；`trace.cocos.web-viewport-input`和独立`cocos:verify:web`负责点击命中与公开时间/Label一致性，核心运行流程保持不变。

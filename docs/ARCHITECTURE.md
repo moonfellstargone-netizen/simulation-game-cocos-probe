@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.31
+﻿# ARCHITECTURE — v0.0.2.32
 
-当前版本：v0.0.2.31 / Cocos Web Bootstrap Probe。本轮新增单向消费公共runtime的真实引擎外层；现有三层继续engine-neutral，玩法与状态流转不变。
+当前版本：v0.0.2.32 / Cocos Web Viewport & Input Reliability。本轮只修现有真实Web外层的桌面视口与输入，使用最小浏览器回归工具验证，不改变既有三层或玩法状态流转。
 
 ## 1. 业务架构不变
 
@@ -65,3 +65,11 @@ game-core 独立于 Cocos / wx / 表现层。tools/quality 仍是检查工具层
 旧game-core、cocos-app、cocos-creator-adapter仍不接真实 Cocos、不接 wx或fs；只有新增cocos-engine-probe外层可导入cc，并受单向公开runtime边界约束。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture，不新增玩法、微信存储、AOT或资源热更新。旧模块禁止反向依赖apps/cocos-probe。新外层只能消费派生公共runtime，不直接访问核心内部、tests、dev/testing API或平台存储。
 
 Node中的准备契约和外层生命周期测试登记为full/blocker，由trace.cocos.web-bootstrap-probe追踪；它们验证实际派生产物、资源完整性、异常路径和确定性生命周期，不冒充引擎运行证据。根typecheck仍仅覆盖src。真实Creator预览与Web构建另行执行，缺引擎时明确失败或未执行，不能静默skip或使用假cc类型声称通过。
+
+## 真实Web视口与输入验收
+
+工具只读取仓库唯一src/design_snapshot派生的工作副本。prepare继续导出snapshot及全部58项Schema并记录Git来源/输入产物摘要；build记录实际Web产物清单摘要，verify核对构建关联和产物字节后才启动浏览器，拒绝替换或篡改的Web目录。工程、依赖、报告、缓存和构建仍位于仓库外，不形成第二源码权威。
+
+保留准备/生命周期full/blocker回归，新增test:cocos-web-verification-contracts / registry test.cocos-web-verification-contracts验证浏览器工具的参数、来源、HTTP服务和断言失败保护；Node契约不执行真实浏览器。独立cocos:verify:web运行固定Creator构建产物的真实Chrome鼠标点击，记录Button事件、时间变化、Label同步与清理证据；根typecheck只覆盖src，不能代替实际Creator类型、构建或浏览器验收。
+
+窗口变化不得重新创建Host或重复绑定按钮。布局与输入修复只属于apps/cocos-probe外层，浏览器测试工具不能反向成为运行时依赖。

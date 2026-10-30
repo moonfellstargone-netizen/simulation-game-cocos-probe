@@ -1,14 +1,15 @@
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { capturePreparedSurface, checkPreparedSurfaceAfterBuild, webTreeDigest } from './lib/webProbeSupport.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const isWithin = (parent, child) => {
   const rel = relative(parent, child);
-  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+  return rel === '' || (rel !== '..' && !rel.startsWith('..' + sep) && !isAbsolute(rel));
 };
 const prospectivePath = (value) => {
   let ancestor = resolve(value);
@@ -66,6 +67,17 @@ export async function buildCocosProbe({ creator, project, logDir } = {}) {
     closeSync(stderr);
   }
   const webIndex = join(projectDir, 'build/web-desktop/index.html');
+  let webBuild = null;
+  let preparedSurfaceAfter = null;
+  let creatorNormalizations = [];
+  if (executionError === null && exitCode === 36 && existsSync(webIndex)) {
+    try {
+      preparedSurfaceAfter = capturePreparedSurface(projectDir, manifest);
+      creatorNormalizations = checkPreparedSurfaceAfterBuild(manifest, preparedSurfaceAfter);
+      webBuild = webTreeDigest(join(projectDir, 'build/web-desktop'));
+    }
+    catch (error) { executionError = error instanceof Error ? error.message : String(error); }
+  }
   // Creator documents 36 as build success; zero is not evidence of a completed build.
   const passed = executionError === null && exitCode === 36 && existsSync(webIndex);
   const result = {
@@ -74,7 +86,8 @@ export async function buildCocosProbe({ creator, project, logDir } = {}) {
     version: manifest.version, preparedManifestSha256: digest(manifestBytes),
     buildToolSha256: digest(readFileSync(fileURLToPath(import.meta.url))),
     args, startedAt, finishedAt: new Date().toISOString(), creatorExitCode: exitCode,
-    executionError, passed, webIndex: existsSync(webIndex) ? webIndex : null, recordDir
+    executionError, passed, preparedSurfaceAfter, creatorNormalizations, webBuild,
+    webIndex: existsSync(webIndex) ? webIndex : null, recordDir
   };
   writeFileSync(join(recordDir, 'result.json'), JSON.stringify(result, null, 2) + '\n');
   if (!passed) throw new Error(`ERR_PROBE_CREATOR_BUILD_FAILED:${exitCode}:${recordDir}${executionError ? ':' + executionError : ''}`);

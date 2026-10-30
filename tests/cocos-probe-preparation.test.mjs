@@ -77,6 +77,13 @@ test('prepare derives a complete reproducible work copy with exact input and out
     assert.equal(recorded.sha256, sha256(bytes), path);
     assert.equal(recorded.bytes, bytes.length, path);
   }
+  for (const file of ['index.ejs', 'probe-viewport.css', 'probe-viewport.js']) {
+    const path = 'build-templates/web-desktop/' + file;
+    const canonical = 'apps/cocos-probe/template/' + path;
+    assert.ok(manifest.inputs[canonical], 'responsive build template input must be tracked: ' + file);
+    assert.ok(manifest.outputs[path], 'responsive build template must be in the prepared engine project: ' + file);
+    assert.deepEqual(readFileSync(join(prepared.outputDir, path)), readFileSync(join(source, canonical)));
+  }
   const resources = json(join(prepared.outputDir, 'assets/resources/probe-resources.json'));
   const snapshot = json(join(source, 'design_snapshot/generated/stage_1A_runtime_snapshot.json'));
   assert.deepEqual(resources.snapshot, snapshot);

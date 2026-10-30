@@ -1,4 +1,4 @@
-﻿# Quality Map — v0.0.2.31
+﻿# Quality Map — v0.0.2.32
 
 ## 系统职责
 
@@ -64,3 +64,9 @@
 quality-tools, release-tools
 
 新outer与prepare工具的归属、单向依赖、来源摘要和实际affected选择纳入自动契约；真实Creator预览/Web构建另行验收，不能让无引擎CI的q:full冒充引擎通过。
+
+## 桌面Web视口与输入
+
+`apps/cocos-probe/template/build-templates/web-desktop/`是页面容器/resize源模板；`tools/cocos-probe/build.mjs`记录产物摘要，`tools/cocos-probe/verify-web.mjs`与`tools/cocos-probe/lib/webProbeSupport.mjs`核对来源后运行真实鼠标矩阵。`tests/cocos-web-verification-contracts.test.mjs`登记full/blocker，仅验证Node工具边界，不能作为实际Creator或浏览器通过证据。
+
+`trace.cocos.web-viewport-input`连接模板、工具、契约、affected与实际验收说明；支持范围见[引擎探针模块卡](../module-cards/cocos-engine-probe.md)。不能用observer.advance绕过物理点击；窗口变化保留原会话，不引入真实存储或微信。

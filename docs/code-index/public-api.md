@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.31
+﻿# Code Index — Public API — v0.0.2.32
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -95,3 +95,10 @@
 
 - 按符号自动索引 game-core 全部 export
 - Stage 1B、wx及其他目标平台（当前未进入）；真实Cocos仅当前Web最小外层。
+
+## Web视口与输入验证工具
+
+- `verifyWebProbe({project, browser, reportDir, buildRecord, previewUrl?})`（`tools/cocos-probe/verify-web.mjs`）：显式路径运行真实浏览器，来源和构建字节匹配后检查真实鼠标点击；独立于无引擎CI。
+- `cocos:verify:web -- --project <ABS> --browser <ABS> --report-dir <ABS> --build-record <ABS>`；可选`--preview-url <loopback HTTP URL>`，预览结果单独标记，不证明livepreview内容hash；其矩阵仅1440×1200/960×640与960→1440→960 resize，800及DPR2属于built-web范围。
+- `tools/cocos-probe/lib/webProbeSupport.mjs`共享参数/HTTP/来源和`webTreeDigest`；build.mjs的Web产物清单与verify复算必须一致，篡改拒绝。
+- `test:cocos-web-verification-contracts`是Node工具契约，不执行真实浏览器；`trace.cocos.web-viewport-input`追踪执行输入与独立验收边界。
