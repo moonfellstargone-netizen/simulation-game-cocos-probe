@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.30
+﻿# Code Index — Public API — v0.0.2.31
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -52,6 +52,14 @@
 - `CocosSceneBindingPort.applySceneBindingUpdate`与`CocosComponentNodeBindingPort.applyNodeBindingPatch`保留`void | Promise<void>`，同步抛错或异步拒绝原样可观察。后续绑定操作全量重同步当前视图，不重放或回滚正式Action。
 - 顺序只覆盖同一实例管理的调用，不承诺跨controller全局锁或端口副作用回滚。追踪`trace.cocos.binding-async-recovery`，使用现有两个full/blocker绑定任务。
 
+## Cocos Web外层与准备入口
+
+- `prepareCocosProbe({rootDir, outputDir})` / `readProbeResources(rootDir)`（`tools/cocos-probe/prepare.mjs`）：校验正式资源并生成仓库外工程与probe-source-manifest.json，拒绝危险/非空输出，不建立第二源码权威。
+- `cocos:prepare -- --output <绝对空目录>`；派生bundle公开createStage1AHost、QinglanUiSceneProbeComponent、InMemorySaveStoragePort。
+- `cocos:build -- --creator <exe> --project <派生工程> --log-dir <外部目录>`：真实Creator3.8.8 Web构建，独立于无引擎CI；成功码36与产物检查后才成功。
+- 新outer模块单向消费上述runtime，纯生命周期桥接管理异步加载失效；真实cc组件只负责资源与节点，不直接访问核心内部。
+- Node准备与生命周期契约不等于Creator编译或Web运行证明。导航见[引擎探针模块卡](../module-cards/cocos-engine-probe.md)，追踪trace.cocos.web-bootstrap-probe。
+
 ## Cocos app runtime
 
 - `GameRuntime` + `ActionPipeline`（`src/game-core/runtime/GameRuntime.ts`）
@@ -86,4 +94,4 @@
 ## 待后续增强
 
 - 按符号自动索引 game-core 全部 export
-- Stage 1B wx / 真实 Cocos API（当前未进入）
+- Stage 1B、wx及其他目标平台（当前未进入）；真实Cocos仅当前Web最小外层。

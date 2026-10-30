@@ -1,4 +1,4 @@
-﻿# DOCS_GOVERNANCE — v0.0.2.30
+﻿# DOCS_GOVERNANCE — v0.0.2.31
 
 文档治理规范。
 
@@ -51,6 +51,8 @@
 | 存储故障保护与恢复 | save-load module-card, SaveStoragePort contract, ADR-0003, trace.save.storage-failure-recovery | test:cocos-session, test:cocos-save-load, test:cocos-ui-command-queue |
 | 启动装配与资源就绪 | creator模块卡、Stage1ABootstrap契约、trace.runtime.bootstrap-resources | test:stage1a-bootstrap、test:cocos-session |
 | 场景绑定异步顺序与失败恢复 | creator模块卡、scene/component边界契约、trace.cocos.binding-async-recovery | test:cocos-scene-binding、test:cocos-component-node-binding、test:quality-affected-contracts |
+
+新增真实引擎外层由cocos-engine-probe模块卡、CocosEngineProbe契约和trace.cocos.web-bootstrap-probe连接；自动准备/生命周期任务与独立Creator验证的状态必须分别记录，不以Node或根typecheck代替真实引擎通过。
 
 ## 7. PR 模板与目录责任
 

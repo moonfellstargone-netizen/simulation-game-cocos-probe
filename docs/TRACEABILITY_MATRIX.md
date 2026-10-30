@@ -9,9 +9,9 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.30
+# TRACEABILITY_MATRIX — v0.0.2.31
 
-**Async Scene Binding Ordering & Recovery / 场景绑定异步顺序与失败恢复版**
+**Cocos Web Bootstrap Probe / Cocos网页端最小启动探针版**
 
 ## 1. 定位
 
@@ -40,6 +40,13 @@ related:
 - `test:traceability-contracts` 校验 map、registry、module-graph 与 gate 一致性。
 
 ## 4. Active entries（与 traceability-map.json 对齐）
+
+### trace.cocos.web-bootstrap-probe
+
+真实Cocos Web外层源模板与仓库外派生工程，由cocos-engine-probe、tools/tests及既有公共runtime边界协作。源码入口为tools/cocos-probe/prepare.mjs与apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts；test.cocos-probe-preparation和test.cocos-engine-probe-lifecycle为full/blocker，登记实际执行文件及affected选择。模块导航见[引擎探针模块卡](module-cards/cocos-engine-probe.md)，边界说明见[契约](module_contracts/CocosEngineProbe.contract.md)。
+
+Node准备/生命周期通过不代表真实Creator通过；根typecheck仅检查src，真实Creator3.8.8预览与Web构建需独立日志和节点表现证据。旧三层不接真实 Cocos，新outer才可cc；不进入 Stage 1B，不接 wx。
+
 
 ### trace.cocos.binding-async-recovery
 

@@ -1,29 +1,29 @@
 {
   "version": {
-    "codePackageVersion": "v0.0.2.30",
-    "npmVersion": "0.0.2-30",
-    "qualityMetadataVersion": "0.0.2.30",
-    "snakeVersion": "v0_0_2_30",
-    "versionName": "Async Scene Binding Ordering & Recovery",
-    "chineseVersionName": "场景绑定异步顺序与失败恢复版"
+    "codePackageVersion": "v0.0.2.31",
+    "npmVersion": "0.0.2-31",
+    "qualityMetadataVersion": "0.0.2.31",
+    "snakeVersion": "v0_0_2_31",
+    "versionName": "Cocos Web Bootstrap Probe",
+    "chineseVersionName": "Cocos网页端最小启动探针版"
   },
   "release": {
-    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_30",
-    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_30.zip"
+    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_31",
+    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_31.zip"
   },
   "design": {
     "designPackVersion": "v1.5.2.2",
     "designPackName": "模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip"
   },
   "previous": {
-    "codePackageVersion": "v0.0.2.29",
-    "npmVersion": "0.0.2-29",
-    "qualityMetadataVersion": "0.0.2.29",
-    "snakeVersion": "v0_0_2_29",
-    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_29",
-    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_29.zip",
-    "versionName": "Runtime Bootstrap & Resource Contracts",
-    "chineseVersionName": "运行启动装配与资源契约版"
+    "codePackageVersion": "v0.0.2.30",
+    "npmVersion": "0.0.2-30",
+    "qualityMetadataVersion": "0.0.2.30",
+    "snakeVersion": "v0_0_2_30",
+    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_30",
+    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_30.zip",
+    "versionName": "Async Scene Binding Ordering & Recovery",
+    "chineseVersionName": "场景绑定异步顺序与失败恢复版"
   },
   "staleMarkers": {
     "forbiddenCurrentMarkers": [
@@ -116,7 +116,18 @@
       "运行启动装配与资源契约版",
       "fixture_baseline_v0_0_2_29",
       "headless_baseline_v0_0_2_29",
-      "cocos_baseline_v0_0_2_29"
+      "cocos_baseline_v0_0_2_29",
+      "v0.0.2.30",
+      "0.0.2-30",
+      "0.0.2.30",
+      "v0_0_2_30",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_30",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_30.zip",
+      "Async Scene Binding Ordering & Recovery",
+      "场景绑定异步顺序与失败恢复版",
+      "fixture_baseline_v0_0_2_30",
+      "headless_baseline_v0_0_2_30",
+      "cocos_baseline_v0_0_2_30"
     ],
     "allowedHistoricalScopes": [
       "tools/quality/rules/project-target.json",

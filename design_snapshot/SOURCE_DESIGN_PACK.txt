@@ -1,13 +1,13 @@
 source_design_pack: 模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip
 design_pack_version: v1.5.2.2
-code_package_version: v0.0.2.30
-code_package_npm_version: 0.0.2-30
-code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_30
-version_name: Async Scene Binding Ordering & Recovery
-chinese_version_name: 场景绑定异步顺序与失败恢复版
-scope: Serialize complete command and rendering operations within one scene binding instance; resynchronize the current view after binding failure without replaying or rolling back formal actions; verify delayed/rejected ports and unmount ordering; preserve runtime bootstrap and storage contracts; no Stage 1B, real Cocos or wx storage.
+code_package_version: v0.0.2.31
+code_package_npm_version: 0.0.2-31
+code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_31
+version_name: Cocos Web Bootstrap Probe
+chinese_version_name: Cocos网页端最小启动探针版
+scope: Prepare an external Creator 3.8.8 Web project from canonical runtime and formal resources; bootstrap through public APIs, display time, advance through formal action and release the session; retain engine-neutral core and adapter modules; no Stage 1B or wx storage.
 
 formal_source_statement: 正式包 v1.5.2.2 remains authoritative
-context_statement: 场景绑定异步顺序与失败恢复，配套代码包内部检查体系治理；正式玩法与状态流转语义保持
-quality_surface: trace.cocos.binding-async-recovery, test.cocos-scene-binding, test.cocos-component-node-binding, controlledBindingPort, quality-affected-contracts, inherited trace.runtime.bootstrap-resources and test.stage1a-bootstrap, inherited trace.save.storage-failure-recovery, test.cocos-session, test.cocos-save-load, test.cocos-command-queue, traceability-map.json, TRACEABILITY_MATRIX, traceability-contracts, inherited PR CI and test.ci-workflow-contracts, project-target authority, q:affected, cache probe, authoritative rules
+context_statement: Cocos网页端最小启动外层及准备工具，配套代码包内部检查体系治理；正式玩法与状态流转语义保持
+quality_surface: trace.cocos.web-bootstrap-probe, test.cocos-probe-preparation, test.cocos-engine-probe-lifecycle, inherited trace.cocos.binding-async-recovery, test.cocos-scene-binding, test.cocos-component-node-binding, controlledBindingPort, quality-affected-contracts, inherited trace.runtime.bootstrap-resources and test.stage1a-bootstrap, inherited trace.save.storage-failure-recovery, test.cocos-session, test.cocos-save-load, test.cocos-command-queue, traceability-map.json, TRACEABILITY_MATRIX, traceability-contracts, inherited PR CI and test.ci-workflow-contracts, project-target authority, q:affected, cache probe, authoritative rules
 authority_statement: design pack remains authoritative; GitHub repo is daily code authority

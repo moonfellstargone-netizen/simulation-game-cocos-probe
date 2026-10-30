@@ -43,7 +43,9 @@
         "不接 wx",
         "后续建议不是授权目标",
         "module-cards",
-        "GitHub 仓库"
+        "GitHub 仓库",
+        "cocos-engine-probe",
+        "trace.cocos.web-bootstrap-probe"
       ],
       "forbiddenCurrent": [
         "${previousCodePackageVersion}",
@@ -131,7 +133,9 @@
         "module_contracts",
         "不跳过 ActionPipeline",
         "不直接改 SaveFile",
-        "不接真实 `cc / wx / fs`"
+        "不接真实 `cc / wx / fs`",
+        "cocos-engine-probe",
+        "trace.cocos.web-bootstrap-probe"
       ],
       "forbiddenCurrent": [
         "${previousCodePackageVersion}",
@@ -143,7 +147,7 @@
       ]
     },
     "docs/IMPLEMENTATION_SCOPE.md": {
-      "why": "实现范围文档必须锁定场景绑定异步顺序与失败恢复，不扩展玩法或平台接入；版本名由project-target派生。",
+      "why": "锁定真实Cocos Web新外层与仓库外准备范围，保留旧三层engine-neutral、正式玩法和质量边界。",
       "required": [
         "${codePackageVersion}",
         "${versionName}",
@@ -165,7 +169,9 @@
         "不替代 q:full",
         "不替代 q:release",
         "planned",
-        "不是当前实现"
+        "不是当前实现",
+        "cocos-engine-probe",
+        "trace.cocos.web-bootstrap-probe"
       ],
       "forbiddenCurrent": [
         "${previousCodePackageVersion}",
@@ -264,6 +270,20 @@
         "${previousVersionName}",
         "${previousChineseVersionName}"
       ]
+    },
+    "docs/module-cards/cocos-engine-probe.md": {
+      "why": "真实引擎外层的源码归属、来源和独立验收必须可导航。",
+      "required": [
+        "status: active",
+        "apps/cocos-probe",
+        "tools/cocos-probe/prepare.mjs",
+        "test:cocos-probe-preparation",
+        "test:cocos-engine-probe-lifecycle",
+        "trace.cocos.web-bootstrap-probe",
+        "仓库外",
+        "真实Creator"
+      ],
+      "forbiddenCurrent": []
     }
   }
 }

@@ -27,6 +27,7 @@ const requiredModuleCards = [
   'docs/module-cards/save-load.md',
   'docs/module-cards/cocos-app.md',
   'docs/module-cards/cocos-creator-adapter.md',
+  'docs/module-cards/cocos-engine-probe.md',
   'docs/module-cards/quality-tools.md',
   'docs/module-cards/release-tools.md'
 ];
@@ -40,6 +41,10 @@ const moduleCardExplicitPaths = [
 ];
 
 const codeIndexExplicitPaths = [
+  'apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts',
+  'apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts',
+  'tools/cocos-probe/prepare.mjs',
+  'tools/cocos-probe/build.mjs',
   'tools/quality/rules/project-target.json',
   'tools/quality/module-graph.json',
   'tools/quality/test-registry.json',
@@ -122,12 +127,12 @@ function assertForbiddenPositiveMisauthority(text, pattern) {
   }
 }
 
-test('current version is v0.0.2.30 in package metadata', () => {
+test('current version is v0.0.2.31 in package metadata', () => {
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  assert.equal(packageJson.version, '0.0.2-30');
+  assert.equal(packageJson.version, '0.0.2-31');
 
   const projectTarget = JSON.parse(readFileSync(join(root, 'tools/quality/rules/project-target.json'), 'utf8'));
-  assert.equal(projectTarget.version.codePackageVersion, 'v0.0.2.30');
+  assert.equal(projectTarget.version.codePackageVersion, 'v0.0.2.31');
 });
 
 test('project map links traceability matrix entry', () => {

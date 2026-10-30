@@ -7,6 +7,32 @@ import { resolveGateTasks } from '../tools/quality/lib/resolveGateTasks.mjs';
 const root = process.cwd();
 const readJson = (rel) => JSON.parse(readFileSync(join(root, rel), 'utf8'));
 
+test('Cocos Web preparation and lifetime tasks close the outer-layer trace without claiming engine execution', () => {
+  const { traceabilityMap, registry, gatePolicy, moduleGraph } = loadTraceabilityContext();
+  const id = 'trace.cocos.web-bootstrap-probe';
+  const entry = traceabilityMap.entries.find((item) => item.id === id);
+  assert.equal(entry?.status, 'active');
+  assert.ok(traceabilityMap.currentFullReleaseTraceIds.includes(id));
+  assert.ok(entry.moduleRefs.includes('cocos-engine-probe'));
+  assert.deepEqual(moduleGraph.modules['cocos-engine-probe'].roots, ['apps/cocos-probe/**']);
+  for (const [taskId, file] of [
+    ['test.cocos-probe-preparation', 'tests/cocos-probe-preparation.test.mjs'],
+    ['test.cocos-engine-probe-lifecycle', 'tests/cocos-engine-probe-lifecycle.test.ts']
+  ]) {
+    assert.ok(entry.testRefs.includes(taskId));
+    const task = registry.tests[taskId];
+    assert.equal(task?.stability, 'blocker');
+    for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
+    assert.ok(task.files.includes(file));
+    assert.ok(task.args.includes(file), taskId + ' must actually execute its test');
+    for (const module of ['cocos-engine-probe', 'tests']) assert.ok(task.covers.includes(module));
+    for (const gate of ['full', 'release']) assert.ok(resolveGateTasks(gate, gatePolicy, registry).some((selected) => selected.id === taskId));
+  }
+  const docs = readFileSync(join(root, 'docs/module-cards/cocos-engine-probe.md'), 'utf8');
+  assert.match(docs, /根typecheck只覆盖src/);
+  assert.match(docs, /真实.*独立验收/);
+});
+
 function loadTraceabilityContext() {
   const qualityConfig = readJson('tools/quality/quality.config.json');
   const traceabilityRel = qualityConfig.rules?.traceabilityMap;

@@ -12,6 +12,28 @@ const moduleGraph = readJson('tools/quality/module-graph.json');
 const registry = readJson('tools/quality/test-registry.json');
 const policy = readJson('tools/quality/gate-policy.json');
 
+test('Cocos Web template, preparation and regression changes select the registered probe tasks', () => {
+  const cases = [
+    ['apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle', 'quality.architectureBoundary']],
+    ['apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
+    ['apps/cocos-probe/template/settings/v2/packages/project.json', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
+    ['apps/cocos-probe/template/assets/Probe.scene.meta', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
+    ['tools/cocos-probe/prepare.mjs', ['test.cocos-probe-preparation']],
+    ['tools/cocos-probe/build.mjs', ['test.cocos-probe-preparation']],
+    ['tests/cocos-probe-preparation.test.mjs', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
+    ['tests/cocos-engine-probe-lifecycle.test.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']]
+  ];
+  for (const [file, required] of cases) {
+    const changedFiles = [file];
+    const modules = resolveAffectedModules(changedFiles, moduleGraph);
+    const result = resolveAffectedTasks({ changedFiles, affectedModules: modules.affectedModules, fallback: modules.fallback, gatePolicy: policy, testRegistry: registry });
+    const ids = result.selectedTasks.map((task) => task.id);
+    for (const id of required) assert.ok(ids.includes(id), file + ' alone must select ' + id);
+    assert.equal(ids.includes('release.build'), false);
+    assert.equal(ids.includes('release.check'), false);
+  }
+});
+
 test('q:affected script and gate are active development feedback only', () => {
   assert.equal(packageJson.scripts['q:affected'], 'node tools/quality/run-quality-gate.mjs --gate affected');
   assert.ok(packageJson.scripts['test:quality-affected-contracts']);

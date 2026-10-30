@@ -1,5 +1,5 @@
 {
-  "version": "0.0.2.30",
+  "version": "0.0.2.31",
   "moduleGraph": "tools/quality/module-graph.json",
   "testRegistry": "tools/quality/test-registry.json",
   "gatePolicy": "tools/quality/gate-policy.json",

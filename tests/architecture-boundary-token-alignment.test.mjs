@@ -59,9 +59,12 @@ function makeTempRoot() {
   return tempRoot;
 }
 
-test('token boundary rules remain non-authoritative and declare scope plus allowed context', () => {
+test('engine-neutral state-leak token rules remain non-authoritative and declare scope plus allowed context', () => {
   const rules = readJson('tools/quality/rules/architecture-boundary.rules.json');
-  const tokenRules = rules.rules.tokenBoundaries;
+  const tokenRules = rules.rules.tokenBoundaries.filter((rule) => rule.owner === 'cocos-creator-adapter');
+  for (const id of ['component-binding-no-savefile-state-leak', 'scene-binding-no-internal-state-leak', 'adapter-no-direct-runtime-state-shape']) {
+    assert.ok(tokenRules.some((rule) => rule.id === id), id + ' remains in the engine-neutral shadow policy');
+  }
   assert.ok(tokenRules.length >= 3, 'token boundary policy should audit multiple token/state-leak rules');
   for (const rule of tokenRules) {
     assert.notEqual(rule.mode, 'authoritative', `${rule.id} must not be authoritative in token boundary shadow policy`);
