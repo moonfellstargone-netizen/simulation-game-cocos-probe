@@ -1,12 +1,14 @@
-# CHECK_ARCHITECTURE — v0.0.2.28
+# CHECK_ARCHITECTURE — v0.0.2.29
 
-v0.0.2.28 / Save Storage Failure Contracts 是存储端口故障契约与恢复验证版。通过现有 Session、UI 和命令队列验证存储故障保护，业务架构保持不变。
+v0.0.2.29 / Runtime Bootstrap & Resource Contracts是运行启动装配与资源契约版，验证正式资源经公共入口装配宿主及资源失败保护，保留既有业务架构边界。
 
 ## 1. 本轮检查目标
 
-本轮只做存储端口故障契约与恢复验证：`tests/support/controlledSaveStoragePort.ts` 包装既有内存端口，注入即时或手动控制的延迟读写拒绝。验证失败不污染 session、UI 呈现错误且不保留旧成功结果、队列不超车且后续健康命令可恢复。状态保护同时核对公开视图和健康存储路径的完整序列化内容，不以固定等待时长代替因果控制。
+本轮只做运行启动装配与资源契约：正常资源必须通过公共入口形成可运行宿主，缺失或无效资源、Schema引用损坏必须在交付可用会话前失败。就绪检查直接复用现有Schema编译能力，不通过向校验器传假数据后忽略结果模拟成功。
 
-故障用例由既有 `test:cocos-session`、`test:cocos-save-load` 和 `test:cocos-ui-command-queue`（registry `test.cocos-session`、`test.cocos-save-load`、`test.cocos-command-queue`）执行，均保留 `full`+`blocker` 登记；`trace.save.storage-failure-recovery` 连接端口、Session、Controller、Queue、契约和 ADR-0003。不新增正式错误码或存储原子回滚权威。
+独立集成验收从正式快照及Schema读取开始，经公共入口覆盖已有正式动作、存读档与生命周期；运行对象不能由runtimeHarness代为组装。`test:stage1a-bootstrap` / registry `test.stage1a-bootstrap`登记为full/blocker，`trace.runtime.bootstrap-resources`连接装配源码、两个校验器、模块卡与边界契约。`test.cocos-session`仍承担既有Session回归，两项均须实际进入full/release。
+
+既有`test:cocos-session`、`test:cocos-save-load`和`test:cocos-ui-command-queue`（registry为`test.cocos-session`、`test.cocos-save-load`、`test.cocos-command-queue`）继续验证Session、UI和命令队列的存储故障保护。`trace.save.storage-failure-recovery`、ADR-0003及完整序列化状态比较继续有效，不新增持久化原子回滚保证。
 
 既有 `.github/workflows/quality.yml`、`test:ci-workflow-contracts`、`trace.quality.pr-ci` 继续有效：PR 到 main 时执行 Ubuntu 的 `npm ci` 与 `q:full`，成功或失败均尝试上传本轮两份报告，保留 7 天；报告缺失明确报错。包卫生仍只排除根 `.git` 元数据；`trace.cocos.session-viewmodel-port` 和既有 traceability 地基继续沿用。
 
@@ -50,7 +52,7 @@ cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affe
 
 ## 10. 后续路线（不是授权目标）
 
-Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.28 范围。traceability map 中 `planned` 条目**不是**当前实现。
+Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.29 范围。traceability map 中 `planned` 条目**不是**当前实现。
 
 ## 11. 固定检查短语
 

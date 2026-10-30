@@ -28,12 +28,15 @@ source_of_truth: false
 
 ## 关键文件
 
+- `src/game-core/validation/RuntimeSchemaValidator.ts`
+- `src/game-core/validation/RuntimeContractValidator.ts`
 - `src/game-core/action/ActionPipeline.ts`
 - `src/game-core/runtime/GameRuntime.ts`
 - `src/game-core/index.ts`
 
 ## 关键测试
 
+- `tests/stage1a-bootstrap.test.ts`（既有Schema和操作契约的就绪边界）
 - `tests/stage1a-contract.test.ts`
 - `tests/stage1a-baseline.test.ts`
 - `tests/api-boundary.test.ts`
@@ -45,6 +48,7 @@ source_of_truth: false
 
 ## 修改后必须运行
 
+- `npm run test:stage1a-bootstrap`
 - `npm run test:stage1a-baseline`
 - `npm run q:affected -- --changed-files src/game-core/<file>`
 
@@ -52,7 +56,8 @@ source_of_truth: false
 
 - 新增非 formal action 路径
 - 绕过 ActionPipeline 改状态
+- Schema只注册未编译，导致资源引用或必要操作契约在运行后才暴露缺失
 
 ## 代码—地图同步
 
-改动公开 API 或目录结构时更新 `docs/code-index/public-api.md` 与本卡。
+改动公开API或目录结构时更新`docs/code-index/public-api.md`与本卡。`assertSchemasAvailable(ids)`及`assertReady()`只检查既有契约可用性，不向game-core引入宿主、平台或资源读取依赖。

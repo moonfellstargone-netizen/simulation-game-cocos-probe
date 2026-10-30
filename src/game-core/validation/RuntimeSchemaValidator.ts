@@ -35,6 +35,10 @@ export class RuntimeSchemaValidator {
     return new RuntimeSchemaValidator(schemas);
   }
 
+  assertSchemasAvailable(schemaIds: readonly string[]): void {
+    for (const schemaId of schemaIds) this.getValidator(schemaId);
+  }
+
   assertValid<T>(schemaId: string, value: T): T {
     const validate = this.getValidator(schemaId);
     const ok = validate(value);

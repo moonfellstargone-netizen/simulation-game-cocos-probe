@@ -1,4 +1,4 @@
-﻿# GLOSSARY — v0.0.2.28
+﻿# GLOSSARY — v0.0.2.29
 
 术语表。防止权威与工具边界混淆。
 
@@ -17,7 +17,8 @@
 | **Scope Discovery** | 执行前范围发现：seed files、必读、暂不读模块 |
 | **Project Map** | L0–L5 分级导航，≠ 源码替代品 |
 | **Traceability Matrix** | `TRACEABILITY_MATRIX.md` + `traceability-map.json`，追踪层 ≠ 玩法权威 |
-| **Save Storage Failure Contracts** | 通过受控存储读写故障，验证 Session 状态保护、错误展示、队列顺序及恢复重试 |
+| **Runtime Bootstrap & Resource Contracts** | 核对外部资源、编译Schema引用并经公共入口装配宿主，资源失败时不交付可操作会话 |
+| **存储故障保护与恢复** | 通过受控读写拒绝，验证Session状态保护、错误展示、队列顺序及恢复重试 |
 | **PR 自动完整检查** | PR 中自动执行现有 q:full 并保留报告的 CI 入口；发布验收仍按 q:release |
 | **traceability-lite/v1** | 当前轻量追踪 schema 版本 |
 | **active / planned** | active=当前追踪；planned+notCurrentAuthority=预留，非当前实现 |

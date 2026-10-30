@@ -1,13 +1,13 @@
 source_design_pack: 模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip
 design_pack_version: v1.5.2.2
-code_package_version: v0.0.2.28
-code_package_npm_version: 0.0.2-28
-code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_28
-version_name: Save Storage Failure Contracts
-chinese_version_name: 存储端口故障契约与恢复验证版
-scope: Existing SaveStoragePort read/write failure contracts and recovery verification across Session, save/load UI and command queue; controlled test faults only, no gameplay expansion, no Stage 1B, no real Cocos, no wx storage, no new stable error codes or atomic storage rollback guarantee.
+code_package_version: v0.0.2.29
+code_package_npm_version: 0.0.2-29
+code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_29
+version_name: Runtime Bootstrap & Resource Contracts
+chinese_version_name: 运行启动装配与资源契约版
+scope: Platform-neutral runtime bootstrap from externally supplied formal snapshot, schemas, storage port and explicit startup options; reject missing/invalid resources or unresolved schema references before publishing a usable host; integrate formal action, save/load and lifecycle verification without test harness assembly; no Stage 1B, real Cocos or wx storage.
 
 formal_source_statement: 正式包 v1.5.2.2 remains authoritative
-context_statement: 代码包内部检查体系治理中的存储端口故障验收；正式玩法与业务运行逻辑保持
-quality_surface: trace.save.storage-failure-recovery, test.cocos-session, test.cocos-save-load, test.cocos-command-queue, traceability-map.json, TRACEABILITY_MATRIX, traceability-contracts, inherited PR CI and test.ci-workflow-contracts, project-target authority, q:affected, cache probe, authoritative rules
+context_statement: 生产运行启动装配与资源契约，配套代码包内部检查体系治理；正式玩法与状态流转语义保持
+quality_surface: trace.runtime.bootstrap-resources, test.stage1a-bootstrap, inherited trace.save.storage-failure-recovery, test.cocos-session, test.cocos-save-load, test.cocos-command-queue, traceability-map.json, TRACEABILITY_MATRIX, traceability-contracts, inherited PR CI and test.ci-workflow-contracts, project-target authority, q:affected, cache probe, authoritative rules
 authority_statement: design pack remains authoritative; GitHub repo is daily code authority

@@ -1,6 +1,6 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.2.28
+﻿# CODE_CONTEXT_INDEX — v0.0.2.29
 
-版本：v0.0.2.28 / Save Storage Failure Contracts / 存储端口故障契约与恢复验证版。
+版本：v0.0.2.29 / Runtime Bootstrap & Resource Contracts / 运行启动装配与资源契约版。
 
 ## 执行前必读顺序
 
@@ -30,8 +30,9 @@
 
 后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包；代码包不保存每轮具体任务上下文；代码包只保存执行端上下文治理约束。
 
-## v0.0.2.28 测试索引
+## v0.0.2.29 测试索引
 
+- `tests/stage1a-bootstrap.test.ts`（`test:stage1a-bootstrap` / registry `test.stage1a-bootstrap`，正式资源经公共入口的独立集成验收）
 - `tests/support/controlledSaveStoragePort.ts`（测试专用故障时序与健康序列化捕获辅助）
 - `tests/cocos-save-load-ui-binding.test.ts`（`test:cocos-save-load` / registry `test.cocos-save-load`）
 - `tests/cocos-ui-command-queue.test.ts`（`test:cocos-ui-command-queue` / registry `test.cocos-command-queue`）
@@ -49,6 +50,12 @@
 
 先读 `.github/workflows/quality.yml` 与 `docs/GITHUB_WORKFLOW.md`，再核对 YAML 契约、test-registry 和 `trace.quality.pr-ci`。CI 在 PR 到 main 时使用 Ubuntu 24.04、Node 24、Python 3.12，`npm ci` 后执行现有 q:full；成功或失败均尝试保留 JSON / Markdown 报告 7 天。具体云端通过记录、报告及分支保护状态应现场核对，不能由本地通过推定。
 
+## 启动装配与资源契约入口
+
+先读creator-adapter模块卡和`src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts`，再核对两个既有校验器的就绪API、新增集成测试以及`trace.runtime.bootstrap-resources`。
+
+`docs/module_contracts/Stage1ABootstrap.contract.md`保留为模块边界契约说明，模块卡仍是导航入口。`createStage1AHost`成功返回已创建Session的Host，不再调用Probe.onLoad二次创建。集成测试不能导入runtimeHarness构造运行对象，失败资源不能产生可操作的半初始化宿主。
+
 ## 存储故障与恢复入口
 
 先读 `docs/module-cards/save-load.md` 和 ADR-0003，再核对 Session、SaveLoadInteractionController、CocosUiCommandQueue 与上述三个层级测试。
@@ -65,6 +72,7 @@ release zip 仍检查 UTF-8 metadata 与 mojibake 路径，并排除 `reports/qu
 
 ## 检查命令别名索引
 
+- `test:stage1a-bootstrap`
 - `q:affected`
 - `q:full`
 - `q:release`

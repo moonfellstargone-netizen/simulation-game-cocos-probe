@@ -211,6 +211,24 @@ test('storage failure recovery is traced to all three executed full/blocker test
   }
 });
 
+test('runtime bootstrap is traced to an executed full/blocker integration test', () => {
+  const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
+  const id = 'trace.runtime.bootstrap-resources';
+  const entry = traceabilityMap.entries.find((item) => item.id === id);
+  assert.equal(entry?.status, 'active');
+  assert.ok(traceabilityMap.currentFullReleaseTraceIds.includes(id));
+  const taskId = 'test.stage1a-bootstrap';
+  assert.ok(entry.testRefs.includes(taskId));
+  const task = registry.tests[taskId];
+  assert.equal(task?.stability, 'blocker');
+  for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
+  assert.ok(task.files.includes('tests/stage1a-bootstrap.test.ts'));
+  assert.ok(task.args.includes('tests/stage1a-bootstrap.test.ts'));
+  for (const gate of ['full', 'release']) {
+    assert.ok(resolveGateTasks(gate, gatePolicy, registry).some((selected) => selected.id === taskId));
+  }
+});
+
 test('q:affected is not represented as release authority in traceability entries', () => {
   const { traceabilityMap } = loadTraceabilityContext();
   const affectedEntry = traceabilityMap.entries.find(

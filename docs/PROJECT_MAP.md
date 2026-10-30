@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.28
+﻿# PROJECT_MAP — v0.0.2.29
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.28：**Save Storage Failure Contracts**。通过现有 `SaveStoragePort` 注入受控故障，验证 Session 状态保护、save/load UI 错误展示和队列恢复；沿用三个既有完整门禁任务，由 `trace.save.storage-failure-recovery` 追踪契约与 ADR-0003。业务逻辑保持不变，现有 PR 自动质量检查与报告保留继续有效。
+v0.0.2.29：**Runtime Bootstrap & Resource Contracts**。从外部正式资源与存储端口经公共入口装配Stage1A宿主，验证资源缺失、无效及引用损坏时的失败保护，由`trace.runtime.bootstrap-resources`追踪。既有Session/UI/Queue存储故障回归、PR自动完整检查及报告保留继续有效；玩法与状态流转语义保持。
 
 ## 3. 权威边界
 

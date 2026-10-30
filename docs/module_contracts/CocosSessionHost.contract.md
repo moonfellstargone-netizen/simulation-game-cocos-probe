@@ -29,8 +29,15 @@
 - `destroy` 后不得继续返回可用 session。
 - 不得把 fixture ID 写成业务默认。
 
+## 通过启动装配入口取得的宿主
+
+`createStage1AHost`成功返回的Host已完成Session创建与既有新局校验，调用方可requireSession或交给现有UI Shell/Queue使用，结束时调用destroySession。不要再直接调用host.createSession，也不要让`QinglanSessionProbeComponent.onLoad`对同一Host二次创建会话。
+
+现有未初始化Host的组件探针生命周期保持原有行为；装配入口的资源检查和失败边界见[Stage1ABootstrap契约](Stage1ABootstrap.contract.md)。本Host不读取资源，不成为正式配置或Schema权威。
+
 ## 关联测试
 
 ```text
 tests/cocos-creator-lifecycle-probe.test.ts
+tests/stage1a-bootstrap.test.ts
 ```

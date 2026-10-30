@@ -1,4 +1,4 @@
-﻿# Domain Map — v0.0.2.28
+﻿# Domain Map — v0.0.2.29
 
 ## 系统职责
 
@@ -45,3 +45,5 @@ game-core 领域逻辑：库存、加工、烹饪、订单（需求）、存档�
 ## 关联 module-cards
 
 game-core, inventory, processing, cooking, orders, save-load
+
+启动资源装配导航见[runtime-map](runtime-map.md)；校验器就绪能力属于运行基础边界，不定义新的领域玩法或正式Action。

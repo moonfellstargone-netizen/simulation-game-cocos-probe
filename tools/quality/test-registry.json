@@ -1,5 +1,5 @@
 {
-  "version": "0.0.2.28",
+  "version": "0.0.2.29",
   "tests": {
     "static.typecheck": {
       "command": "node",
@@ -775,9 +775,9 @@
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--root-name",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_28",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_29",
         "--output",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_28.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_29.zip",
         "--kind",
         "code"
       ],
@@ -798,11 +798,11 @@
       "command": "python3",
       "args": [
         "tools/check_release_zip.py",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_28.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_29.zip",
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--expected-root",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_28",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_29",
         "--kind",
         "code"
       ],
@@ -1111,6 +1111,34 @@
         "tests/ci-workflow-contracts.test.mjs"
       ],
       "group": "governance"
+    },
+    "test.stage1a-bootstrap": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/stage1a-bootstrap.test.ts"
+      ],
+      "covers": [
+        "game-core",
+        "cocos-app",
+        "cocos-creator-adapter",
+        "tests"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "stage1a",
+        "bootstrap",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/stage1a-bootstrap.test.ts"
+      ],
+      "group": "cocos-adapter"
     }
   }
 }
