@@ -392,7 +392,8 @@
         "tests/cocos-minimal-menu-binding.test.ts"
       ],
       "covers": [
-        "cocos-creator-adapter"
+        "cocos-creator-adapter",
+        "tests"
       ],
       "type": "test",
       "stability": "blocker",
