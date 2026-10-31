@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.33
+﻿# PROJECT_MAP — v0.0.2.34
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.33：**Cocos Web Save/Load Interaction & Recovery**。推进真实Web探针临时保存/读取和失败后继续操作，独立浏览器验收由trace.cocos.web-save-load-recovery连接；保留视口输入、唯一来源派生及既有启动/绑定/存储回归。
+v0.0.2.34：**Browser Local Save & Reload Recovery**。推进真实Web外层浏览器本地单槽保存及刷新后手动恢复，Node和独立浏览器验收由trace.cocos.browser-local-save连接，既有trace.cocos.web-save-load-recovery保持；保留视口输入、唯一来源派生及既有启动/绑定/存储回归。
 
 ## 3. 权威边界
 

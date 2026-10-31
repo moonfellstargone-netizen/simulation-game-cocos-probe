@@ -109,7 +109,8 @@ export function webTreeDigest(directory) {
   return { sha256: sha256(JSON.stringify(files)), fileCount: Object.keys(files).length, files };
 }
 
-export async function serveWebProbe(directory) {
+export async function serveWebProbe(directory, { port = 0 } = {}) {
+  if (!Number.isSafeInteger(port) || port < 0 || port > 65535) throw new Error('ERR_WEB_PROBE_PORT_INVALID');
   const root = realpathSync(directory);
   const mime = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.wasm': 'application/wasm', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml' };
   const server = createServer((request, response) => {
@@ -127,7 +128,7 @@ export async function serveWebProbe(directory) {
       else { const stream = createReadStream(file); stream.on('error', () => response.destroy()); stream.pipe(response); }
     } catch { response.writeHead(404); response.end('not found'); }
   });
-  await new Promise((accept, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', accept); });
+  await new Promise((accept, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', accept); });
   return { url: `http://127.0.0.1:${server.address().port}/`, close: () => new Promise((accept, reject) => server.close((error) => error ? reject(error) : accept())) };
 }
 
@@ -181,9 +182,43 @@ export function assertUiCommandObservation(observation, expected) {
   assert.equal(after.displayedOperation, after.operation.message, 'operation Label must match the current result');
   assert.ok(!after.displayedOperation.startsWith('启动失败'), 'an operation failure must not be presented as a startup failure');
   assert.equal(after.operation.slotId, expected.name === 'menu_confirm' ? null : 'web_probe');
-  assert.equal(after.operation.errorMessage, expected.errorMessage ?? null, 'old errors must not contaminate the current command');
+  if (expected.errorMessagePrefix !== undefined) {
+    assert.equal(expected.status, 'failed', 'a variable rejection detail is only valid for a failed command');
+    assert.ok(typeof expected.errorMessagePrefix === 'string' && expected.errorMessagePrefix.length > 0);
+    assert.ok(typeof after.operation.errorMessage === 'string'
+      && after.operation.errorMessage.startsWith(expected.errorMessagePrefix), 'failure must retain its expected rejection boundary');
+  } else {
+    assert.equal(after.operation.errorMessage, expected.errorMessage ?? null, 'old errors must not contaminate the current command');
+  }
   // Public labels use day 1 for absolute minute 0; save/load summaries use absolute minutes.
   const worldMinute = expected.status === 'completed' && expected.name !== 'menu_confirm'
     ? timeInMinutes(expected.timeLabel) - 1440 : null;
   assert.equal(after.operation.worldMinute, worldMinute, 'save/load summary must match the resulting public time without stale success data');
+}
+
+export function assertStoredSaveUnchanged(before, after) {
+  assert.ok(typeof before.origin === 'string' && before.origin !== 'null' && before.origin.length > 0);
+  assert.ok(typeof before.key === 'string' && before.key.length > 0);
+  assert.ok(before.raw === null || typeof before.raw === 'string');
+  assert.equal(after.origin, before.origin, 'storage evidence must use the same origin');
+  assert.equal(after.key, before.key, 'storage evidence must address the same project slot');
+  assert.equal(after.raw, before.raw, 'startup, load and cleanup must not rewrite the saved bytes');
+}
+
+// A fresh page deliberately starts a new game. Only the physical load click may restore the saved state.
+export function assertLocalSaveRecovery({ saved, initial, afterStartup, loaded, afterLoad }) {
+  assert.ok(typeof saved.raw === 'string' && saved.raw.length > 0, 'recovery requires an actual saved string');
+  assertStoredSaveUnchanged(saved, afterStartup);
+  assert.equal(initial.phase, 'ready');
+  assert.equal(initial.hasSession, true);
+  assert.equal(initial.timeLabel, 'day 1 minute 360', 'startup must keep the existing new-game behavior');
+  assert.equal(initial.displayedTime, initial.timeLabel);
+  assert.equal(initial.operation.sequence, 0, 'startup must not automatically save or load');
+  assert.equal(initial.operation.status, 'idle');
+  assert.equal(initial.busy, false);
+  assert.deepEqual(initial.errors, []);
+  assert.equal(loaded.before.timeLabel, initial.timeLabel);
+  assert.equal(loaded.before.operation.sequence, initial.operation.sequence, 'manual load must be the first command after startup');
+  assertUiCommandObservation(loaded, { name: 'load', status: 'completed', timeLabel: saved.timeLabel });
+  assertStoredSaveUnchanged(saved, afterLoad);
 }

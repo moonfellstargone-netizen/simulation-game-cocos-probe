@@ -29,7 +29,7 @@ DPR仿真不能推导手机、触摸、软键盘、安全区、微信或Windows�
 
 真实cc组件只负责加载、节点与按钮，使用createStage1AHost和QinglanUiSceneProbeComponent公开命令。bootstrap返回已ready Host，不再调用旧Probe.onLoad创建同一会话。加载期间销毁不得发布迟到Host或更新失效Node。
 
-Creator不await异步onDestroy，并可能清空Component字段；必须同步捕获asset/lifetime，observer独立保留lifetime，清理使用已持有引用。保留memoryRoundtrip、缺资源失败、加载中销毁与正常退出释放回归。内存端口冒烟不等于真实持久化或微信存储。
+Creator不await异步onDestroy，并可能清空Component字段；必须同步捕获asset/lifetime，observer独立保留lifetime，清理使用已持有引用。移除会覆盖真实槽的memoryRoundtrip诊断写入，保留缺资源失败、加载中销毁与正常退出释放回归。Node端口测试不等于真实浏览器持久化或微信存储。
 
 ## 真实构建与浏览器证据
 
@@ -43,12 +43,16 @@ cocos:verify:web的verifyWebProbe(options)要求--project、--browser、--report
 
 test.cocos-probe-preparation、test.cocos-engine-probe-lifecycle、test.cocos-web-verification-contracts登记full/blocker；最后一项仅验证工具HTTP/参数/来源/失败契约，Node契约不执行真实浏览器。根typecheck只检查src，Ubuntu q:full不安装Creator或启动真实浏览器。实际Creator SDK类型、构建、预览与Chrome矩阵独立验收，q:affected不替代q:full/q:release，release禁止缓存。
 
-旧三层禁真实Cocos/wx/fs；仅新outer可导入cc，且单向消费派生公共runtime，不能依赖tools/tests或核心内部。保持ActionPipeline、SaveFile和正式schema/config/fixture，不新增玩法或Stage1B、真实存储、wx、Nightly/CI平台或通用UI框架。
+旧三层禁真实Cocos/wx/fs；仅新outer可导入cc，且单向消费派生公共runtime，不能依赖tools/tests或核心内部。保持ActionPipeline、SaveFile和正式schema/config/fixture；仅外层经已有Port接浏览器Storage，不新增玩法或Stage1B、wx、Nightly/CI平台或通用UI框架。
 
-## 临时单槽与本次反馈
+## 浏览器本地单槽与本次反馈
 
-真实按钮AdvanceOneHour、SaveTemporary、LoadTemporary使用既有QinglanUiSceneProbeComponent路径。web_probe是固定本页内存槽，UI明确“本页临时存档，刷新后清空”；无持久化/文件/wx访问。保存420、推进480、读取恢复420；存读档不额外推进。空槽失败不修改当前时间或ready，下一健康操作恢复正常反馈。
+真实按钮AdvanceOneHour、SaveLocal、LoadLocal使用既有QinglanUiSceneProbeComponent路径。BrowserSaveStoragePort只在outer通过Storage.getItem/setItem透传原始字符串，固定web_probe与key qinglan.simulation-game.cocos-probe.save.web_probe，不随代码版本/BuildId变化，不访问其他来源或清除其他key。存储getter与读写只在用户操作时执行，constructor/bootstrap不探测或写入存储；拒绝沿既有failed结果显示，无内存fallback。
+
+启动仍创建既有新局，不自动读写旧档。360→推进420→保存→推进480→刷新新局360→点击读取420；存读档不额外推进。刷新和新页面恢复须同origin/profile，原始字符串不被启动或诊断覆盖。空槽、坏JSON、结构/StorageAudit失败及getter/read/write拒绝保持当前状态，保留原档，健康操作可继续。Session候选校验后提交策略保持；本版不实现任意旧档迁移或未知版本必拒绝，不提供跨标签冲突系统。
 
 ProbeInteraction是无cc的单操作协调器，loading/busy/closing/destroyed不受理；一次受理只调用一次组件命令，无自动重试。结果依据command_result.status/error_message，不聚合旧snapshot区域错误；operation.sequence记录受理次数，operation与displayedOperation可只读观察。预期failed显示正常失败反馈，意外reject仍传播到组件错误记录；销毁后的迟到完成不更新节点。
 
-test.cocos-engine-probe-lifecycle同一任务实际执行新增tests/cocos-web-interaction.test.ts并登记辅助files/covers；trace.cocos.web-save-load-recovery闭合Queue、component、外层、浏览器工具及full/release。每个支持视口和resize场景实际点击新按钮，验证失败→健康命令、保存/推进/读取与刷新清空；Node与observer程序冒烟都不能替代真实点击。
+test.cocos-engine-probe-lifecycle实际执行cocos-engine-probe-lifecycle.test.ts、cocos-web-interaction.test.ts与cocos-browser-storage.test.ts；test.cocos-web-verification-contracts同时执行cocos-web-serve-contracts.test.mjs。args/files/covers与新增文件单独affected闭合，full/blocker不变。trace.cocos.browser-local-save追踪本地存档；既有trace.cocos.web-save-load-recovery继续闭合Queue、component、本次反馈及full/release。真实物理点击、刷新与同context新页面手动恢复及存储故障/坏档恢复分别验收，Node与observer程序调用均不能替代。
+
+tools/cocos-probe/serve.mjs提供显式固定loopback端口的最小启动入口，先复核构建来源和逐文件字节，端口占用即失败而不换origin。自动verify的随机端口/新BrowserContext用于测试隔离，不等于日常固定存档地址；不同协议/host/port/profile不共享存储。故障注入不冒充真实权限或配额耗尽测试；用户清理浏览器数据可能清除存档，不接wx或文件系统存储。

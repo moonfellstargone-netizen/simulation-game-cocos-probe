@@ -1,13 +1,13 @@
 source_design_pack: 模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip
 design_pack_version: v1.5.2.2
-code_package_version: v0.0.2.33
-code_package_npm_version: 0.0.2-33
-code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_33
-version_name: Cocos Web Save/Load Interaction & Recovery
-chinese_version_name: Cocos网页临时存读档交互与恢复版
-scope: Add real advance/save/load buttons for the fixed web_probe temporary in-memory slot, restore saved time and report each current command accurately after a prior operation failure. Only advance adds 60 minutes; save/load add no time and reload clears the slot. Inherit declared desktop viewport/resize and lifecycle verification from canonical resources; no Stage 1B, wx or persistent storage.
+code_package_version: v0.0.2.34
+code_package_npm_version: 0.0.2-34
+code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_34
+version_name: Browser Local Save & Reload Recovery
+chinese_version_name: 浏览器本地存档与刷新恢复版
+scope: Browser outer-only fixed web_probe local save through the existing SaveStoragePort, lazy Storage access and raw strings under a stable namespaced key. Manual load after same-origin/profile reload or a new page restores saved progress; startup creates the existing new game without touching storage. Keep current state on rejection or invalid saves, without memory fallback, migration, Stage 1B or wx. Inherit declared desktop input, lifecycle and provenance verification.
 
 formal_source_statement: 正式包 v1.5.2.2 remains authoritative
-context_statement: Cocos网页临时存读档交互与表现层恢复及配套代码包内部检查体系治理；正式玩法与状态流转语义保持
-quality_surface: trace.cocos.web-save-load-recovery, inherited trace.cocos.web-viewport-input, test.cocos-web-verification-contracts, cocos:verify:web, inherited trace.cocos.web-bootstrap-probe, test.cocos-probe-preparation, test.cocos-engine-probe-lifecycle, inherited trace.cocos.binding-async-recovery, test.cocos-scene-binding, test.cocos-component-node-binding, controlledBindingPort, quality-affected-contracts, inherited trace.runtime.bootstrap-resources and test.stage1a-bootstrap, inherited trace.save.storage-failure-recovery, test.cocos-session, test.cocos-save-load, test.cocos-command-queue, traceability-map.json, TRACEABILITY_MATRIX, traceability-contracts, inherited PR CI and test.ci-workflow-contracts, project-target authority, q:affected, cache probe, authoritative rules
+context_statement: 浏览器外层本地单槽存档与刷新后手动恢复及配套代码包内部检查体系治理；正式玩法、Session和状态流转语义保持
+quality_surface: trace.cocos.browser-local-save, BrowserSaveStoragePort, cocos-browser-storage.test.ts, cocos-web-serve-contracts.test.mjs, cocos:serve:web, inherited trace.cocos.web-save-load-recovery, inherited trace.cocos.web-viewport-input, test.cocos-web-verification-contracts, cocos:verify:web, inherited trace.cocos.web-bootstrap-probe, test.cocos-probe-preparation, test.cocos-engine-probe-lifecycle, inherited trace.cocos.binding-async-recovery, test.cocos-scene-binding, test.cocos-component-node-binding, controlledBindingPort, quality-affected-contracts, inherited trace.runtime.bootstrap-resources and test.stage1a-bootstrap, inherited trace.save.storage-failure-recovery, test.cocos-session, test.cocos-save-load, test.cocos-command-queue, traceability-map.json, TRACEABILITY_MATRIX, traceability-contracts, inherited PR CI and test.ci-workflow-contracts, project-target authority, q:affected, cache probe, authoritative rules
 authority_statement: design pack remains authoritative; GitHub repo is daily code authority

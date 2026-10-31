@@ -1,4 +1,4 @@
-﻿# GLOSSARY — v0.0.2.33
+﻿# GLOSSARY — v0.0.2.34
 
 术语表。防止权威与工具边界混淆。
 
@@ -17,7 +17,7 @@
 | **Scope Discovery** | 执行前范围发现：seed files、必读、暂不读模块 |
 | **Project Map** | L0–L5 分级导航，≠ 源码替代品 |
 | **Traceability Matrix** | `TRACEABILITY_MATRIX.md` + `traceability-map.json`，追踪层 ≠ 玩法权威 |
-| **Cocos Web Save/Load Interaction & Recovery** | 固定本页临时单槽的真实保存/读取按钮、准确本次反馈及失败后继续操作，继承桌面输入范围 |
+| **Browser Local Save & Reload Recovery** | 外层浏览器本地固定单槽保存，同origin/profile刷新或新页面后手动读取恢复；启动不覆盖旧档，失败保留当前会话 |
 | **异步场景绑定顺序与恢复** | 同一绑定实例内按序完成命令和界面应用，端口失败后重新同步当前视图，不回滚或重发正式Action |
 | **启动装配与资源契约** | 核对外部资源、编译Schema引用并经公共入口装配宿主，资源失败时不交付可操作会话 |
 | **存储故障保护与恢复** | 通过受控读写拒绝，验证Session状态保护、错误展示、队列顺序及恢复重试 |
@@ -56,8 +56,8 @@
 
 `docs/module_contracts/` 是上下文治理遗留契约目录，**保留**。新版项目地图主入口是 `docs/module-cards/`，不是 `docs/module_contracts/`。
 
-## Cocos Web Save/Load Interaction & Recovery
+## Browser Local Save & Reload Recovery
 
 真实Creator Web最小启动外层；旧三层仍engine-neutral，只有新outer可用cc。仓库保存源模板，prepare从唯一runtime/正式资源生成外部可打开副本。Node准备/生命周期契约与真实Creator预览/构建是不同验收证据，不能互相代替。
 
-web_probe为本页临时内存槽，刷新即清空；不是正式持久化。command_result描述本次命令，其他面板历史错误仍保留；ProbeInteraction协调busy及销毁后的迟到结果，不增加业务事务或自动重试。
+web_probe为外层浏览器本地单槽，使用稳定key；同origin/profile刷新先显示新局，用户手动读取才恢复，不自动续档或覆盖旧档。浏览器数据可能被清除，不承诺跨来源共享或正式版本迁移。command_result描述本次命令，其他面板历史错误仍保留；ProbeInteraction协调busy及销毁后的迟到结果，不增加业务事务或自动重试。

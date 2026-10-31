@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.33
+﻿# Code Index — Public API — v0.0.2.34
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -30,7 +30,7 @@
 
 - `SaveLoadInteractionController.save / load` — 清除旧成功结果、呈现现有错误，失败时保留 session；恢复后可正常重试。
 - `CocosUiCommandQueue.enqueue / execute` — 串行等待当前命令，返回 completed / failed 与 snapshot；拒绝后的已排队命令继续执行。
-- 契约与测试追踪：`trace.save.storage-failure-recovery`，ADR-0003 与 save-load 模块卡；没有新增业务公开 API、稳定错误码或真实存储适配。
+- 契约与测试追踪：`trace.save.storage-failure-recovery`，ADR-0003与save-load模块卡；该组内存故障契约不新增业务公开API、稳定错误码或平台适配，浏览器外层适配另见trace.cocos.browser-local-save。
 
 ## Stage1A启动装配
 
@@ -103,6 +103,13 @@
 - `tools/cocos-probe/lib/webProbeSupport.mjs`共享参数/HTTP/来源和`webTreeDigest`；build.mjs的Web产物清单与verify复算必须一致，篡改拒绝。
 - `test:cocos-web-verification-contracts`是Node工具契约，不执行真实浏览器；`trace.cocos.web-viewport-input`追踪执行输入与独立验收边界。
 
-## 临时存读档交互与恢复
+## 浏览器本地存档与刷新恢复
 
-trace.cocos.web-save-load-recovery连接apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts、ProbeInteraction.ts和src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts；根typecheck仍只覆盖src。外层真实三按钮使用固定本页内存槽web_probe，当前反馈读取command_result，历史面板错误保留但不覆盖本次结果。ProbeInteraction保证busy与销毁后迟到保护；tests/cocos-web-interaction.test.ts由既有test.cocos-engine-probe-lifecycle实际执行并登记files/covers，新增helper和test分别验证单文件affected选择。Queue/component行为回归与浏览器工具契约保持full/blocker；真实Creator/Chrome物理点击、读取恢复及刷新清空独立验收，不能由Node通过推导。
+trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebProbe.ts、ProbeInteraction.ts及浏览器/固定来源工具；保留trace.cocos.web-save-load-recovery对既有Queue命令结果归属的追踪。真实三按钮AdvanceOneHour、SaveLocal、LoadLocal使用固定单槽web_probe和稳定项目key，启动不读写存储；同origin/profile刷新先创建新局，手动读取恢复保存状态。getter/读写拒绝和坏档保持当前会话，不回退内存。tests/cocos-browser-storage.test.ts与既有生命周期/交互回归由test.cocos-engine-probe-lifecycle实际执行，tests/cocos-web-serve-contracts.test.mjs由test.cocos-web-verification-contracts执行；files/covers、单文件affected及full/blocker闭合。ProbeInteraction保留本次反馈、busy和销毁后迟到保护；真实Creator/Chrome物理点击、刷新及同context新页面手动恢复独立验收，根typecheck只覆盖src，Node通过不能替代引擎或持久化证据。
+
+## 浏览器本地存储外层
+
+- `BrowserSaveStoragePort`（`apps/cocos-probe/template/assets/scripts/BrowserSaveStoragePort.ts`）在outer实现既有Port的read/write，仅操作固定槽web_probe和稳定项目key；惰性Storage getter、原始字符串透传、失败不回退内存。它不是game-core的新公开API。
+- 构造可接收`() => BrowserStorage`，默认在操作时取globalThis.localStorage；BrowserStorage只要求getItem/setItem。导出BROWSER_SAVE_SLOT_ID和BROWSER_SAVE_STORAGE_KEY供同一外层使用；只读写固定槽，其他slot拒绝，不提供delete或解析/迁移接口。
+- `tools/cocos-probe/serve.mjs`是固定来源最小本地启动入口；`cocos:serve:web -- --project <ABS> --build-record <ABS> --port <PORT>`要求明确固定端口，不自动更换地址。来源校验及HTTP保护复用webProbeSupport，详见README和外层模块卡。
+- `trace.cocos.browser-local-save`连接本地存档adapter、实际执行的Node测试和独立浏览器验收；同origin/profile刷新及新页面恢复只在用户手动load后发生，不提供自动续档或迁移API。

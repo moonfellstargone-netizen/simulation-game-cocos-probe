@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.33
+﻿# ARCHITECTURE — v0.0.2.34
 
-当前版本：v0.0.2.33 / Cocos Web Save/Load Interaction & Recovery。本轮推进真实Web外层固定临时单槽交互，并最小修复旧Queue命令结果的错误归属，保留既有三层边界和玩法状态流转。
+当前版本：v0.0.2.34 / Browser Local Save & Reload Recovery。本轮只在真实Web外层注入浏览器本地单槽Port，刷新后手动读取恢复；既有Queue本次结果、三层边界和玩法状态流转保持。
 
 ## 1. 业务架构不变
 
@@ -62,7 +62,7 @@ game-core 独立于 Cocos / wx / 表现层。tools/quality 仍是检查工具层
 
 仓库内apps/cocos-probe保存最小工程源模板及外层桥接；tools/cocos-probe/prepare.mjs从现有src/design_snapshot派生浏览器runtime与全部58个声明Schema，在仓库外生成可打开工作副本。probe-source-manifest.json记录sourceCommit、sourceDirty、输入/产物摘要及project-target派生BuildId，副本不成为第二套代码或配置权威。
 
-旧game-core、cocos-app、cocos-creator-adapter仍不接真实 Cocos、不接 wx或fs；只有新增cocos-engine-probe外层可导入cc，并受单向公开runtime边界约束。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture，不新增玩法、微信存储、AOT或资源热更新。旧模块禁止反向依赖apps/cocos-probe。新外层只能消费派生公共runtime，不直接访问核心内部、tests、dev/testing API或平台存储。
+旧game-core、cocos-app、cocos-creator-adapter仍不接真实 Cocos、不接 wx或fs；只有新增cocos-engine-probe外层可导入cc，并受单向公开runtime边界约束。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture，不新增玩法、微信存储、AOT或资源热更新。旧模块禁止反向依赖apps/cocos-probe。新外层只能消费派生公共runtime，不直接访问核心内部、tests或dev/testing API；浏览器Storage仅由外层BrowserSaveStoragePort经现有Port注入，旧三层不接平台API，wx/fs禁令保持。
 
 Node中的准备契约和外层生命周期测试登记为full/blocker，由trace.cocos.web-bootstrap-probe追踪；它们验证实际派生产物、资源完整性、异常路径和确定性生命周期，不冒充引擎运行证据。根typecheck仍仅覆盖src。真实Creator预览与Web构建另行执行，缺引擎时明确失败或未执行，不能静默skip或使用假cc类型声称通过。
 
@@ -73,3 +73,9 @@ Node中的准备契约和外层生命周期测试登记为full/blocker，由trac
 保留准备/生命周期full/blocker回归，新增test:cocos-web-verification-contracts / registry test.cocos-web-verification-contracts验证浏览器工具的参数、来源、HTTP服务和断言失败保护；Node契约不执行真实浏览器。独立cocos:verify:web运行固定Creator构建产物的真实Chrome鼠标点击，记录Button事件、时间变化、Label同步与清理证据；根typecheck只覆盖src，不能代替实际Creator类型、构建或浏览器验收。
 
 窗口变化不得重新创建Host或重复绑定按钮。布局与输入修复只属于apps/cocos-probe外层，浏览器测试工具不能反向成为运行时依赖。
+
+## 浏览器本地存储边界
+
+BrowserSaveStoragePort惰性取得Storage，只透传稳定key下的原始字符串，固定槽web_probe，不解析SaveFile、不改变Session候选校验后提交策略。启动不自动load/save或覆盖旧档，刷新后的新局通过用户点击读取才恢复。getter/read/write错误沿现有操作失败链路返回，无静默内存回退；坏档保留当前会话及原档，健康操作可继续。移除会写入该槽的observer.memoryRoundtrip诊断。
+
+tools/cocos-probe/serve.mjs复用严格构建来源和HTTP保护，显式固定端口且冲突失败，不自动变更origin。跨浏览器/profile/origin、多槽、自动续档、云同步、冲突治理与正式迁移均不属于本版；Node与真实Creator/浏览器证据分别记录。见trace.cocos.browser-local-save。

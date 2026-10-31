@@ -25,7 +25,7 @@ export interface ProbeInteractionOptions {
 export class ProbeInteraction {
   private busy = false;
   private operation: ProbeOperation = {
-    sequence: 0, name: null, status: 'idle', message: '可推进时间或临时保存',
+    sequence: 0, name: null, status: 'idle', message: '可推进时间或本地保存',
     errorMessage: null, slotId: null, worldMinute: null
   };
 
@@ -40,7 +40,7 @@ export class ProbeInteraction {
     this.busy = true;
     this.operation = {
       sequence: this.operation.sequence + 1, name: command.name, status: 'running',
-      message: ({ menu_confirm: '正在推进时间', save: '正在临时保存', load: '正在读取临时存档' })[command.name],
+      message: ({ menu_confirm: '正在推进时间', save: '正在本地保存', load: '正在读取本地存档' })[command.name],
       errorMessage: null, slotId: command.name === 'menu_confirm' ? null : command.selection.slot_id,
       worldMinute: null
     };
@@ -61,8 +61,8 @@ export class ProbeInteraction {
       this.operation = {
         ...this.operation, status: outcome.status, errorMessage,
         message: errorMessage === null
-          ? ({ menu_confirm: '已推进一小时', save: '临时保存成功', load: '已恢复临时存档' })[command.name]
-          : errorMessage.startsWith('ERR_SAVE_SLOT_NOT_FOUND:') ? '暂无临时存档，请先保存' : '操作未完成，请重试',
+          ? ({ menu_confirm: '已推进一小时', save: '本地保存成功', load: '已恢复本地存档' })[command.name]
+          : errorMessage.startsWith('ERR_SAVE_SLOT_NOT_FOUND:') ? '暂无本地存档，请先保存' : '操作未完成，请重试',
         worldMinute: outcome.status === 'completed' ? summary?.world_minute ?? null : null
       };
       return result;

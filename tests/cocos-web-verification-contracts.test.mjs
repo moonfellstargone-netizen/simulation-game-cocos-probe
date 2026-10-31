@@ -5,7 +5,7 @@ import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { assertClickObservation, assertUiCommandObservation, capturePreparedSurface, checkPreparedSurfaceAfterBuild, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest, within } from '../tools/cocos-probe/lib/webProbeSupport.mjs';
+import { assertClickObservation, assertLocalSaveRecovery, assertStoredSaveUnchanged, assertUiCommandObservation, capturePreparedSurface, checkPreparedSurfaceAfterBuild, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest, within } from '../tools/cocos-probe/lib/webProbeSupport.mjs';
 import { verifyWebProbe } from '../tools/cocos-probe/verify-web.mjs';
 
 const root = realpathSync(resolve('.'));
@@ -101,6 +101,58 @@ test('empty-slot feedback is a failed load with preserved ready state and cannot
   assert.doesNotThrow(() => assertClickObservation(advanced));
   assert.doesNotThrow(() => assertUiCommandObservation(advanced, { name: 'menu_confirm', status: 'completed', timeLabel: 'day 1 minute 420' }));
   assert.throws(() => assertUiCommandObservation({ ...advanced, after: { ...advanced.after, operation: { ...advanced.after.operation, status: 'failed', errorMessage: expectation.errorMessage } } }, { name: 'menu_confirm', status: 'completed', timeLabel: 'day 1 minute 420' }));
+});
+
+test('local save recovery rejects changed origin or bytes, automatic startup commands and a no-op manual load', () => {
+  const initial = { phase: 'ready', hasSession: true, busy: false, timeLabel: 'day 1 minute 360', displayedTime: 'day 1 minute 360', errors: [], operation: { sequence: 0, status: 'idle' } };
+  const stored = { origin: 'http://127.0.0.1:8999', key: 'qinglan.simulation-game.cocos-probe.save.web_probe', raw: '{"saved":"original bytes"}' };
+  const rectangle = { left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600 };
+  const loaded = {
+    before: initial,
+    after: { ...initial, timeLabel: 'day 1 minute 420', displayedTime: 'day 1 minute 420', operation: { sequence: 1, name: 'load', status: 'completed', message: '已恢复本地存档', errorMessage: null, slotId: 'web_probe', worldMinute: 420 }, displayedOperation: '已恢复本地存档' },
+    eventCount: 1, scrollBefore: { x: 0, y: 0 }, scrollDown: { x: 0, y: 0 }, scrollAfter: { x: 0, y: 0 },
+    layout: { viewport: { width: 800, height: 600 }, canvas: rectangle, button: { left: 200, top: 200, right: 400, bottom: 300, width: 200, height: 100 } }
+  };
+  const valid = { saved: { ...stored, timeLabel: 'day 1 minute 420' }, initial, afterStartup: stored, loaded, afterLoad: stored };
+  assert.doesNotThrow(() => assertLocalSaveRecovery(valid));
+  assert.doesNotThrow(() => assertStoredSaveUnchanged({ ...stored, raw: null }, { ...stored, raw: null }));
+  for (const change of [
+    { saved: { ...valid.saved, raw: null } }, { saved: { ...valid.saved, raw: '' } },
+    { afterStartup: { ...stored, origin: 'http://127.0.0.1:9000' } },
+    { afterStartup: { ...stored, key: 'new-version-key' } },
+    { afterStartup: { ...stored, raw: null } },
+    { afterStartup: { ...stored, raw: stored.raw + ' ' } },
+    { afterLoad: { ...stored, raw: 'rewritten by load' } },
+    { initial: { ...initial, timeLabel: 'day 1 minute 420', displayedTime: 'day 1 minute 420' } },
+    { initial: { ...initial, operation: { sequence: 1, status: 'idle' } } },
+    { initial: { ...initial, operation: { sequence: 0, status: 'completed' } } },
+    { initial: { ...initial, hasSession: false } }, { initial: { ...initial, busy: true } },
+    { loaded: { ...loaded, eventCount: 0 } },
+    { loaded: { ...loaded, before: { ...initial, operation: { sequence: 9 } }, after: { ...loaded.after, operation: { ...loaded.after.operation, sequence: 10 } } } },
+    { loaded: { ...loaded, after: { ...loaded.after, timeLabel: initial.timeLabel, displayedTime: initial.timeLabel } } }
+  ]) assert.throws(() => assertLocalSaveRecovery({ ...valid, ...change }));
+  assert.throws(() => assertStoredSaveUnchanged(stored, { ...stored, raw: null }));
+});
+
+test('variable parse rejection details still require the expected failure boundary and unchanged current time', () => {
+  const time = 'day 1 minute 480';
+  const before = { phase: 'ready', hasSession: true, busy: false, timeLabel: time, displayedTime: time, errors: [], operation: { sequence: 4 } };
+  const prefix = 'ERR_COCOS_SESSION_LOAD_REJECTED:web_probe:';
+  const message = prefix + 'browser-specific JSON syntax detail';
+  const rectangle = { left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600 };
+  const failed = {
+    before, after: { ...before, operation: { sequence: 5, name: 'load', status: 'failed', message: '操作未完成，请重试', errorMessage: message, slotId: 'web_probe', worldMinute: null }, displayedOperation: '操作未完成，请重试' },
+    eventCount: 1, scrollBefore: { x: 0, y: 0 }, scrollDown: { x: 0, y: 0 }, scrollAfter: { x: 0, y: 0 },
+    layout: { viewport: { width: 800, height: 600 }, canvas: rectangle, button: { left: 200, top: 200, right: 400, bottom: 300, width: 200, height: 100 } }
+  };
+  const expected = { name: 'load', status: 'failed', timeLabel: time, errorMessagePrefix: prefix };
+  assert.doesNotThrow(() => assertUiCommandObservation(failed, expected));
+  for (const errorMessage of [null, '', 'unrelated storage failure']) {
+    assert.throws(() => assertUiCommandObservation({ ...failed, after: { ...failed.after, operation: { ...failed.after.operation, errorMessage } } }, expected));
+  }
+  assert.throws(() => assertUiCommandObservation(failed, { ...expected, errorMessagePrefix: '' }));
+  assert.throws(() => assertUiCommandObservation(failed, { ...expected, status: 'completed' }));
+  assert.throws(() => assertUiCommandObservation({ ...failed, after: { ...failed.after, timeLabel: 'day 1 minute 420', displayedTime: 'day 1 minute 420' } }, expected));
 });
 
 test('build provenance rejects changed prepared bytes and unrelated or failed build records', (t) => {

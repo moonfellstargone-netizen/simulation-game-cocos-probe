@@ -1,6 +1,6 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.2.33
+﻿# CODE_CONTEXT_INDEX — v0.0.2.34
 
-版本：v0.0.2.33 / Cocos Web Save/Load Interaction & Recovery / Cocos网页临时存读档交互与恢复版。
+版本：v0.0.2.34 / Browser Local Save & Reload Recovery / 浏览器本地存档与刷新恢复版。
 
 ## 执行前必读顺序
 
@@ -30,7 +30,7 @@
 
 后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包；代码包不保存每轮具体任务上下文；代码包只保存执行端上下文治理约束。
 
-## v0.0.2.33 测试索引
+## v0.0.2.34 测试索引
 
 - `tests/cocos-web-verification-contracts.test.mjs`（`test:cocos-web-verification-contracts`，Node工具契约）
 
@@ -120,6 +120,8 @@ release zip 仍检查 UTF-8 metadata 与 mojibake 路径，并排除 `reports/qu
 
 `docs/module_contracts/` 保留为上下文治理契约，不是新版 module-card 主入口。新版导航见 `docs/module-cards/`。
 
-## 临时存读档交互与恢复
+## 浏览器本地存档与刷新恢复
 
-trace.cocos.web-save-load-recovery连接apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts、ProbeInteraction.ts和src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts；根typecheck仍只覆盖src。外层真实三按钮使用固定本页内存槽web_probe，当前反馈读取command_result，历史面板错误保留但不覆盖本次结果。ProbeInteraction保证busy与销毁后迟到保护；tests/cocos-web-interaction.test.ts由既有test.cocos-engine-probe-lifecycle实际执行并登记files/covers，新增helper和test分别验证单文件affected选择。Queue/component行为回归与浏览器工具契约保持full/blocker；真实Creator/Chrome物理点击、读取恢复及刷新清空独立验收，不能由Node通过推导。
+trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebProbe.ts、ProbeInteraction.ts及浏览器/固定来源工具；保留trace.cocos.web-save-load-recovery对既有Queue命令结果归属的追踪。真实三按钮AdvanceOneHour、SaveLocal、LoadLocal使用固定单槽web_probe和稳定项目key，启动不读写存储；同origin/profile刷新先创建新局，手动读取恢复保存状态。getter/读写拒绝和坏档保持当前会话，不回退内存。tests/cocos-browser-storage.test.ts与既有生命周期/交互回归由test.cocos-engine-probe-lifecycle实际执行，tests/cocos-web-serve-contracts.test.mjs由test.cocos-web-verification-contracts执行；files/covers、单文件affected及full/blocker闭合。ProbeInteraction保留本次反馈、busy和销毁后迟到保护；真实Creator/Chrome物理点击、刷新及同context新页面手动恢复独立验收，根typecheck只覆盖src，Node通过不能替代引擎或持久化证据。
+
+新增入口：先读外层模块卡、BrowserSaveStoragePort.ts、tests/cocos-browser-storage.test.ts、tools/cocos-probe/serve.mjs及tests/cocos-web-serve-contracts.test.mjs；再核对lifecycle和web-verification任务的actual args/files/covers与trace.cocos.browser-local-save。Storage getter/读写错误不得伪报成功，坏档失败保留当前Session；启动不读写存档，observer不提供覆盖真实槽的诊断写入。固定来源与随机自动验收环境必须区分。

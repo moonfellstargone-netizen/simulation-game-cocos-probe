@@ -1,6 +1,6 @@
-# CHECK_ARCHITECTURE — v0.0.2.33
+# CHECK_ARCHITECTURE — v0.0.2.34
 
-v0.0.2.33 / Cocos Web Save/Load Interaction & Recovery验证临时存读档交互、跨操作失败恢复及继承的桌面输入可靠性，保留旧层业务架构边界。
+v0.0.2.34 / Browser Local Save & Reload Recovery验证浏览器本地单槽保存、刷新后手动恢复、存储失败保护及继承的桌面输入可靠性，保留旧层业务架构边界。
 
 ## 1. 本轮检查目标
 
@@ -8,9 +8,9 @@ v0.0.2.33 / Cocos Web Save/Load Interaction & Recovery验证临时存读档交�
 
 工具只读取仓库唯一src/design_snapshot派生的工作副本。prepare继续导出snapshot及全部58项Schema并记录Git来源/输入产物摘要；build记录实际Web产物清单摘要，verify核对构建关联和产物字节后才启动浏览器，拒绝替换或篡改的Web目录。工程、依赖、报告、缓存和构建仍位于仓库外，不形成第二源码权威。
 
-构建网页built-web验收1440×1200、1280×720、960×640、800×600/DPR1，另960×640/DPR2仿真，并在同页按960×640→1440×1200→800×600→960×640执行四次resize点击。编辑器预览editor-preview独立验收1440×1200与960×640/DPR1，同页按960×640→1440×1200→960×640执行三次resize点击。所有约定案例均保持完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、推进命令时间+60和Label同步；存读档命令按临时槽预期检查时间；不降低断言强度。官方Default设备模拟器在800窗口裁剪固定960px内容，该预览场景未承诺支持，不能据其失败推定构建网页800失败。DPR仿真不等于手机、触摸、微信或Windows系统缩放验证。
+构建网页built-web验收1440×1200、1280×720、960×640、800×600/DPR1，另960×640/DPR2仿真，并在同页按960×640→1440×1200→800×600→960×640执行四次resize点击。编辑器预览editor-preview独立验收1440×1200与960×640/DPR1，同页按960×640→1440×1200→960×640执行三次resize点击。所有约定案例均保持完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、推进命令时间+60和Label同步；存读档命令按本地单槽预期检查时间；不降低断言强度。官方Default设备模拟器在800窗口裁剪固定960px内容，该预览场景未承诺支持，不能据其失败推定构建网页800失败。DPR仿真不等于手机、触摸、微信或Windows系统缩放验证。
 
-Node任务与独立真实验收分别追踪。新增trace.cocos.web-save-load-recovery，保留trace.cocos.web-viewport-input和既有trace.cocos.web-bootstrap-probe及存储/绑定/启动回归。CI只执行Node完整门禁，不安装Creator或浏览器，不改变full/release/affected策略。
+Node任务与独立真实验收分别追踪。新增trace.cocos.browser-local-save，保留trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input、trace.cocos.web-bootstrap-probe及存储/绑定/启动回归。新增browser-storage测试在生命周期任务执行，固定端口serve契约在web-verification任务执行，args/files/covers与单文件affected分别闭合。CI只执行Node完整门禁，不安装Creator或浏览器，不改变full/release/affected策略。
 
 既有test:cocos-session / registry test.cocos-session继续验证Session边界。test-registry描述Node自动执行集合，traceability-map.json连接模块、文件与门禁追踪；独立真实验收另以构建关联和浏览器证据记录。
 
@@ -50,7 +50,7 @@ cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affe
 
 ## 10. 后续路线（不是授权目标）
 
-Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.33 范围。traceability map 中 `planned` 条目**不是**当前实现。
+Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.34 范围。traceability map 中 `planned` 条目**不是**当前实现。
 
 ## 11. 固定检查短语
 
