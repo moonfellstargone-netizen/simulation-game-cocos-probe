@@ -9,7 +9,7 @@ source_of_truth: false
 
 ## 模块职责
 
-apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期桥接。只有该outer可使用cc；旧game-core、cocos-app、cocos-creator-adapter保持engine-neutral。当前目标是连接既有Stage1A播种、时间推进和收获，准确反馈本次业务结果并重建读档后的有效选择；继承本地单槽、约定桌面视口/resize和失败保护，不新增玩法或正式Action。
+apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期桥接。只有该outer可使用cc；旧game-core、cocos-app、cocos-creator-adapter保持engine-neutral。当前目标是浏览公开材料批次并执行正式store_item整批转移，准确反馈拒绝和读档恢复；必要界面分区与禁用态服务当前操作，继承农事、本地单槽和桌面输入。唯一src变化是creator菜单适配，不新增玩法或正式Action。
 
 工程从唯一src/design_snapshot派生runtime、snapshot及全部58项Schema；工作副本、依赖、缓存、报告和构建均在仓库外，禁止手改副本成为第二源码权威。script.loose=false保留标准JavaScript语义，不能恢复Creator默认loose破坏Ajv继承getter的已知转换。
 
@@ -40,7 +40,7 @@ apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期
 
 ## 修改后验证
 
-test:cocos-probe-preparation实际prepare并验证资源、来源及生成runtime；test:cocos-engine-probe-lifecycle同时执行cocos-engine-probe-lifecycle.test.ts、cocos-web-interaction.test.ts、cocos-browser-storage.test.ts与cocos-web-farming.test.ts，验证受控异步生命周期、交互恢复与公开农事行为；test:cocos-web-verification-contracts执行既有工具契约及cocos-web-serve-contracts.test.mjs，验证参数、HTTP安全、来源、固定端口与失败保护。三项登记full/blocker，trace.cocos.web-bootstrap-probe和trace.cocos.web-viewport-input分别保留启动与视口追踪。Node契约不执行真实浏览器。
+test:cocos-probe-preparation实际prepare并验证资源、来源及生成runtime；test:cocos-engine-probe-lifecycle同时执行cocos-engine-probe-lifecycle.test.ts、cocos-web-interaction.test.ts、cocos-browser-storage.test.ts、cocos-web-farming.test.ts与cocos-web-inventory.test.ts，验证受控异步生命周期、交互恢复、公开农事及库存转移行为；test:cocos-web-verification-contracts执行既有工具契约及cocos-web-serve-contracts.test.mjs，验证参数、HTTP安全、来源、固定端口与失败保护。三项登记full/blocker，trace.cocos.web-bootstrap-probe和trace.cocos.web-viewport-input分别保留启动与视口追踪。Node契约不执行真实浏览器。
 
 根typecheck只覆盖src；真实Creator类型、构建、预览和浏览器独立验收。cocos:verify:web要求--project、--browser、--report-dir、--build-record均为显式绝对路径；可选--preview-url只接受loopback HTTP。实际浏览器或引擎缺失必须失败或未执行，不能静默skip。
 
@@ -82,3 +82,15 @@ CocosWebProbe使用真实Button连接现有plant_crop、advance_time、harvest_c
 ProbeInteraction对menu_confirm核对本次preview动作类型、preview/ActionResult的success、完整性及拒绝信息，completed只表示处理完成；拒绝、缺失或preview动作不匹配不得显示成功。save/load仍只解释本次对应结果，不使用读档前遗留的菜单成功；不修改Queue契约、Session或核心规则。
 
 tests/cocos-web-farming.test.ts加入既有生命周期full/blocker实际args，files/covers包含纯helper和测试；trace.cocos.web-farming-loop连接该行为、模块/索引和独立浏览器工具。真实农事完整点击在960×640 built/preview分别验收超量拒绝、播种/数量/占用、按天推进、存读档选择重建、实际收获与再次种植；原视口矩阵、本地存储与销毁回归保持，Node和根typecheck不替代真实Creator/Chrome。
+
+## 网页库存与整批储存转移
+
+ProbeInventory.ts只复制公开MaterialLot选项和储存目标，管理当前批次/目标选择，不拥有可变运行态。逐批浏览当前公开材料的名称、current_form、数量/单位与storage_ref，展示目标支持形态和容量/占用。名称只用于展示，身份和单位取公开选项；不展示DishLot通用库存、完整新鲜度或保鲜倒计时。
+
+MenuActionBinding.ts是本版唯一src执行文件例外，只补正式store_item的选择类型与草稿适配：从当前公开材料/储存目标解析有效ID，以MaterialLot object_ref及目标StorageRef调用既有storeItem。preview、正式Action、存储审计与回滚沿既有路径，其他src/**/*.ts业务逻辑、Session和Queue不改；不绕过组件菜单，不直接写SaveFile。
+
+移动对象为整批，不加入拆分数量。容量单位为slot_weight；目标enabled只说明目标自身可用，不保证放得下所选批次，outer不以克数估算容量或复制footprint算法。形态不支持、容量不足和失效选择由既有绑定/preview/Action给出拒绝，失败保留状态，健康操作可继续。同容器移动在核心仍合法，界面只避免无意义重复提交，不新增核心拒绝规则。
+
+挂载、动作及成功读档后重新消费公开列表，更新位置和容量，清除失效选择。界面切换/浏览仅改变本地视图，不发正式命令；转移按本次preview/ActionResult反馈，不把completed或旧菜单成功当本次业务结果。保留busy、销毁后迟到保护、农事闭环和手动存读档。
+
+tests/cocos-web-inventory.test.ts加入既有test:cocos-engine-probe-lifecycle实际args，tests/cocos-minimal-menu-binding.test.ts验证唯一适配；helper、.meta和测试的files/covers及单文件affected闭合。trace.cocos.web-inventory-storage连接Node行为与独立真实点击。新增库存完整闭环至少在960×640 built-web/editor-preview分别验收；因布局受影响的既有农事、三按钮矩阵/resize、存储失败和来源/销毁回归继续验证，不把Node或observer调用冒充真实输入。

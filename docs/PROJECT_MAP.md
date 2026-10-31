@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.35
+﻿# PROJECT_MAP — v0.0.2.36
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.35：**Web Farming Loop & Action Feedback**。真实Web连接已有Stage1A播种、正常时间推进和收获，准确解释本次业务结果并在读档后重建选择；trace.cocos.web-farming-loop连接outer、Node行为与独立真实点击验收。保留本地单槽、视口输入、唯一来源派生及既有启动/绑定/存储追踪。
+v0.0.2.36：**Web Inventory & Storage Transfer**。真实Web浏览公开材料批次及储存位置，通过正式store_item整批转移，准确反馈拒绝并重建读档选择；creator仅补MenuActionBinding适配，核心和其余src执行逻辑保持。trace.cocos.web-inventory-storage连接outer、适配、Node行为和真实点击，保留农事、本地单槽、视口、来源及旧追踪。
 
 ## 3. 权威边界
 

@@ -84,3 +84,9 @@ cocos-map、runtime-map、code-index/files.md与public-api.md；绑定顺序与�
 ## 跨操作结果归属
 
 CocosUiCommandQueue按本次命令选择shell/menu/save_load错误来源，保留其他区历史错误；refresh和卸载不因历史面板失败而误报。本次失败返回独立且可观察，后续健康命令继续，不重发Action。Queue与公共bootstrap/component回归、外层本次反馈由trace.cocos.web-save-load-recovery连接，完整语义见CocosUiCommandQueue.contract.md。
+
+## 正式store_item最小菜单适配
+
+MenuActionBinding.ts从当前公开材料批次/储存目标解析选择，以MaterialLot object_ref和目标StorageRef调用cocos-app既有CocosActionDraftBuilder.storeItem；这是库存版本唯一src执行文件变化。不直接修改SaveFile、不新增业务规则、不改变Session或Queue，不接cc/wx/fs。预览、执行和回滚沿现有MinimalMenuInteractionController路径。
+
+tests/cocos-minimal-menu-binding.test.ts / test:cocos-menu验证预览不写状态、整批位置和源/目标占用、数量/身份/时间保持、失效/禁用/不支持形态/容量拒绝及后续健康恢复。trace.cocos.web-inventory-storage连接该适配与outer库存、地图和真实点击；同步cocos/runtime地图、files/public-api索引。

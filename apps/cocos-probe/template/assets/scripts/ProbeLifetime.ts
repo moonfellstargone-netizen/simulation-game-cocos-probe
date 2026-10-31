@@ -14,7 +14,8 @@ export type ProbeCommand =
   | { name: 'menu_confirm'; selection:
     | { action_type: 'advance_time'; minutes: number }
     | { action_type: 'plant_crop'; field_option_id: string; seed_lot_option_id: string; seed_quantity: ProbeQuantity }
-    | { action_type: 'harvest_crop'; crop_option_id: string } }
+    | { action_type: 'harvest_crop'; crop_option_id: string }
+    | { action_type: 'store_item'; source_lot_option_id: string; target_storage_option_id: string } }
   | { name: 'save'; selection: { slot_id: string } }
   | { name: 'load'; selection: { slot_id: string } };
 
@@ -40,6 +41,27 @@ export interface ProbeMaterialOption {
   readonly category: string;
   readonly current_form: string;
   readonly quantity: ProbeQuantity;
+  readonly storage_ref: ProbeStorageRef;
+  readonly reason_key?: string | null;
+  readonly active_reservation_count?: number;
+}
+
+export interface ProbeStorageRef {
+  readonly location_id: string;
+  readonly storage_type: string;
+  readonly container_id: string;
+}
+
+export interface ProbeStorageTargetOption {
+  readonly id: string;
+  readonly enabled: boolean;
+  readonly label_key: string | null;
+  readonly reason_key: string | null;
+  readonly location_id: string;
+  readonly storage_type: string;
+  readonly capacity: ProbeQuantity;
+  readonly used_capacity: number;
+  readonly supported_forms: readonly string[];
 }
 
 export interface ProbeHarvestableOption {
@@ -64,6 +86,7 @@ export interface ProbeMenuSnapshot {
     readonly seed_lot_options: readonly ProbeMaterialOption[];
     readonly harvestable_crop_options: readonly ProbeHarvestableOption[];
     readonly splittable_lot_options: readonly ProbeMaterialOption[];
+    readonly storage_target_options: readonly ProbeStorageTargetOption[];
   } | null;
   readonly last_preview_result?: (ProbeBusinessResult & { readonly action_type: string }) | null;
   readonly last_action_result?: (ProbeBusinessResult & {

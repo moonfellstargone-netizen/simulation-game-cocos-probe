@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.35
+﻿# ARCHITECTURE — v0.0.2.36
 
-当前版本：v0.0.2.35 / Web Farming Loop & Action Feedback。本轮只在真实Web外层连接既有农事菜单与公开结果；纯选择辅助不持有可变运行态，既有Queue契约、三层边界和玩法状态流转保持。
+当前版本：v0.0.2.36 / Web Inventory & Storage Transfer。真实Web外层连接公开库存与正式整批转移；唯一src执行例外是MenuActionBinding.ts补store_item选择到既有storeItem草稿适配，其他src执行逻辑不改。纯选择辅助不持有可变运行态，Queue契约、三层隔离和正式状态流转保持。
 
 ## 1. 业务架构不变
 
@@ -85,3 +85,13 @@ tools/cocos-probe/serve.mjs复用严格构建来源和HTTP保护，显式固定�
 ProbeFarming位于apps/cocos-probe外层，只复制公开选项、管理当前选择和播种数量；正式状态始终由menu_confirm经过既有preview和ActionPipeline改变。成功读档后重新消费公开列表并清除失效选择，不直接修补SaveFile。
 
 ProbeInteraction区分队列处理完成与本次业务成功，menu_confirm核对公开preview/ActionResult及动作类型；save/load只读取对应本次结果。保留旧面板历史，不因旧结果改变本次判断，不重新定义Queue.completed或新增事务入口。trace.cocos.web-farming-loop追踪这条outer消费链。
+
+## 网页库存与整批储存转移
+
+ProbeInventory.ts只复制公开MaterialLot选项和储存目标，管理当前批次/目标选择，不拥有可变运行态。逐批浏览当前公开材料的名称、current_form、数量/单位与storage_ref，展示目标支持形态和容量/占用。名称只用于展示，身份和单位取公开选项；不展示DishLot通用库存、完整新鲜度或保鲜倒计时。
+
+MenuActionBinding.ts是本版唯一src执行文件例外，只补正式store_item的选择类型与草稿适配：从当前公开材料/储存目标解析有效ID，以MaterialLot object_ref及目标StorageRef调用既有storeItem。preview、正式Action、存储审计与回滚沿既有路径，其他src/**/*.ts业务逻辑、Session和Queue不改；不绕过组件菜单，不直接写SaveFile。
+
+移动对象为整批，不加入拆分数量。容量单位为slot_weight；目标enabled只说明目标自身可用，不保证放得下所选批次，outer不以克数估算容量或复制footprint算法。形态不支持、容量不足和失效选择由既有绑定/preview/Action给出拒绝，失败保留状态，健康操作可继续。同容器移动在核心仍合法，界面只避免无意义重复提交，不新增核心拒绝规则。
+
+挂载、动作及成功读档后重新消费公开列表，更新位置和容量，清除失效选择。界面切换/浏览仅改变本地视图，不发正式命令；转移按本次preview/ActionResult反馈，不把completed或旧菜单成功当本次业务结果。保留busy、销毁后迟到保护、农事闭环和手动存读档。

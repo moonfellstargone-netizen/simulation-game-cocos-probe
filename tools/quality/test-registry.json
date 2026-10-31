@@ -1,5 +1,5 @@
 {
-  "version": "0.0.2.35",
+  "version": "0.0.2.36",
   "tests": {
     "static.typecheck": {
       "command": "node",
@@ -392,7 +392,8 @@
         "tests/cocos-minimal-menu-binding.test.ts"
       ],
       "covers": [
-        "cocos-creator-adapter"
+        "cocos-creator-adapter",
+        "tests"
       ],
       "type": "test",
       "stability": "blocker",
@@ -404,7 +405,8 @@
         "blocker"
       ],
       "files": [
-        "tests/cocos-minimal-menu-binding.test.ts"
+        "tests/cocos-minimal-menu-binding.test.ts",
+        "src/cocos-creator-adapter/menu/MenuActionBinding.ts"
       ],
       "group": "cocos-ui"
     },
@@ -779,9 +781,9 @@
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--root-name",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_35",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_36",
         "--output",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_35.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_36.zip",
         "--kind",
         "code"
       ],
@@ -802,11 +804,11 @@
       "command": "python3",
       "args": [
         "tools/check_release_zip.py",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_35.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_36.zip",
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--expected-root",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_35",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_36",
         "--kind",
         "code"
       ],
@@ -1179,7 +1181,10 @@
         "tests/cocos-browser-storage.test.ts",
         "apps/cocos-probe/template/assets/scripts/ProbeFarming.ts",
         "apps/cocos-probe/template/assets/scripts/ProbeFarming.ts.meta",
-        "tests/cocos-web-farming.test.ts"
+        "tests/cocos-web-farming.test.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeInventory.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeInventory.ts.meta",
+        "tests/cocos-web-inventory.test.ts"
       ],
       "group": "cocos-adapter"
     },
@@ -1192,7 +1197,8 @@
         "tests/cocos-engine-probe-lifecycle.test.ts",
         "tests/cocos-web-interaction.test.ts",
         "tests/cocos-browser-storage.test.ts",
-        "tests/cocos-web-farming.test.ts"
+        "tests/cocos-web-farming.test.ts",
+        "tests/cocos-web-inventory.test.ts"
       ],
       "covers": [
         "cocos-engine-probe",
@@ -1216,7 +1222,10 @@
         "tests/cocos-browser-storage.test.ts",
         "apps/cocos-probe/template/assets/scripts/ProbeFarming.ts",
         "apps/cocos-probe/template/assets/scripts/ProbeFarming.ts.meta",
-        "tests/cocos-web-farming.test.ts"
+        "tests/cocos-web-farming.test.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeInventory.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeInventory.ts.meta",
+        "tests/cocos-web-inventory.test.ts"
       ],
       "group": "cocos-adapter"
     },

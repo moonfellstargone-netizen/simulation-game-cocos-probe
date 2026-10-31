@@ -165,7 +165,7 @@ test('Stage 1A baseline final state is consistent across fixture runner, headles
 test('Stage 1A baseline package metadata and docs do not retain old code package version markers', () => {
   const root = process.cwd();
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version: string; scripts: Record<string, string> };
-  assert.equal(packageJson.version, '0.0.2-35');
+  assert.equal(packageJson.version, '0.0.2-36');
   const checkSurface = `${packageJson.scripts.check}\n${readFileSync(join(root, 'tools/run-code-check.mjs'), 'utf8')}\n${readFileSync(join(root, 'tools/quality/test-registry.json'), 'utf8')}`;
   assert.equal(checkSurface.includes('tests/cocos-ui-readiness.test.ts'), true);
   assert.equal(checkSurface.includes('tests/action-preview-boundary.test.ts'), true);
@@ -180,7 +180,7 @@ test('Stage 1A baseline package metadata and docs do not retain old code package
   assert.equal(checkSurface.includes('tests/package-hygiene.test.mjs'), true);
 
   const sourceDesign = readFileSync(join(root, 'design_snapshot/SOURCE_DESIGN_PACK.txt'), 'utf8');
-  assert.equal(sourceDesign.includes('code_package_version: v0.0.2.35'), true);
+  assert.equal(sourceDesign.includes('code_package_version: v0.0.2.36'), true);
 
   const scannedFiles = [
     'README.md',

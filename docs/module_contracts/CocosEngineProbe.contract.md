@@ -66,3 +66,15 @@ ProbeFarming只管理公开选项副本、选择和带单位的播种数量；pl
 真实Button执行播种、推进一小时/一天和收获，数量消耗、占用、可收获项和实际产量以公开结果为准。正常时间推进不硬编码成熟时点；公开收获列表只包含可收获项，不据此展示全部作物进度。局部选择/数量调整不发送命令、不改变世界状态。
 
 trace.cocos.web-farming-loop连接新辅助、Node行为和真实verify。农事完整物理点击在960×640 built-web/editor-preview各执行，覆盖超量业务拒绝、播种保存、正常成熟、读档选择重建、收获数量/地块释放与再次种植。原三按钮矩阵、刷新/同context新页面、存储受控失败/坏档、来源与销毁回归仍需独立验证；不以Node或observer调用替代物理点击。
+
+## 网页库存与整批储存转移
+
+ProbeInventory.ts只复制公开MaterialLot选项和储存目标，管理当前批次/目标选择，不拥有可变运行态。逐批浏览当前公开材料的名称、current_form、数量/单位与storage_ref，展示目标支持形态和容量/占用。名称只用于展示，身份和单位取公开选项；不展示DishLot通用库存、完整新鲜度或保鲜倒计时。
+
+MenuActionBinding.ts是本版唯一src执行文件例外，只补正式store_item的选择类型与草稿适配：从当前公开材料/储存目标解析有效ID，以MaterialLot object_ref及目标StorageRef调用既有storeItem。preview、正式Action、存储审计与回滚沿既有路径，其他src/**/*.ts业务逻辑、Session和Queue不改；不绕过组件菜单，不直接写SaveFile。
+
+移动对象为整批，不加入拆分数量。容量单位为slot_weight；目标enabled只说明目标自身可用，不保证放得下所选批次，outer不以克数估算容量或复制footprint算法。形态不支持、容量不足和失效选择由既有绑定/preview/Action给出拒绝，失败保留状态，健康操作可继续。同容器移动在核心仍合法，界面只避免无意义重复提交，不新增核心拒绝规则。
+
+挂载、动作及成功读档后重新消费公开列表，更新位置和容量，清除失效选择。界面切换/浏览仅改变本地视图，不发正式命令；转移按本次preview/ActionResult反馈，不把completed或旧菜单成功当本次业务结果。保留busy、销毁后迟到保护、农事闭环和手动存读档。
+
+tests/cocos-web-inventory.test.ts加入既有test:cocos-engine-probe-lifecycle实际args，tests/cocos-minimal-menu-binding.test.ts验证唯一适配；helper、.meta和测试的files/covers及单文件affected闭合。trace.cocos.web-inventory-storage连接Node行为与独立真实点击。新增库存完整闭环至少在960×640 built-web/editor-preview分别验收；因布局受影响的既有农事、三按钮矩阵/resize、存储失败和来源/销毁回归继续验证，不把Node或observer调用冒充真实输入。

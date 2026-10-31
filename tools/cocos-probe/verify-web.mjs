@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertClickObservation, assertFarmingCommandObservation, assertFarmingLoadRecovery, assertFarmingProjection, assertLocalSaveRecovery, assertLocalSelectionObservation, assertStoredSaveUnchanged, assertUiCommandObservation, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest } from './lib/webProbeSupport.mjs';
+import { assertClickObservation, assertDisabledInventoryObservation, assertFarmingCommandObservation, assertFarmingLoadRecovery, assertFarmingProjection, assertInventoryCommandObservation, assertInventoryLoadRecovery, assertInventoryProjection, assertLocalInventoryObservation, assertLocalSaveRecovery, assertLocalSelectionObservation, assertStoredSaveUnchanged, assertUiCommandObservation, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest } from './lib/webProbeSupport.mjs';
 
 const ROOT = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '../..'));
 const MATRIX = [
@@ -14,7 +14,8 @@ const settle = (page) => page.evaluate(() => new Promise((accept) => requestAnim
 const status = (page) => page.evaluate(() => globalThis.__cocosWebProbe.status());
 const scroll = (page) => page.evaluate(() => ({ x: scrollX, y: scrollY }));
 const SELECTION_BUTTONS = ['SelectField', 'SelectSeed', 'SelectCrop', 'SeedAmountDecrease', 'SeedAmountIncrease'];
-const BUTTONS = ['AdvanceOneHour', 'SaveLocal', 'LoadLocal', ...SELECTION_BUTTONS, 'PlantCrop', 'AdvanceOneDay', 'HarvestCrop'];
+const INVENTORY_LOCAL_BUTTONS = ['OpenInventory', 'OpenFarming', 'SelectInventoryLot', 'SelectStorageTarget'];
+const BUTTONS = ['AdvanceOneHour', 'SaveLocal', 'LoadLocal', ...SELECTION_BUTTONS, 'PlantCrop', 'AdvanceOneDay', 'HarvestCrop', ...INVENTORY_LOCAL_BUTTONS, 'MoveInventoryLot'];
 const STORAGE_KEY = 'qinglan.simulation-game.cocos-probe.save.web_probe';
 const EMPTY_SLOT_ERROR = 'ERR_SAVE_SLOT_NOT_FOUND:web_probe';
 
@@ -42,11 +43,14 @@ async function attachButtonObservation(page) {
 
 async function physicalClick(page, caseName, result, recordDir, buttonName = 'AdvanceOneHour', expected) {
   await settle(page);
-  const layout = await page.evaluate(async (name) => {
+  const disabled = expected?.disabled === true;
+  const layout = await page.evaluate(async ({ name, disabled }) => {
     const cc = await System.import('cc');
     const scene = cc.director.getScene();
     const button = scene.getComponentsInChildren(cc.Button).find((item) => item.node.name === name);
-    if (!button || !button.interactable) throw new Error('ERR_WEB_PROBE_BUTTON_NOT_INTERACTABLE:' + name);
+    if (!button || (!disabled && !button.interactable)) throw new Error('ERR_WEB_PROBE_BUTTON_NOT_INTERACTABLE:' + name);
+    if (disabled && button.interactable) throw new Error('ERR_WEB_PROBE_BUTTON_EXPECTED_DISABLED:' + name);
+    if (!button.node.activeInHierarchy) throw new Error('ERR_WEB_PROBE_BUTTON_PANEL_INACTIVE:' + name);
     const camera = scene.getComponentsInChildren(cc.Camera).find((item) => item.node.name === 'ProbeCamera');
     const transform = button.node.getComponent(cc.UITransform);
     const element = document.querySelector('#GameCanvas');
@@ -63,10 +67,11 @@ async function physicalClick(page, caseName, result, recordDir, buttonName = 'Ad
     return {
       canvas: { left: rectangle.left, top: rectangle.top, right: rectangle.right, bottom: rectangle.bottom, width: rectangle.width, height: rectangle.height },
       button: { ...buttonRect, width: buttonRect.right - buttonRect.left, height: buttonRect.bottom - buttonRect.top },
+      buttonInteractable: button.interactable,
       viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
       target: cssPoint(button.node.worldPosition)
     };
-  }, buttonName);
+  }, { name: buttonName, disabled });
   const before = await status(page);
   const countBefore = await page.evaluate((name) => globalThis.__webProbeButtonEvents[name], buttonName);
   const scrollBefore = await scroll(page);
@@ -82,7 +87,14 @@ async function physicalClick(page, caseName, result, recordDir, buttonName = 'Ad
   const observation = { caseName, buttonName, layout, before, after: await status(page), eventCount: await page.evaluate((name) => globalThis.__webProbeButtonEvents[name], buttonName) - countBefore, scrollBefore, scrollDown, scrollAfter: await scroll(page) };
   result.clicks.push(observation);
   await page.screenshot({ path: join(recordDir, caseName + '.png'), fullPage: true });
-  if (SELECTION_BUTTONS.includes(buttonName)) {
+  if (disabled) {
+    assert.equal(buttonName, 'MoveInventoryLot');
+    assertDisabledInventoryObservation(observation);
+  } else if (INVENTORY_LOCAL_BUTTONS.includes(buttonName)) {
+    assertLocalInventoryObservation(observation, expected);
+  } else if (buttonName === 'MoveInventoryLot') {
+    assertInventoryCommandObservation(observation, expected);
+  } else if (SELECTION_BUTTONS.includes(buttonName)) {
     assertLocalSelectionObservation(observation, expected);
   } else if (buttonName === 'PlantCrop' || buttonName === 'AdvanceOneDay' || buttonName === 'HarvestCrop') {
     assertFarmingCommandObservation(observation, expected);
@@ -242,6 +254,78 @@ async function farmingLoop(browser, url, result, recordDir, logs) {
     const lifecycle = await disposeProbe(page);
     assertStoredSaveUnchanged(saved, await storedSave(page));
     return { scope: 'real physical controls in an isolated 960x640 BrowserContext; public menu projections only', initial, rejected, planted, saved: storedEvidence(saved), savedState, beforeLoadDays, loaded, afterLoadDays, harvested, replanted, lifecycle };
+  } finally { await context.close(); }
+}
+
+async function inventoryLoop(browser, url, result, recordDir, logs) {
+  const context = await browser.newContext({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
+  try {
+    const page = await context.newPage(); watchErrors(page, 'inventory-loop', logs);
+    await page.goto(url); await awaitReady(page); await attachButtonObservation(page);
+    const initial = await status(page);
+    assert.equal(initial.panel, 'farming');
+    const inventory = assertInventoryProjection(initial);
+    assert.equal(inventory.selectedLotId, null); assert.equal(inventory.selectedTargetId, null);
+    const initialStored = await storedSave(page);
+    assert.equal(initialStored.raw, null, 'the inventory context starts without a local save');
+    await physicalClick(page, 'inventory-open', result, recordDir, 'OpenInventory', { panel: 'inventory' });
+    const browsedLots = [];
+    for (const [index, lot] of inventory.lotOptions.entries()) {
+      const observation = await physicalClick(page, 'inventory-browse-lot-' + index, result, recordDir, 'SelectInventoryLot', { key: 'selectedLotId', value: lot.id });
+      browsedLots.push({ id: lot.id, displayed: observation.after.displayedInventory });
+    }
+    const browsedTargets = [];
+    for (const [index, target] of inventory.targetOptions.entries()) {
+      const observation = await physicalClick(page, 'inventory-browse-target-' + index, result, recordDir, 'SelectStorageTarget', { key: 'selectedTargetId', value: target.id });
+      browsedTargets.push({ id: target.id, displayed: observation.after.displayedInventory });
+    }
+    assert.ok(browsedLots.length > 0 && browsedTargets.length > 1, 'all current lots and multiple targets must be browsable');
+    const pair = inventory.lotOptions.filter((lot) => lot.enabled).map((lot) => ({
+      lot,
+      compatible: inventory.targetOptions.find((target) => target.enabled && target.id !== lot.storage_ref.container_id && target.storage_type !== lot.storage_ref.storage_type && target.supported_forms.includes(lot.current_form)),
+      incompatible: inventory.targetOptions.find((target) => target.enabled && target.id !== lot.storage_ref.container_id && !target.supported_forms.includes(lot.current_form))
+    })).find((candidate) => candidate.compatible && candidate.incompatible);
+    assert.ok(pair, 'the canonical public new game must offer a compatible move and a real unsupported-form refusal');
+    const choose = async (kind, id, prefix) => {
+      const key = kind === 'lot' ? 'selectedLotId' : 'selectedTargetId';
+      const collection = kind === 'lot' ? 'lotOptions' : 'targetOptions';
+      const button = kind === 'lot' ? 'SelectInventoryLot' : 'SelectStorageTarget';
+      const options = (await status(page)).inventory[collection];
+      for (let step = 0; step < options.length; step++) {
+        const current = (await status(page)).inventory;
+        if (current[key] === id) return;
+        const index = current[collection].findIndex((item) => item.id === current[key]);
+        const next = current[collection][(index + 1) % current[collection].length];
+        await physicalClick(page, prefix + '-' + step, result, recordDir, button, { key, value: next.id });
+      }
+      assert.equal((await status(page)).inventory[key], id, 'bounded physical selection must reach the declared current option');
+    };
+    await choose('lot', pair.lot.id, 'inventory-select-move-lot');
+    await choose('target', pair.incompatible.id, 'inventory-select-incompatible');
+    const refused = await physicalClick(page, 'inventory-form-refused', result, recordDir, 'MoveInventoryLot', {
+      status: 'failed', timeLabel: initial.timeLabel, errorMessage: 'ERR_STORAGE_FORM_NOT_SUPPORTED'
+    });
+    assert.match(refused.after.displayedOperation, /不支持/, 'unsupported form must report this business refusal');
+    assertStoredSaveUnchanged(initialStored, await storedSave(page));
+    await choose('target', pair.compatible.id, 'inventory-select-compatible');
+    const moved = await physicalClick(page, 'inventory-move', result, recordDir, 'MoveInventoryLot', { status: 'completed', timeLabel: initial.timeLabel });
+    assertStoredSaveUnchanged(initialStored, await storedSave(page));
+    assert.equal(moved.after.inventory.canMove, false);
+    assert.match(moved.after.displayedInventory.hint, /已在/, 'the same-container disabled action needs a visible explanation');
+    const disabled = await physicalClick(page, 'inventory-same-target-disabled', result, recordDir, 'MoveInventoryLot', { disabled: true });
+    await physicalClick(page, 'inventory-save-moved', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: initial.timeLabel });
+    const savedState = await status(page); const saved = await storedSave(page);
+    assert.ok(typeof saved.raw === 'string' && saved.raw.length > 0);
+    await choose('target', pair.lot.storage_ref.container_id, 'inventory-select-original-target');
+    const movedBack = await physicalClick(page, 'inventory-move-back', result, recordDir, 'MoveInventoryLot', { status: 'completed', timeLabel: initial.timeLabel });
+    assertStoredSaveUnchanged(saved, await storedSave(page));
+    const loaded = await physicalClick(page, 'inventory-load-moved', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: initial.timeLabel });
+    assertInventoryLoadRecovery(savedState, loaded); assertStoredSaveUnchanged(saved, await storedSave(page));
+    await physicalClick(page, 'inventory-return-farming', result, recordDir, 'OpenFarming', { panel: 'farming' });
+    const continued = await physicalClick(page, 'inventory-continue-hour', result, recordDir);
+    assertStoredSaveUnchanged(saved, await storedSave(page));
+    const lifecycle = await disposeProbe(page); assertStoredSaveUnchanged(saved, await storedSave(page));
+    return { scope: 'isolated 960x640 real physical inventory controls; unsupported form refusal, successful moves, same-target disabled input and manual load; capacity-overflow refusal remains Node coverage', initial, browsedLots, browsedTargets, refused, moved, disabled, savedState, saved: storedEvidence(saved), movedBack, loaded, continued, lifecycle };
   } finally { await context.close(); }
 }
 
@@ -427,6 +511,7 @@ export async function verifyWebProbe(options) {
       result.resizeLifecycle = await disposeProbe(page);
     } finally { await context.close(); }
     result.farming = await farmingLoop(browser, result.url, result, recordDir, logs);
+    result.inventory = await inventoryLoop(browser, result.url, result, recordDir, logs);
     result.storageRecovery = await storageFailureRecovery(browser, result.url, result, recordDir, logs);
     if (!parsed.previewUrl) {
       assert.ok(resourceUrl, 'actual probe resource URL must be observed');

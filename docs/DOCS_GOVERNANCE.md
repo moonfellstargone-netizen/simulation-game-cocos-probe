@@ -1,4 +1,4 @@
-﻿# DOCS_GOVERNANCE — v0.0.2.35
+﻿# DOCS_GOVERNANCE — v0.0.2.36
 
 文档治理规范。
 

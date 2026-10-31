@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.35
+﻿# Code Index — Files — v0.0.2.36
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -98,3 +98,13 @@ trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebPr
 | apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts | cocos-engine-probe | 本次menu业务结果判定、单次受理与迟到保护 | 交互回归及真实Chrome |
 
 trace.cocos.web-farming-loop连接上述路径与既有prepare/verify；Node登记与真实960×640农事闭环分开验收。
+
+## 网页库存与储存转移
+
+| 文件 | 模块 | 职责 | 验证 |
+|---|---|---|---|
+| `src/cocos-creator-adapter/menu/MenuActionBinding.ts` | cocos-creator-adapter | 当前公开MaterialLot/储存目标到正式store_item既有草稿的最小适配 | `test:cocos-menu`、单文件affected |
+| `apps/cocos-probe/template/assets/scripts/ProbeInventory.ts`及`.meta` | cocos-engine-probe | 公开材料/储存目标副本、批次/目标选择和整批转移草稿 | `test:cocos-engine-probe-lifecycle`、真实Creator/Chrome |
+| `tests/cocos-web-inventory.test.ts` | tests | 公开组件库存转移、拒绝后恢复、读档选择与数量/位置保护 | 既有生命周期full/blocker实际参数 |
+
+trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport；旧农事与存读档追踪保持。

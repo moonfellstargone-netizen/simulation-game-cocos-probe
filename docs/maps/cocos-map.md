@@ -1,4 +1,4 @@
-﻿# Cocos Map — v0.0.2.35
+﻿# Cocos Map — v0.0.2.36
 
 ## 系统职责
 
@@ -90,3 +90,9 @@ trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebPr
 trace.cocos.web-farming-loop连接纯outer选择辅助ProbeFarming.ts、窄公开消费类型ProbeLifetime.ts、本次结果协调ProbeInteraction.ts与真实CocosWebProbe.ts。只接既有plant_crop、advance_time、harvest_crop；当前公开收获列表只含可收获作物，不提供所有作物进度。挂载、动作后及手动load后刷新列表并清除失效选择。
 
 tests/cocos-web-farming.test.ts与交互回归随既有生命周期full/blocker实际运行；真实960×640的built/preview物理点击分别验证超量拒绝、数量/占用、读档恢复、收获实际产量与再次种植。保留原三按钮视口/resize及本地存储回归，不重定义Queue.completed或扩大核心接口。
+
+## 网页库存与正式整批转移
+
+trace.cocos.web-inventory-storage连接MenuActionBinding.ts唯一最小store_item适配、outer ProbeInventory.ts/.meta、CocosWebProbe及公开结果反馈、tests/cocos-minimal-menu-binding.test.ts和tests/cocos-web-inventory.test.ts。库存辅助只复制公开批次/目标并管理本地选择，核心容量、形态、数量与Session/Queue规则保持。
+
+库存行为测试加入既有test.cocos-engine-probe-lifecycle实际args/files/covers，菜单适配沿test.cocos-menu验证；prepare和工具契约继续full/blocker，新增helper/测试及唯一适配的单文件affected须闭合。真实库存点击至少独立960×640 built/editor验收，布局影响的农事、存读档/矩阵/resize和生命周期回归继续；Node不代替真实Creator/Chrome，未扩大门禁算法或平台范围。

@@ -61,6 +61,26 @@ test('q:affected script and gate are active development feedback only', () => {
   assert.equal((policy.gates.release.includeGates ?? []).includes('affected'), false);
 });
 
+test('a menu-test-only change selects the menu task that actually executes it', () => {
+  const file = 'tests/cocos-minimal-menu-binding.test.ts';
+  const changedFiles = [file];
+  const modules = resolveAffectedModules(changedFiles, moduleGraph);
+  const result = resolveAffectedTasks({
+    changedFiles,
+    affectedModules: modules.affectedModules,
+    fallback: modules.fallback,
+    fallbackReason: modules.fallbackReason,
+    gatePolicy: policy,
+    testRegistry: registry
+  });
+  const menu = result.selectedTasks.find((task) => task.id === 'test.cocos-menu');
+  assert.ok(menu, `${file} alone must select its executed test.cocos-menu task`);
+  assert.equal(menu.command, 'node');
+  assert.ok(menu.args.includes(file), 'the selected menu task must actually execute the changed test');
+  assert.equal(result.selectedTasks.some((task) => task.id === 'release.build'), false);
+  assert.equal(result.selectedTasks.some((task) => task.id === 'release.check'), false);
+});
+
 test('affected helper files and fixtures exist', () => {
   for (const rel of [
     'tools/quality/affected/resolveChangedFiles.mjs',

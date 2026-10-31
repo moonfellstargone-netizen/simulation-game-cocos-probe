@@ -7,6 +7,7 @@ export type MenuActionSelection =
   | { action_type: 'plant_crop'; field_option_id: string; seed_lot_option_id: string; seed_quantity: Quantity }
   | { action_type: 'advance_time'; minutes: number }
   | { action_type: 'harvest_crop'; crop_option_id: string }
+  | { action_type: 'store_item'; source_lot_option_id: string; target_storage_option_id: string }
   | { action_type: 'split_lot'; source_lot_option_id: string; quantity: Quantity }
   | { action_type: 'start_processing'; method_id: string; input_lots: Array<{ lot_option_id: string; quantity: Quantity }>; facility_option_id: string }
   | { action_type: 'collect_processing_result'; task_option_id: string }
@@ -28,6 +29,15 @@ export class MenuActionBinding {
       case 'harvest_crop': {
         const crop = this.requiredEnabled(selectable.harvestable_crop_options, selection.crop_option_id, 'crop_option');
         return this.drafts.harvestCrop(crop.id);
+      }
+      case 'store_item': {
+        const lot = this.requiredEnabled(selectable.splittable_lot_options, selection.source_lot_option_id, 'source_lot_option');
+        const target = this.requiredEnabled(selectable.storage_target_options, selection.target_storage_option_id, 'storage_target_option');
+        return this.drafts.storeItem({ object_type: 'MaterialLot', object_id: lot.id }, {
+          location_id: target.location_id,
+          storage_type: target.storage_type,
+          container_id: target.id
+        });
       }
       case 'split_lot': {
         const lot = this.requiredEnabled(selectable.splittable_lot_options, selection.source_lot_option_id, 'source_lot_option');

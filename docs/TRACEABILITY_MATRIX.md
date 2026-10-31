@@ -9,9 +9,9 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.35
+# TRACEABILITY_MATRIX — v0.0.2.36
 
-**Web Farming Loop & Action Feedback / 网页种植收获与操作反馈版**
+**Web Inventory & Storage Transfer / 网页库存与储存转移版**
 
 ## 1. 定位
 
@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 本轮沿用**轻量追踪地基**，新增网页种植收获、本次业务结果与读档选择重建链路，继承本地存档、桌面视口与输入验收；既有真实Cocos外层已实现，旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
+- 本轮沿用**轻量追踪地基**，新增网页库存/正式整批转移与最小creator适配链路，继承农事、本地存档、桌面视口与输入验收；既有真实Cocos外层已实现，旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
 
 ## 2. 状态语义
 
@@ -40,6 +40,14 @@ related:
 - `test:traceability-contracts` 校验 map、registry、module-graph 与 gate 一致性。
 
 ## 4. Active entries（与 traceability-map.json 对齐）
+
+### trace.cocos.web-inventory-storage
+
+玩家逐批浏览公开MaterialLot的名称/形态/数量/位置并明确选择目标，经过MenuActionBinding.ts最小store_item适配及现有preview/Action整批移动；不改核心容量/保鲜/数量规则或Session/Queue，其他src执行逻辑保持。outer ProbeInventory只保存本地选择，读档后重新核对目标与位置，不把旧结果当本次转移成功。
+
+sourceRefs连接最小菜单适配、ProbeInventory.ts、ProbeLifetime.ts、ProbeInteraction.ts、CocosWebProbe.ts和verify/support。test.cocos-menu与现有lifecycle/prepare/web-verification任务为full/blocker；新增tests/cocos-web-inventory.test.ts进入实际args/files/covers，保留原农事和全部active条目。
+
+真实库存完整点击至少独立960×640 built/editor：遍历公开材料、移动整批、可见位置/数量/容量、保存后反向转移及读取恢复。局部切换/浏览0命令、禁用不提交，拒绝保持状态且健康转移可继续；核心同容器合法行为不因界面避免重复提交而改变。Node/CI不替代Creator/Chrome，旧农事和存读档/矩阵/来源/销毁回归保持。
 
 ### trace.cocos.web-farming-loop
 

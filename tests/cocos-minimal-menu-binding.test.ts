@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { CocosSessionHost, MinimalMenuInteractionController } from '../src/cocos-creator-adapter';
+import { MenuActionBinding } from '../src/cocos-creator-adapter/menu/MenuActionBinding';
 import { InMemorySaveStoragePort, type Quantity } from '../src/game-core';
 import type { CocosSelectableViewModelData, CocosMaterialLotOption, CocosCookableRecipeOption } from '../src/cocos-app/view-models/CocosSelectableViewModel';
 import { buildRuntimeWithoutState, cloneForCompare } from './support/runtimeHarness';
@@ -36,6 +37,70 @@ function optionById<T extends { id: string }>(options: T[], id: string, label: s
 function quantity(amount: number, unit: Quantity['unit']): Quantity {
   return { amount, unit };
 }
+
+test('store_item binding previews without mutation then moves an explicitly selected whole material lot', () => {
+  const { host, controller } = makeMenu();
+  const selectable = required(controller.refresh().selectable_view_model, 'current selectable');
+  const source = required(selectable.splittable_lot_options.find((lot) => lot.enabled
+    && selectable.storage_target_options.some((target) => target.enabled
+      && target.id !== lot.storage_ref.container_id && target.supported_forms.includes(lot.current_form))), 'movable material');
+  const target = required(selectable.storage_target_options.find((candidate) => candidate.enabled
+    && candidate.id !== source.storage_ref.container_id && candidate.supported_forms.includes(source.current_form)), 'compatible target');
+  const selection = { action_type: 'store_item' as const, source_lot_option_id: source.id, target_storage_option_id: target.id };
+  const before = cloneForCompare(host.requireSession().getSelectableViewModel());
+  const preview = controller.preview(selection);
+  assert.equal(preview.last_preview_result?.success, true);
+  assert.equal(preview.last_action_result, null);
+  assert.deepEqual(host.requireSession().getSelectableViewModel(), before);
+  const moved = controller.confirm(selection);
+  assert.equal(moved.last_preview_result?.success, true);
+  assert.equal(moved.last_action_result?.success, true);
+  const after = required(moved.selectable_view_model, 'selectable after move');
+  const current = optionById(after.splittable_lot_options, source.id, 'same material lot');
+  assert.deepEqual(current.quantity, source.quantity);
+  assert.equal(current.base_id, source.base_id);
+  assert.equal(current.current_form, source.current_form);
+  assert.deepEqual(current.storage_ref, { location_id: target.location_id, storage_type: target.storage_type, container_id: target.id });
+  assert.equal(moved.view_model?.time_label, preview.view_model?.time_label, 'moving does not advance world time');
+  assert.equal(moved.view_model?.inventory_lot_count, preview.view_model?.inventory_lot_count, 'a whole lot keeps its identity/count');
+  assert.ok(optionById(after.storage_target_options, target.id, 'updated target').used_capacity > target.used_capacity);
+  assert.ok(optionById(after.storage_target_options, source.storage_ref.container_id, 'updated source').used_capacity
+    < optionById(before.storage_target_options, source.storage_ref.container_id, 'previous source').used_capacity);
+});
+
+test('store_item binding rejects missing or disabled public source/target choices before dispatch', () => {
+  const { host, controller } = makeMenu();
+  const selectable = required(controller.refresh().selectable_view_model, 'current public choices');
+  const lot = firstEnabled(selectable.splittable_lot_options, 'source lot');
+  const target = firstEnabled(selectable.storage_target_options, 'target storage');
+  const binding = new MenuActionBinding();
+  const selection = { action_type: 'store_item' as const, source_lot_option_id: lot.id, target_storage_option_id: target.id };
+  const before = cloneForCompare(host.requireSession().getSelectableViewModel());
+  assert.throws(() => binding.buildDraft(selectable, { ...selection, source_lot_option_id: '' }), /ERR_MENU_OPTION_ID_INVALID:source_lot_option/);
+  assert.throws(() => binding.buildDraft(selectable, { ...selection, source_lot_option_id: 'not_current' }), /ERR_MENU_OPTION_NOT_FOUND:source_lot_option/);
+  assert.throws(() => binding.buildDraft(selectable, { ...selection, target_storage_option_id: 'not_current' }), /ERR_MENU_OPTION_NOT_FOUND:storage_target_option/);
+  const disabledSource = structuredClone(selectable);
+  optionById(disabledSource.splittable_lot_options, lot.id, 'isolated source observation').enabled = false;
+  assert.throws(() => binding.buildDraft(disabledSource, selection), /ERR_MENU_OPTION_DISABLED:source_lot_option/);
+  const disabledTarget = structuredClone(selectable);
+  optionById(disabledTarget.storage_target_options, target.id, 'isolated target observation').enabled = false;
+  assert.throws(() => binding.buildDraft(disabledTarget, selection), /ERR_MENU_OPTION_DISABLED:storage_target_option/);
+  assert.deepEqual(host.requireSession().getSelectableViewModel(), before);
+});
+
+test('store_item binding preserves the existing formal same-container success contract', () => {
+  const { host, controller } = makeMenu();
+  const initial = controller.refresh();
+  const selectable = required(initial.selectable_view_model, 'current public choices');
+  const lot = required(selectable.splittable_lot_options.find((item) => item.enabled
+    && selectable.storage_target_options.some((target) => target.id === item.storage_ref.container_id && target.enabled)), 'source in non-full container');
+  const before = cloneForCompare(host.requireSession().getSelectableViewModel());
+  const result = controller.confirm({ action_type: 'store_item', source_lot_option_id: lot.id, target_storage_option_id: lot.storage_ref.container_id });
+  assert.equal(result.last_preview_result?.success, true);
+  assert.equal(result.last_action_result?.success, true);
+  assert.deepEqual(host.requireSession().getSelectableViewModel(), before, 'UI admission may prevent this no-op, but binding does not invent a new core refusal');
+  assert.equal(result.view_model?.time_label, initial.view_model?.time_label);
+});
 
 function commonProcessingMethod(cabbage: CocosMaterialLotOption, salt: CocosMaterialLotOption, selectable: CocosSelectableViewModelData): string {
   const methodId = required(cabbage.compatible_method_ids.find((id) => salt.compatible_method_ids.includes(id)), 'common processing method');

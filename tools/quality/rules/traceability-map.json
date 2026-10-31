@@ -1,6 +1,6 @@
 {
   "schemaVersion": "traceability-lite/v1",
-  "projectVersion": "v0.0.2.35",
+  "projectVersion": "v0.0.2.36",
   "currentFullReleaseTraceIds": [
     "trace.stage1a.actionpipeline",
     "trace.stage1a.save-load",
@@ -18,7 +18,8 @@
     "trace.cocos.web-viewport-input",
     "trace.cocos.web-save-load-recovery",
     "trace.cocos.browser-local-save",
-    "trace.cocos.web-farming-loop"
+    "trace.cocos.web-farming-loop",
+    "trace.cocos.web-inventory-storage"
   ],
   "entries": [
     {
@@ -566,6 +567,45 @@
         "docs/module-cards/cocos-engine-probe.md",
         "docs/module_contracts/CocosEngineProbe.contract.md",
         "docs/IMPLEMENTATION_SCOPE.md",
+        "docs/CHECK_ARCHITECTURE.md"
+      ],
+      "gateRefs": [
+        "full",
+        "release"
+      ]
+    },
+    {
+      "id": "trace.cocos.web-inventory-storage",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": [
+        "cocos-creator-adapter",
+        "cocos-engine-probe",
+        "tools",
+        "tests"
+      ],
+      "sourceRefs": [
+        "src/cocos-creator-adapter/menu/MenuActionBinding.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeInventory.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts",
+        "apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts",
+        "tools/cocos-probe/verify-web.mjs",
+        "tools/cocos-probe/lib/webProbeSupport.mjs"
+      ],
+      "testRefs": [
+        "test.cocos-menu",
+        "test.cocos-engine-probe-lifecycle",
+        "test.cocos-probe-preparation",
+        "test.cocos-web-verification-contracts"
+      ],
+      "docRefs": [
+        "docs/module-cards/cocos-creator-adapter.md",
+        "docs/module-cards/cocos-engine-probe.md",
+        "docs/module_contracts/CocosEngineProbe.contract.md",
+        "docs/IMPLEMENTATION_SCOPE.md",
+        "docs/ARCHITECTURE.md",
         "docs/CHECK_ARCHITECTURE.md"
       ],
       "gateRefs": [

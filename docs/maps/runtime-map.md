@@ -1,4 +1,4 @@
-﻿# Runtime Map — v0.0.2.35
+﻿# Runtime Map — v0.0.2.36
 
 ## 系统职责
 
@@ -70,3 +70,9 @@ trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebPr
 ## 网页农事公开消费
 
 真实Web通过既有MenuActionBinding和公开Host/Component完成播种、时间推进、收获；ProbeFarming只管理外层选项与数量。ProbeInteraction检查本次preview及ActionResult，不把Queue.completed当成业务成功；load后重新校验外层选择，不解释残留菜单结果。trace.cocos.web-farming-loop追踪此消费链，核心ActionPipeline、Session和存档契约保持。
+
+## 网页库存与正式整批转移
+
+trace.cocos.web-inventory-storage连接MenuActionBinding.ts唯一最小store_item适配、outer ProbeInventory.ts/.meta、CocosWebProbe及公开结果反馈、tests/cocos-minimal-menu-binding.test.ts和tests/cocos-web-inventory.test.ts。库存辅助只复制公开批次/目标并管理本地选择，核心容量、形态、数量与Session/Queue规则保持。
+
+库存行为测试加入既有test.cocos-engine-probe-lifecycle实际args/files/covers，菜单适配沿test.cocos-menu验证；prepare和工具契约继续full/blocker，新增helper/测试及唯一适配的单文件affected须闭合。真实库存点击至少独立960×640 built/editor验收，布局影响的农事、存读档/矩阵/resize和生命周期回归继续；Node不代替真实Creator/Chrome，未扩大门禁算法或平台范围。

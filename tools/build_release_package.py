@@ -35,7 +35,7 @@ DEFAULT_KIND = 'code'
 # Release root and zip names are derived from project-target.json (release.root / release.zip);
 # no versioned default root is assigned in code here.
 # release-surface marker (non-authoritative, must mirror project-target release root/zip):
-#   模拟游戏_Cocos微信试水代码包_v0_0_2_35 / 模拟游戏_Cocos微信试水代码包_v0_0_2_35.zip
+#   模拟游戏_Cocos微信试水代码包_v0_0_2_36 / 模拟游戏_Cocos微信试水代码包_v0_0_2_36.zip
 
 
 def load_project_target(path: Path) -> dict:
