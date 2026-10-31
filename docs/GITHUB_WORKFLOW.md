@@ -1,4 +1,4 @@
-﻿# GITHUB_WORKFLOW — v0.0.2.36
+﻿# GITHUB_WORKFLOW — v0.0.2.37
 
 GitHub 工作流与 Cursor 执行约束。
 
