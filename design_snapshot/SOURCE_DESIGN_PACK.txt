@@ -5,7 +5,7 @@ code_package_npm_version: 0.0.2-33
 code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_33
 version_name: Cocos Web Save/Load Interaction & Recovery
 chinese_version_name: Cocos网页临时存读档交互与恢复版
-scope: Keep the existing Creator 3.8.8 Web probe visible and accurately clickable across declared desktop viewports and runtime resizing; verify real mouse events and exact +60 action results from canonical resources; no Stage 1B, wx or persistent storage.
+scope: Add real advance/save/load buttons for the fixed web_probe temporary in-memory slot, restore saved time and report each current command accurately after a prior operation failure. Only advance adds 60 minutes; save/load add no time and reload clears the slot. Inherit declared desktop viewport/resize and lifecycle verification from canonical resources; no Stage 1B, wx or persistent storage.
 
 formal_source_statement: 正式包 v1.5.2.2 remains authoritative
 context_statement: Cocos网页临时存读档交互与表现层恢复及配套代码包内部检查体系治理；正式玩法与状态流转语义保持
