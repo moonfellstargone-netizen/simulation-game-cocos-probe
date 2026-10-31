@@ -1,10 +1,10 @@
 source_design_pack: 模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip
 design_pack_version: v1.5.2.2
-code_package_version: v0.0.2.36
-code_package_npm_version: 0.0.2-36
-code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_36
-version_name: Web Inventory & Storage Transfer
-chinese_version_name: 网页库存与储存转移版
+code_package_version: v0.0.2.37
+code_package_npm_version: 0.0.2-37
+code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_37
+version_name: Processing Required Inputs & Failure Safety
+chinese_version_name: 加工必需输入校验与失败保护版
 scope: Web browsing of public MaterialLot batches and storage targets, with whole-batch transfer through existing formal store_item. The only src execution change is the MenuActionBinding adapter to the existing storeItem draft. Preserve core/app business rules, Session/Queue, public quantities, storage capacity, manual local save, farming and declared input/lifecycle/provenance verification. No split quantities, DishLot browser, migration, Stage 1B or wx changes.
 
 formal_source_statement: 正式包 v1.5.2.2 remains authoritative

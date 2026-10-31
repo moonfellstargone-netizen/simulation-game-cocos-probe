@@ -9,9 +9,9 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.36
+# TRACEABILITY_MATRIX — v0.0.2.37
 
-**Web Inventory & Storage Transfer / 网页库存与储存转移版**
+**Processing Required Inputs & Failure Safety / 加工必需输入校验与失败保护版**
 
 ## 1. 定位
 
@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 本轮沿用**轻量追踪地基**，新增网页库存/正式整批转移与最小creator适配链路，继承农事、本地存档、桌面视口与输入验收；既有真实Cocos外层已实现，旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
+- 本轮沿用**轻量追踪地基**，新增加工必需输入校验与失败保护链路，继承农事、本地存档、桌面视口与输入验收；既有真实Cocos外层已实现，旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
 
 ## 2. 状态语义
 
@@ -41,9 +41,15 @@ related:
 
 ## 4. Active entries（与 traceability-map.json 对齐）
 
+### trace.processing.required-inputs
+
+按当前方法配置完整验证必需输入，公开预览和直接正式执行拒绝缺料，且在材料消耗、任务创建与任务ID分配前失败。完整游戏状态、库存/储存缓存、任务与领域事件受保护；正常失败反馈沿既有管线，请求序号不要求回滚。合法不同数量加工、正常推进领取及失败后的存读档恢复继续，不新增重复输入规则。
+
+sourceRefs连接ProcessingSystem、ProcessingConfigResolver、ActionPipeline、Session与菜单绑定；test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-menu沿现有full/blocker实际执行。文档入口为processing模块卡、domain/runtime地图和public-api索引。核心bundle变化后，真实Creator及既有built/preview浏览器回归独立验收；没有加工网页，不以浏览器声称覆盖缺盐路径。
+
 ### trace.cocos.web-inventory-storage
 
-玩家逐批浏览公开MaterialLot的名称/形态/数量/位置并明确选择目标，经过MenuActionBinding.ts最小store_item适配及现有preview/Action整批移动；不改核心容量/保鲜/数量规则或Session/Queue，其他src执行逻辑保持。outer ProbeInventory只保存本地选择，读档后重新核对目标与位置，不把旧结果当本次转移成功。
+玩家逐批浏览公开MaterialLot的名称/形态/数量/位置并明确选择目标，经过MenuActionBinding.ts最小store_item适配及现有preview/Action整批移动；保持核心容量/保鲜/数量规则和Session/Queue；本版加工校验独立追踪。outer ProbeInventory只保存本地选择，读档后重新核对目标与位置，不把旧结果当本次转移成功。
 
 sourceRefs连接最小菜单适配、ProbeInventory.ts、ProbeLifetime.ts、ProbeInteraction.ts、CocosWebProbe.ts和verify/support。test.cocos-menu与现有lifecycle/prepare/web-verification任务为full/blocker；新增tests/cocos-web-inventory.test.ts进入实际args/files/covers，保留原农事和全部active条目。
 

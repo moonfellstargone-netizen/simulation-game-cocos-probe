@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.36
+﻿# Code Index — Files — v0.0.2.37
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -108,3 +108,11 @@ trace.cocos.web-farming-loop连接上述路径与既有prepare/verify；Node登�
 | `tests/cocos-web-inventory.test.ts` | tests | 公开组件库存转移、拒绝后恢复、读档选择与数量/位置保护 | 既有生命周期full/blocker实际参数 |
 
 trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport；旧农事与存读档追踪保持。
+
+## 加工必需输入与失败保护
+
+- `src/game-core/processing/ProcessingSystem.ts`：按当前配置验证必需输入完整性，消耗和任务分配前拒绝缺料。
+- `src/game-core/processing/ProcessingConfigResolver.ts`：现有方法与输入要求解析；不另建材料/阈值权威。
+- `tests/stage1a-contract.test.ts`、`tests/action-preview-boundary.test.ts`、`tests/cocos-runtime-session.test.ts`、`tests/cocos-minimal-menu-binding.test.ts`：领域、预览、公开组件和存读档恢复回归。
+- `tests/quality-affected-contracts.test.mjs`：实际触及测试单文件选择自身执行任务；本版不扩为全仓登记治理。
+- `trace.processing.required-inputs`连接上述链路和processing模块卡。

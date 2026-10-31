@@ -61,3 +61,5 @@ source_of_truth: false
 ## 代码—地图同步
 
 改动公开API或目录结构时更新`docs/code-index/public-api.md`与本卡。`assertSchemasAvailable(ids)`及`assertReady()`只检查既有契约可用性，不向game-core引入宿主、平台或资源读取依赖。
+
+加工必需输入完整性见[processing模块卡](processing.md)及trace.processing.required-inputs；ProcessingSystem在消耗和任务ID分配前拒绝缺料，预览与正式执行沿既有ActionPipeline，保持领域状态及合法加工恢复。

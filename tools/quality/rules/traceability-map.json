@@ -1,6 +1,6 @@
 {
   "schemaVersion": "traceability-lite/v1",
-  "projectVersion": "v0.0.2.36",
+  "projectVersion": "v0.0.2.37",
   "currentFullReleaseTraceIds": [
     "trace.stage1a.actionpipeline",
     "trace.stage1a.save-load",
@@ -19,7 +19,8 @@
     "trace.cocos.web-save-load-recovery",
     "trace.cocos.browser-local-save",
     "trace.cocos.web-farming-loop",
-    "trace.cocos.web-inventory-storage"
+    "trace.cocos.web-inventory-storage",
+    "trace.processing.required-inputs"
   ],
   "entries": [
     {
@@ -611,6 +612,45 @@
       "gateRefs": [
         "full",
         "release"
+      ]
+    },
+    {
+      "id": "trace.processing.required-inputs",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": [
+        "game-core",
+        "cocos-app",
+        "cocos-creator-adapter",
+        "tests"
+      ],
+      "sourceRefs": [
+        "src/game-core/processing/ProcessingSystem.ts",
+        "src/game-core/processing/ProcessingConfigResolver.ts",
+        "src/game-core/action/ActionPipeline.ts",
+        "src/cocos-app/runtime/CocosAppRuntimeSession.ts",
+        "src/cocos-creator-adapter/menu/MenuActionBinding.ts"
+      ],
+      "testRefs": [
+        "test.stage1a-contract",
+        "test.action-preview",
+        "test.cocos-session",
+        "test.cocos-menu"
+      ],
+      "docRefs": [
+        "docs/module-cards/processing.md",
+        "docs/maps/domain-map.md",
+        "docs/maps/runtime-map.md",
+        "docs/code-index/public-api.md"
+      ],
+      "gateRefs": [
+        "full",
+        "release"
+      ],
+      "designRefs": [
+        "docs/SOURCE_DESIGN_PACK.md",
+        "design_snapshot/SOURCE_DESIGN_PACK.txt"
       ]
     }
   ]

@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.36
+﻿# Code Index — Public API — v0.0.2.37
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -130,3 +130,11 @@ trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebPr
 | `ProbeMenuSnapshot` / `ProbeCommand`库存消费字段 | `apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts` | 只描述既有公开材料位置、储存目标和正式store_item参数 |
 
 准确类型/字段以源码为准；没有新增core或Session API。preview/ActionResult决定业务成功，手动读取后重建选择；trace.cocos.web-inventory-storage连接Node与独立真实点击。
+
+## 加工必需输入校验与失败保护
+
+按当前加工方法配置校验全部必需输入，缺料在任何消耗、任务创建和任务ID分配前拒绝。公开preview与直接正式dispatch共享验证；preview不得改变完整游戏状态、事件、库存/储存缓存或正式对象ID。正式失败保留既有失败反馈，不要求ActionRequestBuilder请求序号回滚。
+
+契约、预览和公开Host/Component回归分别核对缺白菜、缺盐、盐不足/阈值边界，以及合法不同数量的消耗、任务、推进和领取。失败后健康请求与存读档恢复继续；不通过私有SaveFile写入构造假通过，不新增重复同lot或多primary拒绝/聚合规则。trace.processing.required-inputs连接ProcessingSystem.ts、ProcessingConfigResolver.ts及现有test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-menu。
+
+本版实际触及测试逐一登记args/files/covers并验证单文件affected真正执行自身任务；q:affected仍只用于反馈，版本完成和候选出包按q:full及无缓存q:release。核心进入Web bundle，真实Creator SDK/构建及既有built-web/editor-preview回归需独立执行。没有加工网页，浏览器不声明覆盖缺盐路径。

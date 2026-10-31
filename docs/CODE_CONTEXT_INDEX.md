@@ -1,6 +1,6 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.2.36
+﻿# CODE_CONTEXT_INDEX — v0.0.2.37
 
-版本：v0.0.2.36 / Web Inventory & Storage Transfer / 网页库存与储存转移版。
+版本：v0.0.2.37 / Processing Required Inputs & Failure Safety / 加工必需输入校验与失败保护版。
 
 ## 执行前必读顺序
 
@@ -30,7 +30,7 @@
 
 后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包；代码包不保存每轮具体任务上下文；代码包只保存执行端上下文治理约束。
 
-## v0.0.2.36 测试索引
+## v0.0.2.37 测试索引
 
 - `tests/cocos-web-verification-contracts.test.mjs`（`test:cocos-web-verification-contracts`，Node工具契约）
 
@@ -128,12 +128,16 @@ trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebPr
 
 ## 网页种植收获与本次业务结果
 
-入口为apps/cocos-probe/template/assets/scripts/ProbeFarming.ts、ProbeInteraction.ts、ProbeLifetime.ts与CocosWebProbe.ts。先核对公开MenuRenderSnapshot、SelectableViewModel和MenuActionBinding，再修改outer消费；库存版本唯一src执行例外为MenuActionBinding.ts补store_item适配，其余src执行逻辑不改。completed只代表命令处理完成，menu_confirm成功必须对应本次preview/ActionResult；load不能借用历史菜单结果。
+入口为apps/cocos-probe/template/assets/scripts/ProbeFarming.ts、ProbeInteraction.ts、ProbeLifetime.ts与CocosWebProbe.ts。先核对公开MenuRenderSnapshot、SelectableViewModel和MenuActionBinding，再修改outer消费；既有MenuActionBinding.ts提供store_item适配；本版ProcessingSystem按配置修复必需输入完整性，outer及Session/Queue保持。completed只代表命令处理完成，menu_confirm成功必须对应本次preview/ActionResult；load不能借用历史菜单结果。
 
 tests/cocos-web-farming.test.ts随test:cocos-engine-probe-lifecycle实际运行，测试路径、纯helper及.meta登记files/covers；trace.cocos.web-farming-loop连接外层模块卡、契约、真实verify和现有full/release。真实960×640农事操作另需Creator/Chrome证据，Node与根typecheck均不能代替。
 
 ## 网页库存与整批转移入口
 
-先读creator/engine模块卡、公开MaterialLot/storage_target选项、CocosActionDraftBuilder.storeItem及MenuActionBinding.ts，再读ProbeInventory.ts、ProbeLifetime.ts、ProbeInteraction.ts和真实cc组件。唯一src执行变化只补正式store_item的选项解析和既有草稿适配，不改core/app/Session/Queue。名称只展示，身份/形态/数量/位置取当前公开结果；容量slot_weight不与克数混算。
+先读creator/engine模块卡、公开MaterialLot/storage_target选项、CocosActionDraftBuilder.storeItem及MenuActionBinding.ts，再读ProbeInventory.ts、ProbeLifetime.ts、ProbeInteraction.ts和真实cc组件。既有适配只解析正式store_item选项并复用草稿；本版核心校验入口另见下述加工索引，app/Session/Queue保持。名称只展示，身份/形态/数量/位置取当前公开结果；容量slot_weight不与克数混算。
 
 tests/cocos-minimal-menu-binding.test.ts验证最小适配；tests/cocos-web-inventory.test.ts加入test:cocos-engine-probe-lifecycle实际执行，连同helper/.meta登记files/covers；trace.cocos.web-inventory-storage连接地图和真实verify。读档后重新校验批次/目标，本次转移反馈不能借用历史结果；界面切换与逐批浏览0命令，真实输入、原农事和存读档必须独立Creator/Chrome验证。
+
+## 加工必需输入与失败保护入口
+
+先读game-core/processing模块卡与domain/runtime地图，再读ProcessingSystem、ProcessingConfigResolver、ActionPipeline、GameRuntime、TransactionRunner、IdService和ActionRequestBuilder；核对当前active_contract、方法配置、Action参数Schema及加工fixture/expected和模块18。随后读取stage1a-contract、action-preview-boundary、cocos-runtime-session与cocos-minimal-menu-binding测试，区分完整领域状态/对象ID保护和正常失败反馈/请求序号。trace.processing.required-inputs不定义新重复输入语义，也不授权网页加工、Stage1B或微信。
