@@ -155,6 +155,39 @@ function assertNodesMatchShell(port: ControlledBindingPort<CocosComponentNodeBin
   }
 }
 
+test('public component applies a successful action after a failed load and keeps failure history observable', async () => {
+  const { host, shell, nodePort, component } = makeControlledComponentProbe();
+  await component.mount();
+  await component.applyInitialSnapshot();
+  const before = host.requireSession().getViewModel();
+  const failedLoad = await component.execute({ name: 'load', selection: { slot_id: 'component_missing' } });
+  assert.equal(failedLoad.command_result.status, 'failed');
+  assert.match(failedLoad.command_result.error_message ?? '', /ERR_SAVE_SLOT_NOT_FOUND/);
+  assert.deepEqual(host.requireSession().getViewModel(), before);
+  assertNodesMatchShell(nodePort, shell);
+  const failureSnapshot = structuredClone(failedLoad);
+
+  const confirmed = await component.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+  assert.equal(confirmed.command_result.status, 'completed');
+  assert.equal(confirmed.command_result.error_message, null);
+  assert.equal(confirmed.command_result.snapshot.menu.last_action_result?.success, true);
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 420');
+  assert.equal((nodePort.latest('menu')?.payload as { view_model: { time_label: string } }).view_model.time_label, 'day 1 minute 420');
+  assert.deepEqual(confirmed.command_result.snapshot.save_load.errors, failedLoad.command_result.snapshot.save_load.errors);
+  assertNodesMatchShell(nodePort, shell);
+
+  const refreshed = await component.refresh();
+  assert.equal(refreshed.command_result.status, 'completed');
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 420');
+  assertNodesMatchShell(nodePort, shell);
+  const unmounted = await component.unmount();
+  assert.equal(unmounted.command_result.status, 'completed');
+  assert.equal(unmounted.command_result.snapshot.lifecycle.has_session, false);
+  assert.equal(host.hasSession(), false);
+  assert.deepEqual(failedLoad, failureSnapshot);
+  assertNodesMatchShell(nodePort, shell);
+});
+
 test('public component keeps async node updates in command order', async (t) => {
   const { host, shell, nodePort, component } = makeControlledComponentProbe();
   await component.mount();

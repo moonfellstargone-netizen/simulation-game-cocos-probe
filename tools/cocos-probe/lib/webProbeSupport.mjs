@@ -145,12 +145,12 @@ export function timeInMinutes(label) {
   return Number(match[1]) * 1440 + Number(match[2]);
 }
 
-export function assertClickObservation(observation) {
+function assertInputObservation(observation) {
   const { before, after, eventCount, scrollBefore, scrollDown, scrollAfter, layout } = observation;
+  assert.equal(before.phase, 'ready', 'input must begin in a ready session');
   assert.equal(after.phase, 'ready', 'session must remain ready');
   assert.equal(after.hasSession, true, 'session must remain alive');
   assert.equal(eventCount, 1, 'one physical click must emit exactly one Cocos Button event');
-  assert.equal(timeInMinutes(after.timeLabel) - timeInMinutes(before.timeLabel), 60, 'one physical click must advance exactly 60 minutes');
   assert.equal(after.displayedTime, after.timeLabel, 'Label must match public state');
   assert.deepEqual(scrollDown, scrollBefore, 'mouse down must not scroll the page');
   assert.deepEqual(scrollAfter, scrollBefore, 'mouse up must not scroll the page');
@@ -159,4 +159,31 @@ export function assertClickObservation(observation) {
       && rectangle.bottom <= layout.viewport.height + 1 && rectangle.width > 0 && rectangle.height > 0, name + ' must fit inside the viewport');
   }
   assert.deepEqual(after.errors, [], 'probe must not report a runtime error');
+}
+
+export function assertClickObservation(observation) {
+  assertInputObservation(observation);
+  assert.equal(timeInMinutes(observation.after.timeLabel) - timeInMinutes(observation.before.timeLabel), 60, 'one physical click must advance exactly 60 minutes');
+}
+
+// These checks consume observations only; they never execute a game command or repair the page.
+export function assertUiCommandObservation(observation, expected) {
+  assertInputObservation(observation);
+  const { before, after } = observation;
+  assert.equal(before.busy, false, 'physical input must begin when the UI is idle');
+  assert.equal(after.busy, false, 'command must settle before its result is assessed');
+  assert.ok(Number.isSafeInteger(before.operation?.sequence), 'UI must expose a command sequence');
+  assert.equal(after.operation?.sequence, before.operation.sequence + 1, 'one physical click must submit exactly one UI command');
+  assert.equal(after.operation.name, expected.name, 'result must belong to the clicked command');
+  assert.equal(after.operation.status, expected.status, 'current command must report its actual outcome');
+  assert.equal(after.timeLabel, expected.timeLabel, 'command must produce exactly the expected time');
+  assert.ok(typeof after.operation.message === 'string' && after.operation.message.trim(), 'operation must have visible feedback');
+  assert.equal(after.displayedOperation, after.operation.message, 'operation Label must match the current result');
+  assert.ok(!after.displayedOperation.startsWith('启动失败'), 'an operation failure must not be presented as a startup failure');
+  assert.equal(after.operation.slotId, expected.name === 'menu_confirm' ? null : 'web_probe');
+  assert.equal(after.operation.errorMessage, expected.errorMessage ?? null, 'old errors must not contaminate the current command');
+  // Public labels use day 1 for absolute minute 0; save/load summaries use absolute minutes.
+  const worldMinute = expected.status === 'completed' && expected.name !== 'menu_confirm'
+    ? timeInMinutes(expected.timeLabel) - 1440 : null;
+  assert.equal(after.operation.worldMinute, worldMinute, 'save/load summary must match the resulting public time without stale success data');
 }

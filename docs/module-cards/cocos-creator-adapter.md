@@ -80,3 +80,7 @@ source_of_truth: false
 ## 代码—地图同步
 
 cocos-map、runtime-map、code-index/files.md与public-api.md；绑定顺序与恢复由`trace.cocos.binding-async-recovery`追踪，装配链路由`trace.runtime.bootstrap-resources`追踪。
+
+## 跨操作结果归属
+
+CocosUiCommandQueue按本次命令选择shell/menu/save_load错误来源，保留其他区历史错误；refresh和卸载不因历史面板失败而误报。本次失败返回独立且可观察，后续健康命令继续，不重发Action。Queue与公共bootstrap/component回归、外层本次反馈由trace.cocos.web-save-load-recovery连接，完整语义见CocosUiCommandQueue.contract.md。

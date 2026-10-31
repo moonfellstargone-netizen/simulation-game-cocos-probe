@@ -1,5 +1,5 @@
 {
-  "version": "0.0.2.32",
+  "version": "0.0.2.33",
   "tests": {
     "static.typecheck": {
       "command": "node",
@@ -779,9 +779,9 @@
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--root-name",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_32",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_33",
         "--output",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_32.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_33.zip",
         "--kind",
         "code"
       ],
@@ -802,11 +802,11 @@
       "command": "python3",
       "args": [
         "tools/check_release_zip.py",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_32.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_33.zip",
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--expected-root",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_32",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_33",
         "--kind",
         "code"
       ],
@@ -1172,7 +1172,9 @@
         "tests/cocos-probe-preparation.test.mjs",
         "tools/cocos-probe/prepare.mjs",
         "apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts",
-        "apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts"
+        "apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts",
+        "tests/cocos-web-interaction.test.ts"
       ],
       "group": "cocos-adapter"
     },
@@ -1182,7 +1184,8 @@
         "--import",
         "tsx",
         "--test",
-        "tests/cocos-engine-probe-lifecycle.test.ts"
+        "tests/cocos-engine-probe-lifecycle.test.ts",
+        "tests/cocos-web-interaction.test.ts"
       ],
       "covers": [
         "cocos-engine-probe",
@@ -1199,7 +1202,9 @@
       ],
       "files": [
         "tests/cocos-engine-probe-lifecycle.test.ts",
-        "apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts"
+        "apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts",
+        "tests/cocos-web-interaction.test.ts"
       ],
       "group": "cocos-adapter"
     },
@@ -1227,7 +1232,8 @@
         "tests/cocos-web-verification-contracts.test.mjs",
         "tools/cocos-probe/verify-web.mjs",
         "tools/cocos-probe/lib/webProbeSupport.mjs",
-        "tools/cocos-probe/build.mjs"
+        "tools/cocos-probe/build.mjs",
+        "apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts"
       ],
       "group": "cocos-adapter"
     }

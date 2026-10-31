@@ -1,4 +1,4 @@
-﻿# DOCS_GOVERNANCE — v0.0.2.32
+﻿# DOCS_GOVERNANCE — v0.0.2.33
 
 文档治理规范。
 
@@ -87,3 +87,7 @@
 ## 11. deprecated / superseded 禁止作生成依据
 
 不得基于 deprecated 文档改代码；须先更新或 supersede。
+
+## 临时存读档交互与恢复
+
+trace.cocos.web-save-load-recovery连接apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts、ProbeInteraction.ts和src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts；根typecheck仍只覆盖src。外层真实三按钮使用固定本页内存槽web_probe，当前反馈读取command_result，历史面板错误保留但不覆盖本次结果。ProbeInteraction保证busy与销毁后迟到保护；tests/cocos-web-interaction.test.ts由既有test.cocos-engine-probe-lifecycle实际执行并登记files/covers，新增helper和test分别验证单文件affected选择。Queue/component行为回归与浏览器工具契约保持full/blocker；真实Creator/Chrome物理点击、读取恢复及刷新清空独立验收，不能由Node通过推导。

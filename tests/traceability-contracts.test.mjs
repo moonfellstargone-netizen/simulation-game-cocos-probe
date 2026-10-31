@@ -7,6 +7,37 @@ import { resolveGateTasks } from '../tools/quality/lib/resolveGateTasks.mjs';
 const root = process.cwd();
 const readJson = (rel) => JSON.parse(readFileSync(join(root, rel), 'utf8'));
 
+test('Web save/load recovery closes over the executed interaction and command-result regressions', () => {
+  const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
+  const id = 'trace.cocos.web-save-load-recovery';
+  const entry = traceabilityMap.entries.find((item) => item.id === id);
+  assert.equal(entry?.status, 'active');
+  assert.ok(traceabilityMap.currentFullReleaseTraceIds.includes(id));
+  const helper = 'apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts';
+  assert.ok(entry.sourceRefs.includes(helper));
+  assert.ok(entry.sourceRefs.includes('src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts'));
+  for (const [taskId, file] of [
+    ['test.cocos-command-queue', 'tests/cocos-ui-command-queue.test.ts'],
+    ['test.cocos-component-node-binding', 'tests/cocos-component-node-binding-application.test.ts'],
+    ['test.cocos-engine-probe-lifecycle', 'tests/cocos-web-interaction.test.ts'],
+    ['test.cocos-web-verification-contracts', 'tests/cocos-web-verification-contracts.test.mjs']
+  ]) {
+    assert.ok(entry.testRefs.includes(taskId));
+    const task = registry.tests[taskId];
+    assert.equal(task?.stability, 'blocker');
+    for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
+    assert.ok(task.files.includes(file));
+    assert.ok(task.args.includes(file), `${taskId} must actually execute ${file}`);
+    assert.ok(task.covers.includes('tests'));
+    for (const gate of ['full', 'release']) assert.ok(resolveGateTasks(gate, gatePolicy, registry).some((selected) => selected.id === taskId));
+  }
+  const interactionTask = registry.tests['test.cocos-engine-probe-lifecycle'];
+  assert.ok(interactionTask.files.includes(helper));
+  assert.ok(interactionTask.covers.includes('cocos-engine-probe'));
+  const pkg = readJson('package.json');
+  assert.ok(pkg.scripts['test:cocos-engine-probe-lifecycle'].includes('tests/cocos-web-interaction.test.ts'));
+});
+
 test('Cocos Web preparation and lifetime tasks close the outer-layer trace without claiming engine execution', () => {
   const { traceabilityMap, registry, gatePolicy, moduleGraph } = loadTraceabilityContext();
   const id = 'trace.cocos.web-bootstrap-probe';

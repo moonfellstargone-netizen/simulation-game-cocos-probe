@@ -70,3 +70,7 @@ quality-map、TRACEABILITY_MATRIX、GLOSSARY 中 q:*、PR CI 与 traceability �
 ## 独立真实Web验收工具
 
 `tools/cocos-probe/build.mjs`、`tools/cocos-probe/verify-web.mjs`及`tools/cocos-probe/lib/webProbeSupport.mjs`负责构建摘要、来源闭合和本地真实浏览器矩阵。`test.cocos-web-verification-contracts`纳入full/blocker并登记共享输入，`trace.cocos.web-viewport-input`追踪。Node契约不运行真实浏览器；CI不因该任务通过而获得引擎验收结论。
+
+## 临时存读档交互与恢复
+
+trace.cocos.web-save-load-recovery连接apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts、ProbeInteraction.ts和src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts；根typecheck仍只覆盖src。外层真实三按钮使用固定本页内存槽web_probe，当前反馈读取command_result，历史面板错误保留但不覆盖本次结果。ProbeInteraction保证busy与销毁后迟到保护；tests/cocos-web-interaction.test.ts由既有test.cocos-engine-probe-lifecycle实际执行并登记files/covers，新增helper和test分别验证单文件affected选择。Queue/component行为回归与浏览器工具契约保持full/blocker；真实Creator/Chrome物理点击、读取恢复及刷新清空独立验收，不能由Node通过推导。

@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.32
+﻿# Code Index — Public API — v0.0.2.33
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -102,3 +102,7 @@
 - `cocos:verify:web -- --project <ABS> --browser <ABS> --report-dir <ABS> --build-record <ABS>`；可选`--preview-url <loopback HTTP URL>`，预览结果单独标记，不证明livepreview内容hash；其矩阵仅1440×1200/960×640与960→1440→960 resize，800及DPR2属于built-web范围。
 - `tools/cocos-probe/lib/webProbeSupport.mjs`共享参数/HTTP/来源和`webTreeDigest`；build.mjs的Web产物清单与verify复算必须一致，篡改拒绝。
 - `test:cocos-web-verification-contracts`是Node工具契约，不执行真实浏览器；`trace.cocos.web-viewport-input`追踪执行输入与独立验收边界。
+
+## 临时存读档交互与恢复
+
+trace.cocos.web-save-load-recovery连接apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts、ProbeInteraction.ts和src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts；根typecheck仍只覆盖src。外层真实三按钮使用固定本页内存槽web_probe，当前反馈读取command_result，历史面板错误保留但不覆盖本次结果。ProbeInteraction保证busy与销毁后迟到保护；tests/cocos-web-interaction.test.ts由既有test.cocos-engine-probe-lifecycle实际执行并登记files/covers，新增helper和test分别验证单文件affected选择。Queue/component行为回归与浏览器工具契约保持full/blocker；真实Creator/Chrome物理点击、读取恢复及刷新清空独立验收，不能由Node通过推导。

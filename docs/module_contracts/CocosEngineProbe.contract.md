@@ -21,7 +21,7 @@ apps/cocos-probe/仅保存最小工程源模板，tools/cocos-probe/prepare.mjs�
 
 官方Web构建源模板保持cocosTemplate注入，约束页面容器在可见视口内并同步引擎所需像素尺寸和resize；修复源头，不能手改生成Web或SDK。原故障为小窗口canvas.focus触发页面滚动后mouseup偏离按钮，禁止屏蔽真实点击验收制造通过。
 
-构建网页built-web覆盖1440×1200、1280×720、960×640、800×600/DPR1和960×640/DPR2仿真，同页960×640→1440×1200→800×600→960×640四次resize点击。编辑器预览editor-preview只覆盖1440×1200与960×640/DPR1，同页960×640→1440×1200→960×640三次resize点击。两个mode均要求完整canvas/Button可见、scroll稳定、会话身份不变，每次真实鼠标点击恰好一次Button事件、既有advance_time增加60分钟、Label与公开ViewModel一致；窗口变化不重建Host或重复绑定事件，断言强度不变。官方Default设备模拟器固定960px内容在800窗口发生裁剪，该预览场景未支持，不将其诊断失败写成构建网页800失败。
+构建网页built-web覆盖1440×1200、1280×720、960×640、800×600/DPR1和960×640/DPR2仿真，同页960×640→1440×1200→800×600→960×640四次resize点击。编辑器预览editor-preview只覆盖1440×1200与960×640/DPR1，同页960×640→1440×1200→960×640三次resize点击。两个mode均要求完整canvas/Button可见、scroll稳定、会话身份不变，每次真实鼠标点击恰好一次Button事件及一次命令；既有advance_time增加60分钟，保存时间不变，读取恢复已保存时间，Label与公开ViewModel一致；窗口变化不重建Host或重复绑定事件，断言强度不变。官方Default设备模拟器固定960px内容在800窗口发生裁剪，该预览场景未支持，不将其诊断失败写成构建网页800失败。
 
 DPR仿真不能推导手机、触摸、软键盘、安全区、微信或Windows系统缩放通过，未测平台不承诺。
 
@@ -44,3 +44,11 @@ cocos:verify:web的verifyWebProbe(options)要求--project、--browser、--report
 test.cocos-probe-preparation、test.cocos-engine-probe-lifecycle、test.cocos-web-verification-contracts登记full/blocker；最后一项仅验证工具HTTP/参数/来源/失败契约，Node契约不执行真实浏览器。根typecheck只检查src，Ubuntu q:full不安装Creator或启动真实浏览器。实际Creator SDK类型、构建、预览与Chrome矩阵独立验收，q:affected不替代q:full/q:release，release禁止缓存。
 
 旧三层禁真实Cocos/wx/fs；仅新outer可导入cc，且单向消费派生公共runtime，不能依赖tools/tests或核心内部。保持ActionPipeline、SaveFile和正式schema/config/fixture，不新增玩法或Stage1B、真实存储、wx、Nightly/CI平台或通用UI框架。
+
+## 临时单槽与本次反馈
+
+真实按钮AdvanceOneHour、SaveTemporary、LoadTemporary使用既有QinglanUiSceneProbeComponent路径。web_probe是固定本页内存槽，UI明确“本页临时存档，刷新后清空”；无持久化/文件/wx访问。保存420、推进480、读取恢复420；存读档不额外推进。空槽失败不修改当前时间或ready，下一健康操作恢复正常反馈。
+
+ProbeInteraction是无cc的单操作协调器，loading/busy/closing/destroyed不受理；一次受理只调用一次组件命令，无自动重试。结果依据command_result.status/error_message，不聚合旧snapshot区域错误；operation.sequence记录受理次数，operation与displayedOperation可只读观察。预期failed显示正常失败反馈，意外reject仍传播到组件错误记录；销毁后的迟到完成不更新节点。
+
+test.cocos-engine-probe-lifecycle同一任务实际执行新增tests/cocos-web-interaction.test.ts并登记辅助files/covers；trace.cocos.web-save-load-recovery闭合Queue、component、外层、浏览器工具及full/release。每个支持视口和resize场景实际点击新按钮，验证失败→健康命令、保存/推进/读取与刷新清空；Node与observer程序冒烟都不能替代真实点击。

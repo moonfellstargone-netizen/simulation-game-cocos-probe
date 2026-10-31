@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.32
+﻿# Code Index — Files — v0.0.2.33
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -74,3 +74,7 @@
 | `tests/cocos-web-verification-contracts.test.mjs` | tests | Node工具边界、HTTP、来源与失败契约 | 改视口或真实浏览器验收 | `test:cocos-web-verification-contracts`、真实`cocos:verify:web` |
 
 Node契约只验证工具边界，真实输入与引擎表现另由Creator/Chrome独立验收；trace.cocos.web-viewport-input连接两者，不互相冒充。
+
+## 临时存读档交互与恢复
+
+trace.cocos.web-save-load-recovery连接apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts、ProbeInteraction.ts和src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts；根typecheck仍只覆盖src。外层真实三按钮使用固定本页内存槽web_probe，当前反馈读取command_result，历史面板错误保留但不覆盖本次结果。ProbeInteraction保证busy与销毁后迟到保护；tests/cocos-web-interaction.test.ts由既有test.cocos-engine-probe-lifecycle实际执行并登记files/covers，新增helper和test分别验证单文件affected选择。Queue/component行为回归与浏览器工具契约保持full/blocker；真实Creator/Chrome物理点击、读取恢复及刷新清空独立验收，不能由Node通过推导。

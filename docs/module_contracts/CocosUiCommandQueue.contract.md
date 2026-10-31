@@ -58,3 +58,9 @@ tests/cocos-ui-shell-composition.test.ts
 tests/cocos-save-load-ui-binding.test.ts
 tests/cocos-minimal-menu-binding.test.ts
 ```
+
+## 当前命令结果归属
+
+command_result.status/error_message只描述本次命令。所有命令检查shell错误；menu_preview/menu_confirm另外检查menu.errors；save/load另外检查save_load.errors；create_session/destroy_session/refresh只看shell。其他区域的历史错误保留在snapshot，不升级为本次失败。当前真实失败仍为failed，原失败返回快照保持不变；refresh不承诺清除历史错误，destroy不把历史面板错误作为卸载失败。
+
+结果归属属于表现层，既有Session状态保护、完整顺序和业务结果不变；不清空全部反馈、不自动重试或重发Action。经公共bootstrap+component的回归验证时间仅推进一次，trace.cocos.web-save-load-recovery连接外层当前结果展示。

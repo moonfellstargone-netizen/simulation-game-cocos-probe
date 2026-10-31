@@ -1,6 +1,6 @@
 {
   "schemaVersion": "traceability-lite/v1",
-  "projectVersion": "v0.0.2.32",
+  "projectVersion": "v0.0.2.33",
   "currentFullReleaseTraceIds": [
     "trace.stage1a.actionpipeline",
     "trace.stage1a.save-load",
@@ -15,7 +15,8 @@
     "trace.runtime.bootstrap-resources",
     "trace.cocos.binding-async-recovery",
     "trace.cocos.web-bootstrap-probe",
-    "trace.cocos.web-viewport-input"
+    "trace.cocos.web-viewport-input",
+    "trace.cocos.web-save-load-recovery"
   ],
   "entries": [
     {
@@ -460,6 +461,43 @@
         "docs/module-cards/cocos-engine-probe.md",
         "docs/module_contracts/CocosEngineProbe.contract.md",
         "docs/CHECK_ARCHITECTURE.md"
+      ],
+      "gateRefs": [
+        "full",
+        "release"
+      ]
+    },
+    {
+      "id": "trace.cocos.web-save-load-recovery",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": [
+        "cocos-engine-probe",
+        "cocos-creator-adapter",
+        "tools",
+        "tests"
+      ],
+      "sourceRefs": [
+        "src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts",
+        "apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts",
+        "tools/cocos-probe/verify-web.mjs",
+        "tools/cocos-probe/lib/webProbeSupport.mjs"
+      ],
+      "testRefs": [
+        "test.cocos-command-queue",
+        "test.cocos-component-node-binding",
+        "test.cocos-engine-probe-lifecycle",
+        "test.cocos-probe-preparation",
+        "test.cocos-web-verification-contracts"
+      ],
+      "docRefs": [
+        "docs/module-cards/cocos-engine-probe.md",
+        "docs/module-cards/cocos-creator-adapter.md",
+        "docs/module_contracts/CocosEngineProbe.contract.md",
+        "docs/module_contracts/CocosUiCommandQueue.contract.md",
+        "docs/IMPLEMENTATION_SCOPE.md"
       ],
       "gateRefs": [
         "full",
