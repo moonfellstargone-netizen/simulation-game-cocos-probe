@@ -9,9 +9,9 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.34
+# TRACEABILITY_MATRIX — v0.0.2.35
 
-**Browser Local Save & Reload Recovery / 浏览器本地存档与刷新恢复版**
+**Web Farming Loop & Action Feedback / 网页种植收获与操作反馈版**
 
 ## 1. 定位
 
@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 本轮沿用**轻量追踪地基**，新增浏览器本地单槽保存与刷新后手动恢复链路，继承桌面视口与输入验收；既有真实Cocos外层已实现，旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
+- 本轮沿用**轻量追踪地基**，新增网页种植收获、本次业务结果与读档选择重建链路，继承本地存档、桌面视口与输入验收；既有真实Cocos外层已实现，旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
 
 ## 2. 状态语义
 
@@ -40,6 +40,14 @@ related:
 - `test:traceability-contracts` 校验 map、registry、module-graph 与 gate 一致性。
 
 ## 4. Active entries（与 traceability-map.json 对齐）
+
+### trace.cocos.web-farming-loop
+
+通过既有公开菜单实现真实Web选择、播种、正常时间推进和收获；ProbeFarming只管理outer选择与带单位数量，ProbeInteraction依据本次preview/ActionResult反馈，Queue.completed不等于业务成功。读档后重新核对选择，不借用历史菜单结果；公开数量和地块状态用于验收，不扩展核心规则或完整生长进度。
+
+sourceRefs连接ProbeFarming.ts、ProbeLifetime.ts、ProbeInteraction.ts、CocosWebProbe.ts、verify-web.mjs与webProbeSupport.mjs。test.cocos-engine-probe-lifecycle实际执行新增tests/cocos-web-farming.test.ts及既有交互、存储和生命周期文件；prepare及工具契约保持full/blocker，新增helper/测试的args/files/covers与单文件affected闭合。
+
+真实960×640的built-web和editor-preview分别运行超量拒绝、播种保存、按天成熟、读档恢复并清除失效选择、再次成熟收获及再次种植。局部选择和数量调整不发送正式命令；原三按钮矩阵、存储故障、刷新/同context新页面、来源和销毁验证保持。Node与根typecheck不能代替真实Creator/Chrome证据；既有全部active trace保留。
 
 ### trace.cocos.web-save-load-recovery
 

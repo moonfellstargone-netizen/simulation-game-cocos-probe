@@ -1,4 +1,4 @@
-﻿# Cocos Map — v0.0.2.34
+﻿# Cocos Map — v0.0.2.35
 
 ## 系统职责
 
@@ -83,4 +83,10 @@ cocos-app, cocos-creator-adapter
 
 ## 浏览器本地存档与刷新恢复
 
-trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebProbe.ts、ProbeInteraction.ts及浏览器/固定来源工具；保留trace.cocos.web-save-load-recovery对既有Queue命令结果归属的追踪。真实三按钮AdvanceOneHour、SaveLocal、LoadLocal使用固定单槽web_probe和稳定项目key，启动不读写存储；同origin/profile刷新先创建新局，手动读取恢复保存状态。getter/读写拒绝和坏档保持当前会话，不回退内存。tests/cocos-browser-storage.test.ts与既有生命周期/交互回归由test.cocos-engine-probe-lifecycle实际执行，tests/cocos-web-serve-contracts.test.mjs由test.cocos-web-verification-contracts执行；files/covers、单文件affected及full/blocker闭合。ProbeInteraction保留本次反馈、busy和销毁后迟到保护；真实Creator/Chrome物理点击、刷新及同context新页面手动恢复独立验收，根typecheck只覆盖src，Node通过不能替代引擎或持久化证据。
+trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebProbe.ts、ProbeInteraction.ts及浏览器/固定来源工具；保留trace.cocos.web-save-load-recovery对既有Queue命令结果归属的追踪。既有三按钮AdvanceOneHour、SaveLocal、LoadLocal使用固定单槽web_probe和稳定项目key，启动不读写存储；同origin/profile刷新先创建新局，手动读取恢复保存状态。getter/读写拒绝和坏档保持当前会话，不回退内存。tests/cocos-browser-storage.test.ts与既有生命周期/交互回归由test.cocos-engine-probe-lifecycle实际执行，tests/cocos-web-serve-contracts.test.mjs由test.cocos-web-verification-contracts执行；files/covers、单文件affected及full/blocker闭合。ProbeInteraction保留本次反馈、busy和销毁后迟到保护；真实Creator/Chrome物理点击、刷新及同context新页面手动恢复独立验收，根typecheck只覆盖src，Node通过不能替代引擎或持久化证据。
+
+## 网页农事闭环
+
+trace.cocos.web-farming-loop连接纯outer选择辅助ProbeFarming.ts、窄公开消费类型ProbeLifetime.ts、本次结果协调ProbeInteraction.ts与真实CocosWebProbe.ts。只接既有plant_crop、advance_time、harvest_crop；当前公开收获列表只含可收获作物，不提供所有作物进度。挂载、动作后及手动load后刷新列表并清除失效选择。
+
+tests/cocos-web-farming.test.ts与交互回归随既有生命周期full/blocker实际运行；真实960×640的built/preview物理点击分别验证超量拒绝、数量/占用、读档恢复、收获实际产量与再次种植。保留原三按钮视口/resize及本地存储回归，不重定义Queue.completed或扩大核心接口。

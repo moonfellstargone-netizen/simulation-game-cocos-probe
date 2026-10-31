@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.34
+﻿# PROJECT_MAP — v0.0.2.35
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.34：**Browser Local Save & Reload Recovery**。推进真实Web外层浏览器本地单槽保存及刷新后手动恢复，Node和独立浏览器验收由trace.cocos.browser-local-save连接，既有trace.cocos.web-save-load-recovery保持；保留视口输入、唯一来源派生及既有启动/绑定/存储回归。
+v0.0.2.35：**Web Farming Loop & Action Feedback**。真实Web连接已有Stage1A播种、正常时间推进和收获，准确解释本次业务结果并在读档后重建选择；trace.cocos.web-farming-loop连接outer、Node行为与独立真实点击验收。保留本地单槽、视口输入、唯一来源派生及既有启动/绑定/存储追踪。
 
 ## 3. 权威边界
 

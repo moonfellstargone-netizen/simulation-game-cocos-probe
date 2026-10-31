@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ProbeLifetime, type ProbeCommand, type ProbeCommandResult } from '../apps/cocos-probe/template/assets/scripts/ProbeLifetime';
+import { ProbeLifetime, type ProbeCommand, type ProbeCommandResult, type ProbeMenuSnapshot } from '../apps/cocos-probe/template/assets/scripts/ProbeLifetime';
 import { ProbeInteraction, type ProbeInteractionView } from '../apps/cocos-probe/template/assets/scripts/ProbeInteraction';
 import { createStage1AHost, QinglanUiSceneProbeComponent, type CocosSessionHost } from '../src/cocos-creator-adapter';
 import { InMemorySaveStoragePort, type RuntimeConfigSnapshot } from '../src/game-core';
@@ -24,16 +24,20 @@ async function readyProbe(intercept?: (
   const errors: unknown[] = [];
   let calls = 0;
   let available = true;
+  let host: CocosSessionHost | null = null;
   const lifetime = new ProbeLifetime({
     loadResources: async () => ({
       snapshot, buildId: 'cocos_web_interaction_contract',
       schemas: Object.fromEntries(snapshot.schema_paths.map((path) => [path,
         JSON.parse(readFileSync(`design_snapshot/${path}`, 'utf8'))]))
     }),
-    createHost: (input) => createStage1AHost({
-      ...input, snapshot: input.snapshot as RuntimeConfigSnapshot,
-      storage: new InMemorySaveStoragePort(), nowIso8601: '2026-10-31T00:00:00.000Z'
-    }),
+    createHost: (input) => {
+      host = createStage1AHost({
+        ...input, snapshot: input.snapshot as RuntimeConfigSnapshot,
+        storage: new InMemorySaveStoragePort(), nowIso8601: '2026-10-31T00:00:00.000Z'
+      });
+      return host;
+    },
     createBinding: (host) => new QinglanUiSceneProbeComponent(host as CocosSessionHost, {
       applyNodeBindingPatch: () => {}
     }),
@@ -51,7 +55,8 @@ async function readyProbe(intercept?: (
   await lifetime.start();
   return {
     lifetime, interaction, publications, errors, calls: () => calls,
-    setAvailable: (value: boolean) => { available = value; }
+    setAvailable: (value: boolean) => { available = value; },
+    session: () => host!.requireSession()
   };
 }
 
@@ -194,4 +199,82 @@ test('an incomplete success observation is not presented as a successful save', 
   assert.equal(p.interaction.status().operation.status, 'failed');
   assert.equal(p.interaction.status().operation.worldMinute, null);
   assert.equal(p.interaction.status().busy, false);
+});
+
+test('a completed queue command with a real rejected preview is not shown as a successful action', async (t) => {
+  const p = await readyProbe();
+  t.after(() => p.lifetime.dispose());
+  const before = p.session().getSelectableViewModel();
+  const field = before.field_options.find((option) => option.enabled)!;
+  const seed = before.seed_lot_options.find((option) => option.enabled)!;
+  const result = await p.interaction.execute({ name: 'menu_confirm', selection: {
+    action_type: 'plant_crop', field_option_id: field.id, seed_lot_option_id: seed.id,
+    seed_quantity: { amount: seed.quantity.amount + 1, unit: seed.quantity.unit }
+  } } as ProbeCommand);
+  assert.equal(result?.command_result.status, 'completed', 'the queue contract remains unchanged');
+  assert.equal(p.interaction.status().operation.status, 'failed');
+  assert.equal(p.interaction.status().operation.errorMessage, 'ERR_NOT_ENOUGH_RESOURCE');
+  assert.equal(p.interaction.status().operation.message, '资源不足，请调整数量');
+  assert.deepEqual(p.session().getSelectableViewModel(), before, 'a preview refusal changes no public farming state');
+  await p.interaction.execute(ADVANCE);
+  assert.equal(p.interaction.status().operation.status, 'completed');
+  assert.equal(p.lifetime.status().timeLabel, 'day 1 minute 420');
+});
+
+test('missing or mismatched public action outcomes fail closed and a later valid result recovers', async () => {
+  const business = { success: true, status_code: 'OK', message_key: 'action.ok', message_params: [] };
+  const valid: ProbeMenuSnapshot = {
+    last_preview_result: { ...business, action_type: 'advance_time' },
+    last_action_result: { ...business, request_id: 'observed_request', created_objects: [] }
+  };
+  const malformed: ProbeCommandResult[] = [
+    { command_result: { status: 'completed' } },
+    { command_result: { status: 'completed', snapshot: { menu: { ...valid, last_preview_result: null } } } },
+    { command_result: { status: 'completed', snapshot: { menu: {
+      ...valid, last_preview_result: { ...business, action_type: 'harvest_crop' }
+    } } } },
+    { command_result: { status: 'completed', snapshot: { menu: { ...valid, last_action_result: null } } } },
+    { command_result: { status: 'completed', snapshot: { menu: {
+      ...valid, last_action_result: { ...business, request_id: '', created_objects: [] }
+    } } } },
+    { command_result: { status: 'completed', command_name: 'load', snapshot: { menu: valid } } }
+  ];
+  for (const observation of malformed) {
+    let reply = observation;
+    const interaction = new ProbeInteraction({ isAvailable: () => true,
+      execute: async () => reply, onChange: () => {} });
+    await assert.rejects(interaction.execute(ADVANCE), /ERR_COCOS_PROBE_(ACTION_SUMMARY_MISSING_OR_MISMATCHED|COMMAND_RESULT_MISMATCH)/);
+    assert.equal(interaction.status().operation.status, 'failed');
+    assert.equal(interaction.status().busy, false);
+    reply = { command_result: { status: 'completed', command_name: 'menu_confirm', snapshot: { menu: valid } } };
+    await interaction.execute(ADVANCE);
+    assert.equal(interaction.status().operation.status, 'completed');
+    assert.equal(interaction.status().operation.message, '已推进一小时');
+    assert.equal(interaction.status().operation.sequence, 2);
+  }
+});
+
+test('an observed action failure is distinct from preview success and cannot replace load-specific feedback', async () => {
+  const business = { success: true, status_code: 'OK', message_key: 'action.ok', message_params: [] };
+  const menu: ProbeMenuSnapshot = {
+    last_preview_result: { ...business, action_type: 'plant_crop' },
+    last_action_result: { ...business, success: false, status_code: 'ERR_NOT_ENOUGH_RESOURCE',
+      request_id: 'failed_request', created_objects: [] }
+  };
+  let reply: ProbeCommandResult = { command_result: { status: 'completed', snapshot: { menu } } };
+  const interaction = new ProbeInteraction({ isAvailable: () => true, execute: async () => reply, onChange: () => {} });
+  await interaction.execute({ name: 'menu_confirm', selection: {
+    action_type: 'plant_crop', field_option_id: 'selected_field', seed_lot_option_id: 'selected_seed',
+    seed_quantity: { amount: 1, unit: 'count' }
+  } });
+  assert.equal(interaction.status().operation.status, 'failed');
+  assert.equal(interaction.status().operation.errorMessage, 'ERR_NOT_ENOUGH_RESOURCE');
+  assert.equal(interaction.status().operation.message, '资源不足，请调整数量');
+  reply = { command_result: { status: 'completed', snapshot: { menu,
+    save_load: { last_load_result: { slot_id: 'web_probe', world_minute: 420 } }
+  } } };
+  await interaction.execute(LOAD);
+  assert.equal(interaction.status().operation.status, 'completed');
+  assert.equal(interaction.status().operation.message, '已恢复本地存档');
+  assert.equal(interaction.status().operation.worldMinute, 420);
 });

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertClickObservation, assertLocalSaveRecovery, assertStoredSaveUnchanged, assertUiCommandObservation, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, webTreeDigest } from './lib/webProbeSupport.mjs';
+import { assertClickObservation, assertFarmingCommandObservation, assertFarmingLoadRecovery, assertFarmingProjection, assertLocalSaveRecovery, assertLocalSelectionObservation, assertStoredSaveUnchanged, assertUiCommandObservation, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest } from './lib/webProbeSupport.mjs';
 
 const ROOT = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '../..'));
 const MATRIX = [
@@ -13,7 +13,8 @@ const MATRIX = [
 const settle = (page) => page.evaluate(() => new Promise((accept) => requestAnimationFrame(() => requestAnimationFrame(accept))));
 const status = (page) => page.evaluate(() => globalThis.__cocosWebProbe.status());
 const scroll = (page) => page.evaluate(() => ({ x: scrollX, y: scrollY }));
-const BUTTONS = ['AdvanceOneHour', 'SaveLocal', 'LoadLocal'];
+const SELECTION_BUTTONS = ['SelectField', 'SelectSeed', 'SelectCrop', 'SeedAmountDecrease', 'SeedAmountIncrease'];
+const BUTTONS = ['AdvanceOneHour', 'SaveLocal', 'LoadLocal', ...SELECTION_BUTTONS, 'PlantCrop', 'AdvanceOneDay', 'HarvestCrop'];
 const STORAGE_KEY = 'qinglan.simulation-game.cocos-probe.save.web_probe';
 const EMPTY_SLOT_ERROR = 'ERR_SAVE_SLOT_NOT_FOUND:web_probe';
 
@@ -81,7 +82,11 @@ async function physicalClick(page, caseName, result, recordDir, buttonName = 'Ad
   const observation = { caseName, buttonName, layout, before, after: await status(page), eventCount: await page.evaluate((name) => globalThis.__webProbeButtonEvents[name], buttonName) - countBefore, scrollBefore, scrollDown, scrollAfter: await scroll(page) };
   result.clicks.push(observation);
   await page.screenshot({ path: join(recordDir, caseName + '.png'), fullPage: true });
-  if (buttonName === 'AdvanceOneHour') {
+  if (SELECTION_BUTTONS.includes(buttonName)) {
+    assertLocalSelectionObservation(observation, expected);
+  } else if (buttonName === 'PlantCrop' || buttonName === 'AdvanceOneDay' || buttonName === 'HarvestCrop') {
+    assertFarmingCommandObservation(observation, expected);
+  } else if (buttonName === 'AdvanceOneHour') {
     assertClickObservation(observation);
     assertUiCommandObservation(observation, { name: 'menu_confirm', status: 'completed', timeLabel: observation.after.timeLabel });
   } else {
@@ -175,6 +180,69 @@ async function disposeProbe(page) {
   assert.equal(disposed.displayedTime, null);
   assert.equal(resourceBefore - resourceAfter, 1, 'component must release exactly its retained JsonAsset reference');
   return { before, disposed, resourceBefore, resourceAfter };
+}
+
+async function farmingLoop(browser, url, result, recordDir, logs) {
+  const context = await browser.newContext({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
+  try {
+    const page = await context.newPage(); watchErrors(page, 'farming-loop', logs);
+    await page.goto(url); await awaitReady(page); await attachButtonObservation(page);
+    const initial = await status(page);
+    const initialFarming = assertFarmingProjection(initial);
+    for (const key of ['selectedFieldId', 'selectedSeedId', 'selectedCropId']) assert.equal(initialFarming[key], null, 'startup must wait for an explicit player selection');
+    const field = initialFarming.fieldOptions.find((item) => item.enabled);
+    const seed = initialFarming.seedOptions.find((item) => item.enabled);
+    assert.ok(field && seed, 'the current public new game must offer a field and seed');
+    await physicalClick(page, 'farming-select-field', result, recordDir, 'SelectField', { key: 'selectedFieldId', value: field.id });
+    await physicalClick(page, 'farming-select-seed', result, recordDir, 'SelectSeed', { key: 'selectedSeedId', value: seed.id });
+    assert.ok(Number.isSafeInteger(seed.quantity.amount) && seed.quantity.amount > 0 && seed.quantity.amount <= 40, 'the real quantity-rejection case needs a bounded count-unit seed batch');
+    assert.equal(seed.quantity.unit, 'count', 'the quantity control test must use the public seed unit');
+    // Every quantity change is a real player click. Test bounds prevent an unbounded verification loop.
+    for (let amount = initialFarming.seedAmount + 1; amount <= seed.quantity.amount + 1; amount++) {
+      await physicalClick(page, 'farming-quantity-increase-' + amount, result, recordDir, 'SeedAmountIncrease', { key: 'seedAmount', value: amount });
+    }
+    const rejected = await physicalClick(page, 'farming-resource-rejected', result, recordDir, 'PlantCrop', {
+      actionType: 'plant_crop', status: 'failed', timeLabel: initial.timeLabel, errorMessage: 'ERR_NOT_ENOUGH_RESOURCE'
+    });
+    assert.match(rejected.after.displayedOperation, /资源不足/, 'business rejection must be visible instead of a success message');
+    for (let amount = seed.quantity.amount; amount >= 1; amount--) {
+      await physicalClick(page, 'farming-quantity-decrease-' + amount, result, recordDir, 'SeedAmountDecrease', { key: 'seedAmount', value: amount });
+    }
+    const planted = await physicalClick(page, 'farming-plant', result, recordDir, 'PlantCrop', { actionType: 'plant_crop', status: 'completed', timeLabel: initial.timeLabel });
+    const savedState = await status(page);
+    await physicalClick(page, 'farming-save-planted', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: savedState.timeLabel });
+    const saved = await storedSave(page);
+    assert.ok(typeof saved.raw === 'string' && saved.raw.length > 0);
+    const mature = async (prefix) => {
+      let days = 0;
+      while (!(await status(page)).farming.harvestableOptions.some((item) => item.field_plot_id === field.id && item.enabled)) {
+        assert.ok(days < 30, 'the selected crop must become publicly harvestable within the declared verification bound');
+        const current = await status(page);
+        const next = timeInMinutes(current.timeLabel) + 1440;
+        const timeLabel = `day ${Math.floor(next / 1440)} minute ${next % 1440}`;
+        await physicalClick(page, prefix + '-day-' + (++days), result, recordDir, 'AdvanceOneDay', { actionType: 'advance_time', status: 'completed', timeLabel });
+        assertStoredSaveUnchanged(saved, await storedSave(page));
+      }
+      return days;
+    };
+    const beforeLoadDays = await mature('farming-before-load');
+    const ripe = (await status(page)).farming.harvestableOptions.find((item) => item.enabled);
+    await physicalClick(page, 'farming-select-before-load', result, recordDir, 'SelectCrop', { key: 'selectedCropId', value: ripe.id });
+    const loaded = await physicalClick(page, 'farming-load-planted', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: savedState.timeLabel });
+    assertFarmingLoadRecovery(savedState, loaded);
+    assertStoredSaveUnchanged(saved, await storedSave(page));
+    const afterLoadDays = await mature('farming-after-load');
+    const restoredRipe = (await status(page)).farming.harvestableOptions.find((item) => item.enabled);
+    await physicalClick(page, 'farming-select-restored-crop', result, recordDir, 'SelectCrop', { key: 'selectedCropId', value: restoredRipe.id });
+    const harvestTime = (await status(page)).timeLabel;
+    const harvested = await physicalClick(page, 'farming-harvest', result, recordDir, 'HarvestCrop', { actionType: 'harvest_crop', status: 'completed', timeLabel: harvestTime });
+    assertStoredSaveUnchanged(saved, await storedSave(page));
+    await physicalClick(page, 'farming-select-next-field', result, recordDir, 'SelectField', { key: 'selectedFieldId', value: field.id });
+    const replanted = await physicalClick(page, 'farming-next-plant', result, recordDir, 'PlantCrop', { actionType: 'plant_crop', status: 'completed', timeLabel: harvestTime });
+    const lifecycle = await disposeProbe(page);
+    assertStoredSaveUnchanged(saved, await storedSave(page));
+    return { scope: 'real physical controls in an isolated 960x640 BrowserContext; public menu projections only', initial, rejected, planted, saved: storedEvidence(saved), savedState, beforeLoadDays, loaded, afterLoadDays, harvested, replanted, lifecycle };
+  } finally { await context.close(); }
 }
 
 async function storageFailureRecovery(browser, url, result, recordDir, logs) {
@@ -358,6 +426,7 @@ export async function verifyWebProbe(options) {
       result.resizeIdentityVerified = true;
       result.resizeLifecycle = await disposeProbe(page);
     } finally { await context.close(); }
+    result.farming = await farmingLoop(browser, result.url, result, recordDir, logs);
     result.storageRecovery = await storageFailureRecovery(browser, result.url, result, recordDir, logs);
     if (!parsed.previewUrl) {
       assert.ok(resourceUrl, 'actual probe resource URL must be observed');

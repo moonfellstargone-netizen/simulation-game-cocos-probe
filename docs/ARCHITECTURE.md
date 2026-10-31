@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.34
+﻿# ARCHITECTURE — v0.0.2.35
 
-当前版本：v0.0.2.34 / Browser Local Save & Reload Recovery。本轮只在真实Web外层注入浏览器本地单槽Port，刷新后手动读取恢复；既有Queue本次结果、三层边界和玩法状态流转保持。
+当前版本：v0.0.2.35 / Web Farming Loop & Action Feedback。本轮只在真实Web外层连接既有农事菜单与公开结果；纯选择辅助不持有可变运行态，既有Queue契约、三层边界和玩法状态流转保持。
 
 ## 1. 业务架构不变
 
@@ -79,3 +79,9 @@ Node中的准备契约和外层生命周期测试登记为full/blocker，由trac
 BrowserSaveStoragePort惰性取得Storage，只透传稳定key下的原始字符串，固定槽web_probe，不解析SaveFile、不改变Session候选校验后提交策略。启动不自动load/save或覆盖旧档，刷新后的新局通过用户点击读取才恢复。getter/read/write错误沿现有操作失败链路返回，无静默内存回退；坏档保留当前会话及原档，健康操作可继续。移除会写入该槽的observer.memoryRoundtrip诊断。
 
 tools/cocos-probe/serve.mjs复用严格构建来源和HTTP保护，显式固定端口且冲突失败，不自动变更origin。跨浏览器/profile/origin、多槽、自动续档、云同步、冲突治理与正式迁移均不属于本版；Node与真实Creator/浏览器证据分别记录。见trace.cocos.browser-local-save。
+
+## 网页农事选择与结果反馈
+
+ProbeFarming位于apps/cocos-probe外层，只复制公开选项、管理当前选择和播种数量；正式状态始终由menu_confirm经过既有preview和ActionPipeline改变。成功读档后重新消费公开列表并清除失效选择，不直接修补SaveFile。
+
+ProbeInteraction区分队列处理完成与本次业务成功，menu_confirm核对公开preview/ActionResult及动作类型；save/load只读取对应本次结果。保留旧面板历史，不因旧结果改变本次判断，不重新定义Queue.completed或新增事务入口。trace.cocos.web-farming-loop追踪这条outer消费链。

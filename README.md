@@ -1,12 +1,12 @@
-# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.34
+# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.35
 
-**Browser Local Save & Reload Recovery / 浏览器本地存档与刷新恢复版**
+**Web Farming Loop & Action Feedback / 网页种植收获与操作反馈版**
 
 本仓库是 Cocos 微信试水代码项目**日常代码权威源**。正式玩法与契约权威仍为正式三包 v1.5.2.2。
 
-- 代码包版本：`v0.0.2.34`
-- npm package version：`0.0.2-34`
-- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_34`（权威源：`tools/quality/rules/project-target.json`）
+- 代码包版本：`v0.0.2.35`
+- npm package version：`0.0.2-35`
+- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_35`（权威源：`tools/quality/rules/project-target.json`）
 - 设计来源：`模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip`
 - 规则权威源：`tools/quality/rules/project-target.json`、`tools/quality/rules/context-doc-surface.rules.json`、`tools/quality/rules/architecture-boundary.rules.json`、`tools/quality/rules/traceability-map.json`
 - 代码权威：本 GitHub 仓库（非 zip 归档包）
@@ -22,7 +22,7 @@
 
 ## Task Intent Lock
 
-本轮唯一目标是通过既有SaveStoragePort在真实Web外层保存固定单槽原始存档字符串，使同一浏览器存储环境、同origin下，刷新或重新打开页面后可由用户手动读取恢复。AdvanceOneHour推进60分钟，SaveLocal与LoadLocal使用BrowserSaveStoragePort和固定槽web_probe；存读档不额外推进。启动仍创建既有新局，不自动读取或保存、不覆盖旧档；360→推进420→保存→推进480→刷新新局360→手动读取420。Storage访问失败如实反馈并保留当前会话，不静默回退内存，不手改仓库外生成页面。
+本轮唯一目标是在真实Web中通过既有公开接口完成Stage1A“选择地块、种子和数量→播种→明确时间推进→收获”，准确反馈本次业务结果，并在手动读档后重建有效选择。outer只消费公开菜单快照和ActionResult，不直接修改SaveFile；plant_crop、advance_time、harvest_crop仍经既有预览与正式Action入口。保留推进一小时，可按一天推进正常世界时间，不硬编码成熟时点或改变生长规则。
 
 工具只读取仓库唯一src/design_snapshot派生的工作副本。prepare继续导出snapshot及全部58项Schema并记录Git来源/输入产物摘要；build记录实际Web产物清单摘要，verify核对构建关联和产物字节后才启动浏览器，拒绝替换或篡改的Web目录。工程、依赖、报告、缓存和构建仍位于仓库外，不形成第二源码权威。
 
@@ -32,7 +32,7 @@
 
 构建网页矩阵含800×600、DPR2及四次resize点击；编辑器预览只承诺1440×1200和960×640/DPR1及960→1440→960三次resize点击，官方Default设备模拟器800裁剪场景未支持。具体范围见外层契约，不推导手机或微信适配。
 
-导航与追踪：trace.cocos.browser-local-save，以及保留的trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input和trace.cocos.web-bootstrap-probe。实际失败先定位，不通过降低架构检查、跳过门禁或调用observer.advance代替物理点击制造通过。
+导航与追踪：trace.cocos.web-farming-loop，以及保留的trace.cocos.browser-local-save、trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input和trace.cocos.web-bootstrap-probe。实际失败先定位，不通过降低架构检查、跳过门禁或调用observer.advance代替物理点击制造通过。
 
 执行方使用Cursor时必须先做预检报告，用户或GPT确认后才可修改文件。复杂任务须先做Scope Discovery。
 
@@ -97,3 +97,11 @@ CI 使用只读仓库权限、固定官方 Action 提交，不持久化 checkout
 保存后刷新会先显示新局，点击“读取本地存档”才恢复。浏览器存储按协议、主机、端口及浏览器存储环境隔离；不同来源/浏览器不共享，数据也可能被用户清除。使用cocos:serve:web显式指定固定端口，并始终打开其输出的127.0.0.1地址；端口占用时失败，不自动换端口。不要使用file://，也不要混用localhost与127.0.0.1。该最小服务先核对固定构建来源与产物字节，开发期cocos:verify:web的随机端口/全新BrowserContext用于隔离自动验收，不能当作日常存档地址。
 
 完整Creator类型/构建、真实Chrome点击和持久化证据仍须独立执行；Node契约或CI通过不能替代。同origin同context的刷新与新页面恢复、坏档/受控Storage故障和健康恢复均纳入真实浏览器验收；测试故障注入不等于真实权限或配额耗尽实测。验证工具不调用observer.memoryRoundtrip覆盖玩家存档。
+
+## 网页农事操作与结果
+
+从公开SelectableViewModel选择当前可用地块、种子批次和播种数量；数量始终携带所选批次的单位。界面显示地块占用、可收获项和材料批次实际数量，不用批次数代替收获数量。公开收获列表不含全部生长中的作物，因此不显示完整生长条或成熟倒计时。
+
+ProbeFarming只管理外层选择与显示快照；挂载、动作完成及手动读取后重新核对选择，失效ID清除。ProbeInteraction保留busy/销毁保护，menu_confirm核对本次preview动作类型、preview/ActionResult的success与结果完整性；队列completed仅代表处理完成，业务拒绝、缺失或不匹配结果均不能显示成功。save/load只解释各自本次结果，不读取历史菜单成功摘要。
+
+BrowserSaveStoragePort保留稳定单槽web_probe、同origin/profile手动恢复和启动不访问存储约束；失败保护与原始字符串透传不变。tests/cocos-web-farming.test.ts加入既有test:cocos-engine-probe-lifecycle实际执行集合，full/blocker及args/files/covers闭合。真实农事完整点击闭环在960×640的built-web和editor-preview分别验收；既有三按钮视口矩阵、存储故障、刷新/新页面及销毁回归继续执行，Node不替代真实Creator/Chrome证据。
