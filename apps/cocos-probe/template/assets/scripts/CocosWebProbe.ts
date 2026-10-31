@@ -2,12 +2,12 @@ import {
   _decorator, Button, Camera, Canvas, Color, Component, Graphics, isValid,
   JsonAsset, Label, Layers, Node, resources, ResolutionPolicy, UITransform, view
 } from 'cc';
-import { createStage1AHost, InMemorySaveStoragePort, QinglanUiSceneProbeComponent } from '../generated/probe-runtime.js';
+import { createStage1AHost, QinglanUiSceneProbeComponent } from '../generated/probe-runtime.js';
 import { ProbeLifetime, type ProbeCommand, type ProbePhase, type ProbeResources } from './ProbeLifetime';
 import { ProbeInteraction } from './ProbeInteraction';
+import { BrowserSaveStoragePort, BROWSER_SAVE_SLOT_ID } from './BrowserSaveStoragePort';
 
 const { ccclass } = _decorator;
-const TEMPORARY_SLOT = 'web_probe';
 const ADVANCE_COMMAND = { name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } } as const;
 
 interface ProbeView {
@@ -59,7 +59,7 @@ export class CocosWebProbe extends Component {
         });
       }),
       createHost: (input) => createStage1AHost({
-        ...input, storage: new InMemorySaveStoragePort(), nowIso8601: new Date().toISOString()
+        ...input, storage: new BrowserSaveStoragePort(), nowIso8601: new Date().toISOString()
       }),
       createBinding: (host) => new QinglanUiSceneProbeComponent(host, {
         applyNodeBindingPatch: (patch) => {
@@ -95,8 +95,8 @@ export class CocosWebProbe extends Component {
       void commands.execute(command).catch((error) => unexpected(error));
     };
     ui.buttons[0].node.on(Button.EventType.CLICK, () => executeButton(ADVANCE_COMMAND));
-    ui.buttons[1].node.on(Button.EventType.CLICK, () => executeButton({ name: 'save', selection: { slot_id: TEMPORARY_SLOT } }));
-    ui.buttons[2].node.on(Button.EventType.CLICK, () => executeButton({ name: 'load', selection: { slot_id: TEMPORARY_SLOT } }));
+    ui.buttons[1].node.on(Button.EventType.CLICK, () => executeButton({ name: 'save', selection: { slot_id: BROWSER_SAVE_SLOT_ID } }));
+    ui.buttons[2].node.on(Button.EventType.CLICK, () => executeButton({ name: 'load', selection: { slot_id: BROWSER_SAVE_SLOT_ID } }));
 
     const executeRequired = async (command: ProbeCommand) => {
       const result = await commands.execute(command);
@@ -113,13 +113,6 @@ export class CocosWebProbe extends Component {
         nodeValid: alive(), errors: [...errors]
       }),
       advance: () => executeRequired(ADVANCE_COMMAND),
-      memoryRoundtrip: async () => {
-        const before = lifetime.status().timeLabel;
-        await executeRequired({ name: 'save', selection: { slot_id: TEMPORARY_SLOT } });
-        await executeRequired(ADVANCE_COMMAND);
-        await executeRequired({ name: 'load', selection: { slot_id: TEMPORARY_SLOT } });
-        if (lifetime.status().timeLabel !== before) throw new Error('ERR_COCOS_PROBE_MEMORY_RESTORE_MISMATCH');
-      },
       dispose: () => { if (alive()) ui.root.destroy(); }
     });
     (globalThis as typeof globalThis & { __cocosWebProbe?: typeof observer }).__cocosWebProbe = observer;
@@ -158,12 +151,12 @@ export class CocosWebProbe extends Component {
     const time = this.makeLabel(canvasNode, 'Time', '等待启动', 116, 30);
     const buttons = [
       this.makeButton(canvasNode, 'AdvanceOneHour', '推进一小时', 0, 24),
-      this.makeButton(canvasNode, 'SaveTemporary', '临时保存', -158, -64),
-      this.makeButton(canvasNode, 'LoadTemporary', '读取临时存档', 158, -64)
+      this.makeButton(canvasNode, 'SaveLocal', '本地保存', -158, -64),
+      this.makeButton(canvasNode, 'LoadLocal', '读取本地存档', 158, -64)
     ];
     const phase = this.makeLabel(canvasNode, 'Status', '准备启动', -145, 19);
-    const operation = this.makeLabel(canvasNode, 'Operation', '可推进时间或临时保存', -190, 21);
-    this.makeLabel(canvasNode, 'TemporaryHint', '本页临时存档，刷新后清空', -249, 18);
+    const operation = this.makeLabel(canvasNode, 'Operation', '可推进时间或本地保存', -190, 21);
+    this.makeLabel(canvasNode, 'LocalSaveHint', '本浏览器本地存档，刷新后可手动读取', -249, 18);
     return { root: this.node, time, phase, operation, buttons };
   }
 

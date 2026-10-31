@@ -55,7 +55,7 @@ async function readyProbe(intercept?: (
   };
 }
 
-test('empty temporary load reports this operation failure, then one accepted advance recovers without startup failure', async (t) => {
+test('empty slot reports this operation failure, then one accepted advance recovers without startup failure', async (t) => {
   const p = await readyProbe();
   t.after(() => p.lifetime.dispose());
   const load = await p.interaction.execute(LOAD);
@@ -63,7 +63,7 @@ test('empty temporary load reports this operation failure, then one accepted adv
   assert.deepEqual(p.interaction.status(), {
     busy: false,
     operation: {
-      sequence: 1, name: 'load', status: 'failed', message: '暂无临时存档，请先保存',
+      sequence: 1, name: 'load', status: 'failed', message: '暂无本地存档，请先保存',
       errorMessage: 'ERR_SAVE_SLOT_NOT_FOUND:web_probe', slotId: 'web_probe', worldMinute: null
     }
   });
@@ -80,19 +80,19 @@ test('empty temporary load reports this operation failure, then one accepted adv
   assert.deepEqual(p.errors, []);
 });
 
-test('save and load feedback reads the current public result and the fixed temporary slot restores the saved time', async (t) => {
+test('save and load feedback reads the current public result and the fixed slot restores the saved time', async (t) => {
   const p = await readyProbe();
   t.after(() => p.lifetime.dispose());
   assert.equal((await p.interaction.execute(SAVE))?.command_result.status, 'completed');
   assert.deepEqual(p.interaction.status().operation, {
-    sequence: 1, name: 'save', status: 'completed', message: '临时保存成功',
+    sequence: 1, name: 'save', status: 'completed', message: '本地保存成功',
     errorMessage: null, slotId: 'web_probe', worldMinute: 360
   });
   await p.interaction.execute(ADVANCE);
   assert.equal(p.lifetime.status().timeLabel, 'day 1 minute 420');
   assert.equal((await p.interaction.execute(LOAD))?.command_result.status, 'completed');
   assert.deepEqual(p.interaction.status().operation, {
-    sequence: 3, name: 'load', status: 'completed', message: '已恢复临时存档',
+    sequence: 3, name: 'load', status: 'completed', message: '已恢复本地存档',
     errorMessage: null, slotId: 'web_probe', worldMinute: 360
   });
   assert.equal(p.lifetime.status().timeLabel, 'day 1 minute 360');

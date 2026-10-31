@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertClickObservation, assertUiCommandObservation, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, webTreeDigest } from './lib/webProbeSupport.mjs';
+import { assertClickObservation, assertLocalSaveRecovery, assertStoredSaveUnchanged, assertUiCommandObservation, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, webTreeDigest } from './lib/webProbeSupport.mjs';
 
 const ROOT = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '../..'));
 const MATRIX = [
@@ -13,7 +13,8 @@ const MATRIX = [
 const settle = (page) => page.evaluate(() => new Promise((accept) => requestAnimationFrame(() => requestAnimationFrame(accept))));
 const status = (page) => page.evaluate(() => globalThis.__cocosWebProbe.status());
 const scroll = (page) => page.evaluate(() => ({ x: scrollX, y: scrollY }));
-const BUTTONS = ['AdvanceOneHour', 'SaveTemporary', 'LoadTemporary'];
+const BUTTONS = ['AdvanceOneHour', 'SaveLocal', 'LoadLocal'];
+const STORAGE_KEY = 'qinglan.simulation-game.cocos-probe.save.web_probe';
 const EMPTY_SLOT_ERROR = 'ERR_SAVE_SLOT_NOT_FOUND:web_probe';
 
 async function awaitReady(page) {
@@ -91,41 +92,73 @@ async function physicalClick(page, caseName, result, recordDir, buttonName = 'Ad
 
 async function emptySlotClick(page, caseName, result, recordDir) {
   const before = await status(page);
-  return await physicalClick(page, caseName, result, recordDir, 'LoadTemporary', {
+  return await physicalClick(page, caseName, result, recordDir, 'LoadLocal', {
     name: 'load', status: 'failed', timeLabel: before.timeLabel, errorMessage: EMPTY_SLOT_ERROR
   });
 }
 
 async function saveAdvanceLoad(page, name, result, recordDir) {
   const savedTime = (await status(page)).timeLabel;
-  const saved = await physicalClick(page, name + '-save', result, recordDir, 'SaveTemporary', { name: 'save', status: 'completed', timeLabel: savedTime });
+  const saved = await physicalClick(page, name + '-save', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: savedTime });
+  const stored = await storedSave(page);
+  assert.ok(typeof stored.raw === 'string' && stored.raw.length > 0, 'save must write the browser project key');
   const advanced = await physicalClick(page, name + '-advance-after-save', result, recordDir);
-  const loaded = await physicalClick(page, name + '-load', result, recordDir, 'LoadTemporary', { name: 'load', status: 'completed', timeLabel: savedTime });
+  assertStoredSaveUnchanged(stored, await storedSave(page));
+  const loaded = await physicalClick(page, name + '-load', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: savedTime });
+  assertStoredSaveUnchanged(stored, await storedSave(page));
   return { saved, advanced, loaded };
 }
 
-async function reloadClearsTemporarySlot(page, name, result, recordDir) {
-  // A real navigation creates a new document and boots a new public probe. No storage APIs are injected.
+async function storedSave(page, controlled = false) {
+  return await page.evaluate(({ key, controlled }) => ({
+    origin: location.origin, key,
+    raw: controlled ? globalThis.__webProbeStorageFault.readRaw() : localStorage.getItem(key)
+  }), { key: STORAGE_KEY, controlled });
+}
+
+const storedEvidence = ({ raw, ...rest }) => ({ ...rest, bytes: raw === null ? null : Buffer.byteLength(raw), sha256: raw === null ? null : sha256(raw) });
+
+async function reloadAndReopenRecovery(page, name, saved, result, recordDir, logs) {
+  // Navigation uses the same BrowserContext and origin. No test storage replacement is installed here.
   await page.evaluate(() => { globalThis.__webProbePreviousDocument = true; });
   await page.reload();
   await awaitReady(page);
   const initial = await status(page);
   assert.equal(await page.evaluate(() => globalThis.__webProbePreviousDocument), undefined, 'reload must create a new document');
-  assert.equal(initial.timeLabel, 'day 1 minute 360', 'reload must create fresh public game state');
-  assert.equal(initial.operation.sequence, 0, 'reload must reset the UI command lifetime');
-  assert.equal(initial.operation.status, 'idle');
-  assert.equal(initial.busy, false);
+  const afterStartup = await storedSave(page);
   await attachButtonObservation(page);
-  const emptyLoad = await emptySlotClick(page, name + '-reload-empty-load', result, recordDir);
-  return { initial, emptyLoad, lifecycle: await memoryAndDispose(page) };
+  const loaded = await physicalClick(page, name + '-reload-load', result, recordDir, 'LoadLocal', {
+    name: 'load', status: 'completed', timeLabel: saved.timeLabel
+  });
+  const afterLoad = await storedSave(page);
+  assertLocalSaveRecovery({ saved, initial, afterStartup, loaded, afterLoad });
+  const lifecycle = await disposeProbe(page);
+  assertStoredSaveUnchanged(saved, await storedSave(page));
+  const context = page.context();
+  await page.close();
+  const reopened = await context.newPage();
+  let reopen;
+  try {
+    watchErrors(reopened, name + '-reopen', logs);
+    await reopened.goto(result.url); await awaitReady(reopened);
+    const initial = await status(reopened);
+    const afterStartup = await storedSave(reopened);
+    await attachButtonObservation(reopened);
+    const loaded = await physicalClick(reopened, name + '-reopen-load', result, recordDir, 'LoadLocal', {
+      name: 'load', status: 'completed', timeLabel: saved.timeLabel
+    });
+    const afterLoad = await storedSave(reopened);
+    assertLocalSaveRecovery({ saved, initial, afterStartup, loaded, afterLoad });
+    const lifecycle = await disposeProbe(reopened);
+    assertStoredSaveUnchanged(saved, await storedSave(reopened));
+    reopen = { initial, afterStartup: storedEvidence(afterStartup), loaded, afterLoad: storedEvidence(afterLoad), lifecycle };
+  } finally { await reopened.close(); }
+  return { saved: storedEvidence(saved), initial, afterStartup: storedEvidence(afterStartup), loaded, afterLoad: storedEvidence(afterLoad), lifecycle, reopen, storageScope: 'same-origin-and-same-BrowserContext; closing a page does not close the browser profile' };
 }
 
-async function memoryAndDispose(page) {
+async function disposeProbe(page) {
   const before = await status(page);
-  await page.evaluate(() => globalThis.__cocosWebProbe.memoryRoundtrip());
-  const restored = await status(page);
-  assert.equal(restored.timeLabel, before.timeLabel);
-  assert.equal(restored.displayedTime, restored.timeLabel);
+  assert.equal(before.displayedTime, before.timeLabel);
   const resourceBefore = await page.evaluate(async () => {
     const cc = await System.import('cc');
     globalThis.__webProbeResource = cc.resources.get('probe-resources', cc.JsonAsset);
@@ -141,7 +174,102 @@ async function memoryAndDispose(page) {
   assert.equal(disposed.nodeValid, false);
   assert.equal(disposed.displayedTime, null);
   assert.equal(resourceBefore - resourceAfter, 1, 'component must release exactly its retained JsonAsset reference');
-  return { restored, disposed, resourceBefore, resourceAfter };
+  return { before, disposed, resourceBefore, resourceAfter };
+}
+
+async function storageFailureRecovery(browser, url, result, recordDir, logs) {
+  const context = await browser.newContext({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
+  try {
+    // These switches inject a rejection before the actual native operation. Healthy operations still use native Storage.
+    await context.addInitScript(({ key }) => {
+      const storage = globalThis.localStorage;
+      const read = Storage.prototype.getItem;
+      const write = Storage.prototype.setItem;
+      const control = {
+        mode: 'none', calls: { getter: 0, read: 0, write: 0 },
+        readRaw: () => read.call(storage, key),
+        writeRaw: (raw) => write.call(storage, key, raw)
+      };
+      Object.defineProperty(globalThis, 'localStorage', { configurable: true, get() {
+        control.calls.getter++;
+        if (control.mode === 'getter') throw new Error('controlled-localStorage-getter');
+        return storage;
+      } });
+      Storage.prototype.getItem = function (requested) {
+        if (this === storage && requested === key) {
+          control.calls.read++;
+          if (control.mode === 'read') throw new Error('controlled-localStorage-read');
+        }
+        return read.call(this, requested);
+      };
+      Storage.prototype.setItem = function (requested, value) {
+        if (this === storage && requested === key) {
+          control.calls.write++;
+          if (control.mode === 'write') throw new Error('controlled-localStorage-write');
+        }
+        return write.call(this, requested, value);
+      };
+      globalThis.__webProbeStorageFault = control;
+    }, { key: STORAGE_KEY });
+    const page = await context.newPage(); watchErrors(page, 'storage-controlled-faults', logs);
+    await page.goto(url); await awaitReady(page); await attachButtonObservation(page);
+    assert.equal((await storedSave(page, true)).raw, null, 'a dedicated context must begin with an empty project slot');
+    await physicalClick(page, 'storage-fault-advance', result, recordDir);
+    await physicalClick(page, 'storage-fault-initial-save', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: 'day 1 minute 420' });
+    const saved = await storedSave(page, true);
+    await physicalClick(page, 'storage-fault-advance-after-save', result, recordDir);
+    const failures = [];
+    for (const [index, fault] of [
+      { mode: 'getter', name: 'save' }, { mode: 'getter', name: 'load' },
+      { mode: 'read', name: 'load' }, { mode: 'write', name: 'save' }
+    ].entries()) {
+      const before = await storedSave(page, true);
+      const countersBefore = await page.evaluate((mode) => {
+        globalThis.__webProbeStorageFault.mode = mode;
+        return { ...globalThis.__webProbeStorageFault.calls };
+      }, fault.mode);
+      const failed = await physicalClick(page, 'storage-fault-' + index, result, recordDir, fault.name === 'save' ? 'SaveLocal' : 'LoadLocal', {
+        name: fault.name, status: 'failed', timeLabel: 'day 1 minute 480', errorMessage: 'controlled-localStorage-' + fault.mode
+      });
+      const after = await storedSave(page, true);
+      assertStoredSaveUnchanged(before, after);
+      const countersAfter = await page.evaluate(() => ({ ...globalThis.__webProbeStorageFault.calls }));
+      assert.equal(countersAfter[fault.mode] - countersBefore[fault.mode], 1, 'the rejected operation must be attempted once without fallback or retry');
+      await page.evaluate(() => { globalThis.__webProbeStorageFault.mode = 'none'; });
+      const healthyLoad = await physicalClick(page, 'storage-fault-' + index + '-healthy-load', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: 'day 1 minute 420' });
+      const healthySave = await physicalClick(page, 'storage-fault-' + index + '-healthy-save', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: 'day 1 minute 420' });
+      assertStoredSaveUnchanged(saved, await storedSave(page, true));
+      await physicalClick(page, 'storage-fault-' + index + '-continue', result, recordDir);
+      failures.push({ ...fault, injected: 'controlled-browser-rejection-before-native-operation; no real quota or policy exhaustion claimed', failed, preserved: storedEvidence(after), countersBefore, countersAfter, healthyLoad, healthySave });
+    }
+    const invalid = [
+      { name: 'json', raw: '{', prefix: 'ERR_COCOS_SESSION_LOAD_REJECTED:web_probe:' },
+      { name: 'schema', raw: '{}', prefix: 'ERR_COCOS_SESSION_LOAD_REJECTED:web_probe:ERR_COCOS_SESSION_VALIDATION_FAILED:load_candidate_before_commit:ERR_SCHEMA_VALIDATION_FAILED:' },
+      { name: 'audit', raw: (() => {
+        const value = JSON.parse(saved.raw);
+        assert.ok(value.storage_containers?.length > 0, 'audit fixture requires a real saved container');
+        value.storage_containers[0].used_capacity += 1;
+        return JSON.stringify(value);
+      })(), prefix: 'ERR_COCOS_SESSION_LOAD_REJECTED:web_probe:ERR_COCOS_SESSION_VALIDATION_FAILED:load_candidate_before_commit:ERR_STORAGE_AUDIT_FAILED:' }
+    ];
+    const badSaves = [];
+    for (const bad of invalid) {
+      await page.evaluate((raw) => globalThis.__webProbeStorageFault.writeRaw(raw), bad.raw);
+      const before = await storedSave(page, true);
+      const failed = await physicalClick(page, 'storage-invalid-' + bad.name, result, recordDir, 'LoadLocal', {
+        name: 'load', status: 'failed', timeLabel: 'day 1 minute 480', errorMessagePrefix: bad.prefix
+      });
+      assertStoredSaveUnchanged(before, await storedSave(page, true));
+      await page.evaluate((raw) => globalThis.__webProbeStorageFault.writeRaw(raw), saved.raw);
+      const healthyLoad = await physicalClick(page, 'storage-invalid-' + bad.name + '-healthy-load', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: 'day 1 minute 420' });
+      assertStoredSaveUnchanged(saved, await storedSave(page, true));
+      await physicalClick(page, 'storage-invalid-' + bad.name + '-continue', result, recordDir);
+      badSaves.push({ name: bad.name, injected: 'deliberately invalid raw string in an isolated browser context', rejected: storedEvidence(before), failed, healthyLoad });
+    }
+    const lifecycle = await disposeProbe(page);
+    assertStoredSaveUnchanged(saved, await storedSave(page, true));
+    return { storageScope: 'isolated BrowserContext; real native localStorage with controlled rejection hooks', failures, badSaves, lifecycle };
+  } finally { await context.close(); }
 }
 
 function watchErrors(page, name, logs) {
@@ -191,10 +319,14 @@ export async function verifyWebProbe(options) {
         await emptySlotClick(page, name + '-empty-load', result, recordDir);
         const observation = await physicalClick(page, name, result, recordDir);
         assert.equal(observation.layout.viewport.dpr, item.dpr, 'browser must use the requested device pixel ratio');
-        await saveAdvanceLoad(page, name, result, recordDir);
-        const cleanup = await memoryAndDispose(page);
-        (result.lifecycles ??= []).push({ caseName: name, ...cleanup });
-        (result.refreshes ??= []).push({ caseName: name, ...await reloadClearsTemporarySlot(page, name, result, recordDir) });
+        await physicalClick(page, name + '-save', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: 'day 1 minute 420' });
+        const saved = { ...await storedSave(page), timeLabel: 'day 1 minute 420' };
+        await physicalClick(page, name + '-advance-after-save', result, recordDir);
+        assert.equal((await status(page)).timeLabel, 'day 1 minute 480');
+        assertStoredSaveUnchanged(saved, await storedSave(page));
+        const recovery = await reloadAndReopenRecovery(page, name, saved, result, recordDir, logs);
+        (result.lifecycles ??= []).push({ caseName: name, ...recovery.lifecycle });
+        (result.refreshes ??= []).push({ caseName: name, ...recovery });
       } finally { await context.close(); }
     }
     const context = await browser.newContext({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
@@ -224,8 +356,9 @@ export async function verifyWebProbe(options) {
         await saveAdvanceLoad(page, 'resize-' + i, result, recordDir);
       }
       result.resizeIdentityVerified = true;
-      result.resizeLifecycle = await memoryAndDispose(page);
+      result.resizeLifecycle = await disposeProbe(page);
     } finally { await context.close(); }
+    result.storageRecovery = await storageFailureRecovery(browser, result.url, result, recordDir, logs);
     if (!parsed.previewUrl) {
       assert.ok(resourceUrl, 'actual probe resource URL must be observed');
       const context = await browser.newContext({ viewport: { width: 960, height: 640 } });

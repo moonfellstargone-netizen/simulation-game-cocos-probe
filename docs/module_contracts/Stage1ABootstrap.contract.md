@@ -44,7 +44,7 @@ source_of_truth: false
 - 本入口位于creator-adapter外层，可依赖game-core及cocos-app现有公开能力。
 - game-core和cocos-app不得反向依赖bootstrap宿主层。
 - 运行代码不得依赖`cc`、`wx`、`fs / node:fs`、tools、runtimeHarness或game-core的dev/testing API。
-- 不引入资源缓存、热更新、通用依赖注入框架或真实平台存储。
+- bootstrap自身不引入资源缓存、热更新、通用依赖注入框架或平台API；浏览器外层可提供既有SaveStoragePort实现，装配期间不访问存储，详见CocosEngineProbe契约。
 - Node集成验收不证明Cocos资源加载、打包及依赖兼容；真实平台接入需独立验证。
 
 ## 关联验收与追踪

@@ -7,6 +7,47 @@ import { resolveGateTasks } from '../tools/quality/lib/resolveGateTasks.mjs';
 const root = process.cwd();
 const readJson = (rel) => JSON.parse(readFileSync(join(root, rel), 'utf8'));
 
+test('browser local save closes over executed storage and fixed-origin tool tests without changing platform boundaries', () => {
+  const { traceabilityMap, registry, gatePolicy, moduleGraph } = loadTraceabilityContext();
+  const id = 'trace.cocos.browser-local-save';
+  const entry = traceabilityMap.entries.find((item) => item.id === id);
+  assert.equal(entry?.status, 'active');
+  assert.ok(traceabilityMap.currentFullReleaseTraceIds.includes(id));
+  const adapter = 'apps/cocos-probe/template/assets/scripts/BrowserSaveStoragePort.ts';
+  const serve = 'tools/cocos-probe/serve.mjs';
+  for (const source of [adapter, serve, 'apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts', 'tools/cocos-probe/verify-web.mjs']) {
+    assert.ok(entry.sourceRefs.includes(source), `${source} must be traced`);
+  }
+  const pkg = readJson('package.json');
+  for (const [taskId, script, file, implementation] of [
+    ['test.cocos-engine-probe-lifecycle', 'test:cocos-engine-probe-lifecycle', 'tests/cocos-browser-storage.test.ts', adapter],
+    ['test.cocos-web-verification-contracts', 'test:cocos-web-verification-contracts', 'tests/cocos-web-serve-contracts.test.mjs', serve]
+  ]) {
+    assert.ok(entry.testRefs.includes(taskId));
+    const task = registry.tests[taskId];
+    assert.equal(task?.stability, 'blocker');
+    for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
+    for (const path of [file, implementation]) assert.ok(task.files.includes(path), `${taskId} must register ${path}`);
+    for (const module of ['tests', 'cocos-engine-probe']) assert.ok(task.covers.includes(module));
+    assert.ok(task.args.includes(file), `${taskId} must execute ${file}`);
+    assert.ok(pkg.scripts[script].split(/\s+/).includes(file), `${script} must execute ${file}`);
+    for (const gate of ['full', 'release']) {
+      assert.ok(entry.gateRefs.includes(gate));
+      assert.ok(resolveGateTasks(gate, gatePolicy, registry).some((selected) => selected.id === taskId));
+    }
+  }
+  assert.ok(registry.tests['test.cocos-probe-preparation'].files.includes(adapter));
+  const rules = readJson('tools/quality/rules/architecture-boundary.rules.json');
+  const outer = rules.rules.importBoundaries.find((rule) => rule.id === 'cocos-engine-probe-public-runtime-only');
+  assert.equal(outer.mode, 'authoritative');
+  assert.equal(outer.severity, 'error');
+  for (const forbidden of ['wx', 'fs', 'node:fs', 'tests/', 'tools/', 'src/game-core/', 'src/cocos-app/', 'src/cocos-creator-adapter/']) {
+    assert.ok(outer.forbiddenImports.includes(forbidden));
+  }
+  assert.deepEqual(moduleGraph.modules['cocos-engine-probe'].roots, ['apps/cocos-probe/**']);
+  assert.equal(traceabilityMap.entries.find((item) => item.id === 'trace.stage1b.wx-storage-port')?.status, 'planned');
+});
+
 test('Web save/load recovery closes over the executed interaction and command-result regressions', () => {
   const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
   const id = 'trace.cocos.web-save-load-recovery';
@@ -76,7 +117,7 @@ test('viewport input trace registers executable Node verification contracts sepa
   assert.ok(entry.testRefs.includes(taskId));
   assert.equal(task?.stability, 'blocker');
   assert.equal(task.command, 'node');
-  assert.deepEqual(task.args, ['--test', 'tests/cocos-web-verification-contracts.test.mjs']);
+  assert.deepEqual(task.args, ['--test', 'tests/cocos-web-verification-contracts.test.mjs', 'tests/cocos-web-serve-contracts.test.mjs']);
   for (const file of ['tests/cocos-web-verification-contracts.test.mjs', 'tools/cocos-probe/verify-web.mjs', 'tools/cocos-probe/lib/webProbeSupport.mjs', 'tools/cocos-probe/build.mjs']) {
     assert.ok(task.files.includes(file), file + ' must be an execution input');
     assert.equal(existsSync(join(root, file)), true);

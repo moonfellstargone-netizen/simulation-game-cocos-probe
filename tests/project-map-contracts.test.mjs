@@ -41,6 +41,10 @@ const moduleCardExplicitPaths = [
 ];
 
 const codeIndexExplicitPaths = [
+  'apps/cocos-probe/template/assets/scripts/BrowserSaveStoragePort.ts',
+  'tests/cocos-browser-storage.test.ts',
+  'tools/cocos-probe/serve.mjs',
+  'tests/cocos-web-serve-contracts.test.mjs',
   'apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts',
   'apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts',
   'tools/cocos-probe/prepare.mjs',
@@ -133,12 +137,12 @@ function assertForbiddenPositiveMisauthority(text, pattern) {
   }
 }
 
-test('current version is v0.0.2.33 in package metadata', () => {
+test('current version is v0.0.2.34 in package metadata', () => {
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  assert.equal(packageJson.version, '0.0.2-33');
+  assert.equal(packageJson.version, '0.0.2-34');
 
   const projectTarget = JSON.parse(readFileSync(join(root, 'tools/quality/rules/project-target.json'), 'utf8'));
-  assert.equal(projectTarget.version.codePackageVersion, 'v0.0.2.33');
+  assert.equal(projectTarget.version.codePackageVersion, 'v0.0.2.34');
 });
 
 test('project map links traceability matrix entry', () => {

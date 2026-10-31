@@ -1,5 +1,5 @@
 {
-  "version": "v0.0.2.33",
+  "version": "v0.0.2.34",
   "description": "Architecture boundaries retain all engine-neutral restrictions and add an authoritative outer Creator module boundary for the Web probe.",
   "ruleTypes": [
     "importBoundaries",
@@ -92,7 +92,7 @@
           "src/cocos-creator-adapter/"
         ],
         "severity": "error",
-        "description": "真实cc仅属于新outer工程；通过派生公共runtime访问会话，不直接导入核心内部、测试、工具或平台存储。",
+        "description": "真实cc仅属于outer；通过派生公共runtime访问会话，不导入核心内部、测试、工具、wx或fs。浏览器Storage只由outer Port适配，不进入旧三层。",
         "mode": "authoritative"
       }
     ],
