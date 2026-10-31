@@ -45,6 +45,12 @@ const codeIndexExplicitPaths = [
   'apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts',
   'tools/cocos-probe/prepare.mjs',
   'tools/cocos-probe/build.mjs',
+  'apps/cocos-probe/template/build-templates/web-desktop/index.ejs',
+  'apps/cocos-probe/template/build-templates/web-desktop/probe-viewport.css',
+  'apps/cocos-probe/template/build-templates/web-desktop/probe-viewport.js',
+  'tools/cocos-probe/verify-web.mjs',
+  'tools/cocos-probe/lib/webProbeSupport.mjs',
+  'tests/cocos-web-verification-contracts.test.mjs',
   'tools/quality/rules/project-target.json',
   'tools/quality/module-graph.json',
   'tools/quality/test-registry.json',
@@ -127,12 +133,12 @@ function assertForbiddenPositiveMisauthority(text, pattern) {
   }
 }
 
-test('current version is v0.0.2.31 in package metadata', () => {
+test('current version is v0.0.2.32 in package metadata', () => {
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  assert.equal(packageJson.version, '0.0.2-31');
+  assert.equal(packageJson.version, '0.0.2-32');
 
   const projectTarget = JSON.parse(readFileSync(join(root, 'tools/quality/rules/project-target.json'), 'utf8'));
-  assert.equal(projectTarget.version.codePackageVersion, 'v0.0.2.31');
+  assert.equal(projectTarget.version.codePackageVersion, 'v0.0.2.32');
 });
 
 test('project map links traceability matrix entry', () => {

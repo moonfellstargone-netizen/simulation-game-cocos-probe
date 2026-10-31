@@ -1,5 +1,5 @@
 {
-  "version": "v0.0.2.31",
+  "version": "v0.0.2.32",
   "description": "Architecture boundaries retain all engine-neutral restrictions and add an authoritative outer Creator module boundary for the Web probe.",
   "ruleTypes": [
     "importBoundaries",

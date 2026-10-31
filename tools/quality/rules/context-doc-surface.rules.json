@@ -45,7 +45,9 @@
         "module-cards",
         "GitHub 仓库",
         "cocos-engine-probe",
-        "trace.cocos.web-bootstrap-probe"
+        "trace.cocos.web-bootstrap-probe",
+        "trace.cocos.web-viewport-input",
+        "test:cocos-web-verification-contracts"
       ],
       "forbiddenCurrent": [
         "${previousCodePackageVersion}",
@@ -74,7 +76,9 @@
         "architecture-boundary.rules.json",
         "architecture-boundary-check.mjs",
         "Cursor 预检",
-        "release gate 禁止 cache"
+        "release gate 禁止 cache",
+        "trace.cocos.web-viewport-input",
+        "test:cocos-web-verification-contracts"
       ],
       "forbiddenCurrent": [
         "${previousCodePackageVersion}",
@@ -135,7 +139,9 @@
         "不直接改 SaveFile",
         "不接真实 `cc / wx / fs`",
         "cocos-engine-probe",
-        "trace.cocos.web-bootstrap-probe"
+        "trace.cocos.web-bootstrap-probe",
+        "trace.cocos.web-viewport-input",
+        "test:cocos-web-verification-contracts"
       ],
       "forbiddenCurrent": [
         "${previousCodePackageVersion}",
@@ -171,7 +177,9 @@
         "planned",
         "不是当前实现",
         "cocos-engine-probe",
-        "trace.cocos.web-bootstrap-probe"
+        "trace.cocos.web-bootstrap-probe",
+        "trace.cocos.web-viewport-input",
+        "test:cocos-web-verification-contracts"
       ],
       "forbiddenCurrent": [
         "${previousCodePackageVersion}",
@@ -281,7 +289,11 @@
         "test:cocos-engine-probe-lifecycle",
         "trace.cocos.web-bootstrap-probe",
         "仓库外",
-        "真实Creator"
+        "真实Creator",
+        "trace.cocos.web-viewport-input",
+        "test:cocos-web-verification-contracts",
+        "cocos:verify:web",
+        "Node契约不执行真实浏览器"
       ],
       "forbiddenCurrent": []
     }

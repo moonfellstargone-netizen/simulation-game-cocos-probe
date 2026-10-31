@@ -1,14 +1,18 @@
-# CHECK_ARCHITECTURE — v0.0.2.31
+# CHECK_ARCHITECTURE — v0.0.2.32
 
-v0.0.2.31 / Cocos Web Bootstrap Probe验证真实Web探针的工程准备、外层生命周期与独立Creator验收，保留既有业务架构边界。
+v0.0.2.32 / Cocos Web Viewport & Input Reliability验证桌面视口和真实输入可靠性，保留旧层业务架构边界。
 
 ## 1. 本轮检查目标
 
-Node中的准备契约和外层生命周期测试登记为full/blocker，由trace.cocos.web-bootstrap-probe追踪；它们验证实际派生产物、资源完整性、异常路径和确定性生命周期，不冒充引擎运行证据。根typecheck仍仅覆盖src。真实Creator预览与Web构建另行执行，缺引擎时明确失败或未执行，不能静默skip或使用假cc类型声称通过。
+保留准备/生命周期full/blocker回归，新增test:cocos-web-verification-contracts / registry test.cocos-web-verification-contracts验证浏览器工具的参数、来源、HTTP服务和断言失败保护；Node契约不执行真实浏览器。独立cocos:verify:web运行固定Creator构建产物的真实Chrome鼠标点击，记录Button事件、时间变化、Label同步与清理证据；根typecheck只覆盖src，不能代替实际Creator类型、构建或浏览器验收。
 
-新任务`test:cocos-probe-preparation` / registry `test.cocos-probe-preparation`实际执行准备工具并验证生成runtime与正式资源；`test:cocos-engine-probe-lifecycle` / registry `test.cocos-engine-probe-lifecycle`验证异步加载、销毁与错误恢复。module-graph、test-registry和traceability-map.json连接新外层归属、测试单文件选择与full/release，不能削弱旧engine-neutral禁令。
+工具只读取仓库唯一src/design_snapshot派生的工作副本。prepare继续导出snapshot及全部58项Schema并记录Git来源/输入产物摘要；build记录实际Web产物清单摘要，verify核对构建关联和产物字节后才启动浏览器，拒绝替换或篡改的Web目录。工程、依赖、报告、缓存和构建仍位于仓库外，不形成第二源码权威。
 
-既有`test:cocos-session` / registry `test.cocos-session`、bootstrap、绑定恢复、存储故障和PR CI继续有效；CI只执行Node完整门禁，不自动安装Creator。真实引擎构建入口为tools/cocos-probe/build.mjs，显式记录独立验收。
+构建网页built-web验收1440×1200、1280×720、960×640、800×600/DPR1，另960×640/DPR2仿真，并在同页按960×640→1440×1200→800×600→960×640执行四次resize点击。编辑器预览editor-preview独立验收1440×1200与960×640/DPR1，同页按960×640→1440×1200→960×640执行三次resize点击。所有约定案例均保持完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、时间+60和Label同步；不降低断言强度。官方Default设备模拟器在800窗口裁剪固定960px内容，该预览场景未承诺支持，不能据其失败推定构建网页800失败。DPR仿真不等于手机、触摸、微信或Windows系统缩放验证。
+
+Node任务与独立真实验收分别追踪。新增trace.cocos.web-viewport-input，保留既有trace.cocos.web-bootstrap-probe及存储/绑定/启动回归。CI只执行Node完整门禁，不安装Creator或浏览器，不改变full/release/affected策略。
+
+既有test:cocos-session / registry test.cocos-session继续验证Session边界。test-registry描述Node自动执行集合，traceability-map.json连接模块、文件与门禁追踪；独立真实验收另以构建关联和浏览器证据记录。
 
 ## 2. traceability-contracts
 
@@ -46,7 +50,7 @@ cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affe
 
 ## 10. 后续路线（不是授权目标）
 
-Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.31 范围。traceability map 中 `planned` 条目**不是**当前实现。
+Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.32 范围。traceability map 中 `planned` 条目**不是**当前实现。
 
 ## 11. 固定检查短语
 

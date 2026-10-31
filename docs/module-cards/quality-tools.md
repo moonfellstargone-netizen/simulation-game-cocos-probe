@@ -66,3 +66,7 @@ source_of_truth: false
 ## 代码—地图同步
 
 quality-map、TRACEABILITY_MATRIX、GLOSSARY 中 q:*、PR CI 与 traceability 术语；CI 工作流、契约测试及 test-registry 入口保持一致。
+
+## 独立真实Web验收工具
+
+`tools/cocos-probe/build.mjs`、`tools/cocos-probe/verify-web.mjs`及`tools/cocos-probe/lib/webProbeSupport.mjs`负责构建摘要、来源闭合和本地真实浏览器矩阵。`test.cocos-web-verification-contracts`纳入full/blocker并登记共享输入，`trace.cocos.web-viewport-input`追踪。Node契约不运行真实浏览器；CI不因该任务通过而获得引擎验收结论。

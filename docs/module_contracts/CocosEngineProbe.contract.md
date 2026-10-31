@@ -7,36 +7,40 @@ source_of_truth: false
 
 # Module Contract：CocosEngineProbe
 
-导航主入口为[引擎探针模块卡](../module-cards/cocos-engine-probe.md)。本契约说明真实外层边界，不替代正式配置、Schema或代码。
+导航主入口为[引擎探针模块卡](../module-cards/cocos-engine-probe.md)。本契约描述外层行为和验收限制，不替代正式资源或源码。
 
 ## 来源与工程准备
 
-`apps/cocos-probe/`只保存最小工程源模板。`tools/cocos-probe/prepare.mjs`导出prepareCocosProbe({rootDir, outputDir})与readProbeResources(rootDir)，CLI要求--output为仓库外的绝对空目录；禁止覆盖非空目录、仓库内/祖先位置或符号链接目标。
+apps/cocos-probe/仅保存最小工程源模板，tools/cocos-probe/prepare.mjs导出prepareCocosProbe({rootDir, outputDir})和readProbeResources(rootDir)。CLI --output要求仓库外绝对空目录，拒绝非空目录、仓库内/祖先位置和链接目标。
 
-准备工具读取唯一src/design_snapshot，生成assets/generated/probe-runtime.js及assets/resources/probe-resources.json。资源集合包含snapshot、schemas和project-target派生buildId，声明Schema必须完整对应全部58项，缺失、损坏或引用无效必须失败。工具在写入工程前用生成bundle的公共bootstrap做Node资源就绪预检，这不等于引擎通过。
+生成runtime与probe-resources.json包含唯一snapshot、完整58项声明Schema及project-target派生BuildId。缺失、损坏和引用无效必须失败；写工程前用真实bundle公共bootstrap做Node资源预检，不能称作引擎通过。probe-source-manifest.json保留sourceCommit/sourceDirty、Creator版本及输入/产物bytes/SHA-256；固定候选验收核对真实字节，不凭元数据字符串保证来源。
 
-probe-source-manifest.json记录sourceCommit/sourceDirty、版本与BuildId、Creator版本、输入/产物bytes和SHA-256。正式验收需固定候选提交并核对摘要；派生副本不能成为手改源，不凭元数据字符串承诺正式资源来源真实。
+源模板settings/v2/packages/project.json必须保留script.loose=false，避免已证实的Creator3.8.8 loose转译改变Ajv super.names继承getter接收者。标准模式只保持JavaScript语义，不修改Schema/核心或迁移AOT。
 
-源模板的settings/v2/packages/project.json必须保留script.loose=false。真实Creator3.8.8浏览器探针已复现默认loose转译破坏Ajv的super.names继承getter接收者，导致有效资源启动失败；标准模式用于保留正确JavaScript语义，不改变正式资源、核心逻辑或改用AOT。准备契约检查实际派生配置，不能省略该设置或恢复默认值。配置断言仅防止已复现回归，修复后的真实引擎结果仍须独立构建与浏览器验收。
+## 桌面视口与输入
+
+官方Web构建源模板保持cocosTemplate注入，约束页面容器在可见视口内并同步引擎所需像素尺寸和resize；修复源头，不能手改生成Web或SDK。原故障为小窗口canvas.focus触发页面滚动后mouseup偏离按钮，禁止屏蔽真实点击验收制造通过。
+
+构建网页built-web覆盖1440×1200、1280×720、960×640、800×600/DPR1和960×640/DPR2仿真，同页960×640→1440×1200→800×600→960×640四次resize点击。编辑器预览editor-preview只覆盖1440×1200与960×640/DPR1，同页960×640→1440×1200→960×640三次resize点击。两个mode均要求完整canvas/Button可见、scroll稳定、会话身份不变，每次真实鼠标点击恰好一次Button事件、既有advance_time增加60分钟、Label与公开ViewModel一致；窗口变化不重建Host或重复绑定事件，断言强度不变。官方Default设备模拟器固定960px内容在800窗口发生裁剪，该预览场景未支持，不将其诊断失败写成构建网页800失败。
+
+DPR仿真不能推导手机、触摸、软键盘、安全区、微信或Windows系统缩放通过，未测平台不承诺。
 
 ## 运行与生命周期
 
-真实cc组件只负责资源加载、节点显示及按钮事件。运行对象经createStage1AHost建立，使用QinglanUiSceneProbeComponent和节点端口提交既有正式Action，不直接访问内部状态。Host已ready，不再调用旧SessionProbe.onLoad创建同一会话。
+真实cc组件只负责加载、节点与按钮，使用createStage1AHost和QinglanUiSceneProbeComponent公开命令。bootstrap返回已ready Host，不再调用旧Probe.onLoad创建同一会话。加载期间销毁不得发布迟到Host或更新失效Node。
 
-加载期间销毁必须使迟到结果失效：不发布Host、不写无效Node；已创建会话须释放。不得假设引擎自动等待异步销毁。绑定失败/命令失败保持原公开边界，恢复不能重放Action或回滚已提交业务。当前只做Web与内存端口冒烟，不提供真实持久化或微信保证。
+Creator不await异步onDestroy，并可能清空Component字段；必须同步捕获asset/lifetime，observer独立保留lifetime，清理使用已持有引用。保留memoryRoundtrip、缺资源失败、加载中销毁与正常退出释放回归。内存端口冒烟不等于真实持久化或微信存储。
 
-真实onDestroy必须同步捕获清理所需的asset和lifetime引用，诊断observer也须保留独立lifetime引用。Creator可能在回调返回后清空Component字段，异步释放和销毁后诊断不得再依赖这些字段；asset须按已持有的引用释放，会话与迟到加载仍按既有销毁保护收口。
+## 真实构建与浏览器证据
 
-## 架构边界
+cocos:build显式要求--creator、--project、--log-dir；实际Creator3.8.8返回成功码36且Web产物有效才成功。成功result记录Web逐文件bytes/SHA-256与目录摘要。构建前仍逐项严格核对prepare清单；Creator允许且仅允许迁移engine.json，记录creatorNormalizations前后SHA及完整preparedSurfaceAfter。其他源变化必须失败，verify逐项核对精确构建后映像，不能将该迁移扩大为来源放行。
 
-旧三层保持不接真实Cocos/wx/fs，新outer才可导入cc；只消费派生公共runtime，不直接依赖核心内部、tools、tests、dev/testing API。旧层禁止反向依赖apps/cocos-probe。新增归属与禁令不是删除旧检查或增加历史白名单的理由。
+cocos:verify:web的verifyWebProbe(options)要求--project、--browser、--report-dir、--build-record，均为显式绝对路径。复算已构建Web并与记录匹配，缺摘要/篡改/替换必须失败；记录来源提交、dirty、构建关联、实际浏览器和真实点击结果，报告不写入仓库。可选--preview-url限loopback HTTP，预览结果独立标记；构建摘要不证明livepreview页面字节。
 
-## 验收与限制
+不得用observer.advance代替鼠标点击，不捕获错误后仍报告passed；缺引擎、浏览器、来源或产物应明确失败，不静默skip。正常运行控制台和pageerror无错误；缺资源案例允许明确记录预期404，但不能混成正常运行错误。
 
-自动任务test.cocos-probe-preparation及test.cocos-engine-probe-lifecycle登记full/blocker，验证真实准备产物、异常资源、来源清单和受控生命周期。根typecheck仅检查src，Ubuntu q:full不包含Creator安装或真实构建。
+## 自动门禁与边界
 
-真实Creator3.8.8预览与Web构建使用独立入口cocos:build，显式提供--creator、--project、--log-dir。记录精确版本、候选commit/dirty、派生摘要、构建日志及真实节点动作/退出；CLI成功码36且产物有效才映射工具成功。缺引擎应明确失败或未执行，不能静默skip或把Node模拟当作实际引擎验证。
+test.cocos-probe-preparation、test.cocos-engine-probe-lifecycle、test.cocos-web-verification-contracts登记full/blocker；最后一项仅验证工具HTTP/参数/来源/失败契约，Node契约不执行真实浏览器。根typecheck只检查src，Ubuntu q:full不安装Creator或启动真实浏览器。实际Creator SDK类型、构建、预览与Chrome矩阵独立验收，q:affected不替代q:full/q:release，release禁止缓存。
 
-当前Web桌面运行页默认1280×960，应使用足够的桌面窗口验证按钮与显示。小视口滚动、输入适配及移动端布局不在本版承诺范围内；这些限制不能通过只调用诊断observer绕过真实按钮验收。
-
-不改变ActionPipeline、SaveFile、正式schema/config/fixture，不新增玩法，不进入Stage1B，不接wx，不做AOT迁移。若真实探针证明需要广泛核心兼容改造，应重新界定范围，不静默扩大任务。
+旧三层禁真实Cocos/wx/fs；仅新outer可导入cc，且单向消费派生公共runtime，不能依赖tools/tests或核心内部。保持ActionPipeline、SaveFile和正式schema/config/fixture，不新增玩法或Stage1B、真实存储、wx、Nightly/CI平台或通用UI框架。

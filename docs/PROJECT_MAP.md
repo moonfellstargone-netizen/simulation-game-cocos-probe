@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.31
+﻿# PROJECT_MAP — v0.0.2.32
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.31：**Cocos Web Bootstrap Probe**。真实引擎外层单向消费公共runtime，准备工具从唯一来源派生仓库外工程；Node契约与真实Creator验收分别报告，由trace.cocos.web-bootstrap-probe追踪。既有启动、绑定恢复与存储故障回归继续有效。
+v0.0.2.32：**Cocos Web Viewport & Input Reliability**。修复真实Web时间探针的桌面窗口显示与点击一致性，独立浏览器验收由trace.cocos.web-viewport-input连接；保留唯一来源派生、既有启动/绑定/存储回归。
 
 ## 3. 权威边界
 

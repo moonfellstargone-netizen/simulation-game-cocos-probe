@@ -1,4 +1,4 @@
-﻿# DOCS_GOVERNANCE — v0.0.2.31
+﻿# DOCS_GOVERNANCE — v0.0.2.32
 
 文档治理规范。
 
@@ -53,6 +53,8 @@
 | 场景绑定异步顺序与失败恢复 | creator模块卡、scene/component边界契约、trace.cocos.binding-async-recovery | test:cocos-scene-binding、test:cocos-component-node-binding、test:quality-affected-contracts |
 
 新增真实引擎外层由cocos-engine-probe模块卡、CocosEngineProbe契约和trace.cocos.web-bootstrap-probe连接；自动准备/生命周期任务与独立Creator验证的状态必须分别记录，不以Node或根typecheck代替真实引擎通过。
+
+真实Web视口与输入由trace.cocos.web-viewport-input连接源模板、构建摘要、最小浏览器工具和Node工具契约。自动门禁只验证Node可执行契约；Creator构建、编辑器预览和真实鼠标点击结果须独立记录，不据工具存在或CI通过推定。
 
 ## 7. PR 模板与目录责任
 

@@ -33,6 +33,32 @@ test('Cocos Web preparation and lifetime tasks close the outer-layer trace witho
   assert.match(docs, /真实.*独立验收/);
 });
 
+test('viewport input trace registers executable Node verification contracts separately from real browser evidence', () => {
+  const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
+  const id = 'trace.cocos.web-viewport-input';
+  const entry = traceabilityMap.entries.find((item) => item.id === id);
+  assert.equal(entry?.status, 'active');
+  assert.ok(traceabilityMap.currentFullReleaseTraceIds.includes(id));
+  for (const module of ['cocos-engine-probe', 'tools', 'tests']) assert.ok(entry.moduleRefs.includes(module));
+  const taskId = 'test.cocos-web-verification-contracts';
+  const task = registry.tests[taskId];
+  assert.ok(entry.testRefs.includes(taskId));
+  assert.equal(task?.stability, 'blocker');
+  assert.equal(task.command, 'node');
+  assert.deepEqual(task.args, ['--test', 'tests/cocos-web-verification-contracts.test.mjs']);
+  for (const file of ['tests/cocos-web-verification-contracts.test.mjs', 'tools/cocos-probe/verify-web.mjs', 'tools/cocos-probe/lib/webProbeSupport.mjs', 'tools/cocos-probe/build.mjs']) {
+    assert.ok(task.files.includes(file), file + ' must be an execution input');
+    assert.equal(existsSync(join(root, file)), true);
+  }
+  for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
+  for (const gate of ['full', 'release']) assert.ok(resolveGateTasks(gate, gatePolicy, registry).some((selected) => selected.id === taskId));
+  const packageJson = readJson('package.json');
+  assert.equal(packageJson.scripts['cocos:verify:web'], 'node tools/cocos-probe/verify-web.mjs');
+  const docs = readFileSync(join(root, 'docs/module-cards/cocos-engine-probe.md'), 'utf8');
+  assert.match(docs, /Node契约不执行真实浏览器/);
+  assert.match(docs, /真实鼠标点击/);
+});
+
 function loadTraceabilityContext() {
   const qualityConfig = readJson('tools/quality/quality.config.json');
   const traceabilityRel = qualityConfig.rules?.traceabilityMap;

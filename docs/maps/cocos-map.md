@@ -1,4 +1,4 @@
-﻿# Cocos Map — v0.0.2.31
+﻿# Cocos Map — v0.0.2.32
 
 ## 系统职责
 
@@ -74,3 +74,9 @@ cocos-app, cocos-creator-adapter
 ## 真实Web外层与后续范围
 
 新增outer源模板由[引擎探针模块卡](../module-cards/cocos-engine-probe.md)导航，trace.cocos.web-bootstrap-probe连接自动准备与生命周期验证；真实Creator预览/构建独立验收。微信导出、真实wx storage及AOT仍未进入。
+
+## 桌面Web视口与输入
+
+`apps/cocos-probe/template/build-templates/web-desktop/`是页面容器/resize源模板；`tools/cocos-probe/build.mjs`记录产物摘要，`tools/cocos-probe/verify-web.mjs`与`tools/cocos-probe/lib/webProbeSupport.mjs`核对来源后运行真实鼠标矩阵。`tests/cocos-web-verification-contracts.test.mjs`登记full/blocker，仅验证Node工具边界，不能作为实际Creator或浏览器通过证据。
+
+`trace.cocos.web-viewport-input`连接模板、工具、契约、affected与实际验收说明；支持范围见[引擎探针模块卡](../module-cards/cocos-engine-probe.md)。不能用observer.advance绕过物理点击；窗口变化保留原会话，不引入真实存储或微信。

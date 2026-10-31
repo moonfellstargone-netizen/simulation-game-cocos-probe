@@ -1,29 +1,29 @@
 {
   "version": {
-    "codePackageVersion": "v0.0.2.31",
-    "npmVersion": "0.0.2-31",
-    "qualityMetadataVersion": "0.0.2.31",
-    "snakeVersion": "v0_0_2_31",
-    "versionName": "Cocos Web Bootstrap Probe",
-    "chineseVersionName": "Cocos网页端最小启动探针版"
+    "codePackageVersion": "v0.0.2.32",
+    "npmVersion": "0.0.2-32",
+    "qualityMetadataVersion": "0.0.2.32",
+    "snakeVersion": "v0_0_2_32",
+    "versionName": "Cocos Web Viewport & Input Reliability",
+    "chineseVersionName": "Cocos网页视口与输入可靠性版"
   },
   "release": {
-    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_31",
-    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_31.zip"
+    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_32",
+    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_32.zip"
   },
   "design": {
     "designPackVersion": "v1.5.2.2",
     "designPackName": "模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip"
   },
   "previous": {
-    "codePackageVersion": "v0.0.2.30",
-    "npmVersion": "0.0.2-30",
-    "qualityMetadataVersion": "0.0.2.30",
-    "snakeVersion": "v0_0_2_30",
-    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_30",
-    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_30.zip",
-    "versionName": "Async Scene Binding Ordering & Recovery",
-    "chineseVersionName": "场景绑定异步顺序与失败恢复版"
+    "codePackageVersion": "v0.0.2.31",
+    "npmVersion": "0.0.2-31",
+    "qualityMetadataVersion": "0.0.2.31",
+    "snakeVersion": "v0_0_2_31",
+    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_31",
+    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_31.zip",
+    "versionName": "Cocos Web Bootstrap Probe",
+    "chineseVersionName": "Cocos网页端最小启动探针版"
   },
   "staleMarkers": {
     "forbiddenCurrentMarkers": [
@@ -127,7 +127,18 @@
       "场景绑定异步顺序与失败恢复版",
       "fixture_baseline_v0_0_2_30",
       "headless_baseline_v0_0_2_30",
-      "cocos_baseline_v0_0_2_30"
+      "cocos_baseline_v0_0_2_30",
+      "v0.0.2.31",
+      "0.0.2-31",
+      "0.0.2.31",
+      "v0_0_2_31",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_31",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_31.zip",
+      "Cocos Web Bootstrap Probe",
+      "Cocos网页端最小启动探针版",
+      "fixture_baseline_v0_0_2_31",
+      "headless_baseline_v0_0_2_31",
+      "cocos_baseline_v0_0_2_31"
     ],
     "allowedHistoricalScopes": [
       "tools/quality/rules/project-target.json",

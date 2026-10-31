@@ -1,6 +1,6 @@
 {
   "schemaVersion": "traceability-lite/v1",
-  "projectVersion": "v0.0.2.31",
+  "projectVersion": "v0.0.2.32",
   "currentFullReleaseTraceIds": [
     "trace.stage1a.actionpipeline",
     "trace.stage1a.save-load",
@@ -14,7 +14,8 @@
     "trace.save.storage-failure-recovery",
     "trace.runtime.bootstrap-resources",
     "trace.cocos.binding-async-recovery",
-    "trace.cocos.web-bootstrap-probe"
+    "trace.cocos.web-bootstrap-probe",
+    "trace.cocos.web-viewport-input"
   ],
   "entries": [
     {
@@ -425,6 +426,40 @@
       "docRefs": [
         "docs/module-cards/cocos-engine-probe.md",
         "docs/module_contracts/CocosEngineProbe.contract.md"
+      ],
+      "gateRefs": [
+        "full",
+        "release"
+      ]
+    },
+    {
+      "id": "trace.cocos.web-viewport-input",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": [
+        "cocos-engine-probe",
+        "tools",
+        "tests"
+      ],
+      "sourceRefs": [
+        "apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts",
+        "tools/cocos-probe/verify-web.mjs",
+        "tools/cocos-probe/lib/webProbeSupport.mjs",
+        "tools/cocos-probe/build.mjs",
+        "apps/cocos-probe/template/build-templates/web-desktop/index.ejs",
+        "apps/cocos-probe/template/build-templates/web-desktop/probe-viewport.css",
+        "apps/cocos-probe/template/build-templates/web-desktop/probe-viewport.js"
+      ],
+      "testRefs": [
+        "test.cocos-web-verification-contracts",
+        "test.cocos-probe-preparation",
+        "test.cocos-engine-probe-lifecycle"
+      ],
+      "docRefs": [
+        "docs/module-cards/cocos-engine-probe.md",
+        "docs/module_contracts/CocosEngineProbe.contract.md",
+        "docs/CHECK_ARCHITECTURE.md"
       ],
       "gateRefs": [
         "full",

@@ -1,4 +1,4 @@
-﻿# Domain Map — v0.0.2.31
+﻿# Domain Map — v0.0.2.32
 
 ## 系统职责
 

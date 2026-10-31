@@ -1,4 +1,4 @@
-﻿# GLOSSARY — v0.0.2.31
+﻿# GLOSSARY — v0.0.2.32
 
 术语表。防止权威与工具边界混淆。
 
@@ -17,7 +17,7 @@
 | **Scope Discovery** | 执行前范围发现：seed files、必读、暂不读模块 |
 | **Project Map** | L0–L5 分级导航，≠ 源码替代品 |
 | **Traceability Matrix** | `TRACEABILITY_MATRIX.md` + `traceability-map.json`，追踪层 ≠ 玩法权威 |
-| **Cocos Web Bootstrap Probe** | 真实Creator Web最小启动外层，通过公开runtime和正式资源驱动场景，独立验收真实引擎 |
+| **Cocos Web Viewport & Input Reliability** | 现有真实Web探针在约定桌面视口和resize后保持显示与物理按钮命中一致，由独立浏览器验证 |
 | **异步场景绑定顺序与恢复** | 同一绑定实例内按序完成命令和界面应用，端口失败后重新同步当前视图，不回滚或重发正式Action |
 | **启动装配与资源契约** | 核对外部资源、编译Schema引用并经公共入口装配宿主，资源失败时不交付可操作会话 |
 | **存储故障保护与恢复** | 通过受控读写拒绝，验证Session状态保护、错误展示、队列顺序及恢复重试 |
@@ -56,6 +56,6 @@
 
 `docs/module_contracts/` 是上下文治理遗留契约目录，**保留**。新版项目地图主入口是 `docs/module-cards/`，不是 `docs/module_contracts/`。
 
-## Cocos Web Bootstrap Probe
+## Cocos Web Viewport & Input Reliability
 
 真实Creator Web最小启动外层；旧三层仍engine-neutral，只有新outer可用cc。仓库保存源模板，prepare从唯一runtime/正式资源生成外部可打开副本。Node准备/生命周期契约与真实Creator预览/构建是不同验收证据，不能互相代替。
