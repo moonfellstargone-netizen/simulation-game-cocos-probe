@@ -108,7 +108,7 @@ function validBusinessResult(result: ProbeBusinessResult): boolean {
 function runningMessage(command: ProbeCommand): string {
   if (command.name === 'save') return '正在本地保存';
   if (command.name === 'load') return '正在读取本地存档';
-  return ({ plant_crop: '正在播种', advance_time: '正在推进时间', harvest_crop: '正在收获' })[command.selection.action_type];
+  return ({ plant_crop: '正在播种', advance_time: '正在推进时间', harvest_crop: '正在收获', store_item: '正在转移整批物料' })[command.selection.action_type];
 }
 
 function completedMessage(command: ProbeCommand): string {
@@ -116,6 +116,7 @@ function completedMessage(command: ProbeCommand): string {
   if (command.name === 'load') return '已恢复本地存档';
   if (command.selection.action_type === 'plant_crop') return '播种成功';
   if (command.selection.action_type === 'harvest_crop') return '收获成功';
+  if (command.selection.action_type === 'store_item') return '整批转移成功';
   return command.selection.minutes === 60 ? '已推进一小时'
     : command.selection.minutes === 1440 ? '已推进一天' : `已推进${command.selection.minutes}分钟`;
 }
@@ -125,6 +126,8 @@ function failureMessage(code: string): string {
   if (code === 'ERR_NOT_ENOUGH_RESOURCE') return '资源不足，请调整数量';
   if (code === 'ERR_FIELD_OCCUPIED') return '地块已占用，请重新选择';
   if (code === 'ERR_CROP_NOT_MATURE') return '作物尚未成熟';
+  if (code.startsWith('ERR_STORAGE_FORM_NOT_SUPPORTED')) return '该位置不支持这种物料形态';
+  if (code.startsWith('ERR_STORAGE_CAPACITY_OVERFLOW')) return '储存容量不足，请选择其他位置';
   if (code.startsWith('ERR_MENU_OPTION_')) return '选择已失效，请重新选择';
   return '操作未完成，请重试';
 }

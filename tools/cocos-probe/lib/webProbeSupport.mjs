@@ -146,12 +146,13 @@ export function timeInMinutes(label) {
   return Number(match[1]) * 1440 + Number(match[2]);
 }
 
-function assertInputObservation(observation) {
+function assertInputObservation(observation, expectedEventCount = 1) {
   const { before, after, eventCount, scrollBefore, scrollDown, scrollAfter, layout } = observation;
   assert.equal(before.phase, 'ready', 'input must begin in a ready session');
   assert.equal(after.phase, 'ready', 'session must remain ready');
   assert.equal(after.hasSession, true, 'session must remain alive');
-  assert.equal(eventCount, 1, 'one physical click must emit exactly one Cocos Button event');
+  assert.equal(eventCount, expectedEventCount, expectedEventCount === 1
+    ? 'one physical click must emit exactly one Cocos Button event' : 'a disabled control must emit no Cocos Button event');
   assert.equal(after.displayedTime, after.timeLabel, 'Label must match public state');
   assert.deepEqual(scrollDown, scrollBefore, 'mouse down must not scroll the page');
   assert.deepEqual(scrollAfter, scrollBefore, 'mouse up must not scroll the page');
@@ -288,6 +289,119 @@ export function assertFarmingLoadRecovery(saved, loaded) {
   assert.ok(loaded.before.farming.selectedCropId, 'the recovery case must first select a crop from the later world');
   assert.equal(restored.harvestableOptions.length, 0, 'the saved planted state must not be ready to harvest');
   assert.equal(restored.selectedCropId, null, 'load must clear the no-longer-harvestable crop selection');
+  assert.match(loaded.after.displayedOperation, /已恢复本地存档/);
+}
+
+const INVENTORY_COLLECTIONS = ['lotOptions', 'targetOptions'];
+const STORAGE_LABELS = { room_temp: '常温储存', cellar: '菜窖', pickling_jar: '腌菜缸' };
+const VISIBLE_UNITS = { count: '粒', g: '克', ml: '毫升' };
+const escapePattern = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const visibleNumber = (label, amount, suffix = '') => new RegExp('(^|[^\\d.])' + escapePattern(amount) + '\\s*' + escapePattern(suffix) + '(?![\\d.])').test(label);
+
+export function assertInventoryProjection(state) {
+  assert.ok(state.panel === 'farming' || state.panel === 'inventory', 'the active local panel must be explicit');
+  const inventory = state.inventory;
+  assert.ok(inventory && typeof inventory === 'object', 'the public inventory projection must exist');
+  for (const key of INVENTORY_COLLECTIONS) assert.ok(Array.isArray(inventory[key]), key + ' must be a public option list');
+  for (const [selected, options] of [['selectedLotId', 'lotOptions'], ['selectedTargetId', 'targetOptions']]) {
+    assert.ok(inventory[selected] === null || typeof inventory[selected] === 'string', 'selection must be explicit or empty');
+    if (inventory[selected] !== null) assert.ok(inventory[options].some((item) => item.id === inventory[selected]), 'a browsed selection must still exist, even when disabled');
+  }
+  for (const lot of inventory.lotOptions) {
+    assert.ok(Number.isFinite(lot.quantity?.amount) && lot.quantity.amount > 0 && typeof lot.quantity.unit === 'string');
+    for (const key of ['location_id', 'storage_type', 'container_id']) assert.ok(typeof lot.storage_ref?.[key] === 'string' && lot.storage_ref[key]);
+    assert.ok(typeof lot.current_form === 'string' && lot.current_form);
+  }
+  for (const target of inventory.targetOptions) {
+    assert.ok(Number.isFinite(target.capacity?.amount) && target.capacity.amount > 0 && target.capacity.unit === 'slot_weight', 'ordinary storage capacity remains slot_weight, never material g/ml/count');
+    assert.ok(Number.isFinite(target.used_capacity) && target.used_capacity >= 0 && target.used_capacity <= target.capacity.amount);
+  }
+  if (state.panel === 'inventory') {
+    for (const key of ['lot', 'form', 'quantity', 'location', 'target', 'capacity', 'hint']) {
+      assert.ok(typeof state.displayedInventory?.[key] === 'string' && state.displayedInventory[key].trim(), key + ' must have visible inventory feedback');
+    }
+    const lot = inventory.lotOptions.find((item) => item.id === inventory.selectedLotId);
+    if (lot) {
+      assert.ok(visibleNumber(state.displayedInventory.quantity, lot.quantity.amount, VISIBLE_UNITS[lot.quantity.unit] ?? lot.quantity.unit), 'the selected lot Label must show its actual quantity and unit');
+      const name = STORAGE_LABELS[lot.storage_ref.storage_type];
+      if (name) assert.ok(state.displayedInventory.location.includes(name), 'the location Label must describe the selected lot current storage type');
+    }
+    const target = inventory.targetOptions.find((item) => item.id === inventory.selectedTargetId);
+    if (target) {
+      const capacityPattern = '(^|[^\\d.])' + escapePattern(target.used_capacity) + '\\s*/\\s*' + escapePattern(target.capacity.amount) + '(?![\\d.])';
+      assert.match(state.displayedInventory.capacity, new RegExp(capacityPattern), 'target capacity must show current used and total values');
+      const name = STORAGE_LABELS[target.storage_type];
+      if (name) assert.ok(state.displayedInventory.target.includes(name), 'the target Label must describe the selected storage type');
+    }
+  }
+  return inventory;
+}
+
+function assertInventoryWorldUnchanged(before, after) {
+  assert.equal(after.timeLabel, before.timeLabel, 'inventory interaction must not advance world time');
+  for (const key of INVENTORY_COLLECTIONS) assert.deepEqual(after.inventory[key], before.inventory[key], 'public inventory and capacity data must be preserved');
+  assert.deepEqual(after.farming, before.farming, 'local inventory interaction or refusal must not change farming state');
+}
+
+export function assertLocalInventoryObservation(observation, expected) {
+  assertInputObservation(observation);
+  assertInventoryProjection(observation.before); assertInventoryProjection(observation.after);
+  assert.equal(observation.before.busy, false); assert.equal(observation.after.busy, false);
+  assert.deepEqual(observation.after.operation, observation.before.operation, 'panel or selection clicks must not submit commands');
+  assertInventoryWorldUnchanged(observation.before, observation.after);
+  if (expected.panel !== undefined) assert.equal(observation.after.panel, expected.panel);
+  else {
+    assert.equal(observation.after.panel, 'inventory');
+    assert.equal(observation.after.inventory[expected.key], expected.value, 'physical selection must choose the current public option');
+  }
+}
+
+export function assertDisabledInventoryObservation(observation) {
+  assertInputObservation(observation, 0);
+  const before = assertInventoryProjection(observation.before);
+  assertInventoryProjection(observation.after);
+  assert.equal(observation.layout.buttonInteractable, false);
+  assert.equal(observation.before.panel, 'inventory'); assert.equal(observation.after.panel, 'inventory');
+  assert.equal(before.canMove, false);
+  const lot = before.lotOptions.find((item) => item.id === before.selectedLotId);
+  assert.ok(lot && before.selectedTargetId === lot.storage_ref.container_id, 'this disabled case must be the same selected container');
+  assert.equal(observation.before.busy, false); assert.equal(observation.after.busy, false);
+  assert.deepEqual(observation.after.operation, observation.before.operation, 'clicking the disabled same-target action must submit no command');
+  assertInventoryWorldUnchanged(observation.before, observation.after);
+}
+
+export function assertInventoryCommandObservation(observation, expected) {
+  assertUiCommandObservation(observation, { ...expected, name: 'menu_confirm' });
+  const before = assertInventoryProjection(observation.before);
+  const after = assertInventoryProjection(observation.after);
+  assert.equal(observation.before.panel, 'inventory'); assert.equal(observation.after.panel, 'inventory');
+  assert.equal(observation.after.timeLabel, observation.before.timeLabel, 'moving a batch does not advance time');
+  if (expected.status === 'failed') { assertInventoryWorldUnchanged(observation.before, observation.after); return; }
+  const lot = before.lotOptions.find((item) => item.id === before.selectedLotId);
+  const target = before.targetOptions.find((item) => item.id === before.selectedTargetId);
+  assert.ok(lot?.enabled && target?.enabled && lot.storage_ref.container_id !== target.id);
+  assert.deepEqual(after.lotOptions.map((item) => item.id), before.lotOptions.map((item) => item.id), 'whole-batch moves neither create nor delete lots');
+  const moved = after.lotOptions.find((item) => item.id === lot.id);
+  assert.deepEqual(moved, { ...lot, storage_ref: { location_id: target.location_id, storage_type: target.storage_type, container_id: target.id } }, 'only the selected lot storage_ref may change; identity, form, quantity and unit stay exact');
+  for (const other of before.lotOptions.filter((item) => item.id !== lot.id)) assert.deepEqual(after.lotOptions.find((item) => item.id === other.id), other);
+  const source = before.targetOptions.find((item) => item.id === lot.storage_ref.container_id);
+  const sourceAfter = after.targetOptions.find((item) => item.id === source?.id);
+  const targetAfter = after.targetOptions.find((item) => item.id === target.id);
+  assert.ok(source && sourceAfter && targetAfter);
+  const transferredCapacity = source.used_capacity - sourceAfter.used_capacity;
+  assert.ok(transferredCapacity > 0, 'moving an active lot must release positive source capacity');
+  assert.equal(targetAfter.used_capacity - target.used_capacity, transferredCapacity, 'the same slot_weight must be added to the destination without deriving it from material units');
+  assert.equal(after.targetOptions.reduce((sum, item) => sum + item.used_capacity, 0), before.targetOptions.reduce((sum, item) => sum + item.used_capacity, 0), 'total used storage capacity is conserved');
+  assert.equal(after.selectedLotId, lot.id); assert.equal(after.selectedTargetId, target.id); assert.equal(after.canMove, false);
+  assert.match(observation.after.displayedOperation, /转移成功/);
+}
+
+export function assertInventoryLoadRecovery(saved, loaded) {
+  assertUiCommandObservation(loaded, { name: 'load', status: 'completed', timeLabel: saved.timeLabel });
+  const restored = assertInventoryProjection(loaded.after);
+  assert.notDeepEqual(loaded.before.inventory.lotOptions, saved.inventory.lotOptions, 'the case must move the batch after saving before it loads');
+  for (const key of INVENTORY_COLLECTIONS) assert.deepEqual(restored[key], saved.inventory[key], 'manual load must restore saved public locations, quantities and capacity');
+  assert.equal(restored.selectedLotId, loaded.before.inventory.selectedLotId, 'a still-existing selected lot is retained with restored data');
   assert.match(loaded.after.displayedOperation, /已恢复本地存档/);
 }
 

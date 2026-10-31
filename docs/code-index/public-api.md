@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.35
+﻿# Code Index — Public API — v0.0.2.36
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -120,3 +120,13 @@ trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebPr
 - ProbeFarming.plantCommand()/harvestCommand()返回当前有效选择对应的既有ProbeCommand或null；status()返回ProbeFarmingView，包含当前选项、选择ID、播种数量及canPlant/canHarvest。
 - ProbeLifetime.ts声明ProbeMenuSnapshot、ProbeBusinessResult、ProbeQuantity、ProbeFieldOption、ProbeMaterialOption、ProbeHarvestableOption等窄消费类型，只观察公开菜单，不取得可变运行态。
 - ProbeInteraction按本次命令区分menu的preview/ActionResult与save_load结果，completed不是业务成功契约。相关接口属于outer，不扩展game-core公开API；trace.cocos.web-farming-loop连接行为与真实点击验收。
+
+## 网页库存公开消费与store_item适配
+
+| API/入口 | 文件 | 消费边界 |
+|---|---|---|
+| `MenuActionSelection` / `MenuActionBinding.buildDraft`的`store_item`分支 | `src/cocos-creator-adapter/menu/MenuActionBinding.ts` | 当前公开材料批次与储存目标ID映射到既有storeItem；MaterialLot object_ref，整批移动 |
+| `ProbeInventory` | `apps/cocos-probe/template/assets/scripts/ProbeInventory.ts` | 公开批次/目标副本、本地选择、转移草稿；不读写SaveFile |
+| `ProbeMenuSnapshot` / `ProbeCommand`库存消费字段 | `apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts` | 只描述既有公开材料位置、储存目标和正式store_item参数 |
+
+准确类型/字段以源码为准；没有新增core或Session API。preview/ActionResult决定业务成功，手动读取后重建选择；trace.cocos.web-inventory-storage连接Node与独立真实点击。

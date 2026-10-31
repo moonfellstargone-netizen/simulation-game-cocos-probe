@@ -5,7 +5,7 @@ import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { assertClickObservation, assertFarmingCommandObservation, assertFarmingLoadRecovery, assertFarmingProjection, assertLocalSaveRecovery, assertLocalSelectionObservation, assertStoredSaveUnchanged, assertUiCommandObservation, capturePreparedSurface, checkPreparedSurfaceAfterBuild, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest, within } from '../tools/cocos-probe/lib/webProbeSupport.mjs';
+import { assertClickObservation, assertDisabledInventoryObservation, assertFarmingCommandObservation, assertFarmingLoadRecovery, assertFarmingProjection, assertInventoryCommandObservation, assertInventoryLoadRecovery, assertInventoryProjection, assertLocalInventoryObservation, assertLocalSaveRecovery, assertLocalSelectionObservation, assertStoredSaveUnchanged, assertUiCommandObservation, capturePreparedSurface, checkPreparedSurfaceAfterBuild, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest, within } from '../tools/cocos-probe/lib/webProbeSupport.mjs';
 import { verifyWebProbe } from '../tools/cocos-probe/verify-web.mjs';
 
 const root = realpathSync(resolve('.'));
@@ -220,6 +220,161 @@ test('farming load restores saved quantities and clears the selected crop from t
   ]) {
     const invalid = structuredClone(valid); mutate(invalid);
     assert.throws(() => assertFarmingLoadRecovery(saved, invalid));
+  }
+});
+
+function inventoryState() {
+  const state = farmingState();
+  const room = { location_id: 'home', storage_type: 'room_temp', container_id: 'room' };
+  state.panel = 'inventory';
+  state.inventory = {
+    lotOptions: [
+      { id: 'material', enabled: true, base_id: 'vegetable', current_form: 'fresh', quantity: { amount: 100, unit: 'g' }, storage_ref: { ...room } },
+      { id: 'other', enabled: true, base_id: 'seasoning', current_form: 'dry', quantity: { amount: 50, unit: 'g' }, storage_ref: { ...room } }
+    ],
+    targetOptions: [
+      { id: 'room', enabled: true, location_id: 'home', storage_type: 'room_temp', used_capacity: 3, capacity: { amount: 50, unit: 'slot_weight' }, supported_forms: ['fresh','dry'] },
+      { id: 'cellar', enabled: true, location_id: 'home', storage_type: 'cellar', used_capacity: 1, capacity: { amount: 20, unit: 'slot_weight' }, supported_forms: ['fresh'] },
+      { id: 'jar', enabled: true, location_id: 'home', storage_type: 'pickling_jar', used_capacity: 0, capacity: { amount: 3, unit: 'slot_weight' }, supported_forms: ['pickling'] }
+    ],
+    selectedLotId: 'material', selectedTargetId: 'cellar', canMove: true
+  };
+  state.displayedInventory = { lot: '蔬菜批次', form: '鲜品', quantity: '数量：100克', location: '当前位置：常温储存', target: '目标：菜窖', capacity: '目标容量占用：1/20', hint: '可以整批转移' };
+  return state;
+}
+
+function movedInventoryState() {
+  const state = inventoryState();
+  state.inventory.lotOptions[0].storage_ref = { location_id: 'home', storage_type: 'cellar', container_id: 'cellar' };
+  state.inventory.targetOptions[0].used_capacity = 2;
+  state.inventory.targetOptions[1].used_capacity = 2;
+  state.inventory.canMove = false;
+  state.displayedInventory.location = '当前位置：菜窖';
+  state.displayedInventory.capacity = '目标容量占用：2/20';
+  state.displayedInventory.hint = '材料已在这个位置';
+  state.operation = { sequence: 1, name: 'menu_confirm', status: 'completed', message: '整批转移成功', errorMessage: null, slotId: null, worldMinute: null };
+  state.displayedOperation = state.operation.message;
+  return state;
+}
+
+test('inventory browsing and panel changes need one event, no command and unchanged public quantities and capacity', () => {
+  const before = inventoryState(); before.panel = 'farming'; before.inventory.selectedLotId = null;
+  const after = structuredClone(before); after.panel = 'inventory';
+  const valid = farmingClick(before, after);
+  assert.doesNotThrow(() => assertLocalInventoryObservation(valid, { panel: 'inventory' }));
+  for (const mutate of [
+    (x) => { x.eventCount = 2; },
+    (x) => { x.after.operation.sequence++; },
+    (x) => { x.after.inventory.lotOptions[0].quantity.amount--; },
+    (x) => { x.after.inventory.targetOptions[0].used_capacity++; },
+    (x) => { x.after.farming.seedOptions[0].quantity.amount--; },
+    (x) => { x.after.timeLabel = x.after.displayedTime = 'day 1 minute 420'; },
+    (x) => { x.after.panel = 'unknown'; },
+    (x) => { x.after.inventory.selectedLotId = 'missing'; },
+    (x) => { x.after.displayedInventory.hint = ''; }
+  ]) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => assertLocalInventoryObservation(invalid, { panel: 'inventory' }));
+  }
+  const selected = farmingClick(after, inventoryState());
+  assert.doesNotThrow(() => assertLocalInventoryObservation(selected, { key: 'selectedLotId', value: 'material' }));
+  assert.throws(() => assertLocalInventoryObservation(selected, { key: 'selectedLotId', value: 'other' }));
+  for (const mutate of [
+    (x) => { x.displayedInventory.quantity = '数量：1100克'; },
+    (x) => { x.displayedInventory.quantity = '数量：100毫升'; },
+    (x) => { x.displayedInventory.location = '当前位置：菜窖'; },
+    (x) => { x.displayedInventory.capacity = '目标容量占用：11/20'; },
+    (x) => { x.inventory.targetOptions[0].capacity.unit = 'g'; }
+  ]) {
+    const invalid = inventoryState(); mutate(invalid);
+    assert.throws(() => assertInventoryProjection(invalid));
+  }
+});
+
+test('whole-batch move observations require exact identity and quantity, destination ref and conserved slot-weight usage', () => {
+  const valid = farmingClick(inventoryState(), movedInventoryState());
+  const expected = { status: 'completed', timeLabel: valid.before.timeLabel };
+  assert.doesNotThrow(() => assertInventoryCommandObservation(valid, expected));
+  for (const mutate of [
+    (x) => { x.after.inventory.lotOptions[0].quantity.amount = 90; x.after.displayedInventory.quantity = '数量：90克'; },
+    (x) => { x.after.inventory.lotOptions[0].quantity.unit = 'ml'; x.after.displayedInventory.quantity = '数量：100毫升'; },
+    (x) => { x.after.inventory.lotOptions[0].base_id = 'different'; },
+    (x) => { x.after.inventory.lotOptions[0].current_form = 'cut'; },
+    (x) => { x.after.inventory.lotOptions[0].storage_ref.container_id = 'room'; },
+    (x) => { x.after.inventory.lotOptions[1].quantity.amount--; },
+    (x) => { x.after.inventory.targetOptions[0].used_capacity = 3; },
+    (x) => { x.after.inventory.targetOptions[1].used_capacity = 3; x.after.displayedInventory.capacity = '目标容量占用：3/20'; },
+    (x) => { x.after.inventory.targetOptions[2].used_capacity = 1; },
+    (x) => { x.after.inventory.selectedLotId = null; },
+    (x) => { x.after.inventory.canMove = true; },
+    (x) => { x.after.operation.message = x.after.displayedOperation = '播种成功'; }
+  ]) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => assertInventoryCommandObservation(invalid, expected));
+  }
+});
+
+test('an unsupported-form refusal preserves all public data and does not contaminate the next successful move', () => {
+  const before = inventoryState(); before.inventory.selectedTargetId = 'jar';
+  before.displayedInventory.target = '目标：腌菜缸'; before.displayedInventory.capacity = '目标容量占用：0/3';
+  const after = structuredClone(before);
+  after.operation = { sequence: 1, name: 'menu_confirm', status: 'failed', message: '该位置不支持这种物料形态', errorMessage: 'ERR_STORAGE_FORM_NOT_SUPPORTED', slotId: null, worldMinute: null };
+  after.displayedOperation = after.operation.message;
+  const refused = farmingClick(before, after);
+  const expected = { status: 'failed', timeLabel: before.timeLabel, errorMessage: 'ERR_STORAGE_FORM_NOT_SUPPORTED' };
+  assert.doesNotThrow(() => assertInventoryCommandObservation(refused, expected));
+  for (const mutate of [
+    (x) => { x.after.operation.status = 'completed'; },
+    (x) => { x.after.inventory.lotOptions[0].quantity.amount--; },
+    (x) => { x.after.inventory.targetOptions[0].used_capacity--; },
+    (x) => { x.after.farming.seedOptions[0].quantity.amount--; },
+    (x) => { x.after.operation.errorMessage = null; }
+  ]) {
+    const invalid = structuredClone(refused); mutate(invalid);
+    assert.throws(() => assertInventoryCommandObservation(invalid, expected));
+  }
+  const selected = inventoryState(); selected.operation = structuredClone(after.operation); selected.displayedOperation = after.displayedOperation;
+  const completed = movedInventoryState(); completed.operation.sequence = 2;
+  const recovered = farmingClick(selected, completed);
+  assert.doesNotThrow(() => assertInventoryCommandObservation(recovered, { status: 'completed', timeLabel: before.timeLabel }));
+});
+
+test('a physical same-container disabled click emits no event or command and must preserve state', () => {
+  const state = movedInventoryState();
+  const valid = farmingClick(state, structuredClone(state));
+  valid.eventCount = 0; valid.layout.buttonInteractable = false;
+  assert.doesNotThrow(() => assertDisabledInventoryObservation(valid));
+  for (const mutate of [
+    (x) => { x.eventCount = 1; },
+    (x) => { x.layout.buttonInteractable = true; },
+    (x) => { x.after.operation.sequence++; },
+    (x) => { x.before.inventory.canMove = true; },
+    (x) => { x.after.inventory.lotOptions[0].quantity.amount--; },
+    (x) => { x.before.inventory.selectedTargetId = 'room'; x.before.displayedInventory.target = '目标：常温储存'; x.before.displayedInventory.capacity = '目标容量占用：2/50'; }
+  ]) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => assertDisabledInventoryObservation(invalid));
+  }
+});
+
+test('manual inventory load restores the moved location and capacity, retaining valid selection with current data', () => {
+  const saved = movedInventoryState();
+  const before = inventoryState(); before.operation = { ...saved.operation, sequence: 3 };
+  const after = structuredClone(saved);
+  after.operation = { sequence: 4, name: 'load', status: 'completed', message: '已恢复本地存档', errorMessage: null, slotId: 'web_probe', worldMinute: 360 };
+  after.displayedOperation = after.operation.message;
+  const valid = farmingClick(before, after);
+  assert.doesNotThrow(() => assertInventoryLoadRecovery(saved, valid));
+  for (const mutate of [
+    (x) => { x.after.inventory.lotOptions[0].storage_ref = structuredClone(x.before.inventory.lotOptions[0].storage_ref); x.after.displayedInventory.location = '当前位置：常温储存'; },
+    (x) => { x.after.inventory.lotOptions[0].quantity.amount = 90; x.after.displayedInventory.quantity = '数量：90克'; },
+    (x) => { x.after.inventory.targetOptions[0].used_capacity++; },
+    (x) => { x.after.inventory.selectedLotId = null; },
+    (x) => { x.after.operation.message = x.after.displayedOperation = '整批转移成功'; },
+    (x) => { x.before.inventory = structuredClone(saved.inventory); }
+  ]) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => assertInventoryLoadRecovery(saved, invalid));
   }
 });
 

@@ -1,13 +1,13 @@
 source_design_pack: 模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip
 design_pack_version: v1.5.2.2
-code_package_version: v0.0.2.35
-code_package_npm_version: 0.0.2-35
-code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_35
-version_name: Web Farming Loop & Action Feedback
-chinese_version_name: 网页种植收获与操作反馈版
-scope: Web outer selection, planting, explicit time advancement and harvest through existing public Stage 1A menu commands. Interpret the current preview and ActionResult accurately; rebuild valid selections after manual load. Preserve lazy fixed web_probe local save, raw strings, rejection protection and the declared desktop input, lifecycle and provenance verification. No core contract, growth rule, migration, Stage 1B or wx changes.
+code_package_version: v0.0.2.36
+code_package_npm_version: 0.0.2-36
+code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_36
+version_name: Web Inventory & Storage Transfer
+chinese_version_name: 网页库存与储存转移版
+scope: Web browsing of public MaterialLot batches and storage targets, with whole-batch transfer through existing formal store_item. The only src execution change is the MenuActionBinding adapter to the existing storeItem draft. Preserve core/app business rules, Session/Queue, public quantities, storage capacity, manual local save, farming and declared input/lifecycle/provenance verification. No split quantities, DishLot browser, migration, Stage 1B or wx changes.
 
 formal_source_statement: 正式包 v1.5.2.2 remains authoritative
-context_statement: 网页外层种植收获、本次业务反馈与读档后选择重建及配套代码包内部检查体系治理；正式玩法、Session和状态流转语义保持
-quality_surface: trace.cocos.web-farming-loop, ProbeFarming, cocos-web-farming.test.ts, inherited trace.cocos.browser-local-save, BrowserSaveStoragePort, cocos-browser-storage.test.ts, cocos-web-serve-contracts.test.mjs, cocos:serve:web, inherited trace.cocos.web-save-load-recovery, inherited trace.cocos.web-viewport-input, test.cocos-web-verification-contracts, cocos:verify:web, inherited trace.cocos.web-bootstrap-probe, test.cocos-probe-preparation, test.cocos-engine-probe-lifecycle, inherited trace.cocos.binding-async-recovery, test.cocos-scene-binding, test.cocos-component-node-binding, controlledBindingPort, quality-affected-contracts, inherited trace.runtime.bootstrap-resources and test.stage1a-bootstrap, inherited trace.save.storage-failure-recovery, test.cocos-session, test.cocos-save-load, test.cocos-command-queue, traceability-map.json, TRACEABILITY_MATRIX, traceability-contracts, inherited PR CI and test.ci-workflow-contracts, project-target authority, q:affected, cache probe, authoritative rules
+context_statement: 网页材料库存与正式整批转移、最小creator菜单适配、本次反馈和读档选择重建及配套代码包内部检查体系治理；正式玩法、Session/Queue与状态流转语义保持
+quality_surface: trace.cocos.web-inventory-storage, MenuActionBinding, cocos-minimal-menu-binding.test.ts, ProbeInventory, cocos-web-inventory.test.ts, inherited trace.cocos.web-farming-loop, ProbeFarming, cocos-web-farming.test.ts, inherited trace.cocos.browser-local-save, BrowserSaveStoragePort, cocos-browser-storage.test.ts, cocos-web-serve-contracts.test.mjs, cocos:serve:web, inherited trace.cocos.web-save-load-recovery, inherited trace.cocos.web-viewport-input, test.cocos-web-verification-contracts, cocos:verify:web, inherited trace.cocos.web-bootstrap-probe, test.cocos-probe-preparation, test.cocos-engine-probe-lifecycle, inherited trace.cocos.binding-async-recovery, test.cocos-scene-binding, test.cocos-component-node-binding, controlledBindingPort, quality-affected-contracts, inherited trace.runtime.bootstrap-resources and test.stage1a-bootstrap, inherited trace.save.storage-failure-recovery, test.cocos-session, test.cocos-save-load, test.cocos-command-queue, traceability-map.json, TRACEABILITY_MATRIX, traceability-contracts, inherited PR CI and test.ci-workflow-contracts, project-target authority, q:affected, cache probe, authoritative rules
 authority_statement: design pack remains authoritative; GitHub repo is daily code authority
