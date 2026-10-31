@@ -11,15 +11,79 @@ export interface ProbeHost {
 }
 
 export type ProbeCommand =
-  | { name: 'menu_confirm'; selection: { action_type: 'advance_time'; minutes: number } }
-  | { name: 'save' | 'load'; selection: { slot_id: string } };
+  | { name: 'menu_confirm'; selection:
+    | { action_type: 'advance_time'; minutes: number }
+    | { action_type: 'plant_crop'; field_option_id: string; seed_lot_option_id: string; seed_quantity: ProbeQuantity }
+    | { action_type: 'harvest_crop'; crop_option_id: string } }
+  | { name: 'save'; selection: { slot_id: string } }
+  | { name: 'load'; selection: { slot_id: string } };
+
+export interface ProbeQuantity {
+  readonly amount: number;
+  readonly unit: string;
+}
+
+export interface ProbeFieldOption {
+  readonly id: string;
+  readonly definition_id: string;
+  readonly enabled: boolean;
+  readonly label_key: string | null;
+  readonly occupied_tiles: number;
+  readonly active_crop_count: number;
+}
+
+export interface ProbeMaterialOption {
+  readonly id: string;
+  readonly enabled: boolean;
+  readonly label_key: string | null;
+  readonly base_id: string;
+  readonly category: string;
+  readonly current_form: string;
+  readonly quantity: ProbeQuantity;
+}
+
+export interface ProbeHarvestableOption {
+  readonly id: string;
+  readonly enabled: boolean;
+  readonly label_key: string | null;
+  readonly crop_base_id: string;
+  readonly field_plot_id: string;
+}
+
+export interface ProbeBusinessResult {
+  readonly success: boolean;
+  readonly status_code: string;
+  readonly message_key: string;
+  readonly message_params: readonly { readonly key: string; readonly value: string | number | boolean | null }[];
+}
+
+export interface ProbeMenuSnapshot {
+  readonly view_model?: { readonly time_label: string } | null;
+  readonly selectable_view_model?: {
+    readonly field_options: readonly ProbeFieldOption[];
+    readonly seed_lot_options: readonly ProbeMaterialOption[];
+    readonly harvestable_crop_options: readonly ProbeHarvestableOption[];
+    readonly splittable_lot_options: readonly ProbeMaterialOption[];
+  } | null;
+  readonly last_preview_result?: (ProbeBusinessResult & { readonly action_type: string }) | null;
+  readonly last_action_result?: (ProbeBusinessResult & {
+    readonly request_id: string;
+    readonly created_objects: readonly {
+      readonly object_type: string;
+      readonly object_id: string;
+      readonly summary?: { readonly quantity?: ProbeQuantity } | null;
+    }[];
+  }) | null;
+}
 
 // Narrow observations of the public component result, never the mutable runtime state.
 export interface ProbeCommandResult {
   readonly command_result: {
+    readonly command_name?: string;
     readonly status: string;
     readonly error_message?: string | null;
     readonly snapshot?: {
+      readonly menu?: ProbeMenuSnapshot;
       readonly save_load?: {
         readonly last_save_result?: { readonly slot_id: string; readonly world_minute: number } | null;
         readonly last_load_result?: { readonly slot_id: string; readonly world_minute: number } | null;

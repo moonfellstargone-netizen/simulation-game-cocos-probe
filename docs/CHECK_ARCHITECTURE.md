@@ -1,6 +1,6 @@
-# CHECK_ARCHITECTURE — v0.0.2.34
+# CHECK_ARCHITECTURE — v0.0.2.35
 
-v0.0.2.34 / Browser Local Save & Reload Recovery验证浏览器本地单槽保存、刷新后手动恢复、存储失败保护及继承的桌面输入可靠性，保留旧层业务架构边界。
+v0.0.2.35 / Web Farming Loop & Action Feedback验证已有Stage1A网页农事闭环、本次业务反馈及读档后选择重建，继承本地存档、桌面输入与旧层架构边界。
 
 ## 1. 本轮检查目标
 
@@ -10,7 +10,7 @@ v0.0.2.34 / Browser Local Save & Reload Recovery验证浏览器本地单槽保�
 
 构建网页built-web验收1440×1200、1280×720、960×640、800×600/DPR1，另960×640/DPR2仿真，并在同页按960×640→1440×1200→800×600→960×640执行四次resize点击。编辑器预览editor-preview独立验收1440×1200与960×640/DPR1，同页按960×640→1440×1200→960×640执行三次resize点击。所有约定案例均保持完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、推进命令时间+60和Label同步；存读档命令按本地单槽预期检查时间；不降低断言强度。官方Default设备模拟器在800窗口裁剪固定960px内容，该预览场景未承诺支持，不能据其失败推定构建网页800失败。DPR仿真不等于手机、触摸、微信或Windows系统缩放验证。
 
-Node任务与独立真实验收分别追踪。新增trace.cocos.browser-local-save，保留trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input、trace.cocos.web-bootstrap-probe及存储/绑定/启动回归。新增browser-storage测试在生命周期任务执行，固定端口serve契约在web-verification任务执行，args/files/covers与单文件affected分别闭合。CI只执行Node完整门禁，不安装Creator或浏览器，不改变full/release/affected策略。
+Node任务与独立真实验收分别追踪。新增trace.cocos.web-farming-loop，保留trace.cocos.browser-local-save、trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input、trace.cocos.web-bootstrap-probe及存储/绑定/启动回归。tests/cocos-web-farming.test.ts加入生命周期任务实际args；新增helper和测试的files/covers与单文件affected分别闭合。CI只执行Node完整门禁，不安装Creator或浏览器，不改变full/release/affected策略。
 
 既有test:cocos-session / registry test.cocos-session继续验证Session边界。test-registry描述Node自动执行集合，traceability-map.json连接模块、文件与门禁追踪；独立真实验收另以构建关联和浏览器证据记录。
 
@@ -50,8 +50,14 @@ cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affe
 
 ## 10. 后续路线（不是授权目标）
 
-Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.34 范围。traceability map 中 `planned` 条目**不是**当前实现。
+Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.35 范围。traceability map 中 `planned` 条目**不是**当前实现。
 
 ## 11. 固定检查短语
 
 `q:affected` 不可作为 release 验收。release gate 禁止 cache。`architecture-boundary.rules.json` 与 `architecture-boundary-check.mjs` 继续有效。`test:project-map-contracts` 与 `docs/GITHUB_WORKFLOW.md`、`docs/PROJECT_MAP.md` 保持 project-map-contracts 导航口径。
+
+## 网页农事验收边界
+
+test.cocos-engine-probe-lifecycle实际执行生命周期、交互、浏览器存储及cocos-web-farming.test.ts四个文件，保持full/blocker。公开Host/Component路径验证播种消耗、占用、正常推进、收获实际数量、读档选择重建与拒绝不改状态；聚焦交互用例验证completed但preview拒绝、结果缺失/不匹配不能误报成功。登记不代替实际执行。
+
+cocos:verify:web在built-web和editor-preview各增加独立960×640农事物理点击闭环：显式选择、超量拒绝、播种保存、按天推进至公开可收获、读档恢复并清除失效选择、再次成熟收获和重新种植。本地选择/数量调整应不发送正式命令、不改变世界状态。原三按钮矩阵、Storage受控故障/坏档、刷新及同context新页面恢复、来源与销毁检查保留；不以observer调用替代点击，不将单个农事视口推导为全部新控件全矩阵通过。

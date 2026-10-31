@@ -51,8 +51,18 @@ test.cocos-probe-preparation、test.cocos-engine-probe-lifecycle、test.cocos-we
 
 启动仍创建既有新局，不自动读写旧档。360→推进420→保存→推进480→刷新新局360→点击读取420；存读档不额外推进。刷新和新页面恢复须同origin/profile，原始字符串不被启动或诊断覆盖。空槽、坏JSON、结构/StorageAudit失败及getter/read/write拒绝保持当前状态，保留原档，健康操作可继续。Session候选校验后提交策略保持；本版不实现任意旧档迁移或未知版本必拒绝，不提供跨标签冲突系统。
 
-ProbeInteraction是无cc的单操作协调器，loading/busy/closing/destroyed不受理；一次受理只调用一次组件命令，无自动重试。结果依据command_result.status/error_message，不聚合旧snapshot区域错误；operation.sequence记录受理次数，operation与displayedOperation可只读观察。预期failed显示正常失败反馈，意外reject仍传播到组件错误记录；销毁后的迟到完成不更新节点。
+ProbeInteraction是无cc的单操作协调器，loading/busy/closing/destroyed不受理；一次受理只调用一次组件命令，无自动重试。存读档依据command_result.status/error_message及本次对应结果，menu_confirm另核对本次preview/ActionResult，不聚合旧snapshot区域错误；operation.sequence记录受理次数，operation与displayedOperation可只读观察。预期failed显示正常失败反馈，意外reject仍传播到组件错误记录；销毁后的迟到完成不更新节点。
 
-test.cocos-engine-probe-lifecycle实际执行cocos-engine-probe-lifecycle.test.ts、cocos-web-interaction.test.ts与cocos-browser-storage.test.ts；test.cocos-web-verification-contracts同时执行cocos-web-serve-contracts.test.mjs。args/files/covers与新增文件单独affected闭合，full/blocker不变。trace.cocos.browser-local-save追踪本地存档；既有trace.cocos.web-save-load-recovery继续闭合Queue、component、本次反馈及full/release。真实物理点击、刷新与同context新页面手动恢复及存储故障/坏档恢复分别验收，Node与observer程序调用均不能替代。
+test.cocos-engine-probe-lifecycle实际执行cocos-engine-probe-lifecycle.test.ts、cocos-web-interaction.test.ts、cocos-browser-storage.test.ts与cocos-web-farming.test.ts；test.cocos-web-verification-contracts同时执行cocos-web-serve-contracts.test.mjs。args/files/covers与新增文件单独affected闭合，full/blocker不变。trace.cocos.browser-local-save追踪本地存档；既有trace.cocos.web-save-load-recovery继续闭合Queue、component、本次反馈及full/release。真实物理点击、刷新与同context新页面手动恢复及存储故障/坏档恢复分别验收，Node与observer程序调用均不能替代。
 
 tools/cocos-probe/serve.mjs提供显式固定loopback端口的最小启动入口，先复核构建来源和逐文件字节，端口占用即失败而不换origin。自动verify的随机端口/新BrowserContext用于测试隔离，不等于日常固定存档地址；不同协议/host/port/profile不共享存储。故障注入不冒充真实权限或配额耗尽测试；用户清理浏览器数据可能清除存档，不接wx或文件系统存储。
+
+## 网页农事选择与结果契约
+
+ProbeFarming只管理公开选项副本、选择和带单位的播种数量；plantCommand/harvestCommand使用当前公开ID构造既有menu_confirm。初始挂载、动作完成和成功load后重新核对选项，失效选择清除；不直接修改存档，不按名称或ID后缀确定业务身份。
+
+本次menu_confirm必须有匹配动作的preview，且实际ActionResult完整并成功才能显示成功；preview拒绝、Action失败、结果缺失或preview动作不匹配均不得误报。ActionResult没有action_type字段，不能虚构该观察契约。Queue.completed语义保持处理完成，不扩大公共命令协议。读取仅消费本次save_load结果，历史preview/ActionResult即使保留，也不能当成本次读档成功或继续使用旧选择。
+
+真实Button执行播种、推进一小时/一天和收获，数量消耗、占用、可收获项和实际产量以公开结果为准。正常时间推进不硬编码成熟时点；公开收获列表只包含可收获项，不据此展示全部作物进度。局部选择/数量调整不发送命令、不改变世界状态。
+
+trace.cocos.web-farming-loop连接新辅助、Node行为和真实verify。农事完整物理点击在960×640 built-web/editor-preview各执行，覆盖超量业务拒绝、播种保存、正常成熟、读档选择重建、收获数量/地块释放与再次种植。原三按钮矩阵、刷新/同context新页面、存储受控失败/坏档、来源与销毁回归仍需独立验证；不以Node或observer调用替代物理点击。

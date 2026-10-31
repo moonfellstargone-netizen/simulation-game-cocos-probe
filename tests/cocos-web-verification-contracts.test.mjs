@@ -5,7 +5,7 @@ import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { assertClickObservation, assertLocalSaveRecovery, assertStoredSaveUnchanged, assertUiCommandObservation, capturePreparedSurface, checkPreparedSurfaceAfterBuild, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest, within } from '../tools/cocos-probe/lib/webProbeSupport.mjs';
+import { assertClickObservation, assertFarmingCommandObservation, assertFarmingLoadRecovery, assertFarmingProjection, assertLocalSaveRecovery, assertLocalSelectionObservation, assertStoredSaveUnchanged, assertUiCommandObservation, capturePreparedSurface, checkPreparedSurfaceAfterBuild, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest, within } from '../tools/cocos-probe/lib/webProbeSupport.mjs';
 import { verifyWebProbe } from '../tools/cocos-probe/verify-web.mjs';
 
 const root = realpathSync(resolve('.'));
@@ -80,6 +80,147 @@ test('save and load click observations require one current command, exact state 
   assert.throws(() => assertUiCommandObservation({ ...loaded, after: { ...loaded.after, timeLabel: loaded.before.timeLabel, displayedTime: loaded.before.timeLabel } }, { name: 'load', status: 'completed', timeLabel: time }));
   const nextDayTime = 'day 2 minute 10';
   assert.doesNotThrow(() => assertUiCommandObservation({ ...loaded, after: { ...loaded.after, timeLabel: nextDayTime, displayedTime: nextDayTime, operation: { ...loaded.after.operation, worldMinute: 1450 } } }, { name: 'load', status: 'completed', timeLabel: nextDayTime }));
+});
+
+function farmingState() {
+  return {
+    phase: 'ready', hasSession: true, busy: false, timeLabel: 'day 1 minute 360', displayedTime: 'day 1 minute 360', errors: [],
+    operation: { sequence: 0, name: null, status: 'idle', message: '请选择地块和种子', errorMessage: null, slotId: null, worldMinute: null },
+    displayedOperation: '请选择地块和种子', displayedFarming: { field: '地块可用', seed: '种子10粒', crop: '暂无可收获作物', inventory: '种子10粒', amount: '1粒' },
+    farming: {
+      fieldOptions: [{ id: 'field', enabled: true, occupied_tiles: 0, active_crop_count: 0 }],
+      seedOptions: [{ id: 'seed', enabled: true, quantity: { amount: 10, unit: 'count' } }],
+      harvestableOptions: [], materialOptions: [{ id: 'seed', enabled: true, quantity: { amount: 10, unit: 'count' } }],
+      selectedFieldId: 'field', selectedSeedId: 'seed', selectedCropId: null, seedAmount: 1, canPlant: true, canHarvest: false
+    }
+  };
+}
+
+function farmingClick(before, after) {
+  return {
+    before, after, eventCount: 1, scrollBefore: { x: 0, y: 0 }, scrollDown: { x: 0, y: 0 }, scrollAfter: { x: 0, y: 0 },
+    layout: { viewport: { width: 960, height: 640 }, canvas: { left: 0, top: 0, right: 960, bottom: 640, width: 960, height: 640 }, button: { left: 100, top: 100, right: 300, bottom: 140, width: 200, height: 40 } }
+  };
+}
+
+function plantedState() {
+  const state = farmingState();
+  state.farming.fieldOptions[0] = { id: 'field', enabled: false, occupied_tiles: 1, active_crop_count: 1 };
+  state.farming.seedOptions[0].quantity.amount = 9;
+  state.farming.materialOptions[0].quantity.amount = 9;
+  state.farming.selectedFieldId = null;
+  state.farming.canPlant = false;
+  state.operation = { sequence: 1, name: 'menu_confirm', status: 'completed', message: '播种成功', errorMessage: null, slotId: null, worldMinute: null };
+  state.displayedOperation = '播种成功';
+  return state;
+}
+
+test('farming selections require one physical event, no command and unchanged public world data', () => {
+  const before = farmingState(); before.farming.selectedFieldId = null;
+  const after = structuredClone(before); after.farming.selectedFieldId = 'field';
+  const valid = farmingClick(before, after);
+  assert.doesNotThrow(() => assertLocalSelectionObservation(valid, { key: 'selectedFieldId', value: 'field' }));
+  const mutations = [
+    (x) => { x.eventCount = 2; },
+    (x) => { x.after.operation.sequence++; },
+    (x) => { x.after.timeLabel = x.after.displayedTime = 'day 1 minute 420'; },
+    (x) => { x.after.farming.seedOptions[0].quantity.amount--; },
+    (x) => { x.after.farming.selectedFieldId = 'old-field'; },
+    (x) => { x.after.farming.fieldOptions[0].enabled = false; },
+    (x) => { x.after.displayedFarming.field = ''; },
+    (x) => { x.after.busy = true; }
+  ];
+  for (const mutate of mutations) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => assertLocalSelectionObservation(invalid, { key: 'selectedFieldId', value: 'field' }));
+  }
+});
+
+test('farming success needs actual seed consumption and field occupancy, while rejection preserves state', () => {
+  const valid = farmingClick(farmingState(), plantedState());
+  const expectation = { actionType: 'plant_crop', status: 'completed', timeLabel: valid.before.timeLabel };
+  assert.doesNotThrow(() => assertFarmingCommandObservation(valid, expectation));
+  for (const mutate of [
+    (x) => { x.after.farming.seedOptions[0].quantity.amount = 10; },
+    (x) => { x.after.farming.seedOptions[0].quantity.unit = 'g'; },
+    (x) => { x.after.farming.fieldOptions[0].occupied_tiles = 0; },
+    (x) => { x.after.farming.fieldOptions[0].active_crop_count = 0; },
+    (x) => { x.after.farming.selectedFieldId = 'field'; },
+    (x) => { x.after.displayedOperation = x.after.operation.message = '已推进一小时'; }
+  ]) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => assertFarmingCommandObservation(invalid, expectation));
+  }
+  const rejected = structuredClone(valid); rejected.after = structuredClone(rejected.before);
+  rejected.after.operation = { ...rejected.before.operation, sequence: 1, name: 'menu_confirm', status: 'failed', message: '资源不足，请调整数量', errorMessage: 'ERR_NOT_ENOUGH_RESOURCE' };
+  rejected.after.displayedOperation = rejected.after.operation.message;
+  const failure = { ...expectation, status: 'failed', errorMessage: 'ERR_NOT_ENOUGH_RESOURCE' };
+  assert.doesNotThrow(() => assertFarmingCommandObservation(rejected, failure));
+  for (const mutate of [
+    (x) => { x.after.operation.status = 'completed'; },
+    (x) => { x.after.farming.seedOptions[0].quantity.amount--; },
+    (x) => { x.after.farming.fieldOptions[0].occupied_tiles++; }
+  ]) {
+    const invalid = structuredClone(rejected); mutate(invalid);
+    assert.throws(() => assertFarmingCommandObservation(invalid, failure));
+  }
+  const day = farmingClick(farmingState(), farmingState());
+  day.after.timeLabel = day.after.displayedTime = 'day 2 minute 360';
+  day.after.operation = { ...valid.after.operation, message: '已推进一天' }; day.after.displayedOperation = '已推进一天';
+  const dayExpected = { actionType: 'advance_time', status: 'completed', timeLabel: day.after.timeLabel };
+  assert.doesNotThrow(() => assertFarmingCommandObservation(day, dayExpected));
+  const short = structuredClone(day); short.after.timeLabel = short.after.displayedTime = 'day 1 minute 420';
+  assert.throws(() => assertFarmingCommandObservation(short, { ...dayExpected, timeLabel: short.after.timeLabel }));
+  const stale = structuredClone(day); stale.after.displayedOperation = stale.after.operation.message = '已推进一小时';
+  assert.throws(() => assertFarmingCommandObservation(stale, dayExpected));
+});
+
+test('harvest requires positive public output quantity and field release, never a lot-count-only success', () => {
+  const before = plantedState();
+  before.farming.harvestableOptions = [{ id: 'crop', enabled: true, field_plot_id: 'field' }];
+  before.farming.selectedCropId = 'crop'; before.farming.canHarvest = true;
+  const after = structuredClone(before);
+  after.farming.fieldOptions[0] = { id: 'field', enabled: true, occupied_tiles: 0, active_crop_count: 0 };
+  after.farming.harvestableOptions = []; after.farming.selectedCropId = null; after.farming.canHarvest = false;
+  after.farming.materialOptions.push({ id: 'produce', enabled: true, quantity: { amount: 100, unit: 'g' } });
+  after.displayedFarming.inventory = '作物100克';
+  after.operation = { ...before.operation, sequence: 2, message: '收获成功' }; after.displayedOperation = '收获成功';
+  const valid = farmingClick(before, after);
+  const expected = { actionType: 'harvest_crop', status: 'completed', timeLabel: before.timeLabel };
+  assert.doesNotThrow(() => assertFarmingCommandObservation(valid, expected));
+  for (const mutate of [
+    (x) => { x.after.farming.materialOptions.at(-1).quantity.amount = 0; },
+    (x) => { x.after.farming.fieldOptions[0].occupied_tiles = 1; },
+    (x) => { x.after.farming.harvestableOptions = structuredClone(x.before.farming.harvestableOptions); },
+    (x) => { x.after.farming.selectedCropId = 'crop'; },
+    (x) => { x.after.displayedFarming.inventory = '共2批材料'; }
+  ]) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => assertFarmingCommandObservation(invalid, expected));
+  }
+  assert.throws(() => assertFarmingProjection({ ...after, displayedFarming: null }));
+});
+
+test('farming load restores saved quantities and clears the selected crop from the later mature world', () => {
+  const saved = plantedState();
+  const mature = structuredClone(saved);
+  mature.timeLabel = mature.displayedTime = 'day 5 minute 360';
+  mature.farming.harvestableOptions = [{ id: 'crop', enabled: true, field_plot_id: 'field' }];
+  mature.farming.selectedCropId = 'crop';
+  const loaded = structuredClone(saved);
+  loaded.operation = { ...saved.operation, sequence: 2, name: 'load', message: '已恢复本地存档', slotId: 'web_probe', worldMinute: 360 };
+  loaded.displayedOperation = '已恢复本地存档';
+  const valid = farmingClick(mature, loaded);
+  assert.doesNotThrow(() => assertFarmingLoadRecovery(saved, valid));
+  for (const mutate of [
+    (x) => { x.after.farming.selectedCropId = 'crop'; },
+    (x) => { x.after.farming.seedOptions[0].quantity.amount = 10; },
+    (x) => { x.after.farming.fieldOptions[0].occupied_tiles = 0; },
+    (x) => { x.after.displayedOperation = x.after.operation.message = '播种成功'; }
+  ]) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => assertFarmingLoadRecovery(saved, invalid));
+  }
 });
 
 test('empty-slot feedback is a failed load with preserved ready state and cannot leak into the next successful command', () => {

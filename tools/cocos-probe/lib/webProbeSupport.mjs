@@ -196,6 +196,101 @@ export function assertUiCommandObservation(observation, expected) {
   assert.equal(after.operation.worldMinute, worldMinute, 'save/load summary must match the resulting public time without stale success data');
 }
 
+const FARMING_COLLECTIONS = ['fieldOptions', 'seedOptions', 'harvestableOptions', 'materialOptions'];
+
+// Assess only public, detached menu projections. The verifier must not inspect or repair SaveFile.
+export function assertFarmingProjection(state) {
+  const farming = state.farming;
+  assert.ok(farming && typeof farming === 'object', 'the public farming projection must exist');
+  for (const key of FARMING_COLLECTIONS) assert.ok(Array.isArray(farming[key]), key + ' must be a public option list');
+  for (const [selected, options] of [['selectedFieldId', 'fieldOptions'], ['selectedSeedId', 'seedOptions'], ['selectedCropId', 'harvestableOptions']]) {
+    assert.ok(farming[selected] === null || typeof farming[selected] === 'string', 'selection must be explicit or empty');
+    if (farming[selected] !== null) assert.ok(farming[options].some((item) => item.id === farming[selected] && item.enabled), 'selection must refer to a current enabled option');
+  }
+  assert.ok(Number.isSafeInteger(farming.seedAmount) && farming.seedAmount >= 1, 'seed quantity must be a positive safe integer');
+  for (const key of ['field', 'seed', 'crop', 'inventory', 'amount']) {
+    assert.ok(typeof state.displayedFarming?.[key] === 'string' && state.displayedFarming[key].trim(), key + ' must have visible feedback');
+  }
+  return farming;
+}
+
+export function assertLocalSelectionObservation(observation, { key, value }) {
+  assertInputObservation(observation);
+  const { before, after } = observation;
+  const previous = assertFarmingProjection(before);
+  const current = assertFarmingProjection(after);
+  assert.equal(before.busy, false);
+  assert.equal(after.busy, false);
+  assert.ok(Number.isSafeInteger(before.operation?.sequence), 'local input must retain an observable command sequence');
+  assert.equal(after.timeLabel, before.timeLabel, 'local selection must not advance the world');
+  assert.deepEqual(after.operation, before.operation, 'a selection click must not submit a command or publish an old result');
+  for (const name of FARMING_COLLECTIONS) assert.deepEqual(current[name], previous[name], 'a selection click must not mutate public world data');
+  assert.equal(current[key], value, 'the physical control must select its expected value');
+}
+
+const lotQuantity = (options, id) => options.find((item) => item.id === id)?.quantity;
+
+export function assertFarmingCommandObservation(observation, expected) {
+  assertUiCommandObservation(observation, { ...expected, name: 'menu_confirm' });
+  const before = assertFarmingProjection(observation.before);
+  const after = assertFarmingProjection(observation.after);
+  if (expected.status === 'failed') {
+    for (const name of FARMING_COLLECTIONS) assert.deepEqual(after[name], before[name], 'a rejected action must preserve all public farming data');
+    assert.equal(observation.after.timeLabel, observation.before.timeLabel, 'a rejected action must preserve world time');
+    return;
+  }
+  if (expected.actionType === 'plant_crop') {
+    const field = before.fieldOptions.find((item) => item.id === before.selectedFieldId);
+    const updatedField = after.fieldOptions.find((item) => item.id === before.selectedFieldId);
+    const seed = lotQuantity(before.seedOptions, before.selectedSeedId);
+    const remaining = lotQuantity(after.seedOptions, before.selectedSeedId);
+    assert.ok(field?.enabled && seed, 'planting requires the explicitly selected public field and seed');
+    assert.equal(updatedField?.occupied_tiles, field.occupied_tiles + 1, 'planting must occupy the selected field');
+    assert.equal(updatedField?.active_crop_count, field.active_crop_count + 1);
+    assert.equal(updatedField.enabled, false);
+    if (remaining) assert.equal(remaining.unit, seed.unit, 'planting must retain the seed quantity unit');
+    assert.equal(remaining?.amount ?? 0, seed.amount - before.seedAmount, 'planting must consume exactly the selected seed quantity');
+    assert.equal(after.selectedFieldId, null, 'an occupied field selection must be cleared');
+    assert.match(observation.after.displayedOperation, /播种成功/);
+  } else if (expected.actionType === 'harvest_crop') {
+    const crop = before.harvestableOptions.find((item) => item.id === before.selectedCropId);
+    assert.ok(crop?.enabled, 'harvesting requires the explicitly selected public crop');
+    const field = before.fieldOptions.find((item) => item.id === crop.field_plot_id);
+    const updatedField = after.fieldOptions.find((item) => item.id === crop.field_plot_id);
+    assert.equal(updatedField?.occupied_tiles, field.occupied_tiles - 1, 'harvesting must release the occupied field');
+    assert.equal(updatedField?.active_crop_count, field.active_crop_count - 1);
+    assert.equal(updatedField.enabled, true);
+    assert.equal(after.harvestableOptions.some((item) => item.id === crop.id), false, 'a harvested crop must leave the public harvest list');
+    assert.equal(after.selectedCropId, null, 'a harvested crop selection must be cleared');
+    const gains = after.materialOptions.filter((lot) => {
+      const previous = lotQuantity(before.materialOptions, lot.id);
+      if (previous) assert.equal(lot.quantity.unit, previous.unit);
+      return lot.quantity.amount > (previous?.amount ?? 0);
+    });
+    assert.ok(gains.length > 0, 'harvesting must produce a positive public material quantity, not only increase a lot count');
+    assert.match(observation.after.displayedOperation, /收获成功/);
+    for (const lot of gains) {
+      assert.ok(observation.after.displayedFarming.inventory.includes(String(lot.quantity.amount)), 'the inventory Label must show the actual resulting quantity');
+      const visibleUnit = ({ count: '粒', g: '克', ml: '毫升' })[lot.quantity.unit] ?? lot.quantity.unit;
+      assert.ok(observation.after.displayedFarming.inventory.includes(visibleUnit), 'the inventory Label must show the public quantity unit in the UI format');
+    }
+  } else {
+    assert.equal(expected.actionType, 'advance_time');
+    assert.equal(timeInMinutes(observation.after.timeLabel) - timeInMinutes(observation.before.timeLabel), 1440, 'one day must advance exactly 1440 normal world minutes');
+    assert.match(observation.after.displayedOperation, /已推进一天/);
+  }
+}
+
+export function assertFarmingLoadRecovery(saved, loaded) {
+  assertUiCommandObservation(loaded, { name: 'load', status: 'completed', timeLabel: saved.timeLabel });
+  const restored = assertFarmingProjection(loaded.after);
+  for (const name of FARMING_COLLECTIONS) assert.deepEqual(restored[name], saved.farming[name], 'manual load must restore the saved public farming data');
+  assert.ok(loaded.before.farming.selectedCropId, 'the recovery case must first select a crop from the later world');
+  assert.equal(restored.harvestableOptions.length, 0, 'the saved planted state must not be ready to harvest');
+  assert.equal(restored.selectedCropId, null, 'load must clear the no-longer-harvestable crop selection');
+  assert.match(loaded.after.displayedOperation, /已恢复本地存档/);
+}
+
 export function assertStoredSaveUnchanged(before, after) {
   assert.ok(typeof before.origin === 'string' && before.origin !== 'null' && before.origin.length > 0);
   assert.ok(typeof before.key === 'string' && before.key.length > 0);

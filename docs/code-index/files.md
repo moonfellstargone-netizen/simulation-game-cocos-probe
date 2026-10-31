@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.34
+﻿# Code Index — Files — v0.0.2.35
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -77,7 +77,7 @@ Node契约只验证工具边界，真实输入与引擎表现另由Creator/Chrom
 
 ## 浏览器本地存档与刷新恢复
 
-trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebProbe.ts、ProbeInteraction.ts及浏览器/固定来源工具；保留trace.cocos.web-save-load-recovery对既有Queue命令结果归属的追踪。真实三按钮AdvanceOneHour、SaveLocal、LoadLocal使用固定单槽web_probe和稳定项目key，启动不读写存储；同origin/profile刷新先创建新局，手动读取恢复保存状态。getter/读写拒绝和坏档保持当前会话，不回退内存。tests/cocos-browser-storage.test.ts与既有生命周期/交互回归由test.cocos-engine-probe-lifecycle实际执行，tests/cocos-web-serve-contracts.test.mjs由test.cocos-web-verification-contracts执行；files/covers、单文件affected及full/blocker闭合。ProbeInteraction保留本次反馈、busy和销毁后迟到保护；真实Creator/Chrome物理点击、刷新及同context新页面手动恢复独立验收，根typecheck只覆盖src，Node通过不能替代引擎或持久化证据。
+trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebProbe.ts、ProbeInteraction.ts及浏览器/固定来源工具；保留trace.cocos.web-save-load-recovery对既有Queue命令结果归属的追踪。既有三按钮AdvanceOneHour、SaveLocal、LoadLocal使用固定单槽web_probe和稳定项目key，启动不读写存储；同origin/profile刷新先创建新局，手动读取恢复保存状态。getter/读写拒绝和坏档保持当前会话，不回退内存。tests/cocos-browser-storage.test.ts与既有生命周期/交互回归由test.cocos-engine-probe-lifecycle实际执行，tests/cocos-web-serve-contracts.test.mjs由test.cocos-web-verification-contracts执行；files/covers、单文件affected及full/blocker闭合。ProbeInteraction保留本次反馈、busy和销毁后迟到保护；真实Creator/Chrome物理点击、刷新及同context新页面手动恢复独立验收，根typecheck只覆盖src，Node通过不能替代引擎或持久化证据。
 
 ## 浏览器本地存档与固定来源入口
 
@@ -87,3 +87,14 @@ trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebPr
 | `tests/cocos-browser-storage.test.ts` | tests | Port故障、状态保护、健康恢复与启动无存储副作用 | 既有生命周期full/blocker任务实际执行 |
 | `tools/cocos-probe/serve.mjs` | tools | 严格构建来源及显式固定端口启动 | `test:cocos-web-verification-contracts` |
 | `tests/cocos-web-serve-contracts.test.mjs` | tests | 固定端口、来源与服务关闭契约 | 既有web-verification full/blocker任务实际执行 |
+
+## 网页种植收获与操作反馈
+
+| 文件 | 模块 | 职责 | 验证 |
+|---|---|---|---|
+| apps/cocos-probe/template/assets/scripts/ProbeFarming.ts | cocos-engine-probe | 公开选项副本、当前选择、播种数量及命令草稿 | test:cocos-engine-probe-lifecycle及真实点击 |
+| apps/cocos-probe/template/assets/scripts/ProbeFarming.ts.meta | cocos-engine-probe | Creator脚本资源身份 | test:cocos-probe-preparation及实际Creator |
+| tests/cocos-web-farming.test.ts | tests | 真实公开Host/Component农事行为与读档选择重建 | 既有生命周期full/blocker实际执行 |
+| apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts | cocos-engine-probe | 本次menu业务结果判定、单次受理与迟到保护 | 交互回归及真实Chrome |
+
+trace.cocos.web-farming-loop连接上述路径与既有prepare/verify；Node登记与真实960×640农事闭环分开验收。

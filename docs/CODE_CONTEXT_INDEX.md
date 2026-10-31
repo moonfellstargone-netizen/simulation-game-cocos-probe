@@ -1,6 +1,6 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.2.34
+﻿# CODE_CONTEXT_INDEX — v0.0.2.35
 
-版本：v0.0.2.34 / Browser Local Save & Reload Recovery / 浏览器本地存档与刷新恢复版。
+版本：v0.0.2.35 / Web Farming Loop & Action Feedback / 网页种植收获与操作反馈版。
 
 ## 执行前必读顺序
 
@@ -30,7 +30,7 @@
 
 后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包；代码包不保存每轮具体任务上下文；代码包只保存执行端上下文治理约束。
 
-## v0.0.2.34 测试索引
+## v0.0.2.35 测试索引
 
 - `tests/cocos-web-verification-contracts.test.mjs`（`test:cocos-web-verification-contracts`，Node工具契约）
 
@@ -125,3 +125,9 @@ release zip 仍检查 UTF-8 metadata 与 mojibake 路径，并排除 `reports/qu
 trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebProbe.ts、ProbeInteraction.ts及浏览器/固定来源工具；保留trace.cocos.web-save-load-recovery对既有Queue命令结果归属的追踪。真实三按钮AdvanceOneHour、SaveLocal、LoadLocal使用固定单槽web_probe和稳定项目key，启动不读写存储；同origin/profile刷新先创建新局，手动读取恢复保存状态。getter/读写拒绝和坏档保持当前会话，不回退内存。tests/cocos-browser-storage.test.ts与既有生命周期/交互回归由test.cocos-engine-probe-lifecycle实际执行，tests/cocos-web-serve-contracts.test.mjs由test.cocos-web-verification-contracts执行；files/covers、单文件affected及full/blocker闭合。ProbeInteraction保留本次反馈、busy和销毁后迟到保护；真实Creator/Chrome物理点击、刷新及同context新页面手动恢复独立验收，根typecheck只覆盖src，Node通过不能替代引擎或持久化证据。
 
 新增入口：先读外层模块卡、BrowserSaveStoragePort.ts、tests/cocos-browser-storage.test.ts、tools/cocos-probe/serve.mjs及tests/cocos-web-serve-contracts.test.mjs；再核对lifecycle和web-verification任务的actual args/files/covers与trace.cocos.browser-local-save。Storage getter/读写错误不得伪报成功，坏档失败保留当前Session；启动不读写存档，observer不提供覆盖真实槽的诊断写入。固定来源与随机自动验收环境必须区分。
+
+## 网页种植收获与本次业务结果
+
+入口为apps/cocos-probe/template/assets/scripts/ProbeFarming.ts、ProbeInteraction.ts、ProbeLifetime.ts与CocosWebProbe.ts。先核对公开MenuRenderSnapshot、SelectableViewModel和MenuActionBinding，再修改outer消费；默认不改src/**/*.ts执行逻辑。completed只代表命令处理完成，menu_confirm成功必须对应本次preview/ActionResult；load不能借用历史菜单结果。
+
+tests/cocos-web-farming.test.ts随test:cocos-engine-probe-lifecycle实际运行，测试路径、纯helper及.meta登记files/covers；trace.cocos.web-farming-loop连接外层模块卡、契约、真实verify和现有full/release。真实960×640农事操作另需Creator/Chrome证据，Node与根typecheck均不能代替。
