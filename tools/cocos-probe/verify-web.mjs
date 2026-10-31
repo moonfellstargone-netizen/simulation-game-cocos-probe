@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertClickObservation, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, webTreeDigest } from './lib/webProbeSupport.mjs';
+import { assertClickObservation, assertUiCommandObservation, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, webTreeDigest } from './lib/webProbeSupport.mjs';
 
 const ROOT = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '../..'));
 const MATRIX = [
@@ -13,6 +13,8 @@ const MATRIX = [
 const settle = (page) => page.evaluate(() => new Promise((accept) => requestAnimationFrame(() => requestAnimationFrame(accept))));
 const status = (page) => page.evaluate(() => globalThis.__cocosWebProbe.status());
 const scroll = (page) => page.evaluate(() => ({ x: scrollX, y: scrollY }));
+const BUTTONS = ['AdvanceOneHour', 'SaveTemporary', 'LoadTemporary'];
+const EMPTY_SLOT_ERROR = 'ERR_SAVE_SLOT_NOT_FOUND:web_probe';
 
 async function awaitReady(page) {
   await page.waitForFunction(() => ['ready', 'failed'].includes(globalThis.__cocosWebProbe?.status().phase), {}, { timeout: 30000 });
@@ -24,21 +26,25 @@ async function awaitReady(page) {
 }
 
 async function attachButtonObservation(page) {
-  await page.evaluate(async () => {
+  await page.evaluate(async (names) => {
     const cc = await System.import('cc');
-    const button = cc.director.getScene().getComponentsInChildren(cc.Button).find((item) => item.node.name === 'AdvanceOneHour');
-    if (!button) throw new Error('ERR_WEB_PROBE_BUTTON_MISSING');
-    globalThis.__webProbeButtonEvents = 0;
-    button.node.on(cc.Button.EventType.CLICK, () => { globalThis.__webProbeButtonEvents++; });
-  });
+    const buttons = cc.director.getScene().getComponentsInChildren(cc.Button);
+    globalThis.__webProbeButtonEvents = Object.fromEntries(names.map((name) => [name, 0]));
+    for (const name of names) {
+      const matches = buttons.filter((item) => item.node.name === name);
+      if (matches.length !== 1) throw new Error('ERR_WEB_PROBE_BUTTON_MISSING_OR_DUPLICATE:' + name);
+      matches[0].node.on(cc.Button.EventType.CLICK, () => { globalThis.__webProbeButtonEvents[name]++; });
+    }
+  }, BUTTONS);
 }
 
-async function physicalClick(page, caseName, result, recordDir) {
+async function physicalClick(page, caseName, result, recordDir, buttonName = 'AdvanceOneHour', expected) {
   await settle(page);
-  const layout = await page.evaluate(async () => {
+  const layout = await page.evaluate(async (name) => {
     const cc = await System.import('cc');
     const scene = cc.director.getScene();
-    const button = scene.getComponentsInChildren(cc.Button).find((item) => item.node.name === 'AdvanceOneHour');
+    const button = scene.getComponentsInChildren(cc.Button).find((item) => item.node.name === name);
+    if (!button || !button.interactable) throw new Error('ERR_WEB_PROBE_BUTTON_NOT_INTERACTABLE:' + name);
     const camera = scene.getComponentsInChildren(cc.Camera).find((item) => item.node.name === 'ProbeCamera');
     const transform = button.node.getComponent(cc.UITransform);
     const element = document.querySelector('#GameCanvas');
@@ -58,9 +64,9 @@ async function physicalClick(page, caseName, result, recordDir) {
       viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
       target: cssPoint(button.node.worldPosition)
     };
-  });
+  }, buttonName);
   const before = await status(page);
-  const countBefore = await page.evaluate(() => globalThis.__webProbeButtonEvents);
+  const countBefore = await page.evaluate((name) => globalThis.__webProbeButtonEvents[name], buttonName);
   const scrollBefore = await scroll(page);
   assert.ok(layout.target.x >= 0 && layout.target.x < layout.viewport.width && layout.target.y >= 0 && layout.target.y < layout.viewport.height, 'physical target must be inside the viewport');
   // Keep the same physical pointer coordinates through down/up. Never scroll, retry or retarget a failed click.
@@ -70,11 +76,48 @@ async function physicalClick(page, caseName, result, recordDir) {
   const scrollDown = await scroll(page);
   await page.mouse.up();
   await settle(page);
-  const observation = { caseName, layout, before, after: await status(page), eventCount: await page.evaluate(() => globalThis.__webProbeButtonEvents) - countBefore, scrollBefore, scrollDown, scrollAfter: await scroll(page) };
+  await page.waitForFunction(() => !globalThis.__cocosWebProbe.status().busy, {}, { timeout: 10000 });
+  const observation = { caseName, buttonName, layout, before, after: await status(page), eventCount: await page.evaluate((name) => globalThis.__webProbeButtonEvents[name], buttonName) - countBefore, scrollBefore, scrollDown, scrollAfter: await scroll(page) };
   result.clicks.push(observation);
   await page.screenshot({ path: join(recordDir, caseName + '.png'), fullPage: true });
-  assertClickObservation(observation);
+  if (buttonName === 'AdvanceOneHour') {
+    assertClickObservation(observation);
+    assertUiCommandObservation(observation, { name: 'menu_confirm', status: 'completed', timeLabel: observation.after.timeLabel });
+  } else {
+    assertUiCommandObservation(observation, expected);
+  }
   return observation;
+}
+
+async function emptySlotClick(page, caseName, result, recordDir) {
+  const before = await status(page);
+  return await physicalClick(page, caseName, result, recordDir, 'LoadTemporary', {
+    name: 'load', status: 'failed', timeLabel: before.timeLabel, errorMessage: EMPTY_SLOT_ERROR
+  });
+}
+
+async function saveAdvanceLoad(page, name, result, recordDir) {
+  const savedTime = (await status(page)).timeLabel;
+  const saved = await physicalClick(page, name + '-save', result, recordDir, 'SaveTemporary', { name: 'save', status: 'completed', timeLabel: savedTime });
+  const advanced = await physicalClick(page, name + '-advance-after-save', result, recordDir);
+  const loaded = await physicalClick(page, name + '-load', result, recordDir, 'LoadTemporary', { name: 'load', status: 'completed', timeLabel: savedTime });
+  return { saved, advanced, loaded };
+}
+
+async function reloadClearsTemporarySlot(page, name, result, recordDir) {
+  // A real navigation creates a new document and boots a new public probe. No storage APIs are injected.
+  await page.evaluate(() => { globalThis.__webProbePreviousDocument = true; });
+  await page.reload();
+  await awaitReady(page);
+  const initial = await status(page);
+  assert.equal(await page.evaluate(() => globalThis.__webProbePreviousDocument), undefined, 'reload must create a new document');
+  assert.equal(initial.timeLabel, 'day 1 minute 360', 'reload must create fresh public game state');
+  assert.equal(initial.operation.sequence, 0, 'reload must reset the UI command lifetime');
+  assert.equal(initial.operation.status, 'idle');
+  assert.equal(initial.busy, false);
+  await attachButtonObservation(page);
+  const emptyLoad = await emptySlotClick(page, name + '-reload-empty-load', result, recordDir);
+  return { initial, emptyLoad, lifecycle: await memoryAndDispose(page) };
 }
 
 async function memoryAndDispose(page) {
@@ -145,34 +188,40 @@ export async function verifyWebProbe(options) {
         await page.goto(result.url);
         await awaitReady(page);
         await attachButtonObservation(page);
+        await emptySlotClick(page, name + '-empty-load', result, recordDir);
         const observation = await physicalClick(page, name, result, recordDir);
         assert.equal(observation.layout.viewport.dpr, item.dpr, 'browser must use the requested device pixel ratio');
+        await saveAdvanceLoad(page, name, result, recordDir);
         const cleanup = await memoryAndDispose(page);
         (result.lifecycles ??= []).push({ caseName: name, ...cleanup });
+        (result.refreshes ??= []).push({ caseName: name, ...await reloadClearsTemporarySlot(page, name, result, recordDir) });
       } finally { await context.close(); }
     }
     const context = await browser.newContext({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
     try {
       const page = await context.newPage(); watchErrors(page, 'resize', logs);
       await page.goto(result.url); await awaitReady(page); await attachButtonObservation(page);
-      await page.evaluate(async () => {
+      await page.evaluate(async (names) => {
         const cc = await System.import('cc');
+        const buttons = cc.director.getScene().getComponentsInChildren(cc.Button);
         globalThis.__webProbeResizeIdentity = {
           observer: globalThis.__cocosWebProbe,
-          node: cc.director.getScene().getComponentsInChildren(cc.Button).find((item) => item.node.name === 'AdvanceOneHour').node
+          nodes: Object.fromEntries(names.map((name) => [name, buttons.find((item) => item.node.name === name).node]))
         };
-      });
+      }, BUTTONS);
       for (const [i, viewport] of resizeViewports(Boolean(parsed.previewUrl)).entries()) {
         const before = await status(page);
         await page.setViewportSize(viewport); await settle(page);
         const after = await status(page);
         assert.equal(after.timeLabel, before.timeLabel, 'resize must retain the same session time');
-        assert.equal(await page.evaluate(async () => {
+        assert.equal(await page.evaluate(async (names) => {
           const cc = await System.import('cc');
-          const button = cc.director.getScene().getComponentsInChildren(cc.Button).find((item) => item.node.name === 'AdvanceOneHour');
-          return globalThis.__webProbeResizeIdentity.observer === globalThis.__cocosWebProbe && globalThis.__webProbeResizeIdentity.node === button.node;
-        }), true, 'resize must retain the same public observer and Button node');
+          const buttons = cc.director.getScene().getComponentsInChildren(cc.Button);
+          return globalThis.__webProbeResizeIdentity.observer === globalThis.__cocosWebProbe
+            && names.every((name) => globalThis.__webProbeResizeIdentity.nodes[name] === buttons.find((item) => item.node.name === name).node);
+        }, BUTTONS), true, 'resize must retain the same public observer and all Button nodes');
         await physicalClick(page, 'resize-' + i, result, recordDir);
+        await saveAdvanceLoad(page, 'resize-' + i, result, recordDir);
       }
       result.resizeIdentityVerified = true;
       result.resizeLifecycle = await memoryAndDispose(page);

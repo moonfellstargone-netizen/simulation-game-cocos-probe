@@ -1,4 +1,4 @@
-﻿# Runtime Map — v0.0.2.32
+﻿# Runtime Map — v0.0.2.33
 
 ## 系统职责
 
@@ -62,3 +62,7 @@ game-core, cocos-app, save-load
 真实Web宿主位于新cocos-engine-probe外层，准备工具从唯一运行源码和正式资源派生工程；异步加载期间销毁保护属于外层生命周期，不能由已有绑定队列代替。见[引擎探针模块卡](../module-cards/cocos-engine-probe.md)和trace.cocos.web-bootstrap-probe。
 
 桌面视口和输入修复仅在既有Web外层及构建模板，resize不重新创建Host、不重注册Action事件；`trace.cocos.web-viewport-input`和独立`cocos:verify:web`负责点击命中与公开时间/Label一致性，核心运行流程保持不变。
+
+## 临时存读档交互与恢复
+
+trace.cocos.web-save-load-recovery连接apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts、ProbeInteraction.ts和src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts；根typecheck仍只覆盖src。外层真实三按钮使用固定本页内存槽web_probe，当前反馈读取command_result，历史面板错误保留但不覆盖本次结果。ProbeInteraction保证busy与销毁后迟到保护；tests/cocos-web-interaction.test.ts由既有test.cocos-engine-probe-lifecycle实际执行并登记files/covers，新增helper和test分别验证单文件affected选择。Queue/component行为回归与浏览器工具契约保持full/blocker；真实Creator/Chrome物理点击、读取恢复及刷新清空独立验收，不能由Node通过推导。

@@ -9,9 +9,9 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.32
+# TRACEABILITY_MATRIX — v0.0.2.33
 
-**Cocos Web Viewport & Input Reliability / Cocos网页视口与输入可靠性版**
+**Cocos Web Save/Load Interaction & Recovery / Cocos网页临时存读档交互与恢复版**
 
 ## 1. 定位
 
@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 本轮沿用**轻量追踪地基**，新增真实Web桌面视口与输入验收链路；既有真实Cocos外层已实现，旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
+- 本轮沿用**轻量追踪地基**，新增真实Web临时存读档交互与失败恢复链路，继承桌面视口与输入验收；既有真实Cocos外层已实现，旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
 
 ## 2. 状态语义
 
@@ -41,9 +41,15 @@ related:
 
 ## 4. Active entries（与 traceability-map.json 对齐）
 
+### trace.cocos.web-save-load-recovery
+
+固定单槽web_probe使用本页InMemorySaveStoragePort，经既有component/SceneBinding/Queue实现AdvanceOneHour、SaveTemporary、LoadTemporary。空槽读取失败后保留ready和当前时间，下一健康命令成功；保存420→推进480→读取420，存读档不额外推进；刷新清空。Queue按本次命令归属判错，历史区域错误不再覆盖本次结果，也不删除历史失败或自动重发Action。
+
+sourceRefs连接CocosWebProbe.ts、ProbeInteraction.ts、CocosUiCommandQueue.ts与浏览器工具。test.cocos-command-queue、test.cocos-component-node-binding、test.cocos-engine-probe-lifecycle（实际执行cocos-web-interaction.test.ts）、test.cocos-probe-preparation及test.cocos-web-verification-contracts登记full/blocker并在full/release执行。Node验证命令归属、busy及迟到结果保护；真实三按钮物理点击、视口/resize、刷新与Label反馈由Creator/Chrome独立验收。该条不等于真实持久化或平台存储通过。
+
 ### trace.cocos.web-viewport-input
 
-现有Web外层的桌面尺寸与运行中resize输入可靠性，由源模板、真实构建/浏览器工具及Node工具契约连接。test.cocos-web-verification-contracts登记full/blocker和实际执行文件，覆盖来源/HTTP/参数/失败保护；Node契约不执行真实浏览器。cocos:verify:web独立验证真实鼠标点击、Button事件恰好一次、+60和Label同步，并保留缺资源及销毁回归。构建网页built-web验收1440×1200、1280×720、960×640、800×600/DPR1，另960×640/DPR2仿真，并在同页按960×640→1440×1200→800×600→960×640执行四次resize点击。编辑器预览editor-preview独立验收1440×1200与960×640/DPR1，同页按960×640→1440×1200→960×640执行三次resize点击。所有约定案例均保持完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、时间+60和Label同步；不降低断言强度。官方Default设备模拟器在800窗口裁剪固定960px内容，该预览场景未承诺支持，不能据其失败推定构建网页800失败。DPR仿真不等于手机、触摸、微信或Windows系统缩放验证。
+现有Web外层的桌面尺寸与运行中resize输入可靠性，由源模板、真实构建/浏览器工具及Node工具契约连接。test.cocos-web-verification-contracts登记full/blocker和实际执行文件，覆盖来源/HTTP/参数/失败保护；Node契约不执行真实浏览器。cocos:verify:web独立验证真实鼠标点击、Button事件恰好一次、+60和Label同步，并保留缺资源及销毁回归。构建网页built-web验收1440×1200、1280×720、960×640、800×600/DPR1，另960×640/DPR2仿真，并在同页按960×640→1440×1200→800×600→960×640执行四次resize点击。编辑器预览editor-preview独立验收1440×1200与960×640/DPR1，同页按960×640→1440×1200→960×640执行三次resize点击。所有约定案例均保持完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、推进命令时间+60和Label同步；存读档命令按临时槽预期检查时间；不降低断言强度。官方Default设备模拟器在800窗口裁剪固定960px内容，该预览场景未承诺支持，不能据其失败推定构建网页800失败。DPR仿真不等于手机、触摸、微信或Windows系统缩放验证。
 
 
 ### trace.cocos.web-bootstrap-probe

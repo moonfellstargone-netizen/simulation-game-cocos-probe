@@ -14,9 +14,23 @@ export type ProbeCommand =
   | { name: 'menu_confirm'; selection: { action_type: 'advance_time'; minutes: number } }
   | { name: 'save' | 'load'; selection: { slot_id: string } };
 
+// Narrow observations of the public component result, never the mutable runtime state.
+export interface ProbeCommandResult {
+  readonly command_result: {
+    readonly status: string;
+    readonly error_message?: string | null;
+    readonly snapshot?: {
+      readonly save_load?: {
+        readonly last_save_result?: { readonly slot_id: string; readonly world_minute: number } | null;
+        readonly last_load_result?: { readonly slot_id: string; readonly world_minute: number } | null;
+      };
+    };
+  };
+}
+
 export interface ProbeBinding {
-  mount(): Promise<{ command_result: { status: string } }>;
-  execute(command: ProbeCommand): Promise<{ command_result: { status: string } }>;
+  mount(): Promise<ProbeCommandResult>;
+  execute(command: ProbeCommand): Promise<ProbeCommandResult>;
   unmount(): Promise<unknown>;
 }
 
@@ -64,7 +78,7 @@ export class ProbeLifetime {
     };
   }
 
-  async execute(command: ProbeCommand): Promise<{ command_result: { status: string } }> {
+  async execute(command: ProbeCommand): Promise<ProbeCommandResult> {
     if (this.disposed || this.phase !== 'ready' || this.binding === null) {
       throw new Error('ERR_COCOS_PROBE_NOT_READY');
     }

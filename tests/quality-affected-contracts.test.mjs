@@ -16,6 +16,8 @@ test('Cocos Web template, preparation and regression changes select the register
   const cases = [
     ['apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle', 'test.cocos-web-verification-contracts', 'quality.architectureBoundary']],
     ['apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
+    ['apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle', 'test.cocos-web-verification-contracts']],
+    ['tests/cocos-web-interaction.test.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
     ['apps/cocos-probe/template/settings/v2/packages/project.json', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
     ['apps/cocos-probe/template/assets/Probe.scene.meta', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
     ['tools/cocos-probe/prepare.mjs', ['test.cocos-probe-preparation']],

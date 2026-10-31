@@ -5,7 +5,7 @@ import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { assertClickObservation, capturePreparedSurface, checkPreparedSurfaceAfterBuild, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest, within } from '../tools/cocos-probe/lib/webProbeSupport.mjs';
+import { assertClickObservation, assertUiCommandObservation, capturePreparedSurface, checkPreparedSurfaceAfterBuild, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest, within } from '../tools/cocos-probe/lib/webProbeSupport.mjs';
 import { verifyWebProbe } from '../tools/cocos-probe/verify-web.mjs';
 
 const root = realpathSync(resolve('.'));
@@ -52,6 +52,55 @@ test('physical click observations reject no-op, duplicate action, scrolling and 
   for (const variant of variants) assert.throws(() => assertClickObservation(variant));
   assert.equal(timeInMinutes('day 2 minute 10') - timeInMinutes('day 1 minute 1390'), 60);
   assert.throws(() => timeInMinutes('day 1 minute 1440'), /ERR_WEB_PROBE_TIME_LABEL/);
+});
+
+test('save and load click observations require one current command, exact state and visible feedback', () => {
+  const time = 'day 1 minute 420';
+  const rectangle = { left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600 };
+  const before = { phase: 'ready', hasSession: true, busy: false, timeLabel: time, displayedTime: time, errors: [], operation: { sequence: 3 } };
+  const saved = {
+    before, after: { ...before, operation: { sequence: 4, name: 'save', status: 'completed', message: 'Saved temporary slot', errorMessage: null, slotId: 'web_probe', worldMinute: 420 }, displayedOperation: 'Saved temporary slot' },
+    eventCount: 1, scrollBefore: { x: 0, y: 0 }, scrollDown: { x: 0, y: 0 }, scrollAfter: { x: 0, y: 0 },
+    layout: { viewport: { width: 800, height: 600 }, canvas: rectangle, button: { left: 200, top: 200, right: 400, bottom: 300, width: 200, height: 100 } }
+  };
+  const expectation = { name: 'save', status: 'completed', timeLabel: time };
+  assert.doesNotThrow(() => assertUiCommandObservation(saved, expectation));
+  const variants = [
+    { ...saved, eventCount: 0 }, { ...saved, eventCount: 2 },
+    { ...saved, before: { ...before, busy: true } },
+    ...[{ sequence: 3 }, { sequence: 5 }, { name: 'load' }, { status: 'failed' }, { errorMessage: 'old load failed' }, { slotId: 'wrong_slot' }, { worldMinute: 480 }, { worldMinute: null }, { message: '' }].map((change) => ({ ...saved, after: { ...saved.after, operation: { ...saved.after.operation, ...change } } })),
+    { ...saved, after: { ...saved.after, busy: true } },
+    { ...saved, after: { ...saved.after, displayedOperation: 'old success' } },
+    { ...saved, after: { ...saved.after, timeLabel: 'day 1 minute 480', displayedTime: 'day 1 minute 480' } },
+    { ...saved, after: { ...saved.after, errors: ['unexpected runtime failure'] } }
+  ];
+  for (const variant of variants) assert.throws(() => assertUiCommandObservation(variant, expectation));
+  const loaded = { ...saved, before: { ...before, timeLabel: 'day 1 minute 480', displayedTime: 'day 1 minute 480' }, after: { ...saved.after, operation: { ...saved.after.operation, name: 'load' } } };
+  assert.doesNotThrow(() => assertUiCommandObservation(loaded, { name: 'load', status: 'completed', timeLabel: time }));
+  assert.throws(() => assertUiCommandObservation({ ...loaded, after: { ...loaded.after, timeLabel: loaded.before.timeLabel, displayedTime: loaded.before.timeLabel } }, { name: 'load', status: 'completed', timeLabel: time }));
+  const nextDayTime = 'day 2 minute 10';
+  assert.doesNotThrow(() => assertUiCommandObservation({ ...loaded, after: { ...loaded.after, timeLabel: nextDayTime, displayedTime: nextDayTime, operation: { ...loaded.after.operation, worldMinute: 1450 } } }, { name: 'load', status: 'completed', timeLabel: nextDayTime }));
+});
+
+test('empty-slot feedback is a failed load with preserved ready state and cannot leak into the next successful command', () => {
+  const time = 'day 1 minute 360';
+  const rectangle = { left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600 };
+  const before = { phase: 'ready', hasSession: true, busy: false, timeLabel: time, displayedTime: time, errors: [], operation: { sequence: 0 } };
+  const failed = { before, after: { ...before, operation: { sequence: 1, name: 'load', status: 'failed', message: 'Temporary slot is empty', errorMessage: 'ERR_SAVE_SLOT_NOT_FOUND:web_probe', slotId: 'web_probe', worldMinute: null }, displayedOperation: 'Temporary slot is empty' }, eventCount: 1, scrollBefore: { x: 0, y: 0 }, scrollDown: { x: 0, y: 0 }, scrollAfter: { x: 0, y: 0 }, layout: { viewport: { width: 800, height: 600 }, canvas: rectangle, button: { left: 200, top: 200, right: 400, bottom: 300, width: 200, height: 100 } } };
+  const expectation = { name: 'load', status: 'failed', timeLabel: time, errorMessage: 'ERR_SAVE_SLOT_NOT_FOUND:web_probe' };
+  assert.doesNotThrow(() => assertUiCommandObservation(failed, expectation));
+  for (const after of [
+    { ...failed.after, phase: 'failed' }, { ...failed.after, hasSession: false },
+    { ...failed.after, operation: { ...failed.after.operation, status: 'completed' } },
+    { ...failed.after, operation: { ...failed.after.operation, errorMessage: null } },
+    { ...failed.after, operation: { ...failed.after.operation, worldMinute: 360 } },
+    { ...failed.after, operation: { ...failed.after.operation, message: '启动失败：empty slot' }, displayedOperation: '启动失败：empty slot' },
+    { ...failed.after, timeLabel: 'day 1 minute 420', displayedTime: 'day 1 minute 420' }
+  ]) assert.throws(() => assertUiCommandObservation({ ...failed, after }, expectation));
+  const advanced = { ...failed, before: failed.after, after: { ...failed.after, timeLabel: 'day 1 minute 420', displayedTime: 'day 1 minute 420', operation: { sequence: 2, name: 'menu_confirm', status: 'completed', message: 'Advanced one hour', errorMessage: null, slotId: null, worldMinute: null }, displayedOperation: 'Advanced one hour' } };
+  assert.doesNotThrow(() => assertClickObservation(advanced));
+  assert.doesNotThrow(() => assertUiCommandObservation(advanced, { name: 'menu_confirm', status: 'completed', timeLabel: 'day 1 minute 420' }));
+  assert.throws(() => assertUiCommandObservation({ ...advanced, after: { ...advanced.after, operation: { ...advanced.after.operation, status: 'failed', errorMessage: expectation.errorMessage } } }, { name: 'menu_confirm', status: 'completed', timeLabel: 'day 1 minute 420' }));
 });
 
 test('build provenance rejects changed prepared bytes and unrelated or failed build records', (t) => {

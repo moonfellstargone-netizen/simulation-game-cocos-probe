@@ -1,8 +1,8 @@
 {
   "name": "qinglan-cocos-prototype-codepack",
-  "version": "0.0.2-32",
+  "version": "0.0.2-33",
   "private": true,
-  "description": "模拟游戏 Cocos 微信试水代码包 v0.0.2.32：Cocos Web Viewport & Input Reliability / Cocos网页视口与输入可靠性版。",
+  "description": "模拟游戏 Cocos 微信试水代码包 v0.0.2.33：Cocos Web Save/Load Interaction & Recovery / Cocos网页临时存读档交互与恢复版。",
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -25,8 +25,8 @@
     "test:cocos-save-load": "node --import tsx --test tests/cocos-save-load-ui-binding.test.ts tests/cocos-error-presentation.test.ts",
     "test:context-governance": "node --test tests/context-governance-contracts.test.mjs",
     "test:package-hygiene": "node --test tests/package-hygiene.test.mjs",
-    "release:build": "node tools/run-python3.mjs tools/build_release_package.py --source-root . --project-target tools/quality/rules/project-target.json --root-name 模拟游戏_Cocos微信试水代码包_v0_0_2_32 --output ../模拟游戏_Cocos微信试水代码包_v0_0_2_32.zip --kind code",
-    "release:check": "node tools/run-python3.mjs tools/check_release_zip.py ../模拟游戏_Cocos微信试水代码包_v0_0_2_32.zip --project-target tools/quality/rules/project-target.json --expected-root 模拟游戏_Cocos微信试水代码包_v0_0_2_32 --kind code",
+    "release:build": "node tools/run-python3.mjs tools/build_release_package.py --source-root . --project-target tools/quality/rules/project-target.json --root-name 模拟游戏_Cocos微信试水代码包_v0_0_2_33 --output ../模拟游戏_Cocos微信试水代码包_v0_0_2_33.zip --kind code",
+    "release:check": "node tools/run-python3.mjs tools/check_release_zip.py ../模拟游戏_Cocos微信试水代码包_v0_0_2_33.zip --project-target tools/quality/rules/project-target.json --expected-root 模拟游戏_Cocos微信试水代码包_v0_0_2_33 --kind code",
     "test:cocos-ui-shell": "node --import tsx --test tests/cocos-ui-shell-composition.test.ts",
     "test:cocos-ui-command-queue": "node --import tsx --test tests/cocos-ui-command-queue.test.ts",
     "test:cocos-ui-render-diff": "node --import tsx --test tests/cocos-ui-render-diff.test.ts",
@@ -58,7 +58,7 @@
     "test:stage1a-bootstrap": "node --import tsx --test tests/stage1a-bootstrap.test.ts",
     "cocos:prepare": "node tools/cocos-probe/prepare.mjs",
     "test:cocos-probe-preparation": "node --test tests/cocos-probe-preparation.test.mjs",
-    "test:cocos-engine-probe-lifecycle": "node --import tsx --test tests/cocos-engine-probe-lifecycle.test.ts",
+    "test:cocos-engine-probe-lifecycle": "node --import tsx --test tests/cocos-engine-probe-lifecycle.test.ts tests/cocos-web-interaction.test.ts",
     "cocos:build": "node tools/cocos-probe/build.mjs",
     "cocos:verify:web": "node tools/cocos-probe/verify-web.mjs",
     "test:cocos-web-verification-contracts": "node --test tests/cocos-web-verification-contracts.test.mjs"

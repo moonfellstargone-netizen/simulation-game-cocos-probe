@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.32
+﻿# ARCHITECTURE — v0.0.2.33
 
-当前版本：v0.0.2.32 / Cocos Web Viewport & Input Reliability。本轮只修现有真实Web外层的桌面视口与输入，使用最小浏览器回归工具验证，不改变既有三层或玩法状态流转。
+当前版本：v0.0.2.33 / Cocos Web Save/Load Interaction & Recovery。本轮推进真实Web外层固定临时单槽交互，并最小修复旧Queue命令结果的错误归属，保留既有三层边界和玩法状态流转。
 
 ## 1. 业务架构不变
 

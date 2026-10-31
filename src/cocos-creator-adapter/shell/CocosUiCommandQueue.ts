@@ -70,7 +70,7 @@ export class CocosUiShellCommandQueue {
       return result;
     }
 
-    const errorMessage = firstSnapshotErrorMessage(snapshot);
+    const errorMessage = firstCommandErrorMessage(command.name, snapshot);
     const result = this.finish(command.name, errorMessage === null ? 'completed' : 'failed', snapshot, errorMessage);
     return result;
   }
@@ -112,12 +112,19 @@ export class CocosUiShellCommandQueue {
   }
 }
 
-function firstSnapshotErrorMessage(snapshot: CocosUiShellRenderSnapshot): string | null {
-  const shellError = snapshot.errors[0]?.message;
-  if (shellError) return shellError;
-  const menuError = snapshot.menu.errors[0]?.message;
-  if (menuError) return menuError;
-  const saveLoadError = snapshot.save_load.errors[0]?.message;
-  if (saveLoadError) return saveLoadError;
-  return null;
+function firstCommandErrorMessage(commandName: CocosUiShellCommandName, snapshot: CocosUiShellRenderSnapshot): string | null {
+  const shellError = snapshot.errors[0];
+  if (shellError) return shellError.message;
+  // Other panels retain their previous results; only the command's own panel
+  // reports a new failure. Refresh and lifecycle commands belong to the shell.
+  switch (commandName) {
+    case 'menu_preview':
+    case 'menu_confirm':
+      return snapshot.menu.errors[0]?.message ?? null;
+    case 'save':
+    case 'load':
+      return snapshot.save_load.errors[0]?.message ?? null;
+    default:
+      return null;
+  }
 }

@@ -173,6 +173,104 @@ for (const operation of ['read', 'write'] as const) {
   });
 }
 
+test('a failed load does not mislabel a later menu command or replay its action', async () => {
+  const { host, queue } = makeQueuedShell();
+  await queue.execute({ name: 'create_session' });
+  const before = host.requireSession().getViewModel();
+
+  const failedLoad = await queue.execute({ name: 'load', selection: { slot_id: 'queue_missing' } });
+  assert.equal(failedLoad.status, 'failed');
+  assert.match(failedLoad.error_message ?? '', /ERR_SAVE_SLOT_NOT_FOUND/);
+  assert.deepEqual(host.requireSession().getViewModel(), before);
+  const failureSnapshot = structuredClone(failedLoad);
+
+  const previewed = await queue.execute({ name: 'menu_preview', selection: { action_type: 'advance_time', minutes: 60 } });
+  assert.equal(previewed.status, 'completed');
+  assert.equal(previewed.error_message, null);
+  assert.equal(previewed.snapshot.menu.last_preview_result?.success, true);
+  assert.deepEqual(host.requireSession().getViewModel(), before);
+
+  const confirmed = await queue.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+  assert.equal(confirmed.status, 'completed');
+  assert.equal(confirmed.error_message, null);
+  assert.equal(confirmed.snapshot.menu.last_action_result?.success, true);
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 420');
+  assert.deepEqual(confirmed.snapshot.save_load.errors, failedLoad.snapshot.save_load.errors);
+  assert.deepEqual(queue.lastExecutionResult(), confirmed);
+  assert.deepEqual(failedLoad, failureSnapshot);
+
+  const failedMenu = await queue.execute({ name: 'menu_confirm', selection: { action_type: 'harvest_crop', crop_option_id: 'not_in_selectable_options' } });
+  assert.equal(failedMenu.status, 'failed');
+  assert.match(failedMenu.error_message ?? '', /ERR_MENU_OPTION_NOT_FOUND/);
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 420');
+});
+
+for (const menuCommand of ['menu_preview', 'menu_confirm'] as const) {
+  for (const storageCommand of ['save', 'load'] as const) {
+    test(`a failed ${menuCommand} does not mislabel a healthy ${storageCommand}`, async () => {
+      const { host, queue } = makeQueuedShell();
+      await queue.execute({ name: 'create_session' });
+      await queue.execute({ name: 'save', selection: { slot_id: 'queue_menu_recovery' } });
+      const before = host.requireSession().getViewModel();
+      const failedMenu = await queue.execute({ name: menuCommand, selection: { action_type: 'harvest_crop', crop_option_id: 'not_in_selectable_options' } });
+      assert.equal(failedMenu.status, 'failed');
+      assert.match(failedMenu.error_message ?? '', /ERR_MENU_OPTION_NOT_FOUND/);
+      const failureSnapshot = structuredClone(failedMenu);
+
+      const recovered = await queue.execute({ name: storageCommand, selection: { slot_id: 'queue_menu_recovery' } });
+      assert.equal(recovered.status, 'completed');
+      assert.equal(recovered.error_message, null);
+      assert.equal(storageCommand === 'save'
+        ? recovered.snapshot.save_load.last_save_result?.slot_id
+        : recovered.snapshot.save_load.last_load_result?.slot_id, 'queue_menu_recovery');
+      assert.deepEqual(recovered.snapshot.menu.errors, failedMenu.snapshot.menu.errors);
+      assert.deepEqual(host.requireSession().getViewModel(), before);
+      assert.deepEqual(failedMenu, failureSnapshot);
+
+      const failedLoad = await queue.execute({ name: 'load', selection: { slot_id: 'queue_still_missing' } });
+      assert.equal(failedLoad.status, 'failed');
+      assert.match(failedLoad.error_message ?? '', /ERR_SAVE_SLOT_NOT_FOUND/);
+      assert.deepEqual(host.requireSession().getViewModel(), before);
+    });
+  }
+}
+
+test('refresh and lifecycle commands report their own errors while preserving historical panel results', async () => {
+  const { host, queue } = makeQueuedShell();
+  const missingSession = await queue.execute({ name: 'refresh' });
+  assert.equal(missingSession.status, 'failed');
+  assert.match(missingSession.error_message ?? '', /ERR_COCOS_SESSION_NOT_CREATED/);
+  await queue.execute({ name: 'create_session' });
+  await queue.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+  const failedLoad = await queue.execute({ name: 'load', selection: { slot_id: 'queue_missing_for_lifecycle' } });
+  assert.equal(failedLoad.status, 'failed');
+  const savedMenuResult = structuredClone(failedLoad.snapshot.menu.last_action_result);
+  assert.equal(savedMenuResult?.success, true);
+
+  const refreshed = await queue.execute({ name: 'refresh' });
+  assert.equal(refreshed.status, 'completed');
+  assert.equal(refreshed.error_message, null);
+  assert.deepEqual(refreshed.snapshot.save_load.errors, failedLoad.snapshot.save_load.errors);
+  assert.deepEqual(refreshed.snapshot.menu.last_action_result, savedMenuResult);
+  assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 420');
+
+  const destroyed = await queue.execute({ name: 'destroy_session' });
+  assert.equal(destroyed.status, 'completed');
+  assert.equal(destroyed.error_message, null);
+  assert.equal(host.hasSession(), false);
+  assert.deepEqual(destroyed.snapshot.save_load.errors, failedLoad.snapshot.save_load.errors);
+  assert.deepEqual(destroyed.snapshot.menu.last_action_result, savedMenuResult);
+
+  const failedRefresh = await queue.execute({ name: 'refresh' });
+  assert.equal(failedRefresh.status, 'failed');
+  assert.match(failedRefresh.error_message ?? '', /ERR_COCOS_SESSION_NOT_CREATED/);
+  const recreated = await queue.execute({ name: 'create_session' });
+  assert.equal(recreated.status, 'completed');
+  assert.equal(recreated.error_message, null);
+  assert.equal(recreated.snapshot.lifecycle.has_session, true);
+  assert.deepEqual(recreated.snapshot.save_load.errors, failedLoad.snapshot.save_load.errors);
+});
+
 test('Cocos UI command queue source stays a shell wrapper without platform or core shortcuts', () => {
   const text = readFileSync(join(process.cwd(), 'src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts'), 'utf8');
   for (const required of [
