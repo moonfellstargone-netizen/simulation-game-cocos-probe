@@ -44,7 +44,8 @@ export class InventorySystem {
     const originalAmount = source.quantity.amount;
     const sourceRemainingAmount = originalAmount - splitQuantity.amount;
     if (!Number.isFinite(sourceRemainingAmount) || sourceRemainingAmount < 0 || sourceRemainingAmount >= originalAmount
-      || (source.quantity.unit === 'count' && originalAmount - sourceRemainingAmount !== splitQuantity.amount)) {
+      || ((source.quantity.unit === 'count' || Number.isInteger(splitQuantity.amount))
+        && originalAmount - sourceRemainingAmount !== splitQuantity.amount)) {
       throw new Error('ERR_SPLIT_QUANTITY_NOT_REPRESENTABLE');
     }
     const rule = this.splitFootprintRule(source);

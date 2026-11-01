@@ -1,6 +1,6 @@
 # CHECK_ARCHITECTURE — v0.0.2.39
 
-v0.0.2.39 / Split Quantity Invariants & Failure Safety验证split_lot数量拒绝、合法g/ml小数、count整数/精度、全量源清理、连续拆分与配置占用、预留/容量回滚、预览无副作用及公开Session/菜单恢复。修复InventorySystem，其他4个核心文件仅构造配置依赖；consume、管线、正式资源和架构机器规则保持。
+v0.0.2.39 / Split Quantity Invariants & Failure Safety验证split_lot数量拒绝、合法g/ml小数、count整数及各单位整数请求扣减精度、全量源清理、连续拆分与配置占用、预留/容量回滚、预览无副作用及公开Session/菜单恢复。修复InventorySystem，其他4个核心文件仅构造配置依赖；consume、管线、正式资源和架构机器规则保持。
 
 ## 1. 本轮检查目标
 

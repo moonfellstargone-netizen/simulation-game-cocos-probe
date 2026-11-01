@@ -68,6 +68,36 @@ function cookBaconCabbage(runtime: GameRuntime, state: GameState, pickledLotId: 
   }, suffix);
 }
 
+test('integer split requests preserve represented deductions for count, grams and millilitres at large finite quantities', () => {
+  for (const id of ['seed_cabbage_initial_001', 'salt_initial_001', 'oil_initial_001']) {
+    const { runtime, state, configs, contracts } = buildRuntime();
+    const source = runtime.inventory.findMaterialLot(state.save_file, id);
+    const definition = Object.values(configs.loadStage1A().documents).find((value) => {
+      const candidate = value as { id?: string; storage_footprint_rule?: unknown };
+      return candidate?.id === source.base_id && candidate.storage_footprint_rule;
+    }) as { storage_footprint_rule: { base_quantity: { amount: number }; footprint: { amount: number } } };
+    source.quantity.amount = 2 ** 53 + 2;
+    source.storage_footprint.amount = Math.ceil(source.quantity.amount / definition.storage_footprint_rule.base_quantity.amount
+      * definition.storage_footprint_rule.footprint.amount);
+    state.save_file.storage_containers.find((container) => container.container_id === source.storage_ref.container_id)!.capacity.amount = Number.MAX_VALUE;
+    runtime.storageReconciler.reconcile(state.save_file);
+    contracts.assertSaveFile(state.save_file);
+    new StorageAudit().assertReconciled(state.save_file);
+    const before = cloneForCompare(state);
+    const failed = dispatch(runtime, state, 'split_lot', { source_lot_id: id, quantity: { amount: 1, unit: source.quantity.unit } }, 'integer_precision_split');
+    assert.equal(failed.success, false, `${source.quantity.unit}: an integer request must not deduct two units for one`);
+    assert.equal(failed.status_code, 'ERR_SPLIT_QUANTITY_NOT_REPRESENTABLE');
+    assert.deepEqual(state, before);
+    const full = dispatch(runtime, state, 'split_lot', { source_lot_id: id, quantity: { ...source.quantity } }, 'integer_precision_full_recovery');
+    assert.equal(full.success, true);
+    assert.equal(full.created_objects[0]?.object_id, 'lot_split_000001');
+    assert.equal(runtime.inventory.findMaterialLot(state.save_file, full.created_objects[0]!.object_id).quantity.amount, source.quantity.amount);
+    assert.equal(state.save_file.inventory.some((lot) => lot.lot_id === id), false);
+    contracts.assertSaveFile(state.save_file);
+    new StorageAudit().assertReconciled(state.save_file);
+  }
+});
+
 test('split quantities reject invalid or unrepresentable changes before allocating objects and preserve full state', () => {
   const { runtime, state } = buildRuntime();
   const before = cloneForCompare(state);
