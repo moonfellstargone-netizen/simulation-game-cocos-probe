@@ -1,4 +1,4 @@
-﻿# Cocos Map — v0.0.2.39
+﻿# Cocos Map — v0.0.2.40
 
 ## 系统职责
 
@@ -96,3 +96,13 @@ tests/cocos-web-farming.test.ts与交互回归随既有生命周期full/blocker�
 trace.cocos.web-inventory-storage连接MenuActionBinding.ts唯一最小store_item适配、outer ProbeInventory.ts/.meta、CocosWebProbe及公开结果反馈、tests/cocos-minimal-menu-binding.test.ts和tests/cocos-web-inventory.test.ts。库存辅助只复制公开批次/目标并管理本地选择，核心容量、形态、数量与Session/Queue规则保持。
 
 库存行为测试加入既有test.cocos-engine-probe-lifecycle实际args/files/covers，菜单适配沿test.cocos-menu验证；prepare和工具契约继续full/blocker，新增helper/测试及唯一适配的单文件affected须闭合。真实库存点击至少独立960×640 built/editor验收，布局影响的农事、存读档/矩阵/resize和生命周期回归继续；Node不代替真实Creator/Chrome，未扩大门禁算法或平台范围。
+
+## 网页批次拆分与操作反馈
+
+ProbeInventory只复制公开材料选项并管理数量原文、不可编辑的来源单位和本次预览。完整解析数量，不使用parseFloat吞尾、静默取整或默认全部；count整数、g/ml小数、超量及容量沿既有正式预览校验。来源变化清空数量，改量/切页/其他命令/读档使旧预览失效；仍合法的普通拒绝输入保留供修改。
+
+ProbeLifetime窄消费既有menu_preview/split_lot；ProbeInteraction显式区分preview、confirm和save/load，preview只认本次last_preview_result，不要求ActionResult；confirm仍经既有controller重预览，成功须本次双结果。新批次ID从本次created_objects关联刷新后的公开材料，数量/位置由公开结果取得，不从输入伪造。状态应用异常不自动重发Action；busy/销毁保护保持。
+
+CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。不提供全量快捷按钮、加工界面、Stage1B或wx。
+
+tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实际args/files/covers，test.cocos-web-verification-contracts校验拆分观察断言负例。trace.cocos.web-inventory-split连接这些行为及独立Creator SDK/构建、built-web和editor-preview各960×640真实点击与键盘输入；旧矩阵/resize/农事/转移/存读档/故障及销毁回归保留。桌面输入不代表触摸或微信通过，版本完成仍按q:full及无缓存q:release和精确候选CI。

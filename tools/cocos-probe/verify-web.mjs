@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertClickObservation, assertDisabledInventoryObservation, assertFarmingCommandObservation, assertFarmingLoadRecovery, assertFarmingProjection, assertInventoryCommandObservation, assertInventoryLoadRecovery, assertInventoryProjection, assertLocalInventoryObservation, assertLocalSaveRecovery, assertLocalSelectionObservation, assertStoredSaveUnchanged, assertUiCommandObservation, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest } from './lib/webProbeSupport.mjs';
+import { assertClickObservation, assertDisabledInventoryObservation, assertFarmingCommandObservation, assertFarmingLoadRecovery, assertFarmingProjection, assertInventoryCommandObservation, assertInventoryLoadRecovery, assertInventoryProjection, assertLocalInventoryObservation, assertLocalSaveRecovery, assertLocalSelectionObservation, assertSplitConfirmObservation, assertSplitDisabledObservation, assertSplitLoadRecovery, assertSplitPreviewObservation, assertSplitProjection, assertSplitQuantityObservation, assertStoredSaveUnchanged, assertUiCommandObservation, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest } from './lib/webProbeSupport.mjs';
 
 const ROOT = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '../..'));
 const MATRIX = [
@@ -15,7 +15,7 @@ const status = (page) => page.evaluate(() => globalThis.__cocosWebProbe.status()
 const scroll = (page) => page.evaluate(() => ({ x: scrollX, y: scrollY }));
 const SELECTION_BUTTONS = ['SelectField', 'SelectSeed', 'SelectCrop', 'SeedAmountDecrease', 'SeedAmountIncrease'];
 const INVENTORY_LOCAL_BUTTONS = ['OpenInventory', 'OpenFarming', 'SelectInventoryLot', 'SelectStorageTarget'];
-const BUTTONS = ['AdvanceOneHour', 'SaveLocal', 'LoadLocal', ...SELECTION_BUTTONS, 'PlantCrop', 'AdvanceOneDay', 'HarvestCrop', ...INVENTORY_LOCAL_BUTTONS, 'MoveInventoryLot'];
+const BUTTONS = ['AdvanceOneHour', 'SaveLocal', 'LoadLocal', ...SELECTION_BUTTONS, 'PlantCrop', 'AdvanceOneDay', 'HarvestCrop', ...INVENTORY_LOCAL_BUTTONS, 'MoveInventoryLot', 'SplitPreview', 'SplitConfirm'];
 const STORAGE_KEY = 'qinglan.simulation-game.cocos-probe.save.web_probe';
 const EMPTY_SLOT_ERROR = 'ERR_SAVE_SLOT_NOT_FOUND:web_probe';
 
@@ -37,6 +37,12 @@ async function attachButtonObservation(page) {
       const matches = buttons.filter((item) => item.node.name === name);
       if (matches.length !== 1) throw new Error('ERR_WEB_PROBE_BUTTON_MISSING_OR_DUPLICATE:' + name);
       matches[0].node.on(cc.Button.EventType.CLICK, () => { globalThis.__webProbeButtonEvents[name]++; });
+    }
+    const edits = cc.director.getScene().getComponentsInChildren(cc.EditBox).filter((item) => item.node.name === 'SplitQuantity');
+    if (edits.length !== 1) throw new Error('ERR_WEB_PROBE_SPLIT_INPUT_MISSING_OR_DUPLICATE');
+    globalThis.__webProbeEditEvents = { began: 0, changed: 0, ended: 0 };
+    for (const [key, event] of [['began', cc.EditBox.EventType.EDITING_DID_BEGAN], ['changed', cc.EditBox.EventType.TEXT_CHANGED], ['ended', cc.EditBox.EventType.EDITING_DID_ENDED]]) {
+      edits[0].node.on(event, () => { globalThis.__webProbeEditEvents[key]++; });
     }
   }, BUTTONS);
 }
@@ -88,8 +94,12 @@ async function physicalClick(page, caseName, result, recordDir, buttonName = 'Ad
   result.clicks.push(observation);
   await page.screenshot({ path: join(recordDir, caseName + '.png'), fullPage: true });
   if (disabled) {
-    assert.equal(buttonName, 'MoveInventoryLot');
-    assertDisabledInventoryObservation(observation);
+    if (buttonName === 'SplitPreview' || buttonName === 'SplitConfirm') assertSplitDisabledObservation(observation, buttonName);
+    else { assert.equal(buttonName, 'MoveInventoryLot'); assertDisabledInventoryObservation(observation); }
+  } else if (buttonName === 'SplitPreview') {
+    assertSplitPreviewObservation(observation, expected);
+  } else if (buttonName === 'SplitConfirm') {
+    assertSplitConfirmObservation(observation, expected);
   } else if (INVENTORY_LOCAL_BUTTONS.includes(buttonName)) {
     assertLocalInventoryObservation(observation, expected);
   } else if (buttonName === 'MoveInventoryLot') {
@@ -105,6 +115,68 @@ async function physicalClick(page, caseName, result, recordDir, buttonName = 'Ad
     assertUiCommandObservation(observation, expected);
   }
   return observation;
+}
+
+async function physicalSplitInput(page, caseName, text, result, recordDir) {
+  await settle(page);
+  // Read geometry and event counters only. All text changes below come from real mouse/keyboard input.
+  const layout = await page.evaluate(async () => {
+    const cc = await System.import('cc');
+    const scene = cc.director.getScene();
+    const edit = scene.getComponentsInChildren(cc.EditBox).find((item) => item.node.name === 'SplitQuantity');
+    if (!edit?.enabledInHierarchy || !edit.node.activeInHierarchy) throw new Error('ERR_WEB_PROBE_SPLIT_INPUT_INACTIVE');
+    const camera = scene.getComponentsInChildren(cc.Camera).find((item) => item.node.name === 'ProbeCamera');
+    const transform = edit.node.getComponent(cc.UITransform);
+    const canvas = document.querySelector('#GameCanvas'); const rectangle = canvas.getBoundingClientRect();
+    const point = (world) => { const p = camera.worldToScreen(world); return { x: rectangle.left + rectangle.width * p.x / canvas.width, y: rectangle.top + rectangle.height * (1 - p.y / canvas.height) }; };
+    const corners = [[-transform.anchorPoint.x * transform.width, -transform.anchorPoint.y * transform.height], [(1 - transform.anchorPoint.x) * transform.width, (1 - transform.anchorPoint.y) * transform.height]]
+      .map(([x, y]) => point(transform.convertToWorldSpaceAR(new cc.Vec3(x, y, 0))));
+    const input = { left: Math.min(...corners.map((p) => p.x)), top: Math.min(...corners.map((p) => p.y)), right: Math.max(...corners.map((p) => p.x)), bottom: Math.max(...corners.map((p) => p.y)) };
+    return { canvas: { left: rectangle.left, top: rectangle.top, right: rectangle.right, bottom: rectangle.bottom, width: rectangle.width, height: rectangle.height },
+      button: { ...input, width: input.right - input.left, height: input.bottom - input.top }, viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio }, target: point(edit.node.worldPosition) };
+  });
+  const before = await status(page); const scrollBefore = await scroll(page);
+  const counters = await page.evaluate(() => ({ buttons: { ...globalThis.__webProbeButtonEvents }, edit: { ...globalThis.__webProbeEditEvents } }));
+  await page.mouse.move(layout.target.x, layout.target.y); await page.mouse.down(); await settle(page);
+  const scrollDown = await scroll(page); await page.mouse.up();
+  await page.waitForFunction(() => document.activeElement?.classList.contains('cocosEditBox'), {}, { timeout: 5000 });
+  await page.keyboard.press('Control+A'); await page.keyboard.press('Backspace'); await page.keyboard.type(text);
+  const focused = await page.evaluate(() => ({ className: document.activeElement?.className, value: document.activeElement?.value }));
+  await page.keyboard.press('Tab'); await settle(page);
+  const afterCounters = await page.evaluate(() => ({ buttons: { ...globalThis.__webProbeButtonEvents }, edit: { ...globalThis.__webProbeEditEvents } }));
+  const observation = { caseName, text, layout, focused, before, after: await status(page),
+    eventCount: BUTTONS.reduce((sum, name) => sum + afterCounters.buttons[name] - counters.buttons[name], 0),
+    editEvents: Object.fromEntries(['began', 'changed', 'ended'].map((key) => [key, afterCounters.edit[key] - counters.edit[key]])),
+    scrollBefore, scrollDown, scrollAfter: await scroll(page) };
+  result.inputs.push(observation);
+  await page.screenshot({ path: join(recordDir, caseName + '.png'), fullPage: true });
+  assertSplitQuantityObservation(observation, text);
+  return observation;
+}
+
+async function chooseSplitLot(page, id, prefix, result, recordDir) {
+  const options = (await status(page)).inventory.lotOptions;
+  for (let step = 0; step < options.length; step++) {
+    const current = (await status(page)).inventory;
+    if (current.selectedLotId === id) return;
+    const index = current.lotOptions.findIndex((lot) => lot.id === current.selectedLotId);
+    const next = current.lotOptions[(index + 1) % current.lotOptions.length];
+    await physicalClick(page, prefix + '-' + step, result, recordDir, 'SelectInventoryLot', { key: 'selectedLotId', value: next.id });
+  }
+  assert.equal((await status(page)).inventory.selectedLotId, id, 'bounded physical browsing must select the intended split source');
+}
+
+async function previewSplit(page, name, result, recordDir, statusCode = 'OK') {
+  return physicalClick(page, name, result, recordDir, 'SplitPreview', {
+    status: statusCode === 'OK' ? 'completed' : 'failed', statusCode,
+    errorMessage: statusCode === 'OK' ? null : statusCode
+  });
+}
+
+async function completeSplit(page, name, amount, result, recordDir) {
+  await physicalSplitInput(page, name + '-quantity', String(amount), result, recordDir);
+  await previewSplit(page, name + '-preview', result, recordDir);
+  return physicalClick(page, name + '-confirm', result, recordDir, 'SplitConfirm', { amount });
 }
 
 async function emptySlotClick(page, caseName, result, recordDir) {
@@ -329,6 +401,104 @@ async function inventoryLoop(browser, url, result, recordDir, logs) {
   } finally { await context.close(); }
 }
 
+async function splitLoop(browser, url, result, recordDir, logs) {
+  const context = await browser.newContext({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
+  try {
+    let page = await context.newPage(); watchErrors(page, 'split-loop', logs);
+    await page.goto(url); await awaitReady(page); await attachButtonObservation(page);
+    const initial = await status(page); const farm = assertFarmingProjection(initial);
+    const field = farm.fieldOptions.find((item) => item.enabled); const seed = farm.seedOptions.find((item) => item.enabled);
+    assert.ok(field && seed);
+    const initiallyStored = await storedSave(page); assert.equal(initiallyStored.raw, null);
+    await physicalClick(page, 'split-farm-field', result, recordDir, 'SelectField', { key: 'selectedFieldId', value: field.id });
+    await physicalClick(page, 'split-farm-seed', result, recordDir, 'SelectSeed', { key: 'selectedSeedId', value: seed.id });
+    await physicalClick(page, 'split-farm-plant', result, recordDir, 'PlantCrop', { actionType: 'plant_crop', status: 'completed', timeLabel: initial.timeLabel });
+    for (let days = 0; !(await status(page)).farming.harvestableOptions.some((crop) => crop.enabled); days++) {
+      assert.ok(days < 30, 'ordinary time must mature the planted crop within the bounded browser case');
+      const next = timeInMinutes((await status(page)).timeLabel) + 1440;
+      await physicalClick(page, 'split-farm-day-' + days, result, recordDir, 'AdvanceOneDay', { actionType: 'advance_time', status: 'completed', timeLabel: `day ${Math.floor(next / 1440)} minute ${next % 1440}` });
+    }
+    const mature = await status(page); const crop = mature.farming.harvestableOptions.find((item) => item.enabled);
+    await physicalClick(page, 'split-farm-crop', result, recordDir, 'SelectCrop', { key: 'selectedCropId', value: crop.id });
+    const harvested = await physicalClick(page, 'split-farm-harvest', result, recordDir, 'HarvestCrop', { actionType: 'harvest_crop', status: 'completed', timeLabel: mature.timeLabel });
+    const produce = harvested.after.inventory.lotOptions.find((lot) => !harvested.before.inventory.lotOptions.some((previous) => previous.id === lot.id) && lot.base_id === 'cabbage' && lot.quantity.unit === 'g');
+    assert.equal(produce?.quantity.amount, 1200, 'the canonical real harvest must supply the declared 1200g split source');
+    await physicalClick(page, 'split-open-inventory', result, recordDir, 'OpenInventory', { panel: 'inventory' });
+    await chooseSplitLot(page, produce.id, 'split-choose-produce', result, recordDir);
+    await physicalSplitInput(page, 'split-initial-300', '300', result, recordDir);
+    const preview = await previewSplit(page, 'split-initial-preview', result, recordDir);
+    assertStoredSaveUnchanged(initiallyStored, await storedSave(page));
+    await physicalSplitInput(page, 'split-change-invalidates-preview', '301', result, recordDir);
+    const staleQuantity = await physicalClick(page, 'split-stale-quantity-disabled', result, recordDir, 'SplitConfirm', { disabled: true });
+    const partial = await completeSplit(page, 'split-partial-300', 300, result, recordDir);
+    assert.equal(partial.after.inventory.lotOptions.find((lot) => lot.id === produce.id)?.quantity.amount, 900);
+    const childId = partial.after.inventory.splitResult.newLotId;
+    assertStoredSaveUnchanged(initiallyStored, await storedSave(page));
+
+    await physicalSplitInput(page, 'split-preview-before-source-change', '100', result, recordDir);
+    await previewSplit(page, 'split-preview-old-source', result, recordDir);
+    await chooseSplitLot(page, childId, 'split-change-source', result, recordDir);
+    assert.equal((await status(page)).inventory.splitPreview, null, 'changing the lot invalidates its old preview');
+    const staleSource = await physicalClick(page, 'split-stale-source-disabled', result, recordDir, 'SplitConfirm', { disabled: true });
+    await physicalSplitInput(page, 'split-zero-input', '0', result, recordDir);
+    assert.ok((await status(page)).inventory.splitInputError, 'zero must have visible local validation feedback');
+    const zero = await physicalClick(page, 'split-zero-preview-disabled', result, recordDir, 'SplitPreview', { disabled: true });
+    await physicalSplitInput(page, 'split-oversized-input', '301', result, recordDir);
+    const oversized = await previewSplit(page, 'split-oversized-refused', result, recordDir, 'ERR_NOT_ENOUGH_RESOURCE');
+    await physicalClick(page, 'split-oversized-confirm-disabled', result, recordDir, 'SplitConfirm', { disabled: true });
+
+    const countLot = (await status(page)).inventory.lotOptions.find((lot) => lot.id === seed.id && lot.enabled && lot.quantity.unit === 'count' && lot.quantity.amount > 1);
+    assert.ok(countLot, 'the formal planting leaves a real count-unit source for integer-only input');
+    await chooseSplitLot(page, countLot.id, 'split-count-source', result, recordDir);
+    await physicalSplitInput(page, 'split-count-fraction-input', '0.5', result, recordDir);
+    const countFraction = await previewSplit(page, 'split-count-fraction-refused', result, recordDir, 'ERR_SPLIT_QUANTITY_INVALID');
+    const countHealthy = await completeSplit(page, 'split-count-healthy', 1, result, recordDir);
+    assertStoredSaveUnchanged(initiallyStored, await storedSave(page));
+
+    await chooseSplitLot(page, childId, 'split-full-source', result, recordDir);
+    const full = await completeSplit(page, 'split-full-300', 300, result, recordDir);
+    assert.equal(full.after.inventory.lotOptions.some((lot) => lot.id === childId), false);
+    await physicalClick(page, 'split-save', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: full.after.timeLabel });
+    const savedState = await status(page); const saved = { ...await storedSave(page), timeLabel: savedState.timeLabel };
+    assert.ok(typeof saved.raw === 'string' && saved.raw.length > 0);
+    await chooseSplitLot(page, produce.id, 'split-after-save-source', result, recordDir);
+    const transient = await completeSplit(page, 'split-after-save-transient', 100, result, recordDir);
+    await chooseSplitLot(page, transient.after.inventory.splitResult.newLotId, 'split-select-transient-before-load', result, recordDir);
+    const loaded = await physicalClick(page, 'split-load-saved', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: saved.timeLabel });
+    assertSplitLoadRecovery(savedState, loaded);
+    assert.equal(loaded.after.inventory.selectedLotId, null, 'load clears the selected child absent from the saved world');
+    assertStoredSaveUnchanged(saved, await storedSave(page));
+
+    await page.reload(); await awaitReady(page); await attachButtonObservation(page);
+    const reloadInitial = await status(page); const reloadStartup = await storedSave(page);
+    const reloadLoaded = await physicalClick(page, 'split-refresh-manual-load', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: saved.timeLabel });
+    assertLocalSaveRecovery({ saved, initial: reloadInitial, afterStartup: reloadStartup, loaded: reloadLoaded, afterLoad: await storedSave(page) });
+    assertSplitLoadRecovery(savedState, reloadLoaded);
+    await physicalClick(page, 'split-refresh-open-inventory', result, recordDir, 'OpenInventory', { panel: 'inventory' });
+    await chooseSplitLot(page, produce.id, 'split-refresh-choose-source', result, recordDir);
+    const continuedAfterRefresh = await completeSplit(page, 'split-refresh-continued', 100, result, recordDir);
+    assertStoredSaveUnchanged(saved, await storedSave(page));
+    await physicalClick(page, 'split-save-continued', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: saved.timeLabel });
+    const reopenSavedState = await status(page); const reopenSaved = { ...await storedSave(page), timeLabel: reopenSavedState.timeLabel };
+    const reloadLifecycle = await disposeProbe(page); await page.close();
+    page = await context.newPage(); watchErrors(page, 'split-reopen', logs);
+    await page.goto(url); await awaitReady(page); await attachButtonObservation(page);
+    const reopenInitial = await status(page); const reopenStartup = await storedSave(page);
+    const reopenLoaded = await physicalClick(page, 'split-reopen-manual-load', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: reopenSaved.timeLabel });
+    assertLocalSaveRecovery({ saved: reopenSaved, initial: reopenInitial, afterStartup: reopenStartup, loaded: reopenLoaded, afterLoad: await storedSave(page) });
+    assertSplitLoadRecovery(reopenSavedState, reopenLoaded);
+    await physicalClick(page, 'split-reopen-open-inventory', result, recordDir, 'OpenInventory', { panel: 'inventory' });
+    await chooseSplitLot(page, produce.id, 'split-reopen-choose-source', result, recordDir);
+    const continuedAfterReopen = await completeSplit(page, 'split-reopen-continued', 100, result, recordDir);
+    assertStoredSaveUnchanged(reopenSaved, await storedSave(page));
+    const lifecycle = await disposeProbe(page); assertStoredSaveUnchanged(reopenSaved, await storedSave(page));
+    return { scope: 'isolated 960x640 real mouse and keyboard EditBox inputs on built-web/editor-preview; capacity refusal remains Node coverage',
+      initial, harvested, preview, staleQuantity, partial, staleSource, zero, oversized, countFraction, countHealthy, full, saved: storedEvidence(saved), savedState,
+      loaded, refresh: { initial: reloadInitial, loaded: reloadLoaded, continued: continuedAfterRefresh, lifecycle: reloadLifecycle },
+      reopen: { initial: reopenInitial, loaded: reopenLoaded, continued: continuedAfterReopen, saved: storedEvidence(reopenSaved) }, lifecycle };
+  } finally { await context.close(); }
+}
+
 async function storageFailureRecovery(browser, url, result, recordDir, logs) {
   const context = await browser.newContext({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
   try {
@@ -433,7 +603,7 @@ export async function verifyWebProbe(options) {
   const parsed = parseWebProbeArgs(Object.entries({ '--project': options.project, '--browser': options.browser, '--report-dir': options.reportDir, '--build-record': options.buildRecord, ...(options.previewUrl ? { '--preview-url': options.previewUrl } : {}) }).flat());
   const projectDir = realpathSync(parsed.project);
   const recordDir = createWebReportDirectory(ROOT, parsed.reportDir, projectDir);
-  const result = { format: 'cocos-web-verification/v1', startedAt: new Date().toISOString(), passed: false, mode: parsed.previewUrl ? 'editor-preview' : 'built-web', recordDir, clicks: [] };
+  const result = { format: 'cocos-web-verification/v1', startedAt: new Date().toISOString(), passed: false, mode: parsed.previewUrl ? 'editor-preview' : 'built-web', recordDir, clicks: [], inputs: [] };
   const logs = [];
   let browser;
   let server;
@@ -512,6 +682,7 @@ export async function verifyWebProbe(options) {
     } finally { await context.close(); }
     result.farming = await farmingLoop(browser, result.url, result, recordDir, logs);
     result.inventory = await inventoryLoop(browser, result.url, result, recordDir, logs);
+    result.splitting = await splitLoop(browser, result.url, result, recordDir, logs);
     result.storageRecovery = await storageFailureRecovery(browser, result.url, result, recordDir, logs);
     if (!parsed.previewUrl) {
       assert.ok(resourceUrl, 'actual probe resource URL must be observed');
@@ -569,6 +740,6 @@ export async function verifyWebProbe(options) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   Promise.resolve().then(() => parseWebProbeArgs(process.argv.slice(2))).then(verifyWebProbe).then((result) => {
-    console.log(JSON.stringify({ passed: result.passed, sourceCommit: result.sourceCommit, sourceDirty: result.sourceDirty, clicks: result.clicks.length, recordDir: result.recordDir }));
+    console.log(JSON.stringify({ passed: result.passed, sourceCommit: result.sourceCommit, sourceDirty: result.sourceDirty, clicks: result.clicks.length, inputs: result.inputs.length, recordDir: result.recordDir }));
   }).catch((error) => { console.error(error.message); process.exitCode = 1; });
 }

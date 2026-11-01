@@ -218,5 +218,7 @@ test('detached inventory views keep disabled choices readable, prevent invalid m
   assert.equal(p.inventory.status().selectedTargetId, target.id, 'a full location remains inspectable');
   assert.equal(p.inventory.moveCommand(), null);
   p.inventory.refresh({ selectable_view_model: null });
-  assert.deepEqual(p.inventory.status(), { lotOptions: [], targetOptions: [], selectedLotId: null, selectedTargetId: null, canMove: false });
+  assert.deepEqual(p.inventory.status(), { lotOptions: [], targetOptions: [], selectedLotId: null, selectedTargetId: null, canMove: false,
+    splitQuantityText: '', splitUnit: null, splitInputError: '请选择来源批次', canPreviewSplit: false, canConfirmSplit: false,
+    splitPreview: null, splitResult: null });
 });

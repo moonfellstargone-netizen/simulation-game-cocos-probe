@@ -41,7 +41,7 @@ export class ProbeInteraction {
     this.operation = {
       sequence: this.operation.sequence + 1, name: command.name, status: 'running',
       message: runningMessage(command),
-      errorMessage: null, slotId: command.name === 'menu_confirm' ? null : command.selection.slot_id,
+      errorMessage: null, slotId: command.name === 'save' || command.name === 'load' ? command.selection.slot_id : null,
       worldMinute: null
     };
     try {
@@ -56,12 +56,12 @@ export class ProbeInteraction {
       }
       const summary = command.name === 'save' ? outcome.snapshot?.save_load?.last_save_result
         : command.name === 'load' ? outcome.snapshot?.save_load?.last_load_result : null;
-      if (outcome.status === 'completed' && command.name !== 'menu_confirm'
+      if (outcome.status === 'completed' && (command.name === 'save' || command.name === 'load')
           && (!summary || summary.slot_id !== command.selection.slot_id || !Number.isFinite(summary.world_minute))) {
         throw new Error('ERR_COCOS_PROBE_SAVE_LOAD_SUMMARY_MISSING');
       }
       let errorMessage = outcome.status === 'failed' ? outcome.error_message ?? '操作未完成' : null;
-      if (outcome.status === 'completed' && command.name === 'menu_confirm') {
+      if (outcome.status === 'completed' && (command.name === 'menu_preview' || command.name === 'menu_confirm')) {
         const menu = outcome.snapshot?.menu;
         const preview = menu?.last_preview_result;
         if (!preview || preview.action_type !== command.selection.action_type || !validBusinessResult(preview)) {
@@ -69,7 +69,7 @@ export class ProbeInteraction {
         }
         if (!preview.success) {
           errorMessage = preview.status_code;
-        } else {
+        } else if (command.name === 'menu_confirm') {
           const action = menu?.last_action_result;
           if (!action || !validBusinessResult(action) || typeof action.request_id !== 'string' || action.request_id.length === 0) {
             throw new Error('ERR_COCOS_PROBE_ACTION_SUMMARY_MISSING_OR_MISMATCHED');
@@ -108,15 +108,18 @@ function validBusinessResult(result: ProbeBusinessResult): boolean {
 function runningMessage(command: ProbeCommand): string {
   if (command.name === 'save') return '正在本地保存';
   if (command.name === 'load') return '正在读取本地存档';
-  return ({ plant_crop: '正在播种', advance_time: '正在推进时间', harvest_crop: '正在收获', store_item: '正在转移整批物料' })[command.selection.action_type];
+  if (command.name === 'menu_preview') return '正在校验拆分数量';
+  return ({ plant_crop: '正在播种', advance_time: '正在推进时间', harvest_crop: '正在收获', store_item: '正在转移整批物料', split_lot: '正在拆分批次' })[command.selection.action_type];
 }
 
 function completedMessage(command: ProbeCommand): string {
   if (command.name === 'save') return '本地保存成功';
   if (command.name === 'load') return '已恢复本地存档';
+  if (command.name === 'menu_preview') return '本次校验通过，尚未执行';
   if (command.selection.action_type === 'plant_crop') return '播种成功';
   if (command.selection.action_type === 'harvest_crop') return '收获成功';
   if (command.selection.action_type === 'store_item') return '整批转移成功';
+  if (command.selection.action_type === 'split_lot') return '拆分成功';
   return command.selection.minutes === 60 ? '已推进一小时'
     : command.selection.minutes === 1440 ? '已推进一天' : `已推进${command.selection.minutes}分钟`;
 }
@@ -129,5 +132,8 @@ function failureMessage(code: string): string {
   if (code.startsWith('ERR_STORAGE_FORM_NOT_SUPPORTED')) return '该位置不支持这种物料形态';
   if (code.startsWith('ERR_STORAGE_CAPACITY_OVERFLOW')) return '储存容量不足，请选择其他位置';
   if (code.startsWith('ERR_MENU_OPTION_')) return '选择已失效，请重新选择';
+  if (code === 'ERR_SPLIT_QUANTITY_INVALID') return '拆分数量无效，件数请填写整数';
+  if (code === 'ERR_SPLIT_QUANTITY_NOT_REPRESENTABLE') return '该数量无法安全拆分，请调整数量';
+  if (code.startsWith('ERR_ALREADY_RESERVED')) return '这批材料暂不可拆分';
   return '操作未完成，请重试';
 }

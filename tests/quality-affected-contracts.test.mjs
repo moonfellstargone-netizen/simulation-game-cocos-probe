@@ -191,16 +191,16 @@ test('binding source, application tests and shared helper changes select both bi
 test('current version changed tests select the task that actually executes each file', () => {
   const cases = [
   [
-    "tests/action-preview-boundary.test.ts",
-    "test.action-preview"
+    "tests/cocos-web-inventory.test.ts",
+    "test.cocos-engine-probe-lifecycle"
   ],
   [
-    "tests/cocos-minimal-menu-binding.test.ts",
-    "test.cocos-menu"
+    "tests/cocos-web-split.test.ts",
+    "test.cocos-engine-probe-lifecycle"
   ],
   [
-    "tests/cocos-runtime-session.test.ts",
-    "test.cocos-session"
+    "tests/cocos-web-verification-contracts.test.mjs",
+    "test.cocos-web-verification-contracts"
   ],
   [
     "tests/context-governance-contracts.test.mjs",
@@ -229,10 +229,6 @@ test('current version changed tests select the task that actually executes each 
   [
     "tests/stage1a-baseline.test.ts",
     "test.stage1a-baseline"
-  ],
-  [
-    "tests/stage1a-contract.test.ts",
-    "test.stage1a-contract"
   ],
   [
     "tests/version-surface-contracts.test.mjs",
