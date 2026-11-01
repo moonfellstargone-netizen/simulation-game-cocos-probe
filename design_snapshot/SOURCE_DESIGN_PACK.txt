@@ -1,13 +1,13 @@
 source_design_pack: 模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip
 design_pack_version: v1.5.2.2
-code_package_version: v0.0.2.38
-code_package_npm_version: 0.0.2-38
-code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_38
-version_name: Runtime ID Recovery & Preview Consistency
-chinese_version_name: 持久对象ID恢复与预览一致性版
-scope: Restore deterministic ID high-water marks from objects and historical references still visible in GameState through IdService and the shared GameRuntime handler boundary. Cover direct pipeline, fresh-session load and isolated preview without consuming formal-runtime IDs. Preserve SaveFile, ActionPipeline, formal resources, quantity rules, existing processing and Web behavior. No guarantee for IDs absent from the entire save; no UI, Stage 1B or wx changes.
+code_package_version: v0.0.2.39
+code_package_npm_version: 0.0.2-39
+code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_39
+version_name: Split Quantity Invariants & Failure Safety
+chinese_version_name: 拆分数量校验与失败保护版
+scope: Validate split_lot positive finite quantities and integer count, retain valid fractional g/ml, remove exhausted source on full split, and recompute both footprints from loaded definitions. InventorySystem owns the fix; Runtime/Farming/Processing/Cooking only propagate config dependencies. Preserve consume, ActionPipeline, SaveFile, formal resources and all UI/platform boundaries.
 
 formal_source_statement: 正式包 v1.5.2.2 remains authoritative
-context_statement: 持久对象及历史引用的ID恢复、预览与正式执行一致性及必要版本追踪和代码包内部检查体系治理；正式玩法、SaveFile结构、Session/Queue与状态流转语义保持
-quality_surface: trace.runtime.id-recovery, IdService, GameRuntime, test.stage1a-contract, test.action-preview, test.cocos-session, inherited trace.processing.required-inputs, inherited trace.cocos.web-inventory-storage, inherited trace.cocos.web-farming-loop, inherited trace.cocos.browser-local-save, inherited trace.cocos.web-save-load-recovery, inherited trace.cocos.web-viewport-input, test.cocos-web-verification-contracts, cocos:verify:web, inherited trace.cocos.web-bootstrap-probe, test.cocos-probe-preparation, test.cocos-engine-probe-lifecycle, inherited trace.cocos.binding-async-recovery, inherited trace.runtime.bootstrap-resources, inherited trace.save.storage-failure-recovery, traceability-map.json, TRACEABILITY_MATRIX, traceability-contracts, inherited PR CI, project-target authority, q:affected, cache probe, authoritative rules
+context_statement: 拆分数量校验、定义占用重建与失败保护及必要版本/代码包内部检查体系治理；正式设定、consume与Session/Queue不变
+quality_surface: trace.inventory.split-quantity, InventorySystem, config dependency propagation, test.stage1a-contract, test.action-preview, test.cocos-session, test.cocos-menu, inherited trace.runtime.id-recovery, trace.processing.required-inputs and all Web/bootstrap/storage traces; project-target authority, q:affected, cache probe, q:full, q:release without cache, independent Creator/browser verification
 authority_statement: design pack remains authoritative; GitHub repo is daily code authority

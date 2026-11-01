@@ -9,9 +9,9 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.38
+# TRACEABILITY_MATRIX — v0.0.2.39
 
-**Runtime ID Recovery & Preview Consistency / 持久对象ID恢复与预览一致性版**
+**Split Quantity Invariants & Failure Safety / 拆分数量校验与失败保护版**
 
 ## 1. 定位
 
@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 本轮沿用**轻量追踪地基**，新增持久ID恢复与预览一致性链路，保留加工必需输入校验与失败保护，继承农事、本地存档、桌面视口与输入验收；既有真实Cocos外层已实现，旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
+- 本轮沿用**轻量追踪地基**，新增拆分数量与定义占用保护链路，保留持久ID恢复与预览一致性，保留加工必需输入校验与失败保护，继承农事、本地存档、桌面视口与输入验收；既有真实Cocos外层已实现，旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
 
 ## 2. 状态语义
 
@@ -41,6 +41,14 @@ related:
 
 ## 4. Active entries（与 traceability-map.json 对齐）
 
+### trace.inventory.split-quantity
+
+正式split_lot要求请求和源数量为有效正数/finite，count保持整数，partial须实际减少源；不新增g/ml最小量或一律整数限制。全量保留既有成功语义，归零源移出active inventory，新的正量批次保留inventory_split来源、lineage和旧源ID审计；该策略是兼容实现选择，不是正式包唯一指定的全量规则。
+
+InventorySystem经ConfigRepository读取当前已加载材料/种子定义，按ceil(quantity/base_quantity*footprint)、正数至少1slot_weight分别重算源余量和新批次占用；不从已取整旧占用继续按比例缩放，也不以直接数量比较容器容量。Runtime及Farming/Processing/Cooking只传播构造依赖，consume算法不改。数量/定义拒绝发生在修改及ID分配前；容量失败沿既有事务恢复领域状态，已消耗ID不要求回滚。
+
+trace.inventory.split-quantity连接InventorySystem及配置调用方，现有test.stage1a-contract、test.action-preview、test.cocos-session、test.cocos-menu验证完整状态、正/负例、定义变化、连续拆分、全量来源、预留/容量保护、公开预览与失败后存读档/健康恢复。正式资源、SaveFile、管线和UI保持；真实Creator与现有built/editor回归独立执行，网页无拆分入口，不声称浏览器点击覆盖拆分。
+
 ### trace.runtime.id-recovery
 
 IdService观察完整GameState的字符串值及记录键，恢复生成格式ID的每前缀高水位；这只决定技术ID分配，不用于判断材料身份。十进制字符串递增避免Number大后缀精度停滞。同一runtime高水位只升不降，GameRuntime包装全部已注册handler，使直接pipeline、Session和预览新runtime均在业务分配前恢复。ActionPipeline、存档结构与正式业务规则保持。
@@ -57,7 +65,7 @@ sourceRefs连接ProcessingSystem、ProcessingConfigResolver、ActionPipeline、S
 
 ### trace.cocos.web-inventory-storage
 
-玩家逐批浏览公开MaterialLot的名称/形态/数量/位置并明确选择目标，经过MenuActionBinding.ts最小store_item适配及现有preview/Action整批移动；保持核心容量/保鲜/数量规则和Session/Queue；既有加工校验及本版ID恢复独立追踪。outer ProbeInventory只保存本地选择，读档后重新核对目标与位置，不把旧结果当本次转移成功。
+玩家逐批浏览公开MaterialLot的名称/形态/数量/位置并明确选择目标，经过MenuActionBinding.ts最小store_item适配及现有preview/Action整批移动；该既有整批转移规则和Session/Queue保持，既有加工/ID恢复及本版拆分校验各自追踪。outer ProbeInventory只保存本地选择，读档后重新核对目标与位置，不把旧结果当本次转移成功。
 
 sourceRefs连接最小菜单适配、ProbeInventory.ts、ProbeLifetime.ts、ProbeInteraction.ts、CocosWebProbe.ts和verify/support。test.cocos-menu与现有lifecycle/prepare/web-verification任务为full/blocker；新增tests/cocos-web-inventory.test.ts进入实际args/files/covers，保留原农事和全部active条目。
 

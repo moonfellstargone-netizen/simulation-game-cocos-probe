@@ -1,4 +1,4 @@
-﻿# GLOSSARY — v0.0.2.38
+﻿# GLOSSARY — v0.0.2.39
 
 术语表。防止权威与工具边界混淆。
 
@@ -17,7 +17,7 @@
 | **Scope Discovery** | 执行前范围发现：seed files、必读、暂不读模块 |
 | **Project Map** | L0–L5 分级导航，≠ 源码替代品 |
 | **Traceability Matrix** | `TRACEABILITY_MATRIX.md` + `traceability-map.json`，追踪层 ≠ 玩法权威 |
-| **Runtime ID Recovery & Preview Consistency** | 从存档可见对象及历史引用恢复确定性ID高水位，预览与正式handler共用恢复规则；不新增持久化计数器 |
+| **Split Quantity Invariants & Failure Safety** | 正式拆分验证数量并从定义重算两侧占用，全量清理归零源，失败保持状态且健康操作可继续 |
 | **异步场景绑定顺序与恢复** | 同一绑定实例内按序完成命令和界面应用，端口失败后重新同步当前视图，不回滚或重发正式Action |
 | **启动装配与资源契约** | 核对外部资源、编译Schema引用并经公共入口装配宿主，资源失败时不交付可操作会话 |
 | **存储故障保护与恢复** | 通过受控读写拒绝，验证Session状态保护、错误展示、队列顺序及恢复重试 |

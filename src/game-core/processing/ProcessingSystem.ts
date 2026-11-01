@@ -14,7 +14,7 @@ export class ProcessingSystem {
   private readonly processingConfigs: ProcessingConfigResolver;
 
   constructor(private readonly configs: ConfigRepository, private readonly ids: IdService) {
-    this.inventory = new InventorySystem(ids);
+    this.inventory = new InventorySystem(ids, configs);
     this.processingConfigs = new ProcessingConfigResolver(configs);
   }
 

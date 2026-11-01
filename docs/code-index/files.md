@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.38
+﻿# Code Index — Files — v0.0.2.39
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -123,3 +123,10 @@ trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport
 - src/game-core/runtime/GameRuntime.ts：所有正式handler执行前同步完整GameState，不改变ActionPipeline。
 - tests/stage1a-contract.test.ts、tests/action-preview-boundary.test.ts、tests/cocos-runtime-session.test.ts：直接核心/预览及公开Session跨实例恢复。
 - trace.runtime.id-recovery连接实现、公共路径及相关模块卡。
+
+## 拆分数量与定义占用
+
+- src/game-core/inventory/InventorySystem.ts：split_lot数量/定义校验、归零源移除及两侧占用重建；consume算法保持。
+- src/game-core/runtime/GameRuntime.ts、src/game-core/farming/FarmingSystem.ts、src/game-core/processing/ProcessingSystem.ts、src/game-core/cooking/CookingSystem.ts：ConfigRepository构造依赖传播，其他业务保持。
+- tests/stage1a-contract.test.ts、tests/action-preview-boundary.test.ts、tests/cocos-runtime-session.test.ts、tests/cocos-minimal-menu-binding.test.ts：现有四任务的拆分校验/回滚/恢复。
+- trace.inventory.split-quantity连接实现、公开路径和地图，不替代正式契约。

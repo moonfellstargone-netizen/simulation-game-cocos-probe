@@ -15,6 +15,41 @@ function makeSession(storage = new InMemorySaveStoragePort()) {
   });
 }
 
+test('split quantity preview rejects discrete fractions, preserves formal IDs and agrees on full-source removal', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const controlStorage = new InMemorySaveStoragePort();
+  const session = makeSession(storage);
+  const control = makeSession(controlStorage);
+  await session.save('quantity_preview_before');
+  const before = await storage.read('quantity_preview_before');
+  const view = cloneForCompare(session.getViewModel());
+  const selectable = cloneForCompare(session.getSelectableViewModel());
+  for (let repeat = 0; repeat < 3; repeat += 1) {
+    for (const [source_lot_id, amount, unit] of [['seed_cabbage_initial_001', 0.5, 'count'], ['salt_initial_001', 0, 'g'], ['salt_initial_001', Number.MIN_VALUE, 'g']] as const) {
+      const rejected = session.preview('split_lot', { source_lot_id, quantity: { amount, unit } });
+      assert.equal(rejected.success, false);
+    }
+    const preview = session.preview('split_lot', { source_lot_id: 'salt_initial_001', quantity: { amount: 200, unit: 'g' } });
+    assert.equal(preview.success, true);
+    assert.equal(preview.effect_counts.created_objects, 1);
+    assert.equal(preview.effect_counts.updated_objects, 2);
+  }
+  await session.save('quantity_preview_after');
+  assert.equal(await storage.read('quantity_preview_after'), before);
+  assert.deepEqual(session.getViewModel(), view);
+  assert.deepEqual(session.getSelectableViewModel(), selectable);
+  const parameters = { source_lot_id: 'salt_initial_001', quantity: { amount: 200, unit: 'g' } };
+  const actual = session.dispatch('split_lot', parameters);
+  const expected = control.dispatch('split_lot', parameters);
+  assert.equal(actual.success, true);
+  assert.deepEqual(actual, expected);
+  assert.deepEqual(actual.updated_objects.find((object) => object.object_id === parameters.source_lot_id)?.summary, { status: 'consumed' });
+  assert.equal(session.getSelectableViewModel().splittable_lot_options.some((lot) => lot.id === parameters.source_lot_id), false);
+  await session.save('quantity_preview_formal');
+  await control.save('quantity_preview_control');
+  assert.equal(await storage.read('quantity_preview_formal'), await controlStorage.read('quantity_preview_control'));
+});
+
 test('repeated split previews before and after loading agree with formal execution without consuming its IDs', async () => {
   const storage = new InMemorySaveStoragePort();
   const seed = makeSession(storage);

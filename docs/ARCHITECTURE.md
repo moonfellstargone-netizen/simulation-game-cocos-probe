@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.38
+﻿# ARCHITECTURE — v0.0.2.39
 
-当前版本：v0.0.2.38 / Runtime ID Recovery & Preview Consistency。核心IdService恢复存档可见对象与历史引用的高水位，GameRuntime统一在正式handler执行前同步；预览在克隆状态的新runtime执行相同规则，不消耗正式序列。保持ActionPipeline协议、Session/Queue契约、SaveFile结构和三层隔离，既有加工、Web农事、库存与单槽存档继续回归。
+当前版本：v0.0.2.39 / Split Quantity Invariants & Failure Safety。InventorySystem按正式正数/count整数/finite及定义占用契约保护split_lot；全量移除0源，连续拆分不按旧取整占用缩放。GameRuntime及Farming/Processing/Cooking仅传播配置依赖，consume算法、ActionPipeline/事务、Session/Queue、SaveFile及既有ID恢复保持。
 
 ## 1. 业务架构不变
 
@@ -90,7 +90,7 @@ ProbeInteraction区分队列处理完成与本次业务成功，menu_confirm核�
 
 ProbeInventory.ts只复制公开MaterialLot选项和储存目标，管理当前批次/目标选择，不拥有可变运行态。逐批浏览当前公开材料的名称、current_form、数量/单位与storage_ref，展示目标支持形态和容量/占用。名称只用于展示，身份和单位取公开选项；不展示DishLot通用库存、完整新鲜度或保鲜倒计时。
 
-既有MenuActionBinding.ts将当前公开MaterialLot与储存目标解析为正式store_item草稿；预览、正式Action、存储审计与回滚沿既有路径。该适配作为已有能力保留，本版只修复共用ID恢复与预览一致性，不改变Session/Queue、ActionPipeline协议或SaveFile，不绕过组件菜单或直接写状态。
+既有MenuActionBinding.ts将当前公开MaterialLot与储存目标解析为正式store_item草稿；预览、正式Action、存储审计与回滚沿既有路径。该适配作为已有能力保留，本版只修复拆分数量与占用校验及必要配置依赖传播，不改变Session/Queue、ActionPipeline协议或SaveFile，不绕过组件菜单或直接写状态。
 
 移动对象为整批，不加入拆分数量。容量单位为slot_weight；目标enabled只说明目标自身可用，不保证放得下所选批次，outer不以克数估算容量或复制footprint算法。形态不支持、容量不足和失效选择由既有绑定/preview/Action给出拒绝，失败保留状态，健康操作可继续。同容器移动在核心仍合法，界面只避免无意义重复提交，不新增核心拒绝规则。
 
@@ -111,3 +111,11 @@ IdService观察完整GameState的字符串值及记录键，恢复生成格式ID
 保证覆盖存档中仍存在的对象和任意历史引用，以及同一runtime已知分配；整个SaveFile已无任何记录的历史ID不能无新增持久化字段地恢复。预览不修改领域状态或正式ID服务；失败保持既有事务语义，不承诺请求序号或已分配ID回滚。
 
 trace.runtime.id-recovery连接IdService.ts、GameRuntime.ts、CocosActionPreviewer.ts与Session；test.stage1a-contract、test.action-preview、test.cocos-session核对各对象/事件、历史引用、跨实例加载、极大后缀及合法恢复。未新增拆分数量规则、网页拆分/加工、Stage1B或wx。真实Creator及既有built/editor浏览器回归独立执行，网页未覆盖的拆分路径由公开核心/Session验收。
+
+## 拆分数量、定义占用与失败保护
+
+正式split_lot要求请求和源数量为有效正数/finite，count保持整数，partial须实际减少源；不新增g/ml最小量或一律整数限制。全量保留既有成功语义，归零源移出active inventory，新的正量批次保留inventory_split来源、lineage和旧源ID审计；该策略是兼容实现选择，不是正式包唯一指定的全量规则。
+
+InventorySystem经ConfigRepository读取当前已加载材料/种子定义，按ceil(quantity/base_quantity*footprint)、正数至少1slot_weight分别重算源余量和新批次占用；不从已取整旧占用继续按比例缩放，也不以直接数量比较容器容量。Runtime及Farming/Processing/Cooking只传播构造依赖，consume算法不改。数量/定义拒绝发生在修改及ID分配前；容量失败沿既有事务恢复领域状态，已消耗ID不要求回滚。
+
+trace.inventory.split-quantity连接InventorySystem及配置调用方，现有test.stage1a-contract、test.action-preview、test.cocos-session、test.cocos-menu验证完整状态、正/负例、定义变化、连续拆分、全量来源、预留/容量保护、公开预览与失败后存读档/健康恢复。正式资源、SaveFile、管线和UI保持；真实Creator与现有built/editor回归独立执行，网页无拆分入口，不声称浏览器点击覆盖拆分。

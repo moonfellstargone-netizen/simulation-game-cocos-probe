@@ -1,6 +1,6 @@
 {
   "schemaVersion": "traceability-lite/v1",
-  "projectVersion": "v0.0.2.38",
+  "projectVersion": "v0.0.2.39",
   "currentFullReleaseTraceIds": [
     "trace.stage1a.actionpipeline",
     "trace.stage1a.save-load",
@@ -21,7 +21,8 @@
     "trace.cocos.web-farming-loop",
     "trace.cocos.web-inventory-storage",
     "trace.processing.required-inputs",
-    "trace.runtime.id-recovery"
+    "trace.runtime.id-recovery",
+    "trace.inventory.split-quantity"
   ],
   "entries": [
     {
@@ -678,6 +679,46 @@
       "docRefs": [
         "docs/module-cards/game-core.md",
         "docs/module-cards/save-load.md",
+        "docs/maps/runtime-map.md",
+        "docs/code-index/public-api.md"
+      ],
+      "gateRefs": [
+        "full",
+        "release"
+      ],
+      "designRefs": [
+        "docs/SOURCE_DESIGN_PACK.md",
+        "design_snapshot/SOURCE_DESIGN_PACK.txt"
+      ]
+    },
+    {
+      "id": "trace.inventory.split-quantity",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": [
+        "game-core",
+        "cocos-app",
+        "cocos-creator-adapter",
+        "tests"
+      ],
+      "sourceRefs": [
+        "src/game-core/inventory/InventorySystem.ts",
+        "src/game-core/runtime/GameRuntime.ts",
+        "src/game-core/farming/FarmingSystem.ts",
+        "src/game-core/processing/ProcessingSystem.ts",
+        "src/game-core/cooking/CookingSystem.ts"
+      ],
+      "testRefs": [
+        "test.stage1a-contract",
+        "test.action-preview",
+        "test.cocos-session",
+        "test.cocos-menu"
+      ],
+      "docRefs": [
+        "docs/module-cards/inventory.md",
+        "docs/module-cards/game-core.md",
+        "docs/maps/domain-map.md",
         "docs/maps/runtime-map.md",
         "docs/code-index/public-api.md"
       ],

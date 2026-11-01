@@ -61,3 +61,5 @@ source_of_truth: false
 domain-map 与 public-api（如有新 action 类型对外暴露）。
 
 必需输入校验及失败后健康加工/存读档恢复由trace.processing.required-inputs追踪。数量和材料门槛来自当前配置，重复输入语义不得由实现推断成新规则。
+
+拆分占用修复使InventorySystem接收ConfigRepository，本模块仅传播现有配置依赖，原consume和业务规则保持；追踪trace.inventory.split-quantity。

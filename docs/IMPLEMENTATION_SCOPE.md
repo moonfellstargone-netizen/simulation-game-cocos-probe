@@ -1,10 +1,10 @@
-# IMPLEMENTATION_SCOPE — v0.0.2.38
+# IMPLEMENTATION_SCOPE — v0.0.2.39
 
-版本：v0.0.2.38 / Runtime ID Recovery & Preview Consistency / 持久对象ID恢复与预览一致性版。
+版本：v0.0.2.39 / Split Quantity Invariants & Failure Safety / 拆分数量校验与失败保护版。
 
 ## 本轮范围
 
-本轮唯一目标是恢复读档后持久对象及历史引用的确定性ID序列，避免ID碰撞，并使克隆状态上的预览与正式执行采用相同恢复规则。IdService从完整GameState中仍可见的对象、引用及事件记录恢复各前缀高水位；GameRuntime在每个已注册正式handler执行前统一接入，覆盖直接pipeline、Session及预览新runtime。同一runtime已知高水位不因读取旧档倒退，预览不消耗正式runtime序列。不新增SaveFile字段，不承诺整个存档中已彻底丢失的历史ID永不复用；不要求request_id/idempotency_key或失败后已消耗对象序号回滚。
+本轮唯一目标是校验正式split_lot的数量与两侧占用，防止0量、非法count、非有限值和无实际扣减的请求成功，并使失败保持完整状态、合法拆分及存读档恢复可继续。InventorySystem从已加载材料/种子定义重算两侧footprint；其他核心系统仅传播ConfigRepository构造依赖，consume算法不变。全量拆分保留既有成功语义，移除归零源并保留来源/lineage及既有consumed结果；这是兼容实现选择，不宣称正式包唯一指定删除。g/ml合法小数继续允许，不新增最小克数或安全整数上限。
 
 工具只读取仓库唯一src/design_snapshot派生的工作副本。prepare继续导出snapshot及全部58项Schema并记录Git来源/输入产物摘要；build记录实际Web产物清单摘要，verify核对构建关联和产物字节后才启动浏览器，拒绝替换或篡改的Web目录。工程、依赖、报告、缓存和构建仍位于仓库外，不形成第二源码权威。
 
@@ -12,7 +12,7 @@
 
 构建网页built-web验收1440×1200、1280×720、960×640、800×600/DPR1，另960×640/DPR2仿真，并在同页按960×640→1440×1200→800×600→960×640执行四次resize点击。编辑器预览editor-preview独立验收1440×1200与960×640/DPR1，同页按960×640→1440×1200→960×640执行三次resize点击。所有约定案例均保持完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、推进命令时间+60和Label同步；存读档命令按本地单槽预期检查时间；不降低断言强度。官方Default设备模拟器在800窗口裁剪固定960px内容，该预览场景未承诺支持，不能据其失败推定构建网页800失败。DPR仿真不等于手机、触摸、微信或Windows系统缩放验证。
 
-本轮保留test:cocos-session / registry test.cocos-session、bootstrap、绑定恢复、存储故障和PR CI回归。traceability仍由traceability-map.json与TRACEABILITY_MATRIX对齐；trace.runtime.id-recovery追踪本版，trace.processing.required-inputs追踪既有加工校验，trace.cocos.web-inventory-storage追踪既有库存能力，既有trace.cocos.browser-local-save保持；既有trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input及trace.cocos.web-bootstrap-probe继续有效。版本和BuildId由project-target.json派生。
+本轮保留test:cocos-session / registry test.cocos-session、bootstrap、绑定恢复、存储故障和PR CI回归。traceability仍由traceability-map.json与TRACEABILITY_MATRIX对齐；trace.inventory.split-quantity追踪本版，trace.runtime.id-recovery追踪既有ID恢复，trace.processing.required-inputs追踪既有加工校验，trace.cocos.web-inventory-storage追踪既有库存能力，既有trace.cocos.browser-local-save保持；既有trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input及trace.cocos.web-bootstrap-probe继续有效。版本和BuildId由project-target.json派生。
 
 ## 明确不做
 
@@ -26,7 +26,7 @@ q:affected仅开发反馈，不替代 q:full，不替代 q:release。release gat
 
 ## 正式包来源
 
-本轮仍基于正式包v1.5.2.2；恢复ID仅修正既有运行实现，不修改正式包、Schema/config/fixture/expected、数量规则或材料/产量规则。
+本轮仍基于正式包v1.5.2.2；落实已有效的count整数、active lot正数/finite和按定义重建占用，不修改正式包、Schema/config/fixture/expected、产出/容量定义或重复输入规则。
 
 ## module_contracts保留
 
@@ -44,7 +44,7 @@ tests/cocos-browser-storage.test.ts由既有test.cocos-engine-probe-lifecycle实
 
 ## 农事界面与公开消费范围
 
-既有农事outer、纯选择辅助ProbeFarming.ts和库存辅助ProbeInventory.ts及其回归保持；本版核心最小修复仅处理共用ID恢复与预览一致性，不增加网页加工、燃料、拆分数量、完整进度条或新业务API，Session/Queue契约不变。
+既有农事outer、纯选择辅助ProbeFarming.ts和库存辅助ProbeInventory.ts及其回归保持；本版核心修复仅处理split_lot数量/占用及必要配置依赖传播，不增加网页加工、燃料机制、网页拆分数量控件、完整进度条或新业务API，Session/Queue契约不变。
 
 地块/种子/作物身份只取公开选项ID，数量及单位来自公开批次。只显示占用、当前可收获列表与材料实际数量，不由空收获列表推断没有生长作物。保留推进一小时并提供推进一天；成熟由既有运行结果决定，不使用测试时量当作成熟规则。
 
@@ -56,7 +56,7 @@ tests/cocos-web-farming.test.ts与既有生命周期、交互、浏览器存储�
 
 ProbeInventory.ts只复制公开MaterialLot选项和储存目标，管理当前批次/目标选择，不拥有可变运行态。逐批浏览当前公开材料的名称、current_form、数量/单位与storage_ref，展示目标支持形态和容量/占用。名称只用于展示，身份和单位取公开选项；不展示DishLot通用库存、完整新鲜度或保鲜倒计时。
 
-既有MenuActionBinding.ts将当前公开MaterialLot与储存目标解析为正式store_item草稿；预览、正式Action、存储审计与回滚沿既有路径。该适配作为已有能力保留，本版只修复共用ID恢复与预览一致性，不改变Session/Queue、ActionPipeline协议或SaveFile，不绕过组件菜单或直接写状态。
+既有MenuActionBinding.ts将当前公开MaterialLot与储存目标解析为正式store_item草稿；预览、正式Action、存储审计与回滚沿既有路径。该适配作为已有能力保留，本版只修复拆分数量与占用校验及必要配置依赖传播，不改变Session/Queue、ActionPipeline协议或SaveFile，不绕过组件菜单或直接写状态。
 
 移动对象为整批，不加入拆分数量。容量单位为slot_weight；目标enabled只说明目标自身可用，不保证放得下所选批次，outer不以克数估算容量或复制footprint算法。形态不支持、容量不足和失效选择由既有绑定/preview/Action给出拒绝，失败保留状态，健康操作可继续。同容器移动在核心仍合法，界面只避免无意义重复提交，不新增核心拒绝规则。
 

@@ -21,6 +21,38 @@ function makeMenu() {
   return { host, controller, storage, configs };
 }
 
+test('split quantity menu preview rejects fractional counts and full confirmation refreshes the active batch choices', async () => {
+  const { host, storage } = makeMenu();
+  const component = new QinglanUiSceneProbeComponent(host, new RecordingCocosComponentNodeBindingPort());
+  await component.mount();
+  const session = host.requireSession();
+  const seed = required(session.getSelectableViewModel().splittable_lot_options.find((lot) => lot.quantity.unit === 'count'), 'discrete source');
+  await session.save('split_menu_before');
+  const before = await storage.read('split_menu_before');
+  const beforeView = session.getViewModel();
+  const invalid = { action_type: 'split_lot' as const, source_lot_option_id: seed.id, quantity: quantity(0.5, 'count') };
+  for (const name of ['menu_preview', 'menu_confirm'] as const) {
+    const response = await component.execute({ name, selection: invalid });
+    assert.equal(response.command_result.status, 'completed');
+    assert.equal(response.command_result.snapshot.menu.last_preview_result?.success, false);
+    assert.equal(response.command_result.snapshot.menu.last_action_result, null);
+    assert.deepEqual(session.getViewModel(), beforeView);
+    await session.save('split_menu_failed');
+    assert.equal(await storage.read('split_menu_failed'), before);
+  }
+  const full = await component.execute({ name: 'menu_confirm', selection: { ...invalid, quantity: quantity(seed.quantity.amount, 'count') } });
+  assert.equal(full.command_result.snapshot.menu.last_preview_result?.success, true);
+  const result = full.command_result.snapshot.menu.last_action_result!;
+  assert.equal(result.success, true);
+  assert.deepEqual(result.updated_objects.find((object) => object.object_id === seed.id)?.summary, { status: 'consumed' });
+  const choices = session.getSelectableViewModel().splittable_lot_options;
+  assert.equal(choices.some((lot) => lot.id === seed.id), false);
+  const created = required(choices.find((lot) => lot.id === result.created_objects[0]!.object_id), 'full split output');
+  assert.deepEqual(created.quantity, seed.quantity);
+  await session.save('split_menu_complete');
+  await component.unmount();
+});
+
 test('processing required inputs public component rejects missing salt and recovers using current selectable choices', async () => {
   const { host, storage, configs } = makeMenu();
   const port = new RecordingCocosComponentNodeBindingPort();
