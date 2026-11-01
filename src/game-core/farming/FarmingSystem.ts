@@ -7,7 +7,7 @@ export class FarmingSystem {
   private readonly inventory: InventorySystem;
 
   constructor(private readonly configs: ConfigRepository, private readonly ids: IdService) {
-    this.inventory = new InventorySystem(ids);
+    this.inventory = new InventorySystem(ids, configs);
   }
 
   plantCrop(save: SaveFile, fieldPlotId: string, seedLotId: string, seedQuantity: Quantity): CropInstance {

@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.38
+﻿# PROJECT_MAP — v0.0.2.39
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.38：**Runtime ID Recovery & Preview Consistency**。IdService与GameRuntime统一恢复可见持久对象/历史引用的确定性序列，修复读档碰撞与预览误报可执行。trace.runtime.id-recovery连接核心、预览及公开Session；保留加工校验和全部既有Web/存档追踪。
+v0.0.2.39：**Split Quantity Invariants & Failure Safety**。正式split_lot校验数量并按已加载定义重算两侧占用，失败保留完整领域状态；trace.inventory.split-quantity连接核心、预览、Session与公开菜单。保留ID恢复、加工校验和现有Web链路，未增加网页拆分或微信。
 
 ## 3. 权威边界
 

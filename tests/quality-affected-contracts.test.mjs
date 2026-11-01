@@ -195,6 +195,10 @@ test('current version changed tests select the task that actually executes each 
     "test.action-preview"
   ],
   [
+    "tests/cocos-minimal-menu-binding.test.ts",
+    "test.cocos-menu"
+  ],
+  [
     "tests/cocos-runtime-session.test.ts",
     "test.cocos-session"
   ],

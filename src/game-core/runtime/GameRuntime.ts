@@ -37,7 +37,7 @@ export class GameRuntime {
   constructor(private readonly configs: ConfigRepository, private readonly contracts?: RuntimeContractValidator) {
     this.storage = new StorageSystem(this.storageReconciler);
     this.farming = new FarmingSystem(this.configs, this.ids);
-    this.inventory = new InventorySystem(this.ids);
+    this.inventory = new InventorySystem(this.ids, this.configs);
     this.processing = new ProcessingSystem(this.configs, this.ids);
     this.cooking = new CookingSystem(this.configs, this.ids);
     this.demand = new DemandResolver(this.configs);

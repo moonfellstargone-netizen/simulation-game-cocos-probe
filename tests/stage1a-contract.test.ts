@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildRuntime, buildRuntimeWithoutState, cloneForCompare } from './support/runtimeHarness';
-import { SaveManager, StorageAudit } from '../src/game-core/index';
+import { ConfigRepository, GameRuntime, NewGameBuilder, SaveManager, StorageAudit } from '../src/game-core/index';
 import { DeterministicIdService } from '../src/game-core/id/IdService';
-import type { GameRuntime, GameState } from '../src/game-core/index';
+import type { GameState } from '../src/game-core/index';
 
 const picklingFacilityRef = { location_id: 'home', storage_type: 'pickling_jar', container_id: 'pickling_jar_basic_01', definition_id: 'pickling_jar_basic', facility_id: 'pickling_jar_basic_01' };
 
@@ -67,6 +67,158 @@ function cookBaconCabbage(runtime: GameRuntime, state: GameState, pickledLotId: 
     target_storage_ref: { location_id: 'home', storage_type: 'room_temp', container_id: 'home_room_temp_01' }
   }, suffix);
 }
+
+test('integer split requests preserve represented deductions for count, grams and millilitres at large finite quantities', () => {
+  for (const id of ['seed_cabbage_initial_001', 'salt_initial_001', 'oil_initial_001']) {
+    const { runtime, state, configs, contracts } = buildRuntime();
+    const source = runtime.inventory.findMaterialLot(state.save_file, id);
+    const definition = Object.values(configs.loadStage1A().documents).find((value) => {
+      const candidate = value as { id?: string; storage_footprint_rule?: unknown };
+      return candidate?.id === source.base_id && candidate.storage_footprint_rule;
+    }) as { storage_footprint_rule: { base_quantity: { amount: number }; footprint: { amount: number } } };
+    source.quantity.amount = 2 ** 53 + 2;
+    source.storage_footprint.amount = Math.ceil(source.quantity.amount / definition.storage_footprint_rule.base_quantity.amount
+      * definition.storage_footprint_rule.footprint.amount);
+    state.save_file.storage_containers.find((container) => container.container_id === source.storage_ref.container_id)!.capacity.amount = Number.MAX_VALUE;
+    runtime.storageReconciler.reconcile(state.save_file);
+    contracts.assertSaveFile(state.save_file);
+    new StorageAudit().assertReconciled(state.save_file);
+    const before = cloneForCompare(state);
+    const failed = dispatch(runtime, state, 'split_lot', { source_lot_id: id, quantity: { amount: 1, unit: source.quantity.unit } }, 'integer_precision_split');
+    assert.equal(failed.success, false, `${source.quantity.unit}: an integer request must not deduct two units for one`);
+    assert.equal(failed.status_code, 'ERR_SPLIT_QUANTITY_NOT_REPRESENTABLE');
+    assert.deepEqual(state, before);
+    const full = dispatch(runtime, state, 'split_lot', { source_lot_id: id, quantity: { ...source.quantity } }, 'integer_precision_full_recovery');
+    assert.equal(full.success, true);
+    assert.equal(full.created_objects[0]?.object_id, 'lot_split_000001');
+    assert.equal(runtime.inventory.findMaterialLot(state.save_file, full.created_objects[0]!.object_id).quantity.amount, source.quantity.amount);
+    assert.equal(state.save_file.inventory.some((lot) => lot.lot_id === id), false);
+    contracts.assertSaveFile(state.save_file);
+    new StorageAudit().assertReconciled(state.save_file);
+  }
+});
+
+test('split quantities reject invalid or unrepresentable changes before allocating objects and preserve full state', () => {
+  const { runtime, state } = buildRuntime();
+  const before = cloneForCompare(state);
+  for (const [source_lot_id, amount, unit] of [
+    ['salt_initial_001', 0, 'g'], ['salt_initial_001', -1, 'g'],
+    ['salt_initial_001', NaN, 'g'], ['salt_initial_001', Infinity, 'g'],
+    ['salt_initial_001', '1', 'g'], ['salt_initial_001', true, 'g'],
+    ['seed_cabbage_initial_001', 0.5, 'count'],
+    ['salt_initial_001', Number.MIN_VALUE, 'g'],
+    ['salt_initial_001', 201, 'g'], ['salt_initial_001', 1, 'ml']
+  ] as const) {
+    const result = dispatch(runtime, state, 'split_lot', { source_lot_id, quantity: { amount, unit } }, 'split_quantity_invalid');
+    assert.equal(result.success, false, String(amount) + ' ' + unit);
+    assert.deepEqual(result.domain_events, []);
+    assert.deepEqual(result.event_log_entries, []);
+    assert.deepEqual(state, before);
+  }
+  const healthy = dispatch(runtime, state, 'split_lot', { source_lot_id: 'salt_initial_001', quantity: { amount: 0.25, unit: 'g' } }, 'split_quantity_recovered');
+  assert.equal(healthy.success, true);
+  assert.equal(healthy.created_objects[0]?.object_id, 'lot_split_000001');
+  assert.equal(healthy.domain_events[0]?.event_id, 'evt_000001');
+});
+
+test('full splits remove the empty source while preserving inherited data, lineage and reconciled capacity', () => {
+  for (const id of ['salt_initial_001', 'seed_cabbage_initial_001']) {
+    const { runtime, state, contracts } = buildRuntime();
+    const original = cloneForCompare(runtime.inventory.findMaterialLot(state.save_file, id));
+    const beforeCapacity = state.save_file.storage_containers.find((container) => container.container_id === original.storage_ref.container_id)!.used_capacity;
+    const result = dispatch(runtime, state, 'split_lot', { source_lot_id: id, quantity: original.quantity }, 'full_split');
+    assert.equal(result.success, true);
+    assert.equal(state.save_file.inventory.some((lot) => lot.lot_id === id), false);
+    const created = runtime.inventory.findMaterialLot(state.save_file, result.created_objects[0]!.object_id);
+    assert.deepEqual(created.quantity, original.quantity);
+    assert.deepEqual(created.storage_footprint, original.storage_footprint);
+    assert.deepEqual(created.property_profile, original.property_profile);
+    assert.deepEqual(created.storage_ref, original.storage_ref);
+    assert.equal(created.source_ref.source_type, 'inventory_split');
+    assert.equal(created.source_ref.source_id, original.lot_id);
+    const origins = created.lineage_summary?.key_origins as Array<{ origin_id: string; source_ref: unknown }>;
+    assert.equal(origins.at(-1)?.origin_id, original.lot_id);
+    assert.deepEqual(origins.at(-1)?.source_ref, original.source_ref);
+    assert.deepEqual(result.updated_objects.find((object) => object.object_id === id)?.summary, { status: 'consumed' });
+    assert.equal(result.domain_events.some((event) => event.event_type === 'inventory.lot_updated'), false);
+    assert.equal(state.save_file.inventory.every((lot) => lot.quantity.amount > 0), true);
+    assert.equal(state.save_file.storage_containers.some((container) => container.active_object_refs.some((ref) => ref.object_id === id)), false);
+    assert.equal(state.save_file.storage_containers.find((container) => container.container_id === original.storage_ref.container_id)!.used_capacity, beforeCapacity);
+    contracts.assertSaveFile(state.save_file);
+    new StorageAudit().assertReconciled(state.save_file);
+  }
+});
+
+test('repeated splits derive both footprints from definitions instead of rounding a previous footprint', () => {
+  const { runtime, state, contracts } = buildRuntime();
+  const source = prepareHarvestedCabbage(runtime, state);
+  for (const amount of [300, 50, 50]) {
+    const result = dispatch(runtime, state, 'split_lot', { source_lot_id: source, quantity: { amount, unit: 'g' } }, 'repeated_split_footprint');
+    assert.equal(result.success, true);
+    const remaining = runtime.inventory.findMaterialLot(state.save_file, source);
+    const created = runtime.inventory.findMaterialLot(state.save_file, result.created_objects[0]!.object_id);
+    assert.equal(remaining.storage_footprint.amount, Math.ceil(remaining.quantity.amount / 100));
+    assert.equal(created.storage_footprint.amount, Math.ceil(amount / 100));
+    new StorageAudit().assertReconciled(state.save_file);
+  }
+  assert.equal(runtime.inventory.findMaterialLot(state.save_file, source).quantity.amount, 800);
+  assert.equal(runtime.inventory.findMaterialLot(state.save_file, source).storage_footprint.amount, 8);
+  contracts.assertSaveFile(state.save_file);
+});
+
+test('valid gram and millilitre fractions and integer counts keep exact selected quantities and positive footprints', () => {
+  for (const [id, amount, unit] of [['salt_initial_001', 0.25, 'g'], ['oil_initial_001', 0.1, 'ml'], ['seed_cabbage_initial_001', 1, 'count']] as const) {
+    const { runtime, state, contracts } = buildRuntime();
+    const original = cloneForCompare(runtime.inventory.findMaterialLot(state.save_file, id));
+    const result = dispatch(runtime, state, 'split_lot', { source_lot_id: id, quantity: { amount, unit } }, 'fraction_split');
+    assert.equal(result.success, true);
+    const created = runtime.inventory.findMaterialLot(state.save_file, result.created_objects[0]!.object_id);
+    const remaining = runtime.inventory.findMaterialLot(state.save_file, id);
+    assert.deepEqual(created.quantity, { amount, unit });
+    assert.equal(remaining.quantity.amount, original.quantity.amount - amount);
+    assert.equal(created.quantity.amount + remaining.quantity.amount, original.quantity.amount);
+    assert.equal(created.storage_footprint.amount, 1);
+    contracts.assertSaveFile(state.save_file);
+    new StorageAudit().assertReconciled(state.save_file);
+  }
+});
+
+test('split validates loaded definitions without hardcoded identities and rejects unsafe count subtraction', () => {
+  const initial = buildRuntime();
+  const snapshot = cloneForCompare(initial.snapshot);
+  const originalDefinition = snapshot.loaded_documents['configs/materials/seasonings/salt.yaml'] as Record<string, unknown>;
+  const definition = { ...cloneForCompare(originalDefinition), id: 'probe_mineral', storage_footprint_rule: { base_quantity: { amount: 50, unit: 'g' }, footprint: { amount: 2, unit: 'slot_weight' } } };
+  snapshot.loaded_documents['configs/materials/custom/probe_mineral.yaml'] = definition;
+  const world = snapshot.loaded_documents['configs/initial_world/stage_1A_initial_world.yaml'] as { initial_inventory: typeof initial.state.save_file.inventory };
+  const configured = world.initial_inventory.find((lot) => lot.lot_id === 'salt_initial_001')!;
+  configured.base_id = 'probe_mineral';
+  configured.definition_ref = { type: 'material', id: 'probe_mineral', canonical_id: 'base:probe_mineral' };
+  configured.storage_footprint = { amount: 8, unit: 'slot_weight' };
+  const configs = new ConfigRepository(snapshot);
+  const state = new NewGameBuilder(configs).buildStage1A({ buildId: 'quantity_config_test', nowIso8601: '2026-05-18T00:00:00.000Z' });
+  const runtime = new GameRuntime(configs, initial.contracts);
+  const split = dispatch(runtime, state, 'split_lot', { source_lot_id: configured.lot_id, quantity: { amount: 25, unit: 'g' } }, 'configured_split');
+  assert.equal(split.success, true);
+  assert.equal(runtime.inventory.findMaterialLot(state.save_file, configured.lot_id).storage_footprint.amount, 7);
+  assert.equal(runtime.inventory.findMaterialLot(state.save_file, split.created_objects[0]!.object_id).storage_footprint.amount, 1);
+  for (const bad of [0, NaN, Infinity, '50', true]) {
+    const before = cloneForCompare(state);
+    (definition.storage_footprint_rule.base_quantity as { amount: unknown }).amount = bad;
+    const failed = dispatch(runtime, state, 'split_lot', { source_lot_id: configured.lot_id, quantity: { amount: 1, unit: 'g' } }, 'invalid_definition_split');
+    assert.equal(failed.success, false);
+    assert.deepEqual(state, before);
+  }
+  const big = buildRuntime();
+  const seed = big.runtime.inventory.findMaterialLot(big.state.save_file, 'seed_cabbage_initial_001');
+  seed.quantity.amount = 2 ** 53 + 2;
+  seed.storage_footprint.amount = Math.ceil(seed.quantity.amount / 10);
+  big.state.save_file.storage_containers.find((container) => container.container_id === seed.storage_ref.container_id)!.capacity.amount = 2 ** 54;
+  big.runtime.storageReconciler.reconcile(big.state.save_file);
+  const before = cloneForCompare(big.state);
+  const failed = dispatch(big.runtime, big.state, 'split_lot', { source_lot_id: seed.lot_id, quantity: { amount: 1, unit: 'count' } }, 'unrepresentable_count');
+  assert.equal(failed.success, false, 'count subtraction must not remove two units for a one-unit request');
+  assert.deepEqual(big.state, before);
+});
 
 test('deterministic IDs recover nested historical strings and record keys without lowering prefix high-water marks', () => {
   const ids = new DeterministicIdService();

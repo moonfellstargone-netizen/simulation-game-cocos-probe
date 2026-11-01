@@ -43,10 +43,10 @@ test('context governance documents exist and are versioned with the code package
   }
 
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  assert.equal(packageJson.version, '0.0.2-38');
+  assert.equal(packageJson.version, '0.0.2-39');
 
   const sourceDesign = readFileSync(join(root, 'docs/SOURCE_DESIGN_PACK.md'), 'utf8');
-  assert.match(sourceDesign, /code package version: `v0\.0\.2\.38`/);
+  assert.match(sourceDesign, /code package version: `v0\.0\.2\.39`/);
 });
 
 test('context index preserves execution precheck and default decision rules', () => {
@@ -69,7 +69,7 @@ test('context index preserves execution precheck and default decision rules', ()
     'loadArchitectureBoundaryRules',
     'project-target.json',
     'context-doc-surface.rules.json',
-    'Runtime ID Recovery & Preview Consistency',
+    'Split Quantity Invariants & Failure Safety',
     'traceability',
     'TRACEABILITY_MATRIX',
     'test:traceability-contracts',

@@ -22,6 +22,80 @@ function makeSession(storage: SaveStoragePort = new InMemorySaveStoragePort()) {
   };
 }
 
+test('split quantity failures preserve saved state and full splits survive a fresh-session load with legal recovery', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const first = makeSession(storage).session;
+  const before = await captureSerializedSession(first, storage, 'split_quantity_before');
+  const view = first.getViewModel();
+  const selectable = first.getSelectableViewModel();
+  for (const [source_lot_id, amount, unit] of [['salt_initial_001', 0, 'g'], ['seed_cabbage_initial_001', 0.5, 'count'], ['salt_initial_001', Number.MIN_VALUE, 'g']] as const) {
+    const failed = first.dispatch('split_lot', { source_lot_id, quantity: { amount, unit } });
+    assert.equal(failed.success, false);
+    assert.deepEqual(failed.domain_events, []);
+    assert.deepEqual(first.getViewModel(), view);
+    assert.deepEqual(first.getSelectableViewModel(), selectable);
+    assert.equal(await captureSerializedSession(first, storage, 'split_quantity_failed'), before);
+  }
+  const full = dispatchAndAssert(first.dispatch('split_lot', { source_lot_id: 'salt_initial_001', quantity: { amount: 200, unit: 'g' } }), 'full quantity split');
+  const fullId = full.created_objects[0]!.object_id;
+  assert.equal(fullId, 'lot_split_000001');
+  assert.deepEqual(full.updated_objects.find((object) => object.object_id === 'salt_initial_001')?.summary, { status: 'consumed' });
+  await first.save('split_quantity_full');
+  const restored = makeSession(storage).session;
+  await restored.load('split_quantity_full');
+  assert.equal(restored.getSelectableViewModel().splittable_lot_options.some((lot) => lot.id === 'salt_initial_001'), false);
+  const fraction = dispatchAndAssert(restored.dispatch('split_lot', { source_lot_id: fullId, quantity: { amount: 0.25, unit: 'g' } }), 'fraction after full quantity load');
+  assert.equal(fraction.created_objects[0]?.object_id, 'lot_split_000002');
+  const saved = JSON.parse(await captureSerializedSession(restored, storage, 'split_quantity_complete'));
+  assert.equal(saved.inventory.every((lot: { quantity: { amount: number } }) => lot.quantity.amount > 0), true);
+  const remaining = saved.inventory.find((lot: { lot_id: string }) => lot.lot_id === fullId);
+  assert.equal(remaining.quantity.amount, 199.75);
+  assert.equal(remaining.storage_footprint.amount, 2);
+});
+
+test('split capacity overflow restores the entire public session and moving a batch permits healthy splitting', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const session = makeSession(storage).session;
+  const initial = session.getSelectableViewModel();
+  const salt = initial.splittable_lot_options.find((lot) => lot.base_id === 'salt')!;
+  const room = initial.storage_target_options.find((target) => target.id === salt.storage_ref.container_id)!;
+  const availableSlots = room.capacity.amount - room.used_capacity;
+  assert.ok(Number.isInteger(availableSlots) && availableSlots > 0);
+  for (let index = 0; index < availableSlots; index += 1) {
+    const split = session.dispatch('split_lot', { source_lot_id: salt.id, quantity: { amount: 1, unit: salt.quantity.unit } });
+    assert.equal(split.success, true);
+    assert.equal(session.getSelectableViewModel().storage_target_options.find((target) => target.id === room.id)!.used_capacity, room.used_capacity + index + 1);
+  }
+  const full = session.getSelectableViewModel();
+  assert.equal(full.storage_target_options.find((target) => target.id === room.id)!.used_capacity, room.capacity.amount);
+  const before = await captureSerializedSession(session, storage, 'split_capacity_before');
+  const beforeView = session.getViewModel();
+  const beforeSelectable = session.getSelectableViewModel();
+  const parameters = { source_lot_id: salt.id, quantity: { amount: 1, unit: salt.quantity.unit } };
+  assert.equal(session.preview('split_lot', parameters).status_code, 'ERR_STORAGE_CAPACITY_OVERFLOW');
+  const failed = session.dispatch('split_lot', parameters);
+  assert.equal(failed.success, false);
+  assert.equal(failed.status_code, 'ERR_STORAGE_CAPACITY_OVERFLOW');
+  assert.deepEqual(failed.domain_events, []);
+  assert.deepEqual(failed.event_log_entries, []);
+  assert.deepEqual(session.getViewModel(), beforeView);
+  assert.deepEqual(session.getSelectableViewModel(), beforeSelectable);
+  assert.equal(await captureSerializedSession(session, storage, 'split_capacity_after_failure'), before);
+  const movable = full.splittable_lot_options.find((lot) => lot.storage_ref.container_id === room.id
+    && full.storage_target_options.some((target) => target.id !== room.id && target.enabled && target.supported_forms.includes(lot.current_form)))!;
+  assert.ok(movable);
+  const target = full.storage_target_options.find((item) => item.id !== room.id && item.enabled && item.supported_forms.includes(movable.current_form))!;
+  const moved = session.dispatch('store_item', { object_ref: { object_type: 'MaterialLot', object_id: movable.id },
+    storage_ref: { location_id: target.location_id, storage_type: target.storage_type, container_id: target.id } });
+  assert.equal(moved.success, true);
+  assert.equal(session.preview('split_lot', parameters).success, true);
+  const recovered = session.dispatch('split_lot', parameters);
+  assert.equal(recovered.success, true);
+  const created = session.getSelectableViewModel().splittable_lot_options.find((lot) => lot.id === recovered.created_objects[0]!.object_id)!;
+  assert.deepEqual(created.quantity, parameters.quantity);
+  await session.save('split_capacity_recovered');
+});
+
 test('fresh sessions resume saved split and event IDs, preserve failed loads and keep IDs above older loaded saves', async () => {
   const storage = new InMemorySaveStoragePort();
   const first = makeSession(storage).session;

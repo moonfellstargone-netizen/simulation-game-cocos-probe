@@ -48,3 +48,5 @@ source_of_truth: false
 ## 代码—地图同步
 
 更新 domain-map 关键文件（路径变更时）。
+
+拆分占用修复使InventorySystem接收ConfigRepository，本模块仅传播现有配置依赖，原consume和业务规则保持；追踪trace.inventory.split-quantity。

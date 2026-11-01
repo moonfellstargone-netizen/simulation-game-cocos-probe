@@ -1,12 +1,12 @@
-# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.38
+# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.39
 
-**Runtime ID Recovery & Preview Consistency / 持久对象ID恢复与预览一致性版**
+**Split Quantity Invariants & Failure Safety / 拆分数量校验与失败保护版**
 
 本仓库是 Cocos 微信试水代码项目**日常代码权威源**。正式玩法与契约权威仍为正式三包 v1.5.2.2。
 
-- 代码包版本：`v0.0.2.38`
-- npm package version：`0.0.2-38`
-- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_38`（权威源：`tools/quality/rules/project-target.json`）
+- 代码包版本：`v0.0.2.39`
+- npm package version：`0.0.2-39`
+- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_39`（权威源：`tools/quality/rules/project-target.json`）
 - 设计来源：`模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip`
 - 规则权威源：`tools/quality/rules/project-target.json`、`tools/quality/rules/context-doc-surface.rules.json`、`tools/quality/rules/architecture-boundary.rules.json`、`tools/quality/rules/traceability-map.json`
 - 代码权威：本 GitHub 仓库（非 zip 归档包）
@@ -22,7 +22,7 @@
 
 ## Task Intent Lock
 
-本轮唯一目标是恢复读档后持久对象及历史引用的确定性ID序列，避免ID碰撞，并使克隆状态上的预览与正式执行采用相同恢复规则。IdService从完整GameState中仍可见的对象、引用及事件记录恢复各前缀高水位；GameRuntime在每个已注册正式handler执行前统一接入，覆盖直接pipeline、Session及预览新runtime。同一runtime已知高水位不因读取旧档倒退，预览不消耗正式runtime序列。不新增SaveFile字段，不承诺整个存档中已彻底丢失的历史ID永不复用；不要求request_id/idempotency_key或失败后已消耗对象序号回滚。
+本轮唯一目标是校验正式split_lot的数量与两侧占用，防止0量、非法count、非有限值和无实际扣减的请求成功，并使失败保持完整状态、合法拆分及存读档恢复可继续。InventorySystem从已加载材料/种子定义重算两侧footprint；其他核心系统仅传播ConfigRepository构造依赖，consume算法不变。全量拆分保留既有成功语义，移除归零源并保留来源/lineage及既有consumed结果；这是兼容实现选择，不宣称正式包唯一指定删除。g/ml合法小数继续允许，不新增最小克数或安全整数上限。
 
 工具只读取仓库唯一src/design_snapshot派生的工作副本。prepare继续导出snapshot及全部58项Schema并记录Git来源/输入产物摘要；build记录实际Web产物清单摘要，verify核对构建关联和产物字节后才启动浏览器，拒绝替换或篡改的Web目录。工程、依赖、报告、缓存和构建仍位于仓库外，不形成第二源码权威。
 
@@ -32,7 +32,7 @@
 
 构建网页矩阵含800×600、DPR2及四次resize点击；编辑器预览只承诺1440×1200和960×640/DPR1及960→1440→960三次resize点击，官方Default设备模拟器800裁剪场景未支持。具体范围见外层契约，不推导手机或微信适配。
 
-导航与追踪：trace.runtime.id-recovery、既有trace.processing.required-inputs、既有trace.cocos.web-inventory-storage，以及保留的trace.cocos.web-farming-loop、trace.cocos.browser-local-save、trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input和trace.cocos.web-bootstrap-probe。实际失败先定位，不通过降低架构检查、跳过门禁或调用observer.advance代替物理点击制造通过。
+导航与追踪：trace.inventory.split-quantity、既有trace.runtime.id-recovery、既有trace.processing.required-inputs、既有trace.cocos.web-inventory-storage，以及保留的trace.cocos.web-farming-loop、trace.cocos.browser-local-save、trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input和trace.cocos.web-bootstrap-probe。实际失败先定位，不通过降低架构检查、跳过门禁或调用observer.advance代替物理点击制造通过。
 
 执行方使用Cursor时必须先做预检报告，用户或GPT确认后才可修改文件。复杂任务须先做Scope Discovery。
 
@@ -110,7 +110,7 @@ BrowserSaveStoragePort保留稳定单槽web_probe、同origin/profile手动恢�
 
 ProbeInventory.ts只复制公开MaterialLot选项和储存目标，管理当前批次/目标选择，不拥有可变运行态。逐批浏览当前公开材料的名称、current_form、数量/单位与storage_ref，展示目标支持形态和容量/占用。名称只用于展示，身份和单位取公开选项；不展示DishLot通用库存、完整新鲜度或保鲜倒计时。
 
-既有MenuActionBinding.ts将当前公开MaterialLot与储存目标解析为正式store_item草稿；预览、正式Action、存储审计与回滚沿既有路径。该适配作为已有能力保留，本版只修复共用ID恢复与预览一致性，不改变Session/Queue、ActionPipeline协议或SaveFile，不绕过组件菜单或直接写状态。
+既有MenuActionBinding.ts将当前公开MaterialLot与储存目标解析为正式store_item草稿；预览、正式Action、存储审计与回滚沿既有路径。该适配作为已有能力保留，本版只修复拆分数量与占用校验及必要配置依赖传播，不改变Session/Queue、ActionPipeline协议或SaveFile，不绕过组件菜单或直接写状态。
 
 移动对象为整批，不加入拆分数量。容量单位为slot_weight；目标enabled只说明目标自身可用，不保证放得下所选批次，outer不以克数估算容量或复制footprint算法。形态不支持、容量不足和失效选择由既有绑定/preview/Action给出拒绝，失败保留状态，健康操作可继续。同容器移动在核心仍合法，界面只避免无意义重复提交，不新增核心拒绝规则。
 

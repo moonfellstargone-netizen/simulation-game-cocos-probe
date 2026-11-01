@@ -16,7 +16,7 @@ export class CookingSystem {
   private readonly recipeConfigs: RecipeConfigResolver;
 
   constructor(private readonly configs: ConfigRepository, private readonly ids: IdService) {
-    this.inventory = new InventorySystem(ids);
+    this.inventory = new InventorySystem(ids, configs);
     this.recipeConfigs = new RecipeConfigResolver(configs);
   }
 

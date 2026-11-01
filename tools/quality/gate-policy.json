@@ -1,5 +1,5 @@
 {
-  "version": "0.0.2.38",
+  "version": "0.0.2.39",
   "groupConcurrency": {
     "static": 2,
     "governance": 2,
