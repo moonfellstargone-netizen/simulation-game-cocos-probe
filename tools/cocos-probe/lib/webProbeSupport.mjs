@@ -182,7 +182,8 @@ export function assertUiCommandObservation(observation, expected) {
   assert.ok(typeof after.operation.message === 'string' && after.operation.message.trim(), 'operation must have visible feedback');
   assert.equal(after.displayedOperation, after.operation.message, 'operation Label must match the current result');
   assert.ok(!after.displayedOperation.startsWith('启动失败'), 'an operation failure must not be presented as a startup failure');
-  assert.equal(after.operation.slotId, expected.name === 'menu_confirm' ? null : 'web_probe');
+  const menuCommand = expected.name === 'menu_confirm' || expected.name === 'menu_preview';
+  assert.equal(after.operation.slotId, menuCommand ? null : 'web_probe');
   if (expected.errorMessagePrefix !== undefined) {
     assert.equal(expected.status, 'failed', 'a variable rejection detail is only valid for a failed command');
     assert.ok(typeof expected.errorMessagePrefix === 'string' && expected.errorMessagePrefix.length > 0);
@@ -192,7 +193,7 @@ export function assertUiCommandObservation(observation, expected) {
     assert.equal(after.operation.errorMessage, expected.errorMessage ?? null, 'old errors must not contaminate the current command');
   }
   // Public labels use day 1 for absolute minute 0; save/load summaries use absolute minutes.
-  const worldMinute = expected.status === 'completed' && expected.name !== 'menu_confirm'
+  const worldMinute = expected.status === 'completed' && !menuCommand
     ? timeInMinutes(expected.timeLabel) - 1440 : null;
   assert.equal(after.operation.worldMinute, worldMinute, 'save/load summary must match the resulting public time without stale success data');
 }
@@ -402,6 +403,130 @@ export function assertInventoryLoadRecovery(saved, loaded) {
   assert.notDeepEqual(loaded.before.inventory.lotOptions, saved.inventory.lotOptions, 'the case must move the batch after saving before it loads');
   for (const key of INVENTORY_COLLECTIONS) assert.deepEqual(restored[key], saved.inventory[key], 'manual load must restore saved public locations, quantities and capacity');
   assert.equal(restored.selectedLotId, loaded.before.inventory.selectedLotId, 'a still-existing selected lot is retained with restored data');
+  assert.match(loaded.after.displayedOperation, /已恢复本地存档/);
+}
+
+export function assertSplitProjection(state) {
+  const inventory = assertInventoryProjection(state);
+  const ids = inventory.lotOptions.map((lot) => lot.id);
+  assert.equal(new Set(ids).size, ids.length, 'all current material lot IDs must remain unique');
+  assert.equal(typeof inventory.splitQuantityText, 'string');
+  assert.ok(inventory.splitUnit === null || typeof inventory.splitUnit === 'string');
+  assert.ok(inventory.splitInputError === null || typeof inventory.splitInputError === 'string');
+  assert.equal(typeof inventory.canPreviewSplit, 'boolean');
+  assert.equal(typeof inventory.canConfirmSplit, 'boolean');
+  for (const key of ['quantityText', 'unit', 'selection', 'preview', 'result']) {
+    assert.equal(typeof state.displayedSplit?.[key], 'string', key + ' must have a public split Label');
+  }
+  assert.equal(state.displayedSplit.quantityText, inventory.splitQuantityText, 'EditBox text must match the current local draft');
+  const selected = inventory.lotOptions.find((lot) => lot.id === inventory.selectedLotId);
+  if (selected) {
+    assert.equal(inventory.splitUnit, selected.quantity.unit, 'split units come from the selected public lot');
+    assert.equal(state.displayedSplit.unit, VISIBLE_UNITS[selected.quantity.unit] ?? selected.quantity.unit, 'the visible input unit must match its source');
+  }
+  if (inventory.canConfirmSplit) {
+    assert.ok(selected?.enabled);
+    assert.equal(inventory.splitPreview?.success, true, 'confirmation requires a current successful preview');
+  }
+  return inventory;
+}
+
+export function assertSplitQuantityObservation(observation, text) {
+  assertInputObservation(observation, 0);
+  const input = observation.layout.button;
+  const epsilon = 1e-6;
+  for (const name of ['text', 'placeholder']) {
+    const label = observation.layout.inputLabels?.[name];
+    assert.ok(label && ['left', 'top', 'right', 'bottom', 'width', 'height'].every((key) => Number.isFinite(label[key])), name + ' Label must expose finite UITransform bounds');
+    assert.ok(label.width > 0 && label.height > 0 && label.left >= input.left - epsilon && label.top >= input.top - epsilon
+      && label.right <= input.right + epsilon && label.bottom <= input.bottom + epsilon,
+    name + ' Label must fit inside the actual EditBox input rectangle');
+  }
+  const { before, after } = observation;
+  assertSplitProjection(before); assertSplitProjection(after);
+  assert.equal(before.panel, 'inventory'); assert.equal(after.panel, 'inventory');
+  assert.equal(before.busy, false); assert.equal(after.busy, false);
+  assert.deepEqual(after.operation, before.operation, 'typing must not dispatch a menu or save command');
+  assertInventoryWorldUnchanged(before, after);
+  assert.equal(observation.focused?.className, 'cocosEditBox', 'physical focus must reach the real Creator DOM input');
+  assert.equal(observation.focused?.value, text, 'keyboard input must reach the focused native input');
+  assert.ok(observation.editEvents.began >= 1 && observation.editEvents.changed >= 1 && observation.editEvents.ended >= 1,
+    'actual Cocos editing and text change events must be observed');
+  assert.equal(after.inventory.splitQuantityText, text);
+  assert.equal(after.inventory.splitPreview, null, 'editing invalidates the previous preview');
+  assert.equal(after.inventory.splitResult, null, 'editing clears the old split result');
+  assert.equal(after.inventory.canConfirmSplit, false);
+}
+
+export function assertSplitDisabledObservation(observation, buttonName) {
+  assertInputObservation(observation, 0);
+  assertSplitProjection(observation.before); assertSplitProjection(observation.after);
+  assert.equal(observation.layout.buttonInteractable, false);
+  assert.equal(observation.before.inventory[buttonName === 'SplitPreview' ? 'canPreviewSplit' : 'canConfirmSplit'], false);
+  assert.deepEqual(observation.after.operation, observation.before.operation, 'a disabled split button submits no command');
+  assertInventoryWorldUnchanged(observation.before, observation.after);
+}
+
+export function assertSplitPreviewObservation(observation, expected) {
+  assertUiCommandObservation(observation, { ...expected, name: 'menu_preview', timeLabel: observation.before.timeLabel });
+  assertSplitProjection(observation.before); const after = assertSplitProjection(observation.after);
+  assertInventoryWorldUnchanged(observation.before, observation.after);
+  assert.deepEqual(after.splitPreview, { success: expected.status === 'completed', statusCode: expected.statusCode });
+  assert.equal(after.canConfirmSplit, expected.status === 'completed');
+  assert.equal(after.splitResult, null);
+  assert.ok(observation.after.displayedSplit.preview.trim(), 'the explicit preview must have visible feedback');
+}
+
+export function assertSplitConfirmObservation(observation, { amount }) {
+  assertUiCommandObservation(observation, { name: 'menu_confirm', status: 'completed', timeLabel: observation.before.timeLabel });
+  const before = assertSplitProjection(observation.before); const after = assertSplitProjection(observation.after);
+  assert.equal(before.canConfirmSplit, true);
+  const source = before.lotOptions.find((lot) => lot.id === before.selectedLotId);
+  assert.ok(source?.enabled && Number.isFinite(amount) && amount > 0 && amount <= source.quantity.amount);
+  assert.equal(Number(before.splitQuantityText), amount);
+  const result = after.splitResult;
+  assert.ok(result && result.sourceLotId === source.id);
+  assert.ok(typeof result.newLotId === 'string' && !before.lotOptions.some((lot) => lot.id === result.newLotId),
+    'a split must allocate a new ID absent from the current world, including after load');
+  const created = after.lotOptions.find((lot) => lot.id === result.newLotId);
+  assert.ok(created, 'the result must name a real publicly observable child lot');
+  for (const key of ['base_id', 'category', 'current_form', 'storage_ref']) assert.deepEqual(created[key], source[key]);
+  assert.deepEqual(created.quantity, { amount, unit: source.quantity.unit });
+  assert.deepEqual(result.quantity, created.quantity);
+  const remainder = after.lotOptions.find((lot) => lot.id === source.id);
+  const remainingAmount = source.quantity.amount - amount;
+  if (remainingAmount === 0) {
+    assert.equal(remainder, undefined, 'a full split removes the exhausted source');
+    assert.equal(result.remainingQuantity, null);
+    assert.equal(after.selectedLotId, null, 'an exhausted source selection must be cleared');
+  } else {
+    assert.deepEqual(remainder, { ...source, quantity: { amount: remainingAmount, unit: source.quantity.unit } });
+    assert.deepEqual(result.remainingQuantity, remainder.quantity);
+  }
+  assert.equal(after.lotOptions.length, before.lotOptions.length + (remainingAmount === 0 ? 0 : 1));
+  for (const other of before.lotOptions.filter((lot) => lot.id !== source.id)) {
+    assert.deepEqual(after.lotOptions.find((lot) => lot.id === other.id), other, 'unrelated lots must remain unchanged');
+  }
+  for (const target of before.targetOptions.filter((item) => item.id !== source.storage_ref.container_id)) {
+    assert.deepEqual(after.targetOptions.find((item) => item.id === target.id), target, 'unrelated storage targets stay unchanged');
+  }
+  for (const key of ['fieldOptions', 'harvestableOptions']) assert.deepEqual(observation.after.farming[key], observation.before.farming[key]);
+  assert.deepEqual(observation.after.farming.materialOptions, after.lotOptions, 'both public panels must observe the same current material batches');
+  assert.equal(after.canConfirmSplit, false, 'a completed split cannot reuse the old preview');
+  assert.ok(visibleNumber(observation.after.displayedSplit.result, amount, VISIBLE_UNITS[source.quantity.unit] ?? source.quantity.unit), 'the result Label must show the actual split quantity and unit');
+  if (remainingAmount === 0) assert.match(observation.after.displayedSplit.result, /来源已全部拆出/);
+  else assert.ok(visibleNumber(observation.after.displayedSplit.result, remainingAmount, VISIBLE_UNITS[source.quantity.unit] ?? source.quantity.unit), 'the result must show the actual remaining quantity');
+  assert.match(observation.after.displayedOperation, /拆分成功/);
+  return result;
+}
+
+export function assertSplitLoadRecovery(savedState, loaded) {
+  assertUiCommandObservation(loaded, { name: 'load', status: 'completed', timeLabel: savedState.timeLabel });
+  const restored = assertSplitProjection(loaded.after);
+  for (const key of INVENTORY_COLLECTIONS) assert.deepEqual(restored[key], savedState.inventory[key]);
+  assert.equal(restored.splitPreview, null, 'manual load invalidates any old preview');
+  assert.equal(restored.splitResult, null, 'manual load cannot present an old split as its own result');
+  assert.equal(restored.canConfirmSplit, false);
   assert.match(loaded.after.displayedOperation, /已恢复本地存档/);
 }
 

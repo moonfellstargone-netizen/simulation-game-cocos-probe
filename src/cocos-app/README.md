@@ -1,6 +1,6 @@
-﻿# Cocos app — v0.0.2.39 / Split Quantity Invariants & Failure Safety
+﻿# Cocos app — v0.0.2.40 / Web Inventory Lot Split & Feedback
 
-Cocos app层说明：本目录保存Session、ViewModel与Action适配代码。当前v0.0.2.39的split_lot数量/占用修复位于game-core InventorySystem，现有Session预览/正式入口复用相同业务校验；本层执行源码与Session契约保持。既有Web、ID恢复、加工和存储故障继续回归；不提供微信小游戏构建或wx storage。
+Cocos app层说明：本目录保存Session、ViewModel与Action适配代码。当前v0.0.2.40只在既有网页outer消费已有menu_preview和split_lot能力，本层执行源码及Session协议保持；不引入cc/wx/fs或UI直写状态。
 
 日常代码权威见 GitHub 仓库；项目地图入口见 `docs/PROJECT_MAP.md` 与 `docs/GITHUB_WORKFLOW.md`；追踪矩阵见 `docs/TRACEABILITY_MATRIX.md`。
 

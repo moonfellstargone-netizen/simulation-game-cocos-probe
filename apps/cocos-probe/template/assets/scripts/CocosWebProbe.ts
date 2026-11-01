@@ -1,5 +1,5 @@
 import {
-  _decorator, Button, Camera, Canvas, Color, Component, Graphics, isValid,
+  _decorator, Button, Camera, Canvas, Color, Component, EditBox, Graphics, isValid,
   JsonAsset, Label, Layers, Node, profiler, resources, ResolutionPolicy, UITransform, view
 } from 'cc';
 import { createStage1AHost, QinglanUiSceneProbeComponent } from '../generated/probe-runtime.js';
@@ -23,6 +23,7 @@ interface ProbeView {
   readonly farming: { field: Label; seed: Label; crop: Label; inventory: Label; amount: Label };
   readonly panels: { farming: Node; inventory: Node };
   readonly inventory: { lot: Label; form: Label; quantity: Label; location: Label; target: Label; capacity: Label; hint: Label };
+  readonly split: { input: EditBox; unit: Label; selection: Label; preview: Label; result: Label };
 }
 
 // Display names come from the same prepared formal resources; they never select an action target.
@@ -51,6 +52,15 @@ function presentationNames(resources: ProbeResources): Record<string, string> {
 const DISPLAY_UNITS: Record<string, string> = { count: '粒', g: '克', ml: '毫升' };
 const displayUnit = (unit: string) => DISPLAY_UNITS[unit] ?? unit;
 const STORAGE_LABELS: Record<string, string> = { room_temp: '常温储存', cellar: '菜窖', pickling_jar: '腌菜缸' };
+
+function splitRejection(code: string): string {
+  if (code === 'ERR_NOT_ENOUGH_RESOURCE') return '数量超过当前库存';
+  if (code === 'ERR_SPLIT_QUANTITY_INVALID') return '数量不符合单位要求';
+  if (code === 'ERR_SPLIT_QUANTITY_NOT_REPRESENTABLE') return '请调整拆分数量';
+  if (code.startsWith('ERR_STORAGE_CAPACITY_OVERFLOW')) return '当前储存空间不足';
+  if (code.startsWith('ERR_MENU_OPTION_')) return '请重新选择批次';
+  return '请调整选择或数量';
+}
 
 @ccclass('CocosWebProbe')
 export class CocosWebProbe extends Component {
@@ -87,6 +97,10 @@ export class CocosWebProbe extends Component {
       setEnabled('SelectInventoryLot', enabled && panel === 'inventory' && stock.lotOptions.length > 0);
       setEnabled('SelectStorageTarget', enabled && panel === 'inventory' && stock.targetOptions.length > 0);
       setEnabled('MoveInventoryLot', enabled && panel === 'inventory' && stock.canMove);
+      setEnabled('SplitPreview', enabled && panel === 'inventory' && stock.canPreviewSplit);
+      setEnabled('SplitConfirm', enabled && panel === 'inventory' && stock.canConfirmSplit);
+      const splitInputEnabled = enabled && panel === 'inventory' && stock.lotOptions.some((lot) => lot.id === stock.selectedLotId && lot.enabled);
+      if (ui.split.input.enabled !== splitInputEnabled) ui.split.input.enabled = splitInputEnabled;
       setEnabled('OpenFarming', enabled && panel !== 'farming');
       setEnabled('OpenInventory', enabled && panel !== 'inventory');
     };
@@ -129,6 +143,20 @@ export class CocosWebProbe extends Component {
         : !lot.enabled ? '这批材料暂不可移动'
         : !target.enabled ? '目标当前不可用'
         : '移动整批材料，数量保持不变';
+      if (ui.split.input.string !== stock.splitQuantityText) ui.split.input.string = stock.splitQuantityText;
+      ui.split.unit.string = stock.splitUnit ? displayUnit(stock.splitUnit) : '—';
+      ui.split.selection.string = !lot ? '请选择要拆分的材料批次'
+        : !lot.enabled ? '这批材料当前不可拆分'
+        : stock.splitInputError ?? `本次选择：${stock.splitQuantityText}${displayUnit(stock.splitUnit!)}`;
+      ui.split.preview.string = stock.splitPreview === null ? '填写数量后先预览，再确认'
+        : stock.splitPreview.success ? '校验通过，尚未执行'
+        : `本次校验未通过：${splitRejection(stock.splitPreview.statusCode)}`;
+      const splitResult = stock.splitResult;
+      const resultIndex = splitResult === null ? -1 : stock.lotOptions.findIndex((item) => item.id === splitResult.newLotId);
+      ui.split.result.string = splitResult === null ? ''
+        : `${resultIndex < 0 ? '新增批次' : `新增第${resultIndex + 1}批`}：${splitResult.quantity.amount}${displayUnit(splitResult.quantity.unit)} · `
+          + (splitResult.remainingQuantity === null ? '来源已全部拆出'
+            : `来源剩余${splitResult.remainingQuantity.amount}${displayUnit(splitResult.remainingQuantity.unit)}`);
       updateButtons();
     };
     const unexpected = (error: unknown, startup = false) => {
@@ -187,13 +215,26 @@ export class CocosWebProbe extends Component {
       execute: (command) => lifetime.execute(command),
       onChange: (state) => {
         ui.operation.string = state.operation.message;
-        updateButtons();
+        renderInventory();
       }
     });
     // Capture the stable coordinator and view. Creator may clear Component fields on destruction.
     const commands = interaction;
     const executeButton = (command: ProbeCommand) => {
-      void commands.execute(command).catch((error) => unexpected(error));
+      if (commands.status().busy || !alive() || lifetime.status().phase !== 'ready' || lifetime.isDisposed()) return;
+      const splitCommand = (command.name === 'menu_preview' || command.name === 'menu_confirm') && command.selection.action_type === 'split_lot';
+      if (!splitCommand) inventory.invalidateSplitPreview();
+      void commands.execute(command).then((result) => {
+        if (!result || !alive() || lifetime.isDisposed()) return;
+        inventory.acceptSplitResult(command, result);
+        renderInventory();
+      }).catch((error) => {
+        // A view-application failure may follow a committed action. Require a fresh
+        // player preview instead of leaving the former confirmation enabled.
+        inventory.invalidateSplitPreview();
+        renderInventory();
+        unexpected(error);
+      });
     };
     ui.controls.AdvanceOneHour.node.on(Button.EventType.CLICK, () => executeButton(ADVANCE_COMMAND));
     ui.controls.AdvanceOneDay.node.on(Button.EventType.CLICK, () => executeButton({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 1440 } }));
@@ -201,6 +242,7 @@ export class CocosWebProbe extends Component {
     ui.controls.LoadLocal.node.on(Button.EventType.CLICK, () => executeButton({ name: 'load', selection: { slot_id: BROWSER_SAVE_SLOT_ID } }));
     const localSelection = (name: string, change: () => void) => ui.controls[name].node.on(Button.EventType.CLICK, () => {
       if (commands.status().busy || !alive() || lifetime.status().phase !== 'ready' || lifetime.isDisposed()) return;
+      inventory.invalidateSplitPreview();
       change();
       renderFarming();
       renderInventory();
@@ -211,6 +253,8 @@ export class CocosWebProbe extends Component {
     localSelection('SeedAmountDecrease', () => farming.adjustSeedAmount(-1));
     localSelection('SeedAmountIncrease', () => farming.adjustSeedAmount(1));
     const switchPanel = (next: 'farming' | 'inventory') => {
+      inventory.invalidateSplitPreview();
+      ui.split.input.blur();
       panel = next;
       ui.panels.farming.active = next === 'farming';
       ui.panels.inventory.active = next === 'inventory';
@@ -220,6 +264,19 @@ export class CocosWebProbe extends Component {
     localSelection('OpenInventory', () => switchPanel('inventory'));
     localSelection('SelectInventoryLot', () => inventory.selectNextLot());
     localSelection('SelectStorageTarget', () => inventory.selectNextTarget());
+    ui.split.input.node.on(EditBox.EventType.TEXT_CHANGED, () => {
+      if (commands.status().busy || !alive() || panel !== 'inventory' || lifetime.status().phase !== 'ready' || lifetime.isDisposed()) return;
+      inventory.setSplitQuantity(ui.split.input.string);
+      renderInventory();
+    });
+    ui.controls.SplitPreview.node.on(Button.EventType.CLICK, () => {
+      const command = inventory.splitPreviewCommand();
+      if (command) executeButton(command);
+    });
+    ui.controls.SplitConfirm.node.on(Button.EventType.CLICK, () => {
+      const command = inventory.splitConfirmCommand();
+      if (command) executeButton(command);
+    });
     ui.controls.MoveInventoryLot.node.on(Button.EventType.CLICK, () => {
       const command = inventory.moveCommand();
       if (command) executeButton(command);
@@ -233,13 +290,6 @@ export class CocosWebProbe extends Component {
       if (command) executeButton(command);
     });
 
-    const executeRequired = async (command: ProbeCommand) => {
-      const result = await commands.execute(command);
-      if (!result) throw new Error('ERR_COCOS_PROBE_NOT_READY');
-      if (commands.status().operation.status !== 'completed') {
-        throw new Error(result.command_result.error_message ?? 'ERR_COCOS_PROBE_COMMAND_FAILED');
-      }
-    };
     const observer = Object.freeze({
       status: () => ({
         ...lifetime.status(), ...commands.status(),
@@ -253,13 +303,16 @@ export class CocosWebProbe extends Component {
           location: ui.inventory.location.string, target: ui.inventory.target.string,
           capacity: ui.inventory.capacity.string, hint: ui.inventory.hint.string
         } : null,
+        displayedSplit: alive() ? {
+          quantityText: ui.split.input.string, unit: ui.split.unit.string,
+          selection: ui.split.selection.string, preview: ui.split.preview.string, result: ui.split.result.string
+        } : null,
         displayedFarming: alive() ? {
           field: ui.farming.field.string, seed: ui.farming.seed.string, crop: ui.farming.crop.string,
           inventory: ui.farming.inventory.string, amount: ui.farming.amount.string
         } : null,
         nodeValid: alive(), errors: [...errors]
       }),
-      advance: () => executeRequired(ADVANCE_COMMAND),
       dispose: () => { if (alive()) ui.root.destroy(); }
     });
     (globalThis as typeof globalThis & { __cocosWebProbe?: typeof observer }).__cocosWebProbe = observer;
@@ -309,12 +362,20 @@ export class CocosWebProbe extends Component {
     farming.amount.node.getComponent(UITransform)!.setContentSize(110, 44);
     const inventory = {
       lot: this.makeLabel(panels.inventory, 'InventoryLot', '请选择材料批次', 160, 20),
-      form: this.makeLabel(panels.inventory, 'InventoryForm', '形态：—', 130, 18),
-      quantity: this.makeLabel(panels.inventory, 'InventoryQuantity', '数量：—', 100, 19),
-      location: this.makeLabel(panels.inventory, 'InventoryLocation', '当前位置：—', 70, 19),
-      target: this.makeLabel(panels.inventory, 'InventoryTarget', '目标位置：请选择', 40, 19),
-      capacity: this.makeLabel(panels.inventory, 'InventoryCapacity', '目标容量占用：—', 10, 18),
-      hint: this.makeLabel(panels.inventory, 'InventoryHint', '先选择材料批次和目标位置', -20, 17)
+      form: this.makeSectionLabel(panels.inventory, 'InventoryForm', '形态：—', -235, 130, 410, 18),
+      quantity: this.makeSectionLabel(panels.inventory, 'InventoryQuantity', '数量：—', -235, 104, 410, 19),
+      location: this.makeSectionLabel(panels.inventory, 'InventoryLocation', '当前位置：—', -235, 78, 410, 18),
+      target: this.makeSectionLabel(panels.inventory, 'InventoryTarget', '目标位置：请选择', -235, 7, 410, 18),
+      capacity: this.makeSectionLabel(panels.inventory, 'InventoryCapacity', '目标容量占用：—', -235, -17, 410, 17),
+      hint: this.makeSectionLabel(panels.inventory, 'InventoryHint', '先选择材料批次和目标位置', -235, -39, 410, 15)
+    };
+    this.makeSectionLabel(panels.inventory, 'SplitHeading', '拆分当前批次', 235, 128, 410, 20);
+    const split = {
+      input: this.makeQuantityInput(panels.inventory, 190, 88),
+      unit: this.makeSectionLabel(panels.inventory, 'SplitUnit', '—', 380, 88, 100, 20),
+      selection: this.makeSectionLabel(panels.inventory, 'SplitSelection', '请选择要拆分的材料批次', 235, 48, 410, 17),
+      preview: this.makeSectionLabel(panels.inventory, 'SplitPreviewSummary', '填写数量后先预览，再确认', 235, 16, 410, 17),
+      result: this.makeSectionLabel(panels.inventory, 'SplitResult', '', 235, -76, 430, 16)
     };
     const controls: Record<string, Button> = {
       OpenFarming: this.makeButton(canvasNode, 'OpenFarming', '种植收获', -155, 239),
@@ -330,15 +391,17 @@ export class CocosWebProbe extends Component {
       PlantCrop: this.makeButton(panels.farming, 'PlantCrop', '播种', 55, -44, 220),
       AdvanceOneDay: this.makeButton(canvasNode, 'AdvanceOneDay', '推进一天', 155, -120),
       HarvestCrop: this.makeButton(panels.farming, 'HarvestCrop', '收获', 310, -44, 230),
-      SelectInventoryLot: this.makeButton(panels.inventory, 'SelectInventoryLot', '下一批材料', -300, -65, 260),
-      SelectStorageTarget: this.makeButton(panels.inventory, 'SelectStorageTarget', '选择目标位置', 0, -65, 260),
-      MoveInventoryLot: this.makeButton(panels.inventory, 'MoveInventoryLot', '移动整批', 300, -65, 260)
+      SelectInventoryLot: this.makeButton(panels.inventory, 'SelectInventoryLot', '下一批材料', -235, 43, 390),
+      SelectStorageTarget: this.makeButton(panels.inventory, 'SelectStorageTarget', '选择目标位置', -345, -74, 190),
+      MoveInventoryLot: this.makeButton(panels.inventory, 'MoveInventoryLot', '移动整批', -125, -74, 190),
+      SplitPreview: this.makeButton(panels.inventory, 'SplitPreview', '预览拆分', 125, -28, 200),
+      SplitConfirm: this.makeButton(panels.inventory, 'SplitConfirm', '确认拆分', 345, -28, 200)
     };
     const buttons = Object.values(controls);
     const phase = this.makeLabel(canvasNode, 'Status', '准备启动', -225, 16);
     const operation = this.makeLabel(canvasNode, 'Operation', '请选择地块和种子后播种', -260, 18);
     this.makeLabel(canvasNode, 'LocalSaveHint', '本浏览器本地存档，刷新后可手动读取', -299, 15);
-    return { root: this.node, title, time, phase, operation, buttons, controls, farming, inventory, panels };
+    return { root: this.node, title, time, phase, operation, buttons, controls, farming, inventory, panels, split };
   }
 
   private makePanel(parent: Node, name: string): Node {
@@ -393,5 +456,45 @@ export class CocosWebProbe extends Component {
     label.verticalAlign = 1;
     label.color = new Color(236, 239, 234, 255);
     return label;
+  }
+
+  private makeSectionLabel(parent: Node, name: string, text: string, x: number, y: number, width: number, fontSize: number): Label {
+    const label = this.makeLabel(parent, name, text, y, fontSize);
+    label.node.setPosition(x, y, 0);
+    label.node.getComponent(UITransform)!.setContentSize(width, fontSize + 10);
+    label.overflow = Label.Overflow.CLAMP;
+    label.enableWrapText = false;
+    return label;
+  }
+
+  private makeQuantityInput(parent: Node, x: number, y: number): EditBox {
+    const node = new Node('SplitQuantity');
+    node.layer = Layers.Enum.UI_2D;
+    parent.addChild(node);
+    node.setPosition(x, y, 0);
+    node.addComponent(UITransform).setContentSize(270, 44);
+    const background = new Node('Background');
+    background.layer = Layers.Enum.UI_2D;
+    node.addChild(background);
+    background.addComponent(UITransform).setContentSize(270, 44);
+    const graphics = background.addComponent(Graphics);
+    graphics.fillColor = new Color(40, 57, 70, 255);
+    graphics.roundRect(-135, -22, 270, 44, 6);
+    graphics.fill();
+    const text = this.makeSectionLabel(node, 'Text', '', 0, 0, 250, 20);
+    const placeholder = this.makeSectionLabel(node, 'Placeholder', '输入拆分数量', 0, 0, 250, 18);
+    for (const label of [text, placeholder]) {
+      label.node.getComponent(UITransform)!.setAnchorPoint(0, 1);
+      label.horizontalAlign = Label.HorizontalAlign.LEFT;
+    }
+    placeholder.color = new Color(151, 164, 170, 255);
+    const input = node.addComponent(EditBox);
+    input.textLabel = text;
+    input.placeholderLabel = placeholder;
+    input.inputMode = EditBox.InputMode.SINGLE_LINE;
+    input.inputFlag = EditBox.InputFlag.DEFAULT;
+    input.maxLength = -1;
+    input.enabled = false;
+    return input;
   }
 }

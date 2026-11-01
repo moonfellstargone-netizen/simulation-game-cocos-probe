@@ -10,12 +10,16 @@ export interface ProbeHost {
   requireSession(): { getViewModel(): { time_label: string } };
 }
 
-export type ProbeCommand =
-  | { name: 'menu_confirm'; selection:
+export type ProbeMenuSelection =
     | { action_type: 'advance_time'; minutes: number }
     | { action_type: 'plant_crop'; field_option_id: string; seed_lot_option_id: string; seed_quantity: ProbeQuantity }
     | { action_type: 'harvest_crop'; crop_option_id: string }
-    | { action_type: 'store_item'; source_lot_option_id: string; target_storage_option_id: string } }
+    | { action_type: 'store_item'; source_lot_option_id: string; target_storage_option_id: string }
+    | { action_type: 'split_lot'; source_lot_option_id: string; quantity: ProbeQuantity };
+
+export type ProbeCommand =
+  | { name: 'menu_preview'; selection: ProbeMenuSelection }
+  | { name: 'menu_confirm'; selection: ProbeMenuSelection }
   | { name: 'save'; selection: { slot_id: string } }
   | { name: 'load'; selection: { slot_id: string } };
 

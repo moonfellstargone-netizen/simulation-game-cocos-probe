@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.39
+﻿# PROJECT_MAP — v0.0.2.40
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.39：**Split Quantity Invariants & Failure Safety**。正式split_lot校验数量并按已加载定义重算两侧占用，失败保留完整领域状态；trace.inventory.split-quantity连接核心、预览、Session与公开菜单。保留ID恢复、加工校验和现有Web链路，未增加网页拆分或微信。
+v0.0.2.40：**Web Inventory Lot Split & Feedback**。材料库存页经现有menu_preview/confirm完成拆分，数量文本/单位、本次预览、实际created_objects关联和失败后继续由outer管理。trace.cocos.web-inventory-split连接行为与独立Creator/浏览器验收；不增加加工界面、Stage1B或微信。
 
 ## 3. 权威边界
 

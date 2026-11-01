@@ -1,13 +1,14 @@
 source_design_pack: 模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip
 design_pack_version: v1.5.2.2
-code_package_version: v0.0.2.39
-code_package_npm_version: 0.0.2-39
-code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_39
-version_name: Split Quantity Invariants & Failure Safety
-chinese_version_name: 拆分数量校验与失败保护版
-scope: Validate split_lot positive finite quantities and integer count, retain valid fractional g/ml, remove exhausted source on full split, and recompute both footprints from loaded definitions. InventorySystem owns the fix; Runtime/Farming/Processing/Cooking only propagate config dependencies. Preserve consume, ActionPipeline, SaveFile, formal resources and all UI/platform boundaries.
+code_package_version: v0.0.2.40
+code_package_npm_version: 0.0.2-40
+code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_40
+version_name: Web Inventory Lot Split & Feedback
+chinese_version_name: 网页批次拆分与操作反馈版
+scope: Add outer-only web inventory split quantity input, preview, confirm and actual result feedback through the existing public menu. Preserve core quantities, ID recovery, ActionPipeline, SaveFile and formal resources.
 
 formal_source_statement: 正式包 v1.5.2.2 remains authoritative
-context_statement: 拆分数量校验、定义占用重建与失败保护及必要版本/代码包内部检查体系治理；正式设定、consume与Session/Queue不变
-quality_surface: trace.inventory.split-quantity, InventorySystem, config dependency propagation, test.stage1a-contract, test.action-preview, test.cocos-session, test.cocos-menu, inherited trace.runtime.id-recovery, trace.processing.required-inputs and all Web/bootstrap/storage traces; project-target authority, q:affected, cache probe, q:full, q:release without cache, independent Creator/browser verification
+context_statement: 网页批次拆分与操作反馈及必要版本/代码包内部检查体系治理；正式设定、核心与Session/Queue不变
+quality_surface: trace.cocos.web-inventory-split, ProbeInventory/Interaction/Lifetime/CocosWebProbe, test.cocos-engine-probe-lifecycle, test.cocos-web-verification-contracts; inherited core/ID/processing/Web traces; q:full, q:release without cache, independent Creator/browser keyboard and click verification
 authority_statement: design pack remains authoritative; GitHub repo is daily code authority
+affected_boundary: q:affected and cache probe serve development feedback only; q:full and q:release without cache remain completion authority

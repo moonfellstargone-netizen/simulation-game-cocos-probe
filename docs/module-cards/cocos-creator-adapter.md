@@ -87,6 +87,10 @@ CocosUiCommandQueue按本次命令选择shell/menu/save_load错误来源，保�
 
 ## 正式store_item最小菜单适配
 
-MenuActionBinding.ts从当前公开材料批次/储存目标解析选择，以MaterialLot object_ref和目标StorageRef调用cocos-app既有CocosActionDraftBuilder.storeItem；这是既有库存能力的最小适配，本版拆分数量/占用修复位于核心InventorySystem。不直接修改SaveFile、不新增业务规则、不改变Session或Queue，不接cc/wx/fs。预览、执行和回滚沿现有MinimalMenuInteractionController路径。
+MenuActionBinding.ts从当前公开材料批次/储存目标解析选择，以MaterialLot object_ref和目标StorageRef调用cocos-app既有CocosActionDraftBuilder.storeItem；整批转移和split_lot适配均为既有公开能力，本版仅由outer消费。不直接修改SaveFile、不新增业务规则、不改变Session或Queue，不接cc/wx/fs。预览、执行和回滚沿现有MinimalMenuInteractionController路径。
 
 tests/cocos-minimal-menu-binding.test.ts / test:cocos-menu验证预览不写状态、整批位置和源/目标占用、数量/身份/时间保持、失效/禁用/不支持形态/容量拒绝及后续健康恢复。trace.cocos.web-inventory-storage连接该适配与outer库存、地图和真实点击；同步cocos/runtime地图、files/public-api索引。
+
+## 网页拆分公开复用
+
+本版outer复用已有MenuActionBinding.split_lot、MinimalMenuInteractionController.preview/confirm及Queue.menu_preview；此模块执行源码保持，确认仍重预览最新Session，不以outer旧预览替代。见trace.cocos.web-inventory-split及engine模块卡。

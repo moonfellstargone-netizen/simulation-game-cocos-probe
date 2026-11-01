@@ -1,4 +1,4 @@
-﻿# GLOSSARY — v0.0.2.39
+﻿# GLOSSARY — v0.0.2.40
 
 术语表。防止权威与工具边界混淆。
 
@@ -17,7 +17,7 @@
 | **Scope Discovery** | 执行前范围发现：seed files、必读、暂不读模块 |
 | **Project Map** | L0–L5 分级导航，≠ 源码替代品 |
 | **Traceability Matrix** | `TRACEABILITY_MATRIX.md` + `traceability-map.json`，追踪层 ≠ 玩法权威 |
-| **Split Quantity Invariants & Failure Safety** | 正式拆分验证数量并从定义重算两侧占用，全量清理归零源，失败保持状态且健康操作可继续 |
+| **Web Inventory Lot Split & Feedback** | 正式拆分验证数量并从定义重算两侧占用，全量清理归零源，失败保持状态且健康操作可继续 |
 | **异步场景绑定顺序与恢复** | 同一绑定实例内按序完成命令和界面应用，端口失败后重新同步当前视图，不回滚或重发正式Action |
 | **启动装配与资源契约** | 核对外部资源、编译Schema引用并经公共入口装配宿主，资源失败时不交付可操作会话 |
 | **存储故障保护与恢复** | 通过受控读写拒绝，验证Session状态保护、错误展示、队列顺序及恢复重试 |
@@ -61,3 +61,5 @@
 真实Creator Web最小启动外层；旧三层仍engine-neutral，只有新outer可用cc。仓库保存源模板，prepare从唯一runtime/正式资源生成外部可打开副本。Node准备/生命周期契约与真实Creator预览/构建是不同验收证据，不能互相代替。
 
 web_probe为外层浏览器本地单槽，使用稳定key；同origin/profile刷新先显示新局，用户手动读取才恢复，不自动续档或覆盖旧档。浏览器数据可能被清除，不承诺跨来源共享或正式版本迁移。command_result描述本次命令，其他面板历史错误仍保留；ProbeInteraction协调busy及销毁后的迟到结果，不增加业务事务或自动重试。
+
+网页拆分预览：本次公开menu_preview校验结果，不改变领域状态或保证未来确认成功；改选择/其他操作后过期，confirm仍按当前状态重预览。

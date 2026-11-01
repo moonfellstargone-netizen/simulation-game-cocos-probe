@@ -5,7 +5,7 @@ import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { assertClickObservation, assertDisabledInventoryObservation, assertFarmingCommandObservation, assertFarmingLoadRecovery, assertFarmingProjection, assertInventoryCommandObservation, assertInventoryLoadRecovery, assertInventoryProjection, assertLocalInventoryObservation, assertLocalSaveRecovery, assertLocalSelectionObservation, assertStoredSaveUnchanged, assertUiCommandObservation, capturePreparedSurface, checkPreparedSurfaceAfterBuild, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest, within } from '../tools/cocos-probe/lib/webProbeSupport.mjs';
+import { assertClickObservation, assertDisabledInventoryObservation, assertFarmingCommandObservation, assertFarmingLoadRecovery, assertFarmingProjection, assertInventoryCommandObservation, assertInventoryLoadRecovery, assertInventoryProjection, assertLocalInventoryObservation, assertLocalSaveRecovery, assertLocalSelectionObservation, assertSplitConfirmObservation, assertSplitDisabledObservation, assertSplitLoadRecovery, assertSplitPreviewObservation, assertSplitProjection, assertSplitQuantityObservation, assertStoredSaveUnchanged, assertUiCommandObservation, capturePreparedSurface, checkPreparedSurfaceAfterBuild, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest, within } from '../tools/cocos-probe/lib/webProbeSupport.mjs';
 import { verifyWebProbe } from '../tools/cocos-probe/verify-web.mjs';
 
 const root = realpathSync(resolve('.'));
@@ -242,6 +242,170 @@ function inventoryState() {
   state.displayedInventory = { lot: '蔬菜批次', form: '鲜品', quantity: '数量：100克', location: '当前位置：常温储存', target: '目标：菜窖', capacity: '目标容量占用：1/20', hint: '可以整批转移' };
   return state;
 }
+
+function splitState() {
+  const state = inventoryState();
+  Object.assign(state.inventory, { splitQuantityText: '30', splitUnit: 'g', splitInputError: null,
+    canPreviewSplit: true, canConfirmSplit: false, splitPreview: null, splitResult: null });
+  state.displayedSplit = { quantityText: '30', unit: '克', selection: '所选材料100克', preview: '请先预览', result: '尚无拆分结果' };
+  state.farming.materialOptions = structuredClone(state.inventory.lotOptions);
+  return state;
+}
+
+function splitReadyState(full = false) {
+  const state = splitState();
+  state.inventory.splitQuantityText = state.displayedSplit.quantityText = full ? '100' : '30';
+  state.inventory.splitPreview = { success: true, statusCode: 'OK' };
+  state.inventory.canConfirmSplit = true;
+  state.displayedSplit.preview = '预览通过';
+  return state;
+}
+
+function splitCompletedState(full = false) {
+  const state = splitReadyState(full);
+  const source = structuredClone(state.inventory.lotOptions[0]);
+  const amount = full ? 100 : 30;
+  if (full) state.inventory.lotOptions.shift();
+  else state.inventory.lotOptions[0].quantity.amount = 70;
+  state.inventory.lotOptions.push({ ...source, id: 'new_child', quantity: { amount, unit: 'g' } });
+  state.inventory.selectedLotId = full ? null : source.id;
+  state.inventory.canConfirmSplit = false;
+  state.inventory.splitPreview = null;
+  state.inventory.splitResult = { sourceLotId: source.id, newLotId: 'new_child', quantity: { amount, unit: 'g' }, remainingQuantity: full ? null : { amount: 70, unit: 'g' } };
+  state.displayedInventory.quantity = full ? '数量：—' : '数量：70克';
+  state.displayedSplit.result = `新增批次：${amount}克 · ${full ? '来源已全部拆出' : '来源剩余70克'}`;
+  state.farming.materialOptions = structuredClone(state.inventory.lotOptions);
+  state.operation = { sequence: 1, name: 'menu_confirm', status: 'completed', message: '拆分成功', errorMessage: null, slotId: null, worldMinute: null };
+  state.displayedOperation = state.operation.message;
+  return state;
+}
+
+test('split keyboard observations require real editing events, exact visible text and zero world or command effects', () => {
+  const before = splitReadyState();
+  const after = splitState(); after.inventory.splitQuantityText = after.displayedSplit.quantityText = '31';
+  const valid = { ...farmingClick(before, after), eventCount: 0, focused: { className: 'cocosEditBox', value: '31' }, editEvents: { began: 1, changed: 3, ended: 1 } };
+  valid.layout.inputLabels = {
+    text: { left: 110, top: 100, right: 290, bottom: 140, width: 180, height: 40 },
+    placeholder: { left: 110, top: 100, right: 290, bottom: 140, width: 180, height: 40 }
+  };
+  assert.doesNotThrow(() => assertSplitQuantityObservation(valid, '31'));
+  for (const mutate of [
+    (x) => { x.eventCount = 1; },
+    (x) => { x.editEvents.began = 0; },
+    (x) => { x.editEvents.changed = 0; },
+    (x) => { x.editEvents.ended = 0; },
+    (x) => { x.focused.className = 'otherInput'; },
+    (x) => { x.focused.value = '30'; },
+    (x) => { x.after.inventory.splitQuantityText = '30'; },
+    (x) => { x.after.displayedSplit.quantityText = '30'; },
+    (x) => { x.after.operation.sequence++; },
+    (x) => { x.after.inventory.lotOptions[0].quantity.amount--; },
+    (x) => { x.after.inventory.splitPreview = { success: true, statusCode: 'OK' }; },
+    (x) => { x.after.inventory.canConfirmSplit = true; },
+    // The original centered anchors put the Label left/up beyond the EditBox even though text input still worked.
+    (x) => { x.layout.inputLabels.text.left -= 100; x.layout.inputLabels.text.right -= 100; },
+    (x) => { x.layout.inputLabels.text.top -= 20; x.layout.inputLabels.text.bottom -= 20; },
+    (x) => { x.layout.inputLabels.placeholder.left -= 100; x.layout.inputLabels.placeholder.right -= 100; },
+    (x) => { x.layout.inputLabels.placeholder.top -= 20; x.layout.inputLabels.placeholder.bottom -= 20; },
+    (x) => { delete x.layout.inputLabels.text; },
+    (x) => { x.layout.inputLabels.placeholder.left = NaN; }
+  ]) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => assertSplitQuantityObservation(invalid, '31'));
+  }
+});
+
+test('split preview and disabled observations reject stale success, business mutation and unintended commands', () => {
+  const after = splitReadyState();
+  after.operation = { sequence: 1, name: 'menu_preview', status: 'completed', message: '拆分预览通过', errorMessage: null, slotId: null, worldMinute: null };
+  after.displayedOperation = after.operation.message;
+  const valid = farmingClick(splitState(), after);
+  const expected = { status: 'completed', statusCode: 'OK' };
+  assert.doesNotThrow(() => assertSplitPreviewObservation(valid, expected));
+  for (const mutate of [
+    (x) => { x.after.inventory.lotOptions[0].quantity.amount = 70; x.after.displayedInventory.quantity = '数量：70克'; },
+    (x) => { x.after.inventory.targetOptions[0].used_capacity++; },
+    (x) => { x.after.operation.name = 'menu_confirm'; },
+    (x) => { x.after.operation.worldMinute = 360; },
+    (x) => { x.after.operation.slotId = 'web_probe'; },
+    (x) => { x.after.inventory.splitPreview.statusCode = 'OLD_RESULT'; },
+    (x) => { x.after.inventory.canConfirmSplit = false; },
+    (x) => { x.after.inventory.splitResult = { old: true }; }
+  ]) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => assertSplitPreviewObservation(invalid, expected));
+  }
+  const refused = farmingClick(splitState(), splitState());
+  refused.after.inventory.splitPreview = { success: false, statusCode: 'ERR_NOT_ENOUGH_RESOURCE' };
+  refused.after.operation = { ...after.operation, status: 'failed', message: '资源不足', errorMessage: 'ERR_NOT_ENOUGH_RESOURCE' };
+  refused.after.displayedOperation = refused.after.operation.message;
+  assert.doesNotThrow(() => assertSplitPreviewObservation(refused, { status: 'failed', statusCode: 'ERR_NOT_ENOUGH_RESOURCE', errorMessage: 'ERR_NOT_ENOUGH_RESOURCE' }));
+  const disabled = farmingClick(splitState(), splitState()); disabled.eventCount = 0; disabled.layout.buttonInteractable = false;
+  assert.doesNotThrow(() => assertSplitDisabledObservation(disabled, 'SplitConfirm'));
+  for (const mutate of [
+    (x) => { x.eventCount = 1; },
+    (x) => { x.after.operation.sequence++; },
+    (x) => { x.before.inventory.canConfirmSplit = true; },
+    (x) => { x.layout.buttonInteractable = true; },
+    (x) => { x.after.inventory.targetOptions[0].used_capacity--; }
+  ]) {
+    const invalid = structuredClone(disabled); mutate(invalid);
+    assert.throws(() => assertSplitDisabledObservation(invalid, 'SplitConfirm'));
+  }
+});
+
+test('split success requires exact source/child quantities, stable unrelated lots, unique IDs and exhausted-source removal', () => {
+  for (const full of [false, true]) {
+    const valid = farmingClick(splitReadyState(full), splitCompletedState(full));
+    const amount = full ? 100 : 30;
+    assert.doesNotThrow(() => assertSplitConfirmObservation(valid, { amount }));
+    for (const mutate of [
+      (x) => { x.after.inventory.lotOptions.at(-1).id = 'other'; },
+      (x) => { x.after.inventory.splitResult.newLotId = 'missing'; },
+      (x) => { x.after.inventory.lotOptions.at(-1).quantity.amount--; },
+      (x) => { x.after.inventory.lotOptions.at(-1).quantity.unit = 'ml'; },
+      (x) => { x.before.displayedSplit.unit = '毫升'; },
+      (x) => { x.after.inventory.lotOptions.at(-1).storage_ref.container_id = 'jar'; },
+      (x) => { x.after.inventory.lotOptions.find((lot) => lot.id === 'other').quantity.amount--; },
+      (x) => { x.after.inventory.splitResult.quantity.amount--; },
+      (x) => { x.after.inventory.canConfirmSplit = true; },
+      (x) => { x.before.inventory.canConfirmSplit = false; },
+      (x) => { x.after.farming.fieldOptions[0].occupied_tiles++; },
+      (x) => { x.after.farming.materialOptions = structuredClone(x.before.farming.materialOptions); },
+      (x) => { x.after.displayedSplit.result = '旧结果'; }
+    ]) {
+      const invalid = structuredClone(valid); mutate(invalid);
+      assert.throws(() => assertSplitConfirmObservation(invalid, { amount }));
+    }
+  }
+  const retained = farmingClick(splitReadyState(true), splitCompletedState(true));
+  retained.after.inventory.lotOptions.push({ ...retained.before.inventory.lotOptions[0], quantity: { amount: 0, unit: 'g' } });
+  assert.throws(() => assertSplitConfirmObservation(retained, { amount: 100 }));
+  const staleRemainder = farmingClick(splitReadyState(), splitCompletedState()); staleRemainder.after.inventory.splitResult.remainingQuantity.amount = 69;
+  assert.throws(() => assertSplitConfirmObservation(staleRemainder, { amount: 30 }));
+});
+
+test('split manual-load observations require saved lots/capacity and invalidate old preview and result', () => {
+  const saved = splitCompletedState(); const after = structuredClone(saved);
+  after.inventory.splitPreview = null; after.inventory.splitResult = null; after.inventory.canConfirmSplit = false;
+  after.operation = { sequence: 4, name: 'load', status: 'completed', message: '已恢复本地存档', errorMessage: null, slotId: 'web_probe', worldMinute: 360 };
+  after.displayedOperation = after.operation.message;
+  const before = splitReadyState(); before.operation.sequence = 3;
+  const valid = farmingClick(before, after);
+  assert.doesNotThrow(() => assertSplitLoadRecovery(saved, valid));
+  for (const mutate of [
+    (x) => { x.after.inventory.lotOptions = structuredClone(x.before.inventory.lotOptions); },
+    (x) => { x.after.inventory.targetOptions[0].used_capacity++; },
+    (x) => { x.after.inventory.splitPreview = { success: true, statusCode: 'OK' }; },
+    (x) => { x.after.inventory.splitResult = saved.inventory.splitResult; },
+    (x) => { x.after.inventory.canConfirmSplit = true; },
+    (x) => { x.after.inventory.lotOptions.push(structuredClone(x.after.inventory.lotOptions[0])); }
+  ]) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => assertSplitLoadRecovery(saved, invalid));
+  }
+  assert.throws(() => assertSplitProjection({ ...saved, displayedSplit: null }));
+});
 
 function movedInventoryState() {
   const state = inventoryState();

@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.39
+﻿# Code Index — Files — v0.0.2.40
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -130,3 +130,5 @@ trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport
 - src/game-core/runtime/GameRuntime.ts、src/game-core/farming/FarmingSystem.ts、src/game-core/processing/ProcessingSystem.ts、src/game-core/cooking/CookingSystem.ts：ConfigRepository构造依赖传播，其他业务保持。
 - tests/stage1a-contract.test.ts、tests/action-preview-boundary.test.ts、tests/cocos-runtime-session.test.ts、tests/cocos-minimal-menu-binding.test.ts：现有四任务的拆分校验/回滚/恢复。
 - trace.inventory.split-quantity连接实现、公开路径和地图，不替代正式契约。
+
+| `tests/cocos-web-split.test.ts` | tests | 公开outer拆分、预览/失败保护/跨会话恢复 | 改数量输入或本次预览 | `test:cocos-engine-probe-lifecycle` |
