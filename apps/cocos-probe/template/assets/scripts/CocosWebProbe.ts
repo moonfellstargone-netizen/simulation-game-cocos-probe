@@ -483,6 +483,10 @@ export class CocosWebProbe extends Component {
     graphics.fill();
     const text = this.makeSectionLabel(node, 'Text', '', 0, 0, 250, 20);
     const placeholder = this.makeSectionLabel(node, 'Placeholder', '输入拆分数量', 0, 0, 250, 18);
+    for (const label of [text, placeholder]) {
+      label.node.getComponent(UITransform)!.setAnchorPoint(0, 1);
+      label.horizontalAlign = Label.HorizontalAlign.LEFT;
+    }
     placeholder.color = new Color(151, 164, 170, 255);
     const input = node.addComponent(EditBox);
     input.textLabel = text;

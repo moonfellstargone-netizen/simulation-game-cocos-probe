@@ -284,6 +284,10 @@ test('split keyboard observations require real editing events, exact visible tex
   const before = splitReadyState();
   const after = splitState(); after.inventory.splitQuantityText = after.displayedSplit.quantityText = '31';
   const valid = { ...farmingClick(before, after), eventCount: 0, focused: { className: 'cocosEditBox', value: '31' }, editEvents: { began: 1, changed: 3, ended: 1 } };
+  valid.layout.inputLabels = {
+    text: { left: 110, top: 100, right: 290, bottom: 140, width: 180, height: 40 },
+    placeholder: { left: 110, top: 100, right: 290, bottom: 140, width: 180, height: 40 }
+  };
   assert.doesNotThrow(() => assertSplitQuantityObservation(valid, '31'));
   for (const mutate of [
     (x) => { x.eventCount = 1; },
@@ -297,7 +301,14 @@ test('split keyboard observations require real editing events, exact visible tex
     (x) => { x.after.operation.sequence++; },
     (x) => { x.after.inventory.lotOptions[0].quantity.amount--; },
     (x) => { x.after.inventory.splitPreview = { success: true, statusCode: 'OK' }; },
-    (x) => { x.after.inventory.canConfirmSplit = true; }
+    (x) => { x.after.inventory.canConfirmSplit = true; },
+    // The original centered anchors put the Label left/up beyond the EditBox even though text input still worked.
+    (x) => { x.layout.inputLabels.text.left -= 100; x.layout.inputLabels.text.right -= 100; },
+    (x) => { x.layout.inputLabels.text.top -= 20; x.layout.inputLabels.text.bottom -= 20; },
+    (x) => { x.layout.inputLabels.placeholder.left -= 100; x.layout.inputLabels.placeholder.right -= 100; },
+    (x) => { x.layout.inputLabels.placeholder.top -= 20; x.layout.inputLabels.placeholder.bottom -= 20; },
+    (x) => { delete x.layout.inputLabels.text; },
+    (x) => { x.layout.inputLabels.placeholder.left = NaN; }
   ]) {
     const invalid = structuredClone(valid); mutate(invalid);
     assert.throws(() => assertSplitQuantityObservation(invalid, '31'));

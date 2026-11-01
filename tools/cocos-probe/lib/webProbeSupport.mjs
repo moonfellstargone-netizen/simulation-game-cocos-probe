@@ -433,6 +433,15 @@ export function assertSplitProjection(state) {
 
 export function assertSplitQuantityObservation(observation, text) {
   assertInputObservation(observation, 0);
+  const input = observation.layout.button;
+  const epsilon = 1e-6;
+  for (const name of ['text', 'placeholder']) {
+    const label = observation.layout.inputLabels?.[name];
+    assert.ok(label && ['left', 'top', 'right', 'bottom', 'width', 'height'].every((key) => Number.isFinite(label[key])), name + ' Label must expose finite UITransform bounds');
+    assert.ok(label.width > 0 && label.height > 0 && label.left >= input.left - epsilon && label.top >= input.top - epsilon
+      && label.right <= input.right + epsilon && label.bottom <= input.bottom + epsilon,
+    name + ' Label must fit inside the actual EditBox input rectangle');
+  }
   const { before, after } = observation;
   assertSplitProjection(before); assertSplitProjection(after);
   assert.equal(before.panel, 'inventory'); assert.equal(after.panel, 'inventory');

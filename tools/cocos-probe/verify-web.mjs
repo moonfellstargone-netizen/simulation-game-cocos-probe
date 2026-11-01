@@ -120,7 +120,7 @@ async function physicalClick(page, caseName, result, recordDir, buttonName = 'Ad
 async function physicalSplitInput(page, caseName, text, result, recordDir) {
   await settle(page);
   // Read geometry and event counters only. All text changes below come from real mouse/keyboard input.
-  const layout = await page.evaluate(async () => {
+  const readLayout = () => page.evaluate(async () => {
     const cc = await System.import('cc');
     const scene = cc.director.getScene();
     const edit = scene.getComponentsInChildren(cc.EditBox).find((item) => item.node.name === 'SplitQuantity');
@@ -129,12 +129,23 @@ async function physicalSplitInput(page, caseName, text, result, recordDir) {
     const transform = edit.node.getComponent(cc.UITransform);
     const canvas = document.querySelector('#GameCanvas'); const rectangle = canvas.getBoundingClientRect();
     const point = (world) => { const p = camera.worldToScreen(world); return { x: rectangle.left + rectangle.width * p.x / canvas.width, y: rectangle.top + rectangle.height * (1 - p.y / canvas.height) }; };
-    const corners = [[-transform.anchorPoint.x * transform.width, -transform.anchorPoint.y * transform.height], [(1 - transform.anchorPoint.x) * transform.width, (1 - transform.anchorPoint.y) * transform.height]]
-      .map(([x, y]) => point(transform.convertToWorldSpaceAR(new cc.Vec3(x, y, 0))));
-    const input = { left: Math.min(...corners.map((p) => p.x)), top: Math.min(...corners.map((p) => p.y)), right: Math.max(...corners.map((p) => p.x)), bottom: Math.max(...corners.map((p) => p.y)) };
+    const bounds = (target) => {
+      const xs = [-target.anchorPoint.x * target.width, (1 - target.anchorPoint.x) * target.width];
+      const ys = [-target.anchorPoint.y * target.height, (1 - target.anchorPoint.y) * target.height];
+      const corners = xs.flatMap((x) => ys.map((y) => point(target.convertToWorldSpaceAR(new cc.Vec3(x, y, 0)))));
+      const rectangle = { left: Math.min(...corners.map((p) => p.x)), top: Math.min(...corners.map((p) => p.y)), right: Math.max(...corners.map((p) => p.x)), bottom: Math.max(...corners.map((p) => p.y)) };
+      return { ...rectangle, width: rectangle.right - rectangle.left, height: rectangle.bottom - rectangle.top };
+    };
+    const input = bounds(transform);
+    const inputLabels = Object.fromEntries([['text', edit.textLabel], ['placeholder', edit.placeholderLabel]].map(([key, label]) => {
+      const labelTransform = label?.node.getComponent(cc.UITransform);
+      if (!labelTransform) throw new Error('ERR_WEB_PROBE_SPLIT_INPUT_LABEL_MISSING:' + key);
+      return [key, bounds(labelTransform)];
+    }));
     return { canvas: { left: rectangle.left, top: rectangle.top, right: rectangle.right, bottom: rectangle.bottom, width: rectangle.width, height: rectangle.height },
-      button: { ...input, width: input.right - input.left, height: input.bottom - input.top }, viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio }, target: point(edit.node.worldPosition) };
+      button: input, inputLabels, viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio }, target: point(edit.node.worldPosition) };
   });
+  const layout = await readLayout();
   const before = await status(page); const scrollBefore = await scroll(page);
   const counters = await page.evaluate(() => ({ buttons: { ...globalThis.__webProbeButtonEvents }, edit: { ...globalThis.__webProbeEditEvents } }));
   await page.mouse.move(layout.target.x, layout.target.y); await page.mouse.down(); await settle(page);
@@ -143,6 +154,8 @@ async function physicalSplitInput(page, caseName, text, result, recordDir) {
   await page.keyboard.press('Control+A'); await page.keyboard.press('Backspace'); await page.keyboard.type(text);
   const focused = await page.evaluate(() => ({ className: document.activeElement?.className, value: document.activeElement?.value }));
   await page.keyboard.press('Tab'); await settle(page);
+  // Inspect the rendered text/placeholder geometry again after the real edit and blur.
+  layout.inputLabels = (await readLayout()).inputLabels;
   const afterCounters = await page.evaluate(() => ({ buttons: { ...globalThis.__webProbeButtonEvents }, edit: { ...globalThis.__webProbeEditEvents } }));
   const observation = { caseName, text, layout, focused, before, after: await status(page),
     eventCount: BUTTONS.reduce((sum, name) => sum + afterCounters.buttons[name] - counters.buttons[name], 0),
