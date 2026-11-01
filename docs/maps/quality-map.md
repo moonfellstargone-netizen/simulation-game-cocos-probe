@@ -1,4 +1,4 @@
-﻿# Quality Map — v0.0.2.40
+﻿# Quality Map — v0.0.2.41
 
 ## 系统职责
 
@@ -84,3 +84,7 @@ tests/cocos-web-farming.test.ts加入test.cocos-engine-probe-lifecycle实际执�
 trace.cocos.web-inventory-storage连接MenuActionBinding.ts唯一最小store_item适配、outer ProbeInventory.ts/.meta、CocosWebProbe及公开结果反馈、tests/cocos-minimal-menu-binding.test.ts和tests/cocos-web-inventory.test.ts。库存辅助只复制公开批次/目标并管理本地选择，核心容量、形态、数量与Session/Queue规则保持。
 
 库存行为测试加入既有test.cocos-engine-probe-lifecycle实际args/files/covers，菜单适配沿test.cocos-menu验证；prepare和工具契约继续full/blocker，新增helper/测试及唯一适配的单文件affected须闭合。真实库存点击至少独立960×640 built/editor验收，布局影响的农事、存读档/矩阵/resize和生命周期回归继续；Node不代替真实Creator/Chrome，未扩大门禁算法或平台范围。
+
+## 网页加工验证登记
+
+新增ProbeProcessing.ts/.meta及cocos-web-processing.test.ts登记既有准备/生命周期files，行为测试进入生命周期实际args与package脚本；readiness登记只读VM。trace.cocos.web-processing-loop连接这些full/blocker任务及既有menu和工具契约，不新增独立gate、不改策略/阈值。单文件affected核实际执行，Creator/SDK和built/editor真实输入独立验收，完整及出包仍按q:full和无缓存q:release。

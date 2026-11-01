@@ -108,8 +108,8 @@ function validBusinessResult(result: ProbeBusinessResult): boolean {
 function runningMessage(command: ProbeCommand): string {
   if (command.name === 'save') return '正在本地保存';
   if (command.name === 'load') return '正在读取本地存档';
-  if (command.name === 'menu_preview') return '正在校验拆分数量';
-  return ({ plant_crop: '正在播种', advance_time: '正在推进时间', harvest_crop: '正在收获', store_item: '正在转移整批物料', split_lot: '正在拆分批次' })[command.selection.action_type];
+  if (command.name === 'menu_preview') return command.selection.action_type === 'start_processing' ? '正在校验加工输入' : '正在校验拆分数量';
+  return ({ plant_crop: '正在播种', advance_time: '正在推进时间', harvest_crop: '正在收获', store_item: '正在转移整批物料', split_lot: '正在拆分批次', start_processing: '正在加工开工', collect_processing_result: '正在领取加工产物' })[command.selection.action_type];
 }
 
 function completedMessage(command: ProbeCommand): string {
@@ -120,6 +120,8 @@ function completedMessage(command: ProbeCommand): string {
   if (command.selection.action_type === 'harvest_crop') return '收获成功';
   if (command.selection.action_type === 'store_item') return '整批转移成功';
   if (command.selection.action_type === 'split_lot') return '拆分成功';
+  if (command.selection.action_type === 'start_processing') return '加工开工成功';
+  if (command.selection.action_type === 'collect_processing_result') return '加工产物领取成功';
   return command.selection.minutes === 60 ? '已推进一小时'
     : command.selection.minutes === 1440 ? '已推进一天' : `已推进${command.selection.minutes}分钟`;
 }
@@ -135,5 +137,10 @@ function failureMessage(code: string): string {
   if (code === 'ERR_SPLIT_QUANTITY_INVALID') return '拆分数量无效，件数请填写整数';
   if (code === 'ERR_SPLIT_QUANTITY_NOT_REPRESENTABLE') return '该数量无法安全拆分，请调整数量';
   if (code.startsWith('ERR_ALREADY_RESERVED')) return '这批材料暂不可拆分';
+  if (code === 'ERR_PROCESSING_INPUT_MISSING') return '加工所需材料缺失或数量不足';
+  if (code === 'ERR_PROCESSING_TASK_NOT_READY') return '加工尚未完成，请正常推进时间';
+  if (code === 'ERR_PROCESSING_TASK_ALREADY_COMPLETED') return '该加工任务已领取';
+  if (code === 'ERR_INVALID_LOT_STATE') return '材料当前状态不适合加工';
+  if (code === 'ERR_PROCESSING_FACILITY_NOT_ALLOWED' || code === 'ERR_MENU_FACILITY_METHOD_NOT_COMPATIBLE') return '请选择兼容的加工设施';
   return '操作未完成，请重试';
 }

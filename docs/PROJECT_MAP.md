@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.40
+﻿# PROJECT_MAP — v0.0.2.41
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.40：**Web Inventory Lot Split & Feedback**。材料库存页经现有menu_preview/confirm完成拆分，数量文本/单位、本次预览、实际created_objects关联和失败后继续由outer管理。trace.cocos.web-inventory-split连接行为与独立Creator/浏览器验收；不增加加工界面、Stage1B或微信。
+v0.0.2.41：**Web Processing Start & Collection**。最小app公开方法/任务投影支撑网页逐项选料、预览开工、查看任务并领取实际产物，沿既有正式加工及menu_preview/confirm。trace.cocos.web-processing-loop连接公开数据、outer、行为与独立Creator/浏览器验收；保留农事、库存/拆分和本地存读档，不扩Stage1B或微信。
 
 ## 3. 权威边界
 

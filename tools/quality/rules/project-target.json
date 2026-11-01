@@ -1,29 +1,29 @@
 {
   "version": {
-    "codePackageVersion": "v0.0.2.40",
-    "npmVersion": "0.0.2-40",
-    "qualityMetadataVersion": "0.0.2.40",
-    "snakeVersion": "v0_0_2_40",
-    "versionName": "Web Inventory Lot Split & Feedback",
-    "chineseVersionName": "网页批次拆分与操作反馈版"
+    "codePackageVersion": "v0.0.2.41",
+    "npmVersion": "0.0.2-41",
+    "qualityMetadataVersion": "0.0.2.41",
+    "snakeVersion": "v0_0_2_41",
+    "versionName": "Web Processing Start & Collection",
+    "chineseVersionName": "网页加工开工与领取版"
   },
   "release": {
-    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_40",
-    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_40.zip"
+    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_41",
+    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_41.zip"
   },
   "design": {
     "designPackVersion": "v1.5.2.2",
     "designPackName": "模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip"
   },
   "previous": {
-    "codePackageVersion": "v0.0.2.39",
-    "npmVersion": "0.0.2-39",
-    "qualityMetadataVersion": "0.0.2.39",
-    "snakeVersion": "v0_0_2_39",
-    "versionName": "Split Quantity Invariants & Failure Safety",
-    "chineseVersionName": "拆分数量校验与失败保护版",
-    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_39",
-    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_39.zip"
+    "codePackageVersion": "v0.0.2.40",
+    "npmVersion": "0.0.2-40",
+    "qualityMetadataVersion": "0.0.2.40",
+    "snakeVersion": "v0_0_2_40",
+    "versionName": "Web Inventory Lot Split & Feedback",
+    "chineseVersionName": "网页批次拆分与操作反馈版",
+    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_40",
+    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_40.zip"
   },
   "staleMarkers": {
     "forbiddenCurrentMarkers": [
@@ -226,7 +226,18 @@
       "模拟游戏_Cocos微信试水代码包_v0_0_2_39.zip",
       "fixture_baseline_v0_0_2_39",
       "headless_baseline_v0_0_2_39",
-      "cocos_baseline_v0_0_2_39"
+      "cocos_baseline_v0_0_2_39",
+      "v0.0.2.40",
+      "0.0.2-40",
+      "0.0.2.40",
+      "v0_0_2_40",
+      "Web Inventory Lot Split & Feedback",
+      "网页批次拆分与操作反馈版",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_40",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_40.zip",
+      "fixture_baseline_v0_0_2_40",
+      "headless_baseline_v0_0_2_40",
+      "cocos_baseline_v0_0_2_40"
     ],
     "allowedHistoricalScopes": [
       "tools/quality/rules/project-target.json",

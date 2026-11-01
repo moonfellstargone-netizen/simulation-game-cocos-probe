@@ -17,6 +17,10 @@ test('Cocos Web template, preparation and regression changes select the register
     ['apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle', 'test.cocos-web-verification-contracts', 'quality.architectureBoundary']],
     ['apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
     ['apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle', 'test.cocos-web-verification-contracts']],
+    ['apps/cocos-probe/template/assets/scripts/ProbeProcessing.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
+    ['apps/cocos-probe/template/assets/scripts/ProbeProcessing.ts.meta', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
+    ['tests/cocos-web-processing.test.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
+    ['src/cocos-app/view-models/CocosSelectableViewModel.ts', ['test.cocos-ui-readiness', 'test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
     ['apps/cocos-probe/template/assets/scripts/BrowserSaveStoragePort.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle', 'test.cocos-web-verification-contracts']],
     ['tests/cocos-browser-storage.test.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
     ['tools/cocos-probe/serve.mjs', ['test.cocos-web-verification-contracts']],
@@ -191,11 +195,11 @@ test('binding source, application tests and shared helper changes select both bi
 test('current version changed tests select the task that actually executes each file', () => {
   const cases = [
   [
-    "tests/cocos-web-inventory.test.ts",
-    "test.cocos-engine-probe-lifecycle"
+    "tests/cocos-ui-readiness.test.ts",
+    "test.cocos-ui-readiness"
   ],
   [
-    "tests/cocos-web-split.test.ts",
+    "tests/cocos-web-processing.test.ts",
     "test.cocos-engine-probe-lifecycle"
   ],
   [

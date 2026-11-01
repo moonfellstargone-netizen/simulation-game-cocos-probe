@@ -3,6 +3,7 @@ import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertClickObservation, assertDisabledInventoryObservation, assertFarmingCommandObservation, assertFarmingLoadRecovery, assertFarmingProjection, assertInventoryCommandObservation, assertInventoryLoadRecovery, assertInventoryProjection, assertLocalInventoryObservation, assertLocalSaveRecovery, assertLocalSelectionObservation, assertSplitConfirmObservation, assertSplitDisabledObservation, assertSplitLoadRecovery, assertSplitPreviewObservation, assertSplitProjection, assertSplitQuantityObservation, assertStoredSaveUnchanged, assertUiCommandObservation, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest } from './lib/webProbeSupport.mjs';
+import { assertLocalProcessingObservation, assertProcessingCollectObservation, assertProcessingDisabledObservation, assertProcessingLoadRecovery, assertProcessingPreviewObservation, assertProcessingProjection, assertProcessingQuantityObservation, assertProcessingStartObservation } from './lib/webProbeSupport.mjs';
 
 const ROOT = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '../..'));
 const MATRIX = [
@@ -15,7 +16,8 @@ const status = (page) => page.evaluate(() => globalThis.__cocosWebProbe.status()
 const scroll = (page) => page.evaluate(() => ({ x: scrollX, y: scrollY }));
 const SELECTION_BUTTONS = ['SelectField', 'SelectSeed', 'SelectCrop', 'SeedAmountDecrease', 'SeedAmountIncrease'];
 const INVENTORY_LOCAL_BUTTONS = ['OpenInventory', 'OpenFarming', 'SelectInventoryLot', 'SelectStorageTarget'];
-const BUTTONS = ['AdvanceOneHour', 'SaveLocal', 'LoadLocal', ...SELECTION_BUTTONS, 'PlantCrop', 'AdvanceOneDay', 'HarvestCrop', ...INVENTORY_LOCAL_BUTTONS, 'MoveInventoryLot', 'SplitPreview', 'SplitConfirm'];
+const PROCESSING_LOCAL_BUTTONS = ['OpenProcessing', 'SelectProcessingMethod', 'SelectProcessingInput', 'SelectProcessingLot', 'SelectProcessingFacility', 'SelectProcessingTask'];
+const BUTTONS = ['AdvanceOneHour', 'SaveLocal', 'LoadLocal', ...SELECTION_BUTTONS, 'PlantCrop', 'AdvanceOneDay', 'HarvestCrop', ...INVENTORY_LOCAL_BUTTONS, 'MoveInventoryLot', 'SplitPreview', 'SplitConfirm', ...PROCESSING_LOCAL_BUTTONS, 'ProcessingPreview', 'StartProcessing', 'CollectProcessing'];
 const STORAGE_KEY = 'qinglan.simulation-game.cocos-probe.save.web_probe';
 const EMPTY_SLOT_ERROR = 'ERR_SAVE_SLOT_NOT_FOUND:web_probe';
 
@@ -38,11 +40,13 @@ async function attachButtonObservation(page) {
       if (matches.length !== 1) throw new Error('ERR_WEB_PROBE_BUTTON_MISSING_OR_DUPLICATE:' + name);
       matches[0].node.on(cc.Button.EventType.CLICK, () => { globalThis.__webProbeButtonEvents[name]++; });
     }
-    const edits = cc.director.getScene().getComponentsInChildren(cc.EditBox).filter((item) => item.node.name === 'SplitQuantity');
-    if (edits.length !== 1) throw new Error('ERR_WEB_PROBE_SPLIT_INPUT_MISSING_OR_DUPLICATE');
-    globalThis.__webProbeEditEvents = { began: 0, changed: 0, ended: 0 };
-    for (const [key, event] of [['began', cc.EditBox.EventType.EDITING_DID_BEGAN], ['changed', cc.EditBox.EventType.TEXT_CHANGED], ['ended', cc.EditBox.EventType.EDITING_DID_ENDED]]) {
-      edits[0].node.on(event, () => { globalThis.__webProbeEditEvents[key]++; });
+    for (const [name, counters] of [['SplitQuantity', '__webProbeEditEvents'], ['ProcessingQuantity', '__webProbeProcessingEditEvents']]) {
+      const edits = cc.director.getScene().getComponentsInChildren(cc.EditBox).filter((item) => item.node.name === name);
+      if (edits.length !== 1) throw new Error('ERR_WEB_PROBE_INPUT_MISSING_OR_DUPLICATE:' + name);
+      globalThis[counters] = { began: 0, changed: 0, ended: 0 };
+      for (const [key, event] of [['began', cc.EditBox.EventType.EDITING_DID_BEGAN], ['changed', cc.EditBox.EventType.TEXT_CHANGED], ['ended', cc.EditBox.EventType.EDITING_DID_ENDED]]) {
+        edits[0].node.on(event, () => { globalThis[counters][key]++; });
+      }
     }
   }, BUTTONS);
 }
@@ -95,7 +99,16 @@ async function physicalClick(page, caseName, result, recordDir, buttonName = 'Ad
   await page.screenshot({ path: join(recordDir, caseName + '.png'), fullPage: true });
   if (disabled) {
     if (buttonName === 'SplitPreview' || buttonName === 'SplitConfirm') assertSplitDisabledObservation(observation, buttonName);
+    else if (['ProcessingPreview', 'StartProcessing', 'CollectProcessing'].includes(buttonName)) assertProcessingDisabledObservation(observation, buttonName);
     else { assert.equal(buttonName, 'MoveInventoryLot'); assertDisabledInventoryObservation(observation); }
+  } else if (PROCESSING_LOCAL_BUTTONS.includes(buttonName)) {
+    assertLocalProcessingObservation(observation, expected);
+  } else if (buttonName === 'ProcessingPreview') {
+    assertProcessingPreviewObservation(observation, expected);
+  } else if (buttonName === 'StartProcessing') {
+    assertProcessingStartObservation(observation);
+  } else if (buttonName === 'CollectProcessing') {
+    assertProcessingCollectObservation(observation);
   } else if (buttonName === 'SplitPreview') {
     assertSplitPreviewObservation(observation, expected);
   } else if (buttonName === 'SplitConfirm') {
@@ -117,14 +130,14 @@ async function physicalClick(page, caseName, result, recordDir, buttonName = 'Ad
   return observation;
 }
 
-async function physicalSplitInput(page, caseName, text, result, recordDir) {
+async function physicalQuantityInput(page, caseName, text, result, recordDir, inputName) {
   await settle(page);
   // Read geometry and event counters only. All text changes below come from real mouse/keyboard input.
-  const readLayout = () => page.evaluate(async () => {
+  const readLayout = () => page.evaluate(async (name) => {
     const cc = await System.import('cc');
     const scene = cc.director.getScene();
-    const edit = scene.getComponentsInChildren(cc.EditBox).find((item) => item.node.name === 'SplitQuantity');
-    if (!edit?.enabledInHierarchy || !edit.node.activeInHierarchy) throw new Error('ERR_WEB_PROBE_SPLIT_INPUT_INACTIVE');
+    const edit = scene.getComponentsInChildren(cc.EditBox).find((item) => item.node.name === name);
+    if (!edit?.enabledInHierarchy || !edit.node.activeInHierarchy) throw new Error('ERR_WEB_PROBE_INPUT_INACTIVE:' + name);
     const camera = scene.getComponentsInChildren(cc.Camera).find((item) => item.node.name === 'ProbeCamera');
     const transform = edit.node.getComponent(cc.UITransform);
     const canvas = document.querySelector('#GameCanvas'); const rectangle = canvas.getBoundingClientRect();
@@ -139,15 +152,16 @@ async function physicalSplitInput(page, caseName, text, result, recordDir) {
     const input = bounds(transform);
     const inputLabels = Object.fromEntries([['text', edit.textLabel], ['placeholder', edit.placeholderLabel]].map(([key, label]) => {
       const labelTransform = label?.node.getComponent(cc.UITransform);
-      if (!labelTransform) throw new Error('ERR_WEB_PROBE_SPLIT_INPUT_LABEL_MISSING:' + key);
+      if (!labelTransform) throw new Error('ERR_WEB_PROBE_INPUT_LABEL_MISSING:' + name + ':' + key);
       return [key, bounds(labelTransform)];
     }));
     return { canvas: { left: rectangle.left, top: rectangle.top, right: rectangle.right, bottom: rectangle.bottom, width: rectangle.width, height: rectangle.height },
       button: input, inputLabels, viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio }, target: point(edit.node.worldPosition) };
-  });
+  }, inputName);
   const layout = await readLayout();
   const before = await status(page); const scrollBefore = await scroll(page);
-  const counters = await page.evaluate(() => ({ buttons: { ...globalThis.__webProbeButtonEvents }, edit: { ...globalThis.__webProbeEditEvents } }));
+  const counterName = inputName === 'SplitQuantity' ? '__webProbeEditEvents' : '__webProbeProcessingEditEvents';
+  const counters = await page.evaluate((key) => ({ buttons: { ...globalThis.__webProbeButtonEvents }, edit: { ...globalThis[key] } }), counterName);
   await page.mouse.move(layout.target.x, layout.target.y); await page.mouse.down(); await settle(page);
   const scrollDown = await scroll(page); await page.mouse.up();
   await page.waitForFunction(() => document.activeElement?.classList.contains('cocosEditBox'), {}, { timeout: 5000 });
@@ -156,16 +170,20 @@ async function physicalSplitInput(page, caseName, text, result, recordDir) {
   await page.keyboard.press('Tab'); await settle(page);
   // Inspect the rendered text/placeholder geometry again after the real edit and blur.
   layout.inputLabels = (await readLayout()).inputLabels;
-  const afterCounters = await page.evaluate(() => ({ buttons: { ...globalThis.__webProbeButtonEvents }, edit: { ...globalThis.__webProbeEditEvents } }));
-  const observation = { caseName, text, layout, focused, before, after: await status(page),
+  const afterCounters = await page.evaluate((key) => ({ buttons: { ...globalThis.__webProbeButtonEvents }, edit: { ...globalThis[key] } }), counterName);
+  const observation = { caseName, inputName, text, layout, focused, before, after: await status(page),
     eventCount: BUTTONS.reduce((sum, name) => sum + afterCounters.buttons[name] - counters.buttons[name], 0),
     editEvents: Object.fromEntries(['began', 'changed', 'ended'].map((key) => [key, afterCounters.edit[key] - counters.edit[key]])),
     scrollBefore, scrollDown, scrollAfter: await scroll(page) };
   result.inputs.push(observation);
   await page.screenshot({ path: join(recordDir, caseName + '.png'), fullPage: true });
-  assertSplitQuantityObservation(observation, text);
+  if (inputName === 'SplitQuantity') assertSplitQuantityObservation(observation, text);
+  else { assert.equal(inputName, 'ProcessingQuantity'); assertProcessingQuantityObservation(observation, text); }
   return observation;
 }
+
+const physicalSplitInput = (...args) => physicalQuantityInput(...args, 'SplitQuantity');
+const physicalProcessingInput = (...args) => physicalQuantityInput(...args, 'ProcessingQuantity');
 
 async function chooseSplitLot(page, id, prefix, result, recordDir) {
   const options = (await status(page)).inventory.lotOptions;
@@ -512,6 +530,172 @@ async function splitLoop(browser, url, result, recordDir, logs) {
   } finally { await context.close(); }
 }
 
+async function processingLoop(browser, url, result, recordDir, logs) {
+  const context = await browser.newContext({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
+  try {
+    let page = await context.newPage(); watchErrors(page, 'processing-loop', logs);
+    await page.goto(url); await awaitReady(page); await attachButtonObservation(page);
+    const initial = await status(page); const farming = assertFarmingProjection(initial);
+    const initiallyStored = await storedSave(page); assert.equal(initiallyStored.raw, null);
+    const field = farming.fieldOptions.find((item) => item.enabled); const seed = farming.seedOptions.find((item) => item.enabled);
+    assert.ok(field && seed, 'processing materials must come from the ordinary public new game');
+    await physicalClick(page, 'processing-farm-field', result, recordDir, 'SelectField', { key: 'selectedFieldId', value: field.id });
+    await physicalClick(page, 'processing-farm-seed', result, recordDir, 'SelectSeed', { key: 'selectedSeedId', value: seed.id });
+    await physicalClick(page, 'processing-farm-plant', result, recordDir, 'PlantCrop', { actionType: 'plant_crop', status: 'completed', timeLabel: initial.timeLabel });
+    for (let days = 0; !(await status(page)).farming.harvestableOptions.some((crop) => crop.enabled); days++) {
+      assert.ok(days < 30, 'ordinary time must produce the real processing input within the verification bound');
+      const next = timeInMinutes((await status(page)).timeLabel) + 1440;
+      await physicalClick(page, 'processing-farm-day-' + days, result, recordDir, 'AdvanceOneDay', { actionType: 'advance_time', status: 'completed', timeLabel: `day ${Math.floor(next / 1440)} minute ${next % 1440}` });
+    }
+    const mature = await status(page); const crop = mature.farming.harvestableOptions.find((item) => item.enabled);
+    await physicalClick(page, 'processing-farm-crop', result, recordDir, 'SelectCrop', { key: 'selectedCropId', value: crop.id });
+    const harvested = await physicalClick(page, 'processing-farm-harvest', result, recordDir, 'HarvestCrop', { actionType: 'harvest_crop', status: 'completed', timeLabel: mature.timeLabel });
+    const produce = harvested.after.inventory.lotOptions.find((lot) => lot.base_id === 'cabbage' && lot.current_form === 'fresh'
+      && !harvested.before.inventory.lotOptions.some((previous) => previous.id === lot.id));
+    assert.ok(produce && produce.quantity.unit === 'g' && produce.quantity.amount >= 600, 'the ordinary harvest must supply both real processing tasks');
+    await physicalClick(page, 'processing-open', result, recordDir, 'OpenProcessing', { panel: 'processing' });
+    const opened = assertProcessingProjection(await status(page));
+    assert.equal(opened.selectedMethodId, null); assert.equal(opened.selectedFacilityId, null); assert.equal(opened.selectedTaskId, null);
+    const method = opened.methodOptions.find((item) => item.enabled && item.input_requirements.some((requirement) => requirement.constraints.base_id === 'salt'));
+    assert.ok(method, 'the current active configuration must publicly expose the pickling method');
+    const saltRequirement = method.input_requirements.find((item) => item.constraints.base_id === 'salt');
+    const primaryRequirement = method.input_requirements.find((item) => item.lot_ids.includes(produce.id));
+    assert.ok(primaryRequirement && saltRequirement?.min_quantity?.unit === 'g' && saltRequirement.min_quantity.amount > 1);
+    const salt = opened.lotOptions.find((lot) => saltRequirement.lot_ids.includes(lot.id) && lot.enabled && lot.base_id === 'salt');
+    const facility = opened.facilityOptions.find((item) => item.enabled && method.compatible_facility_ids.includes(item.id));
+    assert.ok(salt && facility, 'the public new game must offer its existing salt and compatible facility');
+
+    const choose = async (kind, wanted, prefix) => {
+      const mapping = {
+        method: ['methodOptions', 'selectedMethodId', 'SelectProcessingMethod'],
+        facility: ['facilityOptions', 'selectedFacilityId', 'SelectProcessingFacility'],
+        task: ['taskOptions', 'selectedTaskId', 'SelectProcessingTask'],
+        requirement: ['requirements', 'selectedRequirementIndex', 'SelectProcessingInput'],
+        lot: ['currentInputLotOptions', 'lotId', 'SelectProcessingLot']
+      };
+      const [collection, key, button] = mapping[kind];
+      const read = (current) => {
+        const options = kind === 'requirement' ? current.methodOptions.find((item) => item.id === current.selectedMethodId).input_requirements : current[collection];
+        const choices = ['task', 'requirement'].includes(kind) ? options : options.filter((item) => item.enabled);
+        const selected = kind === 'lot' ? current.inputSelections.find((item) => item.requirementIndex === current.selectedRequirementIndex)?.lotId : current[key];
+        return { choices, selected, identity: (item) => kind === 'requirement' ? item.requirement_index : item.id };
+      };
+      const bound = read((await status(page)).processing).choices.length;
+      for (let step = 0; step < bound; step++) {
+        const current = (await status(page)).processing; const { choices, selected, identity } = read(current);
+        if (selected === wanted) return;
+        const index = choices.findIndex((item) => identity(item) === selected);
+        const next = identity(choices[(index + 1) % choices.length]);
+        const expected = kind === 'lot' ? { requirementIndex: current.selectedRequirementIndex, lotId: next } : { key, value: next };
+        await physicalClick(page, prefix + '-' + step, result, recordDir, button, expected);
+      }
+      assert.equal(read((await status(page)).processing).selected, wanted, 'bounded physical processing browsing must reach its declared current option');
+    };
+    const selectInputs = async (prefix, saltAmount = 15) => {
+      await choose('method', method.id, prefix + '-method');
+      await choose('requirement', primaryRequirement.requirement_index, prefix + '-primary-requirement');
+      await choose('lot', produce.id, prefix + '-primary-lot');
+      await physicalProcessingInput(page, prefix + '-primary-300', '300', result, recordDir);
+      await choose('requirement', saltRequirement.requirement_index, prefix + '-salt-requirement');
+      await choose('lot', salt.id, prefix + '-salt-lot');
+      await physicalProcessingInput(page, prefix + '-salt-' + saltAmount, String(saltAmount), result, recordDir);
+      await choose('facility', facility.id, prefix + '-facility');
+    };
+    await choose('method', method.id, 'processing-missing-salt-method');
+    await choose('requirement', primaryRequirement.requirement_index, 'processing-missing-salt-primary');
+    await choose('lot', produce.id, 'processing-missing-salt-lot');
+    await physicalProcessingInput(page, 'processing-missing-salt-primary-300', '300', result, recordDir);
+    await choose('facility', facility.id, 'processing-missing-salt-facility');
+    const missingSalt = await physicalClick(page, 'processing-missing-salt-refused', result, recordDir, 'ProcessingPreview', { statusCode: 'ERR_PROCESSING_INPUT_MISSING' });
+    assert.match(missingSalt.after.displayedOperation, /加工所需材料缺失或数量不足/);
+    await physicalClick(page, 'processing-missing-salt-start-disabled', result, recordDir, 'StartProcessing', { disabled: true });
+    await selectInputs('processing-initial', 0);
+    const zero = await physicalClick(page, 'processing-zero-preview-disabled', result, recordDir, 'ProcessingPreview', { disabled: true });
+    await physicalProcessingInput(page, 'processing-subminimum-salt', String(saltRequirement.min_quantity.amount - 1), result, recordDir);
+    const refused = await physicalClick(page, 'processing-subminimum-refused', result, recordDir, 'ProcessingPreview', { statusCode: 'ERR_PROCESSING_INPUT_MISSING' });
+    assert.match(refused.after.displayedOperation, /加工所需材料缺失或数量不足/);
+    await physicalClick(page, 'processing-refused-start-disabled', result, recordDir, 'StartProcessing', { disabled: true });
+    await physicalProcessingInput(page, 'processing-legal-salt-15', '15', result, recordDir);
+    const preview = await physicalClick(page, 'processing-legal-preview', result, recordDir, 'ProcessingPreview', { statusCode: 'OK' });
+    await physicalProcessingInput(page, 'processing-change-invalidates-preview', '16', result, recordDir);
+    const staleQuantity = await physicalClick(page, 'processing-stale-quantity-disabled', result, recordDir, 'StartProcessing', { disabled: true });
+    await physicalProcessingInput(page, 'processing-restore-salt-15', '15', result, recordDir);
+    await physicalClick(page, 'processing-preview-before-input-switch', result, recordDir, 'ProcessingPreview', { statusCode: 'OK' });
+    await choose('requirement', primaryRequirement.requirement_index, 'processing-change-input');
+    assert.equal((await status(page)).processing.preview, null);
+    const staleInput = await physicalClick(page, 'processing-stale-input-disabled', result, recordDir, 'StartProcessing', { disabled: true });
+    await choose('requirement', saltRequirement.requirement_index, 'processing-return-salt');
+    await physicalClick(page, 'processing-final-preview', result, recordDir, 'ProcessingPreview', { statusCode: 'OK' });
+    const started = await physicalClick(page, 'processing-start', result, recordDir, 'StartProcessing');
+    const firstTaskId = started.after.processing.startResult.taskId;
+    await choose('task', firstTaskId, 'processing-active-task');
+    const notReady = await physicalClick(page, 'processing-not-ready-disabled', result, recordDir, 'CollectProcessing', { disabled: true });
+    await physicalClick(page, 'processing-save-active', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: started.after.timeLabel });
+    const savedState = await status(page); const saved = { ...await storedSave(page), timeLabel: savedState.timeLabel };
+    assert.ok(saved.raw);
+    await physicalClick(page, 'processing-transient-hour', result, recordDir);
+    const loaded = await physicalClick(page, 'processing-load-active', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: saved.timeLabel });
+    assertProcessingLoadRecovery(savedState, loaded); assertStoredSaveUnchanged(saved, await storedSave(page));
+    await page.reload(); await awaitReady(page); await attachButtonObservation(page);
+    const reloadInitial = await status(page); const reloadStartup = await storedSave(page);
+    const reloadLoaded = await physicalClick(page, 'processing-refresh-manual-load', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: saved.timeLabel });
+    assertLocalSaveRecovery({ saved, initial: reloadInitial, afterStartup: reloadStartup, loaded: reloadLoaded, afterLoad: await storedSave(page) });
+    assertProcessingLoadRecovery(savedState, reloadLoaded);
+    await physicalClick(page, 'processing-refresh-open', result, recordDir, 'OpenProcessing', { panel: 'processing' });
+    await choose('task', firstTaskId, 'processing-refresh-task');
+    const advanceToReady = async (taskId, prefix, currentSave) => {
+      const task = (await status(page)).processing.taskOptions.find((item) => item.id === taskId);
+      assert.equal(task?.status, 'active');
+      const remaining = task.expected_finish_minute - (timeInMinutes((await status(page)).timeLabel) - 1440);
+      assert.ok(Number.isFinite(remaining) && remaining > 0 && remaining <= 7 * 1440, 'public finish time must give a bounded normal-time path');
+      const bound = Math.ceil(remaining / 60); const advances = []; let steps = 0;
+      while ((await status(page)).processing.taskOptions.find((item) => item.id === taskId)?.status === 'active') {
+        assert.ok(steps < bound, 'normal advance_time must make the existing task ready by its public finish time');
+        const currentMinute = timeInMinutes((await status(page)).timeLabel);
+        const minutes = task.expected_finish_minute - (currentMinute - 1440) >= 1440 ? 1440 : 60;
+        if (minutes === 1440) {
+          const next = currentMinute + minutes;
+          await physicalClick(page, prefix + '-day-' + (++steps), result, recordDir, 'AdvanceOneDay', { actionType: 'advance_time', status: 'completed', timeLabel: `day ${Math.floor(next / 1440)} minute ${next % 1440}` });
+        } else await physicalClick(page, prefix + '-hour-' + (++steps), result, recordDir);
+        advances.push({ step: steps, minutes });
+        assertStoredSaveUnchanged(currentSave, await storedSave(page));
+      }
+      const ready = (await status(page)).processing.taskOptions.find((item) => item.id === taskId);
+      assert.equal(ready?.status, 'ready_to_collect');
+      assert.ok(timeInMinutes((await status(page)).timeLabel) - 1440 >= ready.expected_finish_minute);
+      return { steps, advances, task: ready };
+    };
+    const firstReady = await advanceToReady(firstTaskId, 'processing-first', saved);
+    const collected = await physicalClick(page, 'processing-collect', result, recordDir, 'CollectProcessing');
+    assert.equal(collected.after.inventory.lotOptions.find((lot) => lot.id === collected.after.processing.collectResult.lotId)?.current_form, 'pickled', 'canonical pickling must produce the actually observed pickled lot');
+    const duplicate = await physicalClick(page, 'processing-completed-disabled', result, recordDir, 'CollectProcessing', { disabled: true });
+    assertStoredSaveUnchanged(saved, await storedSave(page));
+    await selectInputs('processing-next');
+    await physicalClick(page, 'processing-next-preview', result, recordDir, 'ProcessingPreview', { statusCode: 'OK' });
+    const nextStarted = await physicalClick(page, 'processing-next-start', result, recordDir, 'StartProcessing');
+    const secondTaskId = nextStarted.after.processing.startResult.taskId; assert.notEqual(secondTaskId, firstTaskId);
+    await choose('task', secondTaskId, 'processing-next-task');
+    await physicalClick(page, 'processing-save-next-active', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: nextStarted.after.timeLabel });
+    const secondSavedState = await status(page); const secondSaved = { ...await storedSave(page), timeLabel: secondSavedState.timeLabel };
+    const firstLifecycle = await disposeProbe(page); assertStoredSaveUnchanged(secondSaved, await storedSave(page));
+    await page.close(); page = await context.newPage(); watchErrors(page, 'processing-reopen', logs);
+    await page.goto(url); await awaitReady(page); await attachButtonObservation(page);
+    const reopenInitial = await status(page); const reopenStartup = await storedSave(page);
+    const reopenLoaded = await physicalClick(page, 'processing-reopen-manual-load', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: secondSaved.timeLabel });
+    assertLocalSaveRecovery({ saved: secondSaved, initial: reopenInitial, afterStartup: reopenStartup, loaded: reopenLoaded, afterLoad: await storedSave(page) });
+    assertProcessingLoadRecovery(secondSavedState, reopenLoaded);
+    await physicalClick(page, 'processing-reopen-open', result, recordDir, 'OpenProcessing', { panel: 'processing' });
+    await choose('task', secondTaskId, 'processing-reopen-task');
+    const secondReady = await advanceToReady(secondTaskId, 'processing-second', secondSaved);
+    const nextCollected = await physicalClick(page, 'processing-next-collect', result, recordDir, 'CollectProcessing');
+    assert.notEqual(nextCollected.after.processing.collectResult.lotId, collected.after.processing.collectResult.lotId);
+    const lifecycle = await disposeProbe(page); assertStoredSaveUnchanged(secondSaved, await storedSave(page));
+    return { scope: 'isolated 960x640 real mouse and keyboard; ordinary harvest, public method requirements, preview refusal and exact consumption; disabled active/completed collection emits no command; manual save/load, reload and same-context new-page continuation',
+      initial, harvested, missingSalt, zero, refused, preview, staleQuantity, staleInput, started, notReady, savedState, saved: storedEvidence(saved), loaded, reloadInitial, reloadLoaded, firstReady, collected, duplicate,
+      nextStarted, secondSavedState, secondSaved: storedEvidence(secondSaved), firstLifecycle, reopenInitial, reopenLoaded, secondReady, nextCollected, lifecycle };
+  } finally { await context.close(); }
+}
+
 async function storageFailureRecovery(browser, url, result, recordDir, logs) {
   const context = await browser.newContext({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
   try {
@@ -696,6 +880,7 @@ export async function verifyWebProbe(options) {
     result.farming = await farmingLoop(browser, result.url, result, recordDir, logs);
     result.inventory = await inventoryLoop(browser, result.url, result, recordDir, logs);
     result.splitting = await splitLoop(browser, result.url, result, recordDir, logs);
+    result.processing = await processingLoop(browser, result.url, result, recordDir, logs);
     result.storageRecovery = await storageFailureRecovery(browser, result.url, result, recordDir, logs);
     if (!parsed.previewUrl) {
       assert.ok(resourceUrl, 'actual probe resource URL must be observed');

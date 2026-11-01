@@ -1,10 +1,10 @@
-# IMPLEMENTATION_SCOPE — v0.0.2.40
+# IMPLEMENTATION_SCOPE — v0.0.2.41
 
-版本：v0.0.2.40 / Web Inventory Lot Split & Feedback / 网页批次拆分与操作反馈版。
+版本：v0.0.2.41 / Web Processing Start & Collection / 网页加工开工与领取版。
 
 ## 本轮范围
 
-本轮唯一目标是在现有材料库存页通过公开菜单完成批次拆分：选择来源、输入数量、独立预览、确认一次正式split_lot并显示实际新批次与来源剩余。outer管理选择和本次反馈，确认沿既有controller重新预览最新状态；失败可修改后继续，改选择/切页/其他命令/读档后旧预览失效。game-core、Session、Queue、SaveFile和正式资源不改，数量及全量语义沿既有实现。
+本轮唯一目标是网页加工开工至领取：通过最小只读方法/任务投影展示正式输入要求，逐项选择公开批次和数量、兼容设施，经既有menu_preview/confirm开工，正常推进后领取实际产物，并支持加工中手动保存及全新会话读取后继续。outer管理选择、本次预览和结果，确认仍重校验最新状态；修改输入、切页、其他命令或读档使旧预览失效。core业务、Session/Queue、SaveFile和正式资源保持，不新增重复输入或时间规则，既有农事、库存/拆分及存读档能力保留。
 
 工具只读取仓库唯一src/design_snapshot派生的工作副本。prepare继续导出snapshot及全部58项Schema并记录Git来源/输入产物摘要；build记录实际Web产物清单摘要，verify核对构建关联和产物字节后才启动浏览器，拒绝替换或篡改的Web目录。工程、依赖、报告、缓存和构建仍位于仓库外，不形成第二源码权威。
 
@@ -12,7 +12,7 @@
 
 构建网页built-web验收1440×1200、1280×720、960×640、800×600/DPR1，另960×640/DPR2仿真，并在同页按960×640→1440×1200→800×600→960×640执行四次resize点击。编辑器预览editor-preview独立验收1440×1200与960×640/DPR1，同页按960×640→1440×1200→960×640执行三次resize点击。所有约定案例均保持完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、推进命令时间+60和Label同步；存读档命令按本地单槽预期检查时间；不降低断言强度。官方Default设备模拟器在800窗口裁剪固定960px内容，该预览场景未承诺支持，不能据其失败推定构建网页800失败。DPR仿真不等于手机、触摸、微信或Windows系统缩放验证。
 
-本轮保留test:cocos-session / registry test.cocos-session、bootstrap、绑定恢复、存储故障和PR CI回归。traceability仍由traceability-map.json与TRACEABILITY_MATRIX对齐；trace.inventory.split-quantity追踪本版，trace.runtime.id-recovery追踪既有ID恢复，trace.processing.required-inputs追踪既有加工校验，trace.cocos.web-inventory-storage追踪既有库存能力，既有trace.cocos.browser-local-save保持；既有trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input及trace.cocos.web-bootstrap-probe继续有效。版本和BuildId由project-target.json派生。
+本轮保留test:cocos-session / registry test.cocos-session、bootstrap、绑定恢复、存储故障和PR CI回归。traceability仍由traceability-map.json与TRACEABILITY_MATRIX对齐；trace.cocos.web-processing-loop追踪本版，trace.cocos.web-inventory-split与trace.inventory.split-quantity追踪既有拆分，trace.runtime.id-recovery追踪既有ID恢复，trace.processing.required-inputs追踪既有加工校验，trace.cocos.web-inventory-storage追踪既有库存能力，既有trace.cocos.browser-local-save保持；既有trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input及trace.cocos.web-bootstrap-probe继续有效。版本和BuildId由project-target.json派生。
 
 ## 明确不做
 
@@ -26,7 +26,7 @@ q:affected仅开发反馈，不替代 q:full，不替代 q:release。release gat
 
 ## 正式包来源
 
-本轮仍基于正式包v1.5.2.2；落实已有效的count整数、active lot正数/finite和按定义重建占用，不修改正式包、Schema/config/fixture/expected、产出/容量定义或重复输入规则。
+本轮仍基于正式包v1.5.2.2；沿用既有加工必需输入、count整数、active lot正数/finite和按定义重建占用，不修改正式包、Schema/config/fixture/expected、产出/容量定义或重复输入规则。
 
 ## module_contracts保留
 
@@ -44,13 +44,13 @@ tests/cocos-browser-storage.test.ts由既有test.cocos-engine-probe-lifecycle实
 
 ## 农事界面与公开消费范围
 
-既有农事outer、纯选择辅助ProbeFarming.ts和库存辅助ProbeInventory.ts及其回归保持；既有核心split_lot数量/占用及配置依赖保持，本版outer增加网页拆分数量控件，不增加网页加工、燃料机制、完整进度条或新业务API，Session/Queue契约不变。
+既有农事outer、纯选择辅助ProbeFarming.ts和库存辅助ProbeInventory.ts及其回归保持；既有核心split_lot数量/占用及配置依赖保持，本版通过最小app只读投影和outer增加网页加工开工至领取，不增加燃料机制、完整进度条或新正式业务API，Session/Queue契约不变。
 
 地块/种子/作物身份只取公开选项ID，数量及单位来自公开批次。只显示占用、当前可收获列表与材料实际数量，不由空收获列表推断没有生长作物。保留推进一小时并提供推进一天；成熟由既有运行结果决定，不使用测试时量当作成熟规则。
 
 本次menu_confirm须同时核对本次preview、ActionResult和动作类型，不将command_result.completed解释为业务成功。读档反馈只消费本次save_load，重建公开选项并清除失效选择；不从保留的历史菜单结果制造成功提示。资源不足/无效选择不得误报成功、写状态或自动重试。
 
-tests/cocos-web-farming.test.ts与既有生命周期、交互、浏览器存储测试在同一full/blocker任务实际运行。真实960×640农事闭环核对数量消耗、占用、公开成熟、读档恢复、实际产量和再次种植，保留原存储、视口和销毁验收。未新增浇水、加工/烹饪/订单界面、完整生长条/倒计时、动画工程或通用菜单框架。
+tests/cocos-web-farming.test.ts与既有生命周期、交互、浏览器存储测试在同一full/blocker任务实际运行。真实960×640农事闭环核对数量消耗、占用、公开成熟、读档恢复、实际产量和再次种植，保留原存储、视口和销毁验收。农事范围未新增浇水、烹饪/订单界面、完整生长条/倒计时、动画工程或通用菜单框架；加工页独立见本版追踪。
 
 ## 网页库存与整批储存转移
 
@@ -70,7 +70,7 @@ tests/cocos-web-inventory.test.ts加入既有test:cocos-engine-probe-lifecycle�
 
 契约、预览和公开Host/Component回归分别核对缺白菜、缺盐、盐不足/阈值边界，以及合法不同数量的消耗、任务、推进和领取。失败后健康请求与存读档恢复继续；不通过私有SaveFile写入构造假通过，不新增重复同lot或多primary拒绝/聚合规则。trace.processing.required-inputs连接ProcessingSystem.ts、ProcessingConfigResolver.ts及现有test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-menu。
 
-本版实际触及测试逐一登记args/files/covers并验证单文件affected真正执行自身任务；q:affected仍只用于反馈，版本完成和候选出包按q:full及无缓存q:release。核心进入Web bundle，真实Creator SDK/构建及既有built-web/editor-preview回归需独立执行。没有加工网页，浏览器不声明覆盖缺盐路径。
+本版实际触及测试逐一登记args/files/covers并验证单文件affected真正执行自身任务；q:affected仍只用于反馈，版本完成和候选出包按q:full及无缓存q:release。核心进入Web bundle，真实Creator SDK/构建及既有built-web/editor-preview回归需独立执行。核心校验沿用既有实现；网页加工与真实输入由trace.cocos.web-processing-loop独立验收，不从核心Node通过推定。
 
 ## 网页批次拆分与操作反馈
 
@@ -78,6 +78,12 @@ ProbeInventory只复制公开材料选项并管理数量原文、不可编辑的
 
 ProbeLifetime窄消费既有menu_preview/split_lot；ProbeInteraction显式区分preview、confirm和save/load，preview只认本次last_preview_result，不要求ActionResult；confirm仍经既有controller重预览，成功须本次双结果。新批次ID从本次created_objects关联刷新后的公开材料，数量/位置由公开结果取得，不从输入伪造。状态应用异常不自动重发Action；busy/销毁保护保持。
 
-CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。不提供全量快捷按钮、加工界面、Stage1B或wx。
+CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；本版加工页见trace.cocos.web-processing-loop，不扩Stage1B或wx。
 
 tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实际args/files/covers，test.cocos-web-verification-contracts校验拆分观察断言负例。trace.cocos.web-inventory-split连接这些行为及独立Creator SDK/构建、built-web和editor-preview各960×640真实点击与键盘输入；旧矩阵/resize/农事/转移/存读档/故障及销毁回归保留。桌面输入不代表触摸或微信通过，版本完成仍按q:full及无缓存q:release和精确候选CI。
+
+## 网页加工公开数据与outer边界
+
+CocosSelectableViewModel新增processing_method_options与processing_task_options。方法逐配置要求提供requirement_index本地槽、constraints、min_quantity、候选lot_ids及compatible_facility_ids；缺料仍可查看。任务保留现有status、起止分钟、设施和明确为预计的expected_output，旧collectable_task_options仍仅ready且对象shape保持。数组、Quantity和facility_ref复制，不向outer暴露可变SaveFile。
+
+ProbeProcessing仅管理本地选择、完整正数输入、本次预览和实际结果；不复制材料匹配、最低量或容量算法。请求仍用正式input_lots，不附加UI角色，不新增重复同lot/多primary语义。process_duration_minutes用于说明正式等待时间，time_cost_minutes不由UI补扣；完整进度条、补盐/补救、刀具选择或新设施规则不在本版。Node覆盖未就绪/重复领取正式拒绝，真实UI只要求对应禁用0事件。

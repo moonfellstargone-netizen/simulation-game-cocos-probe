@@ -1,6 +1,6 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.2.40
+﻿# CODE_CONTEXT_INDEX — v0.0.2.41
 
-版本：v0.0.2.40 / Web Inventory Lot Split & Feedback / 网页批次拆分与操作反馈版。
+版本：v0.0.2.41 / Web Processing Start & Collection / 网页加工开工与领取版。
 
 ## 执行前必读顺序
 
@@ -30,7 +30,7 @@
 
 后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包；代码包不保存每轮具体任务上下文；代码包只保存执行端上下文治理约束。
 
-## v0.0.2.40 测试索引
+## v0.0.2.41 测试索引
 
 - `tests/cocos-web-verification-contracts.test.mjs`（`test:cocos-web-verification-contracts`，Node工具契约）
 
@@ -128,13 +128,13 @@ trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebPr
 
 ## 网页种植收获与本次业务结果
 
-入口为apps/cocos-probe/template/assets/scripts/ProbeFarming.ts、ProbeInteraction.ts、ProbeLifetime.ts与CocosWebProbe.ts。先核对公开MenuRenderSnapshot、SelectableViewModel和MenuActionBinding，再修改outer消费；既有MenuActionBinding.ts提供store_item适配；既有ProcessingSystem按配置校验必需输入；既有InventorySystem保持数量与占用校验，本版仅扩outer拆分消费，Session/Queue保持。completed只代表命令处理完成，menu_confirm成功必须对应本次preview/ActionResult；load不能借用历史菜单结果。
+入口为apps/cocos-probe/template/assets/scripts/ProbeFarming.ts、ProbeInteraction.ts、ProbeLifetime.ts与CocosWebProbe.ts。先核对公开MenuRenderSnapshot、SelectableViewModel和MenuActionBinding，再修改outer消费；既有MenuActionBinding.ts提供store_item适配；既有ProcessingSystem按配置校验必需输入；既有InventorySystem保持数量与占用校验，本版新增app最小只读方法/任务投影及outer加工消费，Session/Queue保持。completed只代表命令处理完成，menu_confirm成功必须对应本次preview/ActionResult；load不能借用历史菜单结果。
 
 tests/cocos-web-farming.test.ts随test:cocos-engine-probe-lifecycle实际运行，测试路径、纯helper及.meta登记files/covers；trace.cocos.web-farming-loop连接外层模块卡、契约、真实verify和现有full/release。真实960×640农事操作另需Creator/Chrome证据，Node与根typecheck均不能代替。
 
 ## 网页库存与整批转移入口
 
-先读creator/engine模块卡、公开MaterialLot/storage_target选项、CocosActionDraftBuilder.storeItem及MenuActionBinding.ts，再读ProbeInventory.ts、ProbeLifetime.ts、ProbeInteraction.ts和真实cc组件。既有适配只解析正式store_item选项并复用草稿；本版入口见下述网页拆分索引，核心与app/Session/Queue保持。名称只展示，身份/形态/数量/位置取当前公开结果；容量slot_weight不与克数混算。
+先读creator/engine模块卡、公开MaterialLot/storage_target选项、CocosActionDraftBuilder.storeItem及MenuActionBinding.ts，再读ProbeInventory.ts、ProbeLifetime.ts、ProbeInteraction.ts和真实cc组件。既有适配只解析正式store_item选项并复用草稿；既有拆分入口见下述索引；本版加工只读投影与outer另行导航，核心与Session/Queue保持。名称只展示，身份/形态/数量/位置取当前公开结果；容量slot_weight不与克数混算。
 
 tests/cocos-minimal-menu-binding.test.ts验证最小适配；tests/cocos-web-inventory.test.ts加入test:cocos-engine-probe-lifecycle实际执行，连同helper/.meta登记files/covers；trace.cocos.web-inventory-storage连接地图和真实verify。读档后重新校验批次/目标，本次转移反馈不能借用历史结果；界面切换与逐批浏览0命令，真实输入、原农事和存读档必须独立Creator/Chrome验证。
 
@@ -153,3 +153,9 @@ tests/cocos-minimal-menu-binding.test.ts验证最小适配；tests/cocos-web-inv
 ## 网页批次拆分入口
 
 先读engine模块卡与ProbeInventory/Interaction/Lifetime，再读CocosWebProbe及既有MenuActionBinding/MinimalMenuInteractionController。menu_preview仅消费本次预览，confirm仍重预览；正式数量/容量算法不在outer复制。tests/cocos-web-split.test.ts随现有生命周期任务实际运行，真实EditBox键盘输入及built/editor回归独立执行；trace.cocos.web-inventory-split连接单文件affected与full/release。
+
+## 网页加工开工与领取入口
+
+先读cocos-app/processing/engine模块卡、正式方法配置及现有MenuActionBinding/Controller，再读CocosSelectableViewModel的processing_method_options、processing_task_options和旧collectable列表。最小投影只供读取，不改Session/Queue或正式参数；requirement_index不进入Action。接着读ProbeProcessing.ts/.meta、ProbeLifetime/Interaction及CocosWebProbe的真实数量输入和任务区。
+
+tests/cocos-ui-readiness.test.ts验证配置投影、候选刷新、数据隔离与跨新会话任务状态；tests/cocos-web-processing.test.ts加入既有生命周期实际args/files/covers。trace.cocos.web-processing-loop连接readiness、menu、prepare/lifecycle与web-verification的full/blocker；verify-web/support独立验证真实键盘/点击，Node和CI不代替Creator/SDK或built/editor验收。
