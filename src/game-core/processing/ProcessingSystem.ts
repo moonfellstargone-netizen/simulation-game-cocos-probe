@@ -22,6 +22,11 @@ export class ProcessingSystem {
     const method = this.processingConfigs.resolveMethod(methodId);
     for (const input of inputLots) this.inventory.assertNoActiveReservation(save, input.lot_id, input.quantity);
     const inputRoles = this.resolveInputRoles(save, method, inputLots);
+    for (const requirement of method.input_view_requirements ?? []) {
+      if (!inputLots.some((input) => this.matchesInputRequirement(requirement, this.inventory.findMaterialLot(save, input.lot_id), input.quantity))) {
+        throw new Error('ERR_PROCESSING_INPUT_MISSING');
+      }
+    }
     const primaryInput = inputRoles.find((input) => input.role === 'primary');
     if (!primaryInput) throw new Error('ERR_PROCESSING_INPUT_MISSING');
     this.assertFacilityAllowed(method, facilityRef.definition_id);
@@ -141,20 +146,24 @@ export class ProcessingSystem {
     const requirements = method.input_view_requirements ?? [];
     for (const rawRequirement of requirements) {
       const requirement = rawRequirement as Record<string, unknown>;
-      const allowedBaseIds = Array.isArray(requirement.allowed_base_ids) ? requirement.allowed_base_ids : undefined;
-      const allowedForms = Array.isArray(requirement.allowed_forms) ? requirement.allowed_forms : undefined;
-      const categoryOk = typeof requirement.category !== 'string' || requirement.category === lot.category;
-      const baseOk = typeof requirement.base_id === 'string' ? requirement.base_id === lot.base_id : !allowedBaseIds || allowedBaseIds.includes(lot.base_id);
-      const formOk = !allowedForms || allowedForms.includes(lot.current_form);
-      const minFreshness = typeof requirement.min_freshness === 'number' ? requirement.min_freshness : null;
-      const freshnessOk = minFreshness === null || Number(lot.property_profile.freshness ?? 100) >= minFreshness;
-      const minQuantityG = typeof requirement.min_quantity_g === 'number' ? requirement.min_quantity_g : null;
-      const quantityOk = minQuantityG === null || (quantity.unit === 'g' && quantity.amount >= minQuantityG);
-      if (categoryOk && baseOk && formOk && freshnessOk && quantityOk) {
+      if (this.matchesInputRequirement(requirement, lot, quantity)) {
         return requirement.base_id === 'salt' || lot.base_id === 'salt' ? 'salt' : 'primary';
       }
     }
     throw new Error(lot.base_id === 'cabbage' ? 'ERR_INVALID_LOT_STATE' : 'ERR_PROCESSING_INPUT_MISSING');
+  }
+
+  private matchesInputRequirement(requirement: Record<string, unknown>, lot: MaterialLot, quantity: Quantity): boolean {
+    const allowedBaseIds = Array.isArray(requirement.allowed_base_ids) ? requirement.allowed_base_ids : undefined;
+    const allowedForms = Array.isArray(requirement.allowed_forms) ? requirement.allowed_forms : undefined;
+    const categoryOk = typeof requirement.category !== 'string' || requirement.category === lot.category;
+    const baseOk = typeof requirement.base_id === 'string' ? requirement.base_id === lot.base_id : !allowedBaseIds || allowedBaseIds.includes(lot.base_id);
+    const formOk = !allowedForms || allowedForms.includes(lot.current_form);
+    const minFreshness = typeof requirement.min_freshness === 'number' ? requirement.min_freshness : null;
+    const freshnessOk = minFreshness === null || Number(lot.property_profile.freshness ?? 100) >= minFreshness;
+    const minQuantityG = typeof requirement.min_quantity_g === 'number' ? requirement.min_quantity_g : null;
+    const quantityOk = minQuantityG === null || (quantity.unit === 'g' && quantity.amount >= minQuantityG);
+    return categoryOk && baseOk && formOk && freshnessOk && quantityOk;
   }
 
   private assertFacilityAllowed(method: ProcessingMethodConfig, definitionId: string): void {

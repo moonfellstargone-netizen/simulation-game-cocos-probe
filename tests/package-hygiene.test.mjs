@@ -74,7 +74,7 @@ test('source hygiene normalizes Windows and POSIX paths consistently', () => {
 
 test('package hygiene policy is wired into scripts and architecture validator', () => {
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  assert.equal(packageJson.version, '0.0.2-36');
+  assert.equal(packageJson.version, '0.0.2-37');
   assert.equal(packageJson.scripts['test:package-hygiene'], 'node --test tests/package-hygiene.test.mjs');
 
   const registry = readFileSync(join(root, 'tools/quality/test-registry.json'), 'utf8');

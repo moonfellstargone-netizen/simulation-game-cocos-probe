@@ -1,6 +1,6 @@
-# CHECK_ARCHITECTURE — v0.0.2.36
+# CHECK_ARCHITECTURE — v0.0.2.37
 
-v0.0.2.36 / Web Inventory & Storage Transfer验证网页材料库存、正式整批转移、本次业务反馈和读档选择重建；唯一src执行变化限于MenuActionBinding.ts适配，核心、Session/Queue和架构机器规则保持。
+v0.0.2.37 / Processing Required Inputs & Failure Safety验证加工必需输入完整性、预览与直接正式执行拒绝、完整领域状态及对象ID保护和失败后合法加工/存读档恢复。源修复限于ProcessingSystem内部；Session/Queue、ActionPipeline协议、SaveFile、正式资源和架构机器规则保持。
 
 ## 1. 本轮检查目标
 
@@ -10,7 +10,7 @@ v0.0.2.36 / Web Inventory & Storage Transfer验证网页材料库存、正式整
 
 构建网页built-web验收1440×1200、1280×720、960×640、800×600/DPR1，另960×640/DPR2仿真，并在同页按960×640→1440×1200→800×600→960×640执行四次resize点击。编辑器预览editor-preview独立验收1440×1200与960×640/DPR1，同页按960×640→1440×1200→960×640执行三次resize点击。所有约定案例均保持完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、推进命令时间+60和Label同步；存读档命令按本地单槽预期检查时间；不降低断言强度。官方Default设备模拟器在800窗口裁剪固定960px内容，该预览场景未承诺支持，不能据其失败推定构建网页800失败。DPR仿真不等于手机、触摸、微信或Windows系统缩放验证。
 
-Node任务与独立真实验收分别追踪。新增trace.cocos.web-inventory-storage，保留trace.cocos.web-farming-loop、trace.cocos.browser-local-save、trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input、trace.cocos.web-bootstrap-probe及存储/绑定/启动回归。tests/cocos-web-inventory.test.ts加入生命周期任务实际args；既有农事测试保留，最小菜单测试覆盖store_item适配；新增helper和测试的files/covers与单文件affected分别闭合。CI只执行Node完整门禁，不安装Creator或浏览器，不改变full/release/affected策略。
+Node任务与独立真实验收分别追踪。新增trace.processing.required-inputs，保留trace.cocos.web-inventory-storage、trace.cocos.web-farming-loop、trace.cocos.browser-local-save、trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input、trace.cocos.web-bootstrap-probe及存储/绑定/启动追踪。核心契约、预览、Session与菜单任务实际执行本版用例；每个修改测试核args/files/covers及真实单文件affected。CI只执行Node完整门禁，不安装Creator或浏览器，不改变full/release/affected策略。
 
 既有test:cocos-session / registry test.cocos-session继续验证Session边界。test-registry描述Node自动执行集合，traceability-map.json连接模块、文件与门禁追踪；独立真实验收另以构建关联和浏览器证据记录。
 
@@ -50,7 +50,7 @@ cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affe
 
 ## 10. 后续路线（不是授权目标）
 
-Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.36 范围。traceability map 中 `planned` 条目**不是**当前实现。
+Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.37 范围。traceability map 中 `planned` 条目**不是**当前实现。
 
 ## 11. 固定检查短语
 
@@ -58,10 +58,18 @@ Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后�
 
 ## 网页农事验收边界
 
-test.cocos-engine-probe-lifecycle实际执行生命周期、交互、浏览器存储及cocos-web-farming.test.ts四个文件，保持full/blocker。公开Host/Component路径验证播种消耗、占用、正常推进、收获实际数量、读档选择重建与拒绝不改状态；聚焦交互用例验证completed但preview拒绝、结果缺失/不匹配不能误报成功。登记不代替实际执行。
+test.cocos-engine-probe-lifecycle实际执行生命周期、交互、浏览器存储、cocos-web-farming.test.ts及cocos-web-inventory.test.ts五个文件，保持full/blocker。公开Host/Component路径验证播种消耗、占用、正常推进、收获实际数量、读档选择重建与拒绝不改状态；聚焦交互用例验证completed但preview拒绝、结果缺失/不匹配不能误报成功。登记不代替实际执行。
 
 cocos:verify:web在built-web和editor-preview各增加独立960×640农事物理点击闭环：显式选择、超量拒绝、播种保存、按天推进至公开可收获、读档恢复并清除失效选择、再次成熟收获和重新种植。本地选择/数量调整应不发送正式命令、不改变世界状态。原三按钮矩阵、Storage受控故障/坏档、刷新及同context新页面恢复、来源与销毁检查保留；不以observer调用替代点击，不将单个农事视口推导为全部新控件全矩阵通过。
 
 ## 库存适配与真实验证边界
 
-Node覆盖正式store_item草稿/preview不变性、整批位置与占用变化、ID/形态/容量拒绝后的状态保护和健康恢复；只修改MenuActionBinding.ts适配，不修改架构机器禁令、门禁策略或正式预期。真实库存点击另在960×640 built/editor验收，批次和位置显示须与公开结果一致；界面切换/浏览0命令，正式转移单击单命令。q:affected核对唯一适配、新helper、新测试及工具变化，版本完成仍以q:full及无缓存q:release和真实Creator/Chrome证据收口。
+Node覆盖正式store_item草稿/preview不变性、整批位置与占用变化、ID/形态/容量拒绝后的状态保护和健康恢复；既有MenuActionBinding.ts适配保持，不修改架构机器禁令、门禁策略或正式预期。真实库存点击另在960×640 built/editor验收，批次和位置显示须与公开结果一致；界面切换/浏览0命令，正式转移单击单命令。q:affected分别核对核心源和所有修改测试的实际执行任务，版本完成仍以q:full及无缓存q:release和真实Creator/Chrome证据收口。
+
+## 加工必需输入校验与失败保护
+
+按当前加工方法配置校验全部必需输入，缺料在任何消耗、任务创建和任务ID分配前拒绝。公开preview与直接正式dispatch共享验证；preview不得改变完整游戏状态、事件、库存/储存缓存或正式对象ID。正式失败保留既有失败反馈，不要求ActionRequestBuilder请求序号回滚。
+
+契约、预览和公开Host/Component回归分别核对缺白菜、缺盐、盐不足/阈值边界，以及合法不同数量的消耗、任务、推进和领取。失败后健康请求与存读档恢复继续；不通过私有SaveFile写入构造假通过，不新增重复同lot或多primary拒绝/聚合规则。trace.processing.required-inputs连接ProcessingSystem.ts、ProcessingConfigResolver.ts及现有test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-menu。
+
+本版实际触及测试逐一登记args/files/covers并验证单文件affected真正执行自身任务；q:affected仍只用于反馈，版本完成和候选出包按q:full及无缓存q:release。核心进入Web bundle，真实Creator SDK/构建及既有built-web/editor-preview回归需独立执行。没有加工网页，浏览器不声明覆盖缺盐路径。

@@ -1,4 +1,4 @@
-﻿# Quality Map — v0.0.2.36
+﻿# Quality Map — v0.0.2.37
 
 ## 系统职责
 

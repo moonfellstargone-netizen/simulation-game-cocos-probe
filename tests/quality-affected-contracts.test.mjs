@@ -187,3 +187,73 @@ test('binding source, application tests and shared helper changes select both bi
     assert.equal(ids.includes('release.check'), false);
   }
 });
+
+test('v37 changed tests select the task that actually executes each file', () => {
+  const cases = [
+  [
+    "tests/action-preview-boundary.test.ts",
+    "test.action-preview"
+  ],
+  [
+    "tests/cocos-minimal-menu-binding.test.ts",
+    "test.cocos-menu"
+  ],
+  [
+    "tests/cocos-runtime-session.test.ts",
+    "test.cocos-session"
+  ],
+  [
+    "tests/context-governance-contracts.test.mjs",
+    "test.context-governance"
+  ],
+  [
+    "tests/package-hygiene.test.mjs",
+    "test.package-hygiene"
+  ],
+  [
+    "tests/project-map-contracts.test.mjs",
+    "test.project-map-contracts"
+  ],
+  [
+    "tests/quality-affected-contracts.test.mjs",
+    "test.quality-affected-contracts"
+  ],
+  [
+    "tests/quality-gate-contracts.test.mjs",
+    "quality.self-test"
+  ],
+  [
+    "tests/quality-rule-authority-contracts.test.mjs",
+    "test.quality-rule-authority-contracts"
+  ],
+  [
+    "tests/stage1a-baseline.test.ts",
+    "test.stage1a-baseline"
+  ],
+  [
+    "tests/stage1a-contract.test.ts",
+    "test.stage1a-contract"
+  ],
+  [
+    "tests/version-surface-contracts.test.mjs",
+    "test.version-surface-contracts"
+  ]
+];
+  for (const [file, taskId] of cases) {
+    const changedFiles = [file];
+    const modules = resolveAffectedModules(changedFiles, moduleGraph);
+    const result = resolveAffectedTasks({ changedFiles, affectedModules: modules.affectedModules,
+      fallback: modules.fallback, fallbackReason: modules.fallbackReason,
+      gatePolicy: policy, testRegistry: registry });
+    const task = result.selectedTasks.find((candidate) => candidate.id === taskId);
+    assert.ok(task, `${file} alone must select ${taskId}`);
+    assert.ok(task.files.includes(file), `${taskId} must register ${file}`);
+    const execution = task.command === 'npm'
+      ? packageJson.scripts[task.args[1]].split(/\s+/)
+      : [task.command, ...task.args];
+    assert.ok(execution.includes(file), `${taskId} must actually execute ${file}`);
+    for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
+    assert.equal(result.selectedTasks.some((candidate) => candidate.id === 'release.build'), false);
+    assert.equal(result.selectedTasks.some((candidate) => candidate.id === 'release.check'), false);
+  }
+});

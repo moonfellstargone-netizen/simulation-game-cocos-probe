@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.36
+﻿# PROJECT_MAP — v0.0.2.37
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.36：**Web Inventory & Storage Transfer**。真实Web浏览公开材料批次及储存位置，通过正式store_item整批转移，准确反馈拒绝并重建读档选择；creator仅补MenuActionBinding适配，核心和其余src执行逻辑保持。trace.cocos.web-inventory-storage连接outer、适配、Node行为和真实点击，保留农事、本地单槽、视口、来源及旧追踪。
+v0.0.2.37：**Processing Required Inputs & Failure Safety**。ProcessingSystem按当前方法配置完整校验必需输入，缺料在预览和直接正式执行中拒绝且保持领域状态，合法加工与失败后存读档恢复继续。trace.processing.required-inputs连接核心、预览、公开组件与恢复回归；保留已有Web农事、库存、单槽存档、视口、来源及全部旧追踪。
 
 ## 3. 权威边界
 

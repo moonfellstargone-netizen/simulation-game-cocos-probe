@@ -3,7 +3,7 @@ import { testBuildId } from './support/buildId.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { CocosSessionHost, MinimalMenuInteractionController } from '../src/cocos-creator-adapter';
+import { CocosSessionHost, MinimalMenuInteractionController, QinglanUiSceneProbeComponent, RecordingCocosComponentNodeBindingPort } from '../src/cocos-creator-adapter';
 import { MenuActionBinding } from '../src/cocos-creator-adapter/menu/MenuActionBinding';
 import { InMemorySaveStoragePort, type Quantity } from '../src/game-core';
 import type { CocosSelectableViewModelData, CocosMaterialLotOption, CocosCookableRecipeOption } from '../src/cocos-app/view-models/CocosSelectableViewModel';
@@ -11,14 +11,64 @@ import { buildRuntimeWithoutState, cloneForCompare } from './support/runtimeHarn
 
 function makeMenu() {
   const { configs, contracts } = buildRuntimeWithoutState();
-  const host = new CocosSessionHost(configs, contracts, new InMemorySaveStoragePort(), {
+  const storage = new InMemorySaveStoragePort();
+  const host = new CocosSessionHost(configs, contracts, storage, {
     buildId: testBuildId('cocos_menu_binding_test'),
     nowIso8601: '2026-05-21T00:00:00.000Z'
   });
   host.createSession();
   const controller = new MinimalMenuInteractionController(host);
-  return { host, controller };
+  return { host, controller, storage, configs };
 }
+
+test('processing required inputs public component rejects missing salt and recovers using current selectable choices', async () => {
+  const { host, storage, configs } = makeMenu();
+  const port = new RecordingCocosComponentNodeBindingPort();
+  const component = new QinglanUiSceneProbeComponent(host, port);
+  await component.mount();
+  const session = host.requireSession();
+  const initial = session.getSelectableViewModel();
+  const seed = firstEnabled(initial.seed_lot_options, 'seed');
+  const field = firstEnabled(initial.field_options, 'field');
+  await component.execute({ name: 'menu_confirm', selection: { action_type: 'plant_crop', field_option_id: field.id, seed_lot_option_id: seed.id, seed_quantity: quantity(1, seed.quantity.unit) } });
+  await component.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 5400 } });
+  const crop = firstEnabled(session.getSelectableViewModel().harvestable_crop_options, 'harvestable crop');
+  await component.execute({ name: 'menu_confirm', selection: { action_type: 'harvest_crop', crop_option_id: crop.id } });
+  const selectable = session.getSelectableViewModel();
+  const cabbage = required(selectable.processable_lot_options.find((lot) => lot.base_id === 'cabbage'), 'processable cabbage');
+  const salt = required(selectable.processable_lot_options.find((lot) => lot.base_id === 'salt'), 'processable salt');
+  const methodId = commonProcessingMethod(cabbage, salt, selectable);
+  const facility = firstEnabled(selectable.processing_facility_options.filter((item) => item.compatible_method_ids.includes(methodId)), 'facility');
+  const method = configs.requiredDoc<{ input_view_requirements: Array<{ base_id?: string; min_quantity_g?: number }> }>(`configs/processing/methods/${methodId}.yaml`);
+  const minimumSalt = method.input_view_requirements.find((item) => item.base_id === 'salt')!.min_quantity_g!;
+  const selection = { action_type: 'start_processing' as const, method_id: methodId,
+    input_lots: [{ lot_option_id: cabbage.id, quantity: quantity(300, 'g') }], facility_option_id: facility.id };
+  await session.save('component_processing_before');
+  const before = await storage.read('component_processing_before');
+  const beforeView = session.getViewModel();
+  for (const name of ['menu_preview', 'menu_confirm'] as const) {
+    const response = await component.execute({ name, selection });
+    assert.equal(response.command_result.status, 'completed', 'queue processing completion is separate from business rejection');
+    const menu = response.command_result.snapshot.menu;
+    assert.equal(menu.last_preview_result?.success, false);
+    assert.equal(menu.last_preview_result?.status_code, 'ERR_PROCESSING_INPUT_MISSING');
+    assert.equal(menu.last_action_result, null);
+    assert.deepEqual(session.getViewModel(), beforeView);
+    assert.deepEqual(session.getSelectableViewModel(), selectable);
+    await session.save('component_processing_after');
+    assert.equal(await storage.read('component_processing_after'), before);
+    const menuPatch = port.recordedPatches().filter((patch) => patch.section === 'menu').at(-1);
+    assert.deepEqual(menuPatch?.payload, menu, 'actual component output carries the rejection');
+  }
+  const recovered = await component.execute({ name: 'menu_confirm', selection: { ...selection,
+    input_lots: [...selection.input_lots, { lot_option_id: salt.id, quantity: quantity(minimumSalt, 'g') }] } });
+  assert.equal(recovered.command_result.snapshot.menu.last_preview_result?.success, true);
+  assert.equal(recovered.command_result.snapshot.menu.last_action_result?.success, true);
+  assert.equal(recovered.command_result.snapshot.menu.last_action_result?.created_objects[0]?.object_id, 'task_processing_000001');
+  assert.equal(session.getSelectableViewModel().splittable_lot_options.find((lot) => lot.id === cabbage.id)?.quantity.amount, cabbage.quantity.amount - 300);
+  assert.equal(session.getSelectableViewModel().splittable_lot_options.find((lot) => lot.id === salt.id)?.quantity.amount, salt.quantity.amount - minimumSalt);
+  await component.unmount();
+});
 
 function required<T>(value: T | undefined | null, label: string): T {
   assert.notEqual(value, undefined, label);

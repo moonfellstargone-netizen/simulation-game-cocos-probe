@@ -7,13 +7,62 @@ import { CocosAppRuntimeSession } from '../src/cocos-app/runtime/CocosAppRuntime
 import { InMemorySaveStoragePort } from '../src/game-core';
 import { buildRuntime, buildRuntimeWithoutState, cloneForCompare } from './support/runtimeHarness';
 
-function makeSession() {
+function makeSession(storage = new InMemorySaveStoragePort()) {
   const { configs, contracts } = buildRuntimeWithoutState();
-  return new CocosAppRuntimeSession(configs, contracts, new InMemorySaveStoragePort(), {
+  return new CocosAppRuntimeSession(configs, contracts, storage, {
     buildId: testBuildId('action_preview_boundary_test'),
     nowIso8601: '2026-05-19T00:00:00.000Z'
   });
 }
+
+test('processing required inputs preview preserves complete saved state and real task/event IDs on rejection and success', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const controlStorage = new InMemorySaveStoragePort();
+  const session = makeSession(storage);
+  const control = makeSession(controlStorage);
+  let cabbage = '';
+  for (const current of [session, control]) {
+    const plant = current.dispatch('plant_crop', { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 1, unit: 'count' } });
+    assert.equal(plant.success, true);
+    assert.equal(current.dispatch('advance_time', { minutes: 5400 }).success, true);
+    const harvest = current.dispatch('harvest_crop', { crop_id: plant.created_objects[0]!.object_id });
+    assert.equal(harvest.success, true);
+    cabbage = harvest.created_objects[0]!.object_id;
+  }
+  const { configs } = buildRuntimeWithoutState();
+  const method = configs.requiredDoc<{ input_view_requirements: Array<{ base_id?: string; min_quantity_g?: number }> }>('configs/processing/methods/pickling_cabbage_basic.yaml');
+  const minimumSalt = method.input_view_requirements.find((item) => item.base_id === 'salt')!.min_quantity_g!;
+  const primary = { lot_id: cabbage, quantity: { amount: 300, unit: 'g' } };
+  const salt = { lot_id: 'salt_initial_001', quantity: { amount: minimumSalt, unit: 'g' } };
+  const facility_ref = { location_id: 'home', storage_type: 'pickling_jar', container_id: 'pickling_jar_basic_01', definition_id: 'pickling_jar_basic', facility_id: 'pickling_jar_basic_01' };
+  await session.save('preview_before');
+  const before = await storage.read('preview_before');
+  const beforeView = cloneForCompare(session.getViewModel());
+  const beforeSelectable = cloneForCompare(session.getSelectableViewModel());
+  for (const input_lots of [[primary], [salt], [primary, { ...salt, quantity: { amount: minimumSalt - 0.001, unit: 'g' } }]]) {
+    const preview = session.preview('start_processing', { method_id: 'pickling_cabbage_basic', input_lots, facility_ref });
+    assert.equal(preview.success, false);
+    assert.equal(preview.status_code, 'ERR_PROCESSING_INPUT_MISSING');
+    assert.deepEqual(preview.effect_counts, { consumed_resources: 0, created_objects: 0, updated_objects: 0, released_reservations: 0 });
+    await session.save('preview_after');
+    assert.equal(await storage.read('preview_after'), before, 'complete serialized state stays identical');
+    assert.deepEqual(session.getViewModel(), beforeView, 'domain event history also stays identical');
+    assert.deepEqual(session.getSelectableViewModel(), beforeSelectable);
+  }
+  const parameters = { method_id: 'pickling_cabbage_basic', input_lots: [primary, salt], facility_ref };
+  for (let index = 0; index < 2; index += 1) assert.equal(session.preview('start_processing', parameters).success, true);
+  await session.save('preview_after_success');
+  assert.equal(await storage.read('preview_after_success'), before);
+  assert.deepEqual(session.getViewModel(), beforeView);
+  const actual = session.dispatch('start_processing', parameters);
+  const expected = control.dispatch('start_processing', parameters);
+  assert.equal(actual.success, true);
+  assert.equal(actual.created_objects[0]?.object_id, 'task_processing_000001');
+  assert.deepEqual(actual, expected, 'preview never consumes real task or event IDs');
+  await session.save('preview_actual');
+  await control.save('preview_control');
+  assert.equal(await storage.read('preview_actual'), await controlStorage.read('preview_control'));
+});
 
 test('ActionPreview simulates formal dispatch on cloned state without mutating SaveFile, writing events, or consuming real IDs', () => {
   const session = makeSession();

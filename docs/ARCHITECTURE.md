@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.36
+﻿# ARCHITECTURE — v0.0.2.37
 
-当前版本：v0.0.2.36 / Web Inventory & Storage Transfer。真实Web外层连接公开库存与正式整批转移；唯一src执行例外是MenuActionBinding.ts补store_item选择到既有storeItem草稿适配，其他src执行逻辑不改。纯选择辅助不持有可变运行态，Queue契约、三层隔离和正式状态流转保持。
+当前版本：v0.0.2.37 / Processing Required Inputs & Failure Safety。核心ProcessingSystem在任何消耗或任务分配前校验当前方法的全部必需输入；公开预览与正式执行共享业务验证，缺料失败保持完整领域状态、库存/储存缓存、事件和对象ID。保留既有Web农事、库存和单槽存读档，Queue契约、三层隔离和正式状态流转保持。
 
 ## 1. 业务架构不变
 
@@ -90,8 +90,16 @@ ProbeInteraction区分队列处理完成与本次业务成功，menu_confirm核�
 
 ProbeInventory.ts只复制公开MaterialLot选项和储存目标，管理当前批次/目标选择，不拥有可变运行态。逐批浏览当前公开材料的名称、current_form、数量/单位与storage_ref，展示目标支持形态和容量/占用。名称只用于展示，身份和单位取公开选项；不展示DishLot通用库存、完整新鲜度或保鲜倒计时。
 
-MenuActionBinding.ts是本版唯一src执行文件例外，只补正式store_item的选择类型与草稿适配：从当前公开材料/储存目标解析有效ID，以MaterialLot object_ref及目标StorageRef调用既有storeItem。preview、正式Action、存储审计与回滚沿既有路径，其他src/**/*.ts业务逻辑、Session和Queue不改；不绕过组件菜单，不直接写SaveFile。
+既有MenuActionBinding.ts将当前公开MaterialLot与储存目标解析为正式store_item草稿；预览、正式Action、存储审计与回滚沿既有路径。该适配作为已有能力保留，本版只修复ProcessingSystem内部必需输入校验，不改变Session/Queue、ActionPipeline协议或SaveFile，不绕过组件菜单或直接写状态。
 
 移动对象为整批，不加入拆分数量。容量单位为slot_weight；目标enabled只说明目标自身可用，不保证放得下所选批次，outer不以克数估算容量或复制footprint算法。形态不支持、容量不足和失效选择由既有绑定/preview/Action给出拒绝，失败保留状态，健康操作可继续。同容器移动在核心仍合法，界面只避免无意义重复提交，不新增核心拒绝规则。
 
 挂载、动作及成功读档后重新消费公开列表，更新位置和容量，清除失效选择。界面切换/浏览仅改变本地视图，不发正式命令；转移按本次preview/ActionResult反馈，不把completed或旧菜单成功当本次业务结果。保留busy、销毁后迟到保护、农事闭环和手动存读档。
+
+## 加工必需输入校验与失败保护
+
+按当前加工方法配置校验全部必需输入，缺料在任何消耗、任务创建和任务ID分配前拒绝。公开preview与直接正式dispatch共享验证；preview不得改变完整游戏状态、事件、库存/储存缓存或正式对象ID。正式失败保留既有失败反馈，不要求ActionRequestBuilder请求序号回滚。
+
+契约、预览和公开Host/Component回归分别核对缺白菜、缺盐、盐不足/阈值边界，以及合法不同数量的消耗、任务、推进和领取。失败后健康请求与存读档恢复继续；不通过私有SaveFile写入构造假通过，不新增重复同lot或多primary拒绝/聚合规则。trace.processing.required-inputs连接ProcessingSystem.ts、ProcessingConfigResolver.ts及现有test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-menu。
+
+本版实际触及测试逐一登记args/files/covers并验证单文件affected真正执行自身任务；q:affected仍只用于反馈，版本完成和候选出包按q:full及无缓存q:release。核心进入Web bundle，真实Creator SDK/构建及既有built-web/editor-preview回归需独立执行。没有加工网页，浏览器不声明覆盖缺盐路径。

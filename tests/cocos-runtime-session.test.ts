@@ -13,6 +13,7 @@ import { ControlledSaveStoragePort, captureSerializedSession } from './support/c
 function makeSession(storage: SaveStoragePort = new InMemorySaveStoragePort()) {
   const { configs, contracts } = buildRuntimeWithoutState();
   return {
+    configs,
     session: new CocosAppRuntimeSession(configs, contracts, storage, {
       buildId: testBuildId('cocos_session_test'),
       nowIso8601: '2026-05-19T00:00:00.000Z'
@@ -20,6 +21,61 @@ function makeSession(storage: SaveStoragePort = new InMemorySaveStoragePort()) {
     storage
   };
 }
+
+test('processing required inputs direct session failures preserve the save and allow load, healthy start and collection', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const { session, configs } = makeSession(storage);
+  const plant = dispatchAndAssert(session.dispatch('plant_crop', { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 1, unit: 'count' } }), 'plant_crop');
+  dispatchAndAssert(session.dispatch('advance_time', { minutes: 5400 }), 'advance_time');
+  const harvest = dispatchAndAssert(session.dispatch('harvest_crop', { crop_id: plant.created_objects[0]!.object_id }), 'harvest_crop');
+  const cabbageId = harvest.created_objects[0]!.object_id;
+  const method = configs.requiredDoc<{ input_view_requirements: Array<{ base_id?: string; min_quantity_g?: number }>; process_duration_minutes: number; output_form_rules: { success_form: string } }>('configs/processing/methods/pickling_cabbage_basic.yaml');
+  const minimumSalt = method.input_view_requirements.find((item) => item.base_id === 'salt')!.min_quantity_g!;
+  const primary = { lot_id: cabbageId, quantity: { amount: 300, unit: 'g' } };
+  const salt = { lot_id: 'salt_initial_001', quantity: { amount: minimumSalt, unit: 'g' } };
+  const facility_ref = { location_id: 'home', storage_type: 'pickling_jar', container_id: 'pickling_jar_basic_01', definition_id: 'pickling_jar_basic', facility_id: 'pickling_jar_basic_01' };
+  const before = await captureSerializedSession(session, storage, 'processing_before');
+  const beforeView = session.getViewModel();
+  const beforeSelectable = session.getSelectableViewModel();
+  for (const input_lots of [[primary], [salt], [primary, { ...salt, quantity: { amount: minimumSalt - 0.001, unit: 'g' } }]]) {
+    const failed = session.dispatch('start_processing', { method_id: 'pickling_cabbage_basic', input_lots, facility_ref });
+    assert.equal(failed.success, false);
+    assert.equal(failed.status_code, 'ERR_PROCESSING_INPUT_MISSING');
+    assert.deepEqual(failed.domain_events, []);
+    assert.deepEqual(failed.event_log_entries, []);
+    assert.deepEqual(session.getViewModel(), beforeView);
+    assert.deepEqual(session.getSelectableViewModel(), beforeSelectable);
+    assert.equal(await captureSerializedSession(session, storage, 'processing_after_failure'), before);
+  }
+  await session.save('processing_recovery');
+  dispatchAndAssert(session.dispatch('advance_time', { minutes: 60 }), 'advance_time');
+  await session.load('processing_recovery');
+  assert.equal(await captureSerializedSession(session, storage, 'processing_after_load'), before);
+  const started = dispatchAndAssert(session.dispatch('start_processing', { method_id: 'pickling_cabbage_basic', input_lots: [primary, salt], facility_ref }), 'start_processing');
+  const taskId = started.created_objects[0]!.object_id;
+  assert.equal(taskId, 'task_processing_000001', 'failures allocate no task ID');
+  const afterStart = JSON.parse(await captureSerializedSession(session, storage, 'processing_active'));
+  const beforeSave = JSON.parse(before);
+  for (const [lotId, consumed] of [[cabbageId, 300], ['salt_initial_001', minimumSalt]] as const) {
+    assert.equal(afterStart.inventory.find((lot: { lot_id: string }) => lot.lot_id === lotId).quantity.amount,
+      beforeSave.inventory.find((lot: { lot_id: string }) => lot.lot_id === lotId).quantity.amount - consumed);
+  }
+  const restored = makeSession(storage).session;
+  await restored.load('processing_active');
+  assert.equal(restored.getViewModel().processing_tasks.find((task) => task.id === taskId)?.status, 'active');
+  dispatchAndAssert(restored.dispatch('advance_time', { minutes: method.process_duration_minutes }), 'advance_time');
+  assert.equal(restored.getViewModel().processing_tasks.find((task) => task.id === taskId)?.status, 'ready_to_collect');
+  const collected = dispatchAndAssert(restored.dispatch('collect_processing_result', { task_id: taskId }), 'collect_processing_result');
+  const output = restored.getSelectableViewModel().splittable_lot_options.find((lot) => lot.id === collected.created_objects[0]!.object_id)!;
+  assert.equal(output.base_id, 'cabbage');
+  assert.equal(output.current_form, method.output_form_rules.success_form);
+  assert.deepEqual(output.quantity, primary.quantity);
+  assert.equal(restored.getViewModel().processing_tasks.find((task) => task.id === taskId)?.status, 'completed');
+  const complete = await captureSerializedSession(restored, storage, 'processing_complete');
+  await restored.load('processing_complete');
+  assert.equal(await captureSerializedSession(restored, storage, 'processing_complete_reloaded'), complete);
+  dispatchAndAssert(restored.dispatch('advance_time', { minutes: 60 }), 'advance_time');
+});
 
 function dispatchAndAssert(result: ActionResult, actionType: string): ActionResult {
   assert.equal(result.success, true, `${actionType} failed with ${result.status_code}`);

@@ -143,6 +143,74 @@ test('start_processing consumes configured input lots, creates schema-valid Proc
   new StorageAudit().assertReconciled(state.save_file);
 });
 
+test('processing required inputs reject missing material and subminimum salt before state or object IDs change', async (t) => {
+  for (const missing of ['salt', 'cabbage', 'salt_below_minimum'] as const) {
+    await t.test(missing, () => {
+      const subject = buildRuntime();
+      const control = buildRuntime();
+      const cabbage = prepareHarvestedCabbage(subject.runtime, subject.state);
+      const controlCabbage = prepareHarvestedCabbage(control.runtime, control.state);
+      assert.equal(cabbage, controlCabbage);
+      const method = subject.configs.requiredDoc<{ input_view_requirements: Array<{ base_id?: string; min_quantity_g?: number }> }>('configs/processing/methods/pickling_cabbage_basic.yaml');
+      const minimumSalt = method.input_view_requirements.find((item) => item.base_id === 'salt')!.min_quantity_g!;
+      const inputs = [
+        { lot_id: cabbage, quantity: { amount: 300, unit: 'g' } },
+        { lot_id: 'salt_initial_001', quantity: { amount: missing === 'salt_below_minimum' ? minimumSalt - 0.001 : minimumSalt, unit: 'g' } }
+      ].filter((input) => missing === 'salt' ? input.lot_id !== 'salt_initial_001' : missing === 'cabbage' ? input.lot_id === 'salt_initial_001' : true);
+      const before = cloneForCompare(subject.state);
+      const failed = dispatch(subject.runtime, subject.state, 'start_processing', {
+        method_id: 'pickling_cabbage_basic', input_lots: inputs, facility_ref: picklingFacilityRef
+      }, `required_${missing}`);
+      assert.equal(failed.success, false);
+      assert.equal(failed.status_code, 'ERR_PROCESSING_INPUT_MISSING');
+      for (const effects of [failed.created_objects, failed.updated_objects, failed.consumed_resources, failed.released_reservations, failed.domain_events, failed.event_log_entries]) assert.deepEqual(effects, []);
+      subject.contracts.assertActionResult(failed);
+      assert.deepEqual(subject.state, before, 'complete SaveFile, storage caches, tasks and domain event stream stay intact');
+      new StorageAudit().assertReconciled(subject.state.save_file);
+
+      const healthy = { method_id: 'pickling_cabbage_basic', input_lots: [
+        { lot_id: cabbage, quantity: { amount: 300, unit: 'g' } },
+        { lot_id: 'salt_initial_001', quantity: { amount: minimumSalt, unit: 'g' } }
+      ], facility_ref: picklingFacilityRef };
+      const recovered = dispatch(subject.runtime, subject.state, 'start_processing', healthy, 'required_recovered');
+      const untouched = dispatch(control.runtime, control.state, 'start_processing', healthy, 'required_recovered');
+      assert.equal(recovered.success, true);
+      assert.equal(recovered.created_objects[0]?.object_id, 'task_processing_000001');
+      assert.deepEqual(recovered, untouched, 'task and domain event IDs match a runtime with no failed request');
+      assert.deepEqual(subject.state, control.state, 'consumed reservation IDs and all state match the healthy control');
+    });
+  }
+});
+
+test('processing required inputs accept the configured salt boundary and different legal quantities through collection', () => {
+  for (const [cabbageAmount, saltAboveMinimum] of [[100, 0], [300, 0.001], [500, 7]]) {
+    const { configs, contracts, runtime, state } = buildRuntime();
+    const cabbage = prepareHarvestedCabbage(runtime, state);
+    const method = configs.requiredDoc<{ input_view_requirements: Array<{ base_id?: string; min_quantity_g?: number }>; process_duration_minutes: number; output_form_rules: { success_form: string } }>('configs/processing/methods/pickling_cabbage_basic.yaml');
+    const saltAmount = method.input_view_requirements.find((item) => item.base_id === 'salt')!.min_quantity_g! + saltAboveMinimum!;
+    const beforeCabbage = state.save_file.inventory.find((lot) => lot.lot_id === cabbage)!.quantity.amount;
+    const beforeSalt = state.save_file.inventory.find((lot) => lot.lot_id === 'salt_initial_001')!.quantity.amount;
+    const started = dispatch(runtime, state, 'start_processing', { method_id: 'pickling_cabbage_basic', input_lots: [
+      { lot_id: cabbage, quantity: { amount: cabbageAmount, unit: 'g' } },
+      { lot_id: 'salt_initial_001', quantity: { amount: saltAmount, unit: 'g' } }
+    ], facility_ref: picklingFacilityRef }, 'required_boundary_start');
+    assert.equal(started.success, true, started.status_code);
+    assert.equal(state.save_file.inventory.find((lot) => lot.lot_id === cabbage)?.quantity.amount, beforeCabbage - cabbageAmount!);
+    assert.equal(state.save_file.inventory.find((lot) => lot.lot_id === 'salt_initial_001')?.quantity.amount, beforeSalt - saltAmount);
+    const taskId = started.created_objects[0]!.object_id;
+    assert.equal(dispatch(runtime, state, 'advance_time', { minutes: method.process_duration_minutes }, 'required_boundary_time').success, true);
+    const collected = dispatch(runtime, state, 'collect_processing_result', { task_id: taskId }, 'required_boundary_collect');
+    assert.equal(collected.success, true);
+    const output = state.save_file.inventory.find((lot) => lot.lot_id === collected.created_objects[0]!.object_id)!;
+    assert.equal(output.base_id, 'cabbage');
+    assert.equal(output.current_form, method.output_form_rules.success_form);
+    assert.deepEqual(output.quantity, { amount: cabbageAmount, unit: 'g' });
+    assert.equal(state.save_file.processing_tasks.find((task) => task.task_id === taskId)?.status, 'completed');
+    contracts.assertSaveFile(state.save_file);
+    new StorageAudit().assertReconciled(state.save_file);
+  }
+});
+
 test('processing task state machine closes active -> ready_to_collect -> completed and collect creates schema-valid MaterialLot', () => {
   const { contracts, runtime, state } = buildRuntime();
   const taskId = prepareProcessingTask(runtime, state);

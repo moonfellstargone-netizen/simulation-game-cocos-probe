@@ -53,7 +53,7 @@ test.cocos-probe-preparation、test.cocos-engine-probe-lifecycle、test.cocos-we
 
 ProbeInteraction是无cc的单操作协调器，loading/busy/closing/destroyed不受理；一次受理只调用一次组件命令，无自动重试。存读档依据command_result.status/error_message及本次对应结果，menu_confirm另核对本次preview/ActionResult，不聚合旧snapshot区域错误；operation.sequence记录受理次数，operation与displayedOperation可只读观察。预期failed显示正常失败反馈，意外reject仍传播到组件错误记录；销毁后的迟到完成不更新节点。
 
-test.cocos-engine-probe-lifecycle实际执行cocos-engine-probe-lifecycle.test.ts、cocos-web-interaction.test.ts、cocos-browser-storage.test.ts与cocos-web-farming.test.ts；test.cocos-web-verification-contracts同时执行cocos-web-serve-contracts.test.mjs。args/files/covers与新增文件单独affected闭合，full/blocker不变。trace.cocos.browser-local-save追踪本地存档；既有trace.cocos.web-save-load-recovery继续闭合Queue、component、本次反馈及full/release。真实物理点击、刷新与同context新页面手动恢复及存储故障/坏档恢复分别验收，Node与observer程序调用均不能替代。
+test.cocos-engine-probe-lifecycle实际执行cocos-engine-probe-lifecycle.test.ts、cocos-web-interaction.test.ts、cocos-browser-storage.test.ts、cocos-web-farming.test.ts与cocos-web-inventory.test.ts；test.cocos-web-verification-contracts同时执行cocos-web-serve-contracts.test.mjs。args/files/covers与新增文件单独affected闭合，full/blocker不变。trace.cocos.browser-local-save追踪本地存档；既有trace.cocos.web-save-load-recovery继续闭合Queue、component、本次反馈及full/release。真实物理点击、刷新与同context新页面手动恢复及存储故障/坏档恢复分别验收，Node与observer程序调用均不能替代。
 
 tools/cocos-probe/serve.mjs提供显式固定loopback端口的最小启动入口，先复核构建来源和逐文件字节，端口占用即失败而不换origin。自动verify的随机端口/新BrowserContext用于测试隔离，不等于日常固定存档地址；不同协议/host/port/profile不共享存储。故障注入不冒充真实权限或配额耗尽测试；用户清理浏览器数据可能清除存档，不接wx或文件系统存储。
 
@@ -71,7 +71,7 @@ trace.cocos.web-farming-loop连接新辅助、Node行为和真实verify。农事
 
 ProbeInventory.ts只复制公开MaterialLot选项和储存目标，管理当前批次/目标选择，不拥有可变运行态。逐批浏览当前公开材料的名称、current_form、数量/单位与storage_ref，展示目标支持形态和容量/占用。名称只用于展示，身份和单位取公开选项；不展示DishLot通用库存、完整新鲜度或保鲜倒计时。
 
-MenuActionBinding.ts是本版唯一src执行文件例外，只补正式store_item的选择类型与草稿适配：从当前公开材料/储存目标解析有效ID，以MaterialLot object_ref及目标StorageRef调用既有storeItem。preview、正式Action、存储审计与回滚沿既有路径，其他src/**/*.ts业务逻辑、Session和Queue不改；不绕过组件菜单，不直接写SaveFile。
+既有MenuActionBinding.ts将当前公开MaterialLot与储存目标解析为正式store_item草稿；预览、正式Action、存储审计与回滚沿既有路径。该适配作为已有能力保留，本版只修复ProcessingSystem内部必需输入校验，不改变Session/Queue、ActionPipeline协议或SaveFile，不绕过组件菜单或直接写状态。
 
 移动对象为整批，不加入拆分数量。容量单位为slot_weight；目标enabled只说明目标自身可用，不保证放得下所选批次，outer不以克数估算容量或复制footprint算法。形态不支持、容量不足和失效选择由既有绑定/preview/Action给出拒绝，失败保留状态，健康操作可继续。同容器移动在核心仍合法，界面只避免无意义重复提交，不新增核心拒绝规则。
 
