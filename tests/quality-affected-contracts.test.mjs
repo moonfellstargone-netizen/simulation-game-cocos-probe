@@ -188,15 +188,11 @@ test('binding source, application tests and shared helper changes select both bi
   }
 });
 
-test('v37 changed tests select the task that actually executes each file', () => {
+test('current version changed tests select the task that actually executes each file', () => {
   const cases = [
   [
     "tests/action-preview-boundary.test.ts",
     "test.action-preview"
-  ],
-  [
-    "tests/cocos-minimal-menu-binding.test.ts",
-    "test.cocos-menu"
   ],
   [
     "tests/cocos-runtime-session.test.ts",

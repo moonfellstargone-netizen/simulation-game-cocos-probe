@@ -9,7 +9,7 @@ source_of_truth: false
 
 ## 模块职责
 
-apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期桥接。只有该outer可使用cc；旧game-core、cocos-app、cocos-creator-adapter保持engine-neutral。既有网页支持农事、公开材料批次浏览、正式store_item整批转移及手动本地单槽存读档。本版核心加工校验进入派生bundle，外层行为保持；没有加工网页，真实浏览器回归不宣称验证缺盐路径。
+apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期桥接。只有该outer可使用cc；旧game-core、cocos-app、cocos-creator-adapter保持engine-neutral。既有网页支持农事、公开材料批次浏览、正式store_item整批转移及手动本地单槽存读档。本版核心ID恢复进入派生bundle，外层行为保持；没有网页拆分入口，读档后拆分ID路径由公开核心/Session验收，真实浏览器回归仅证明既有Web路径。
 
 工程从唯一src/design_snapshot派生runtime、snapshot及全部58项Schema；工作副本、依赖、缓存、报告和构建均在仓库外，禁止手改副本成为第二源码权威。script.loose=false保留标准JavaScript语义，不能恢复Creator默认loose破坏Ajv继承getter的已知转换。
 
@@ -87,7 +87,7 @@ tests/cocos-web-farming.test.ts加入既有生命周期full/blocker实际args，
 
 ProbeInventory.ts只复制公开MaterialLot选项和储存目标，管理当前批次/目标选择，不拥有可变运行态。逐批浏览当前公开材料的名称、current_form、数量/单位与storage_ref，展示目标支持形态和容量/占用。名称只用于展示，身份和单位取公开选项；不展示DishLot通用库存、完整新鲜度或保鲜倒计时。
 
-既有MenuActionBinding.ts将当前公开MaterialLot与储存目标解析为正式store_item草稿；预览、正式Action、存储审计与回滚沿既有路径。该适配作为已有能力保留，本版只修复ProcessingSystem内部必需输入校验，不改变Session/Queue、ActionPipeline协议或SaveFile，不绕过组件菜单或直接写状态。
+既有MenuActionBinding.ts将当前公开MaterialLot与储存目标解析为正式store_item草稿；预览、正式Action、存储审计与回滚沿既有路径。该适配作为已有能力保留，本版只修复共用ID恢复与预览一致性，不改变Session/Queue、ActionPipeline协议或SaveFile，不绕过组件菜单或直接写状态。
 
 移动对象为整批，不加入拆分数量。容量单位为slot_weight；目标enabled只说明目标自身可用，不保证放得下所选批次，outer不以克数估算容量或复制footprint算法。形态不支持、容量不足和失效选择由既有绑定/preview/Action给出拒绝，失败保留状态，健康操作可继续。同容器移动在核心仍合法，界面只避免无意义重复提交，不新增核心拒绝规则。
 

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildRuntime, cloneForCompare } from './support/runtimeHarness';
-import { StorageAudit } from '../src/game-core/index';
+import { buildRuntime, buildRuntimeWithoutState, cloneForCompare } from './support/runtimeHarness';
+import { SaveManager, StorageAudit } from '../src/game-core/index';
+import { DeterministicIdService } from '../src/game-core/id/IdService';
 import type { GameRuntime, GameState } from '../src/game-core/index';
 
 const picklingFacilityRef = { location_id: 'home', storage_type: 'pickling_jar', container_id: 'pickling_jar_basic_01', definition_id: 'pickling_jar_basic', facility_id: 'pickling_jar_basic_01' };
@@ -66,6 +67,76 @@ function cookBaconCabbage(runtime: GameRuntime, state: GameState, pickledLotId: 
     target_storage_ref: { location_id: 'home', storage_type: 'room_temp', container_id: 'home_room_temp_01' }
   }, suffix);
 }
+
+test('deterministic IDs recover nested historical strings and record keys without lowering prefix high-water marks', () => {
+  const ids = new DeterministicIdService();
+  assert.equal(ids.next('lot_split'), 'lot_split_000001');
+  const historical: Record<string, unknown> = {
+    lineage_summary: { key_origins: [{ origin_id: 'lot_split_000040', source_ref: { source_id: 'custom.prefix-with_under_score_000009' } }] },
+    processing_history: [{ history_id: 'hist_processing_999999' }],
+    references: { record_ref_000008: null },
+    ignored: ['ignored_12', 'ignored_000005x', '000999', '_000999']
+  };
+  historical.self = historical;
+  ids.observeExisting(historical);
+  assert.equal(ids.next('lot_split'), 'lot_split_000041');
+  assert.equal(ids.next('custom.prefix-with_under_score'), 'custom.prefix-with_under_score_000010');
+  assert.equal(ids.next('hist_processing'), 'hist_processing_1000000');
+  assert.equal(ids.next('record_ref'), 'record_ref_000009');
+  assert.equal(ids.next('ignored'), 'ignored_000001');
+  ids.observeExisting({ older: 'lot_split_000002' });
+  assert.equal(ids.next('lot_split'), 'lot_split_000042');
+  assert.equal(new DeterministicIdService().next('lot_split'), 'lot_split_000001');
+});
+
+test('deterministic IDs advance decimal suffixes beyond Number precision and avoid recursive traversal limits', () => {
+  const ids = new DeterministicIdService();
+  const huge = '9'.repeat(80);
+  let nested: unknown = { source_ref: { source_id: `extreme_prefix_${huge}` }, padded: 'padded_000000000000000000009' };
+  for (let depth = 0; depth < 12000; depth += 1) nested = { nested };
+  ids.observeExisting(nested);
+  assert.equal(ids.next('extreme_prefix'), `extreme_prefix_1${'0'.repeat(80)}`);
+  assert.equal(ids.next('extreme_prefix'), `extreme_prefix_1${'0'.repeat(79)}1`);
+  assert.equal(ids.next('padded'), 'padded_000010');
+});
+
+test('a fresh GameRuntime restores every generated domain prefix through direct pipeline dispatch after save/load', () => {
+  const first = buildRuntime();
+  const firstPickled = preparePickledCabbage(first.runtime, first.state);
+  assert.equal(cookBaconCabbage(first.runtime, first.state, firstPickled).success, true);
+  assert.equal(first.state.save_file.inventory.some((lot) => lot.lot_id === 'lot_split_000001'), false, 'consumed split remains only in historical references');
+  const saves = new SaveManager();
+  const serialized = saves.serialize(first.state);
+  const lastEvent = String(first.state.save_file.event_log_summary.last_event_id);
+  const restored = saves.deserializeSaveFile(serialized);
+  const second = buildRuntimeWithoutState();
+  assert.deepEqual(restored.domain_events, []);
+  const beforeFailure = cloneForCompare(restored);
+  const failed = dispatch(second.runtime, restored, 'split_lot', { source_lot_id: 'salt_initial_001', quantity: { amount: 999999, unit: 'g' } }, 'restored_rejected_split');
+  assert.equal(failed.success, false);
+  assert.equal(failed.status_code, 'ERR_NOT_ENOUGH_RESOURCE');
+  assert.deepEqual(restored, beforeFailure);
+  const split = dispatch(second.runtime, restored, 'split_lot', { source_lot_id: 'salt_initial_001', quantity: { amount: 10, unit: 'g' } }, 'restored_split');
+  assert.equal(split.success, true);
+  assert.equal(split.created_objects[0]?.object_id, 'lot_split_000002', 'historical references protect the removed split ID');
+  assert.equal(split.domain_events[0]?.event_id, `evt_${String(Number(lastEvent.slice(4)) + 1).padStart(6, '0')}`, 'persisted event summary restores events without the old stream');
+  const secondPickled = preparePickledCabbage(second.runtime, restored);
+  assert.equal(secondPickled, 'lot_processed_000002');
+  const cooked = cookBaconCabbage(second.runtime, restored, secondPickled, 'restored_cook');
+  assert.equal(cooked.success, true);
+  assert.equal(cooked.created_objects[0]?.object_id, 'dish_000002');
+  assert.deepEqual(restored.save_file.crop_instances.map((crop) => crop.crop_id), ['crop_000001', 'crop_000002']);
+  assert.deepEqual(restored.save_file.processing_tasks.map((task) => task.task_id), ['task_processing_000001', 'task_processing_000002']);
+  assert.deepEqual(restored.save_file.processing_tasks[1]!.reserved_quantities.map((reservation) => reservation.reservation_id), ['res_consumed_000003', 'res_consumed_000004']);
+  assert.equal(restored.save_file.inventory.find((lot) => lot.lot_id === 'lot_harvest_000002')?.source_ref.source_id, 'crop_000002');
+  assert.equal(restored.save_file.inventory.find((lot) => lot.lot_id === secondPickled)?.processing_history?.[0]?.history_id, 'hist_processing_000002');
+  assert.deepEqual(restored.save_file.dish_lots[1]!.components.map((component) => component.component_id), ['dish_component_000004', 'dish_component_000005', 'dish_component_000006']);
+  const inventoryIds = restored.save_file.inventory.map((lot) => lot.lot_id);
+  assert.equal(new Set(inventoryIds).size, inventoryIds.length);
+  second.contracts.assertSaveFile(restored.save_file);
+  new StorageAudit().assertReconciled(restored.save_file);
+  assert.doesNotThrow(() => saves.serialize(restored));
+});
 
 test('NewGameBuilder output validates against save_file.schema.json', () => {
   const { contracts, state } = buildRuntime();

@@ -288,7 +288,16 @@ export class GameRuntime {
       }
     ];
 
-    for (const handler of handlers) this.registry.register(handler);
+    for (const handler of handlers) {
+      this.registry.register({
+        actionType: handler.actionType,
+        execute: (state, request) => {
+          // Historical references can outlive their objects and still reserve IDs.
+          this.ids.observeExisting(state);
+          return handler.execute(state, request);
+        }
+      });
+    }
   }
 
   private storageRefOf(state: GameState, objectRef: StorageOccupantRef): StorageRef {

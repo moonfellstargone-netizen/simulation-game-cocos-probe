@@ -1,6 +1,6 @@
-# CHECK_ARCHITECTURE — v0.0.2.37
+# CHECK_ARCHITECTURE — v0.0.2.38
 
-v0.0.2.37 / Processing Required Inputs & Failure Safety验证加工必需输入完整性、预览与直接正式执行拒绝、完整领域状态及对象ID保护和失败后合法加工/存读档恢复。源修复限于ProcessingSystem内部；Session/Queue、ActionPipeline协议、SaveFile、正式资源和架构机器规则保持。
+v0.0.2.38 / Runtime ID Recovery & Preview Consistency验证跨runtime读档的ID恢复、全部可见历史引用、极大数字后缀、重复预览不改变正式序列、失败保护和健康后续。源修复限于IdService与GameRuntime统一接入；ActionPipeline协议、SaveFile、正式资源和架构机器规则保持。
 
 ## 1. 本轮检查目标
 
@@ -10,7 +10,7 @@ v0.0.2.37 / Processing Required Inputs & Failure Safety验证加工必需输入�
 
 构建网页built-web验收1440×1200、1280×720、960×640、800×600/DPR1，另960×640/DPR2仿真，并在同页按960×640→1440×1200→800×600→960×640执行四次resize点击。编辑器预览editor-preview独立验收1440×1200与960×640/DPR1，同页按960×640→1440×1200→960×640执行三次resize点击。所有约定案例均保持完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、推进命令时间+60和Label同步；存读档命令按本地单槽预期检查时间；不降低断言强度。官方Default设备模拟器在800窗口裁剪固定960px内容，该预览场景未承诺支持，不能据其失败推定构建网页800失败。DPR仿真不等于手机、触摸、微信或Windows系统缩放验证。
 
-Node任务与独立真实验收分别追踪。新增trace.processing.required-inputs，保留trace.cocos.web-inventory-storage、trace.cocos.web-farming-loop、trace.cocos.browser-local-save、trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input、trace.cocos.web-bootstrap-probe及存储/绑定/启动追踪。核心契约、预览、Session与菜单任务实际执行本版用例；每个修改测试核args/files/covers及真实单文件affected。CI只执行Node完整门禁，不安装Creator或浏览器，不改变full/release/affected策略。
+Node任务与独立真实验收分别追踪。新增trace.runtime.id-recovery，保留trace.cocos.web-viewport-input及全部既有追踪。test.stage1a-contract、test.action-preview与test.cocos-session实际执行本版核心、预览和公开加载用例；每个修改测试核对args/files/covers和单文件affected。CI只执行Node完整门禁，不安装Creator或浏览器，不改变full/release/affected策略。
 
 既有test:cocos-session / registry test.cocos-session继续验证Session边界。test-registry描述Node自动执行集合，traceability-map.json连接模块、文件与门禁追踪；独立真实验收另以构建关联和浏览器证据记录。
 
@@ -50,7 +50,7 @@ cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affe
 
 ## 10. 后续路线（不是授权目标）
 
-Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.37 范围。traceability map 中 `planned` 条目**不是**当前实现。
+Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.38 范围。traceability map 中 `planned` 条目**不是**当前实现。
 
 ## 11. 固定检查短语
 

@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.37
+﻿# PROJECT_MAP — v0.0.2.38
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.37：**Processing Required Inputs & Failure Safety**。ProcessingSystem按当前方法配置完整校验必需输入，缺料在预览和直接正式执行中拒绝且保持领域状态，合法加工与失败后存读档恢复继续。trace.processing.required-inputs连接核心、预览、公开组件与恢复回归；保留已有Web农事、库存、单槽存档、视口、来源及全部旧追踪。
+v0.0.2.38：**Runtime ID Recovery & Preview Consistency**。IdService与GameRuntime统一恢复可见持久对象/历史引用的确定性序列，修复读档碰撞与预览误报可执行。trace.runtime.id-recovery连接核心、预览及公开Session；保留加工校验和全部既有Web/存档追踪。
 
 ## 3. 权威边界
 
