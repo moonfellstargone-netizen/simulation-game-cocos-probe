@@ -11,3 +11,4 @@ formal_source_statement: 正式包 v1.5.2.2 remains authoritative
 context_statement: 网页批次拆分与操作反馈及必要版本/代码包内部检查体系治理；正式设定、核心与Session/Queue不变
 quality_surface: trace.cocos.web-inventory-split, ProbeInventory/Interaction/Lifetime/CocosWebProbe, test.cocos-engine-probe-lifecycle, test.cocos-web-verification-contracts; inherited core/ID/processing/Web traces; q:full, q:release without cache, independent Creator/browser keyboard and click verification
 authority_statement: design pack remains authoritative; GitHub repo is daily code authority
+affected_boundary: q:affected and cache probe serve development feedback only; q:full and q:release without cache remain completion authority
