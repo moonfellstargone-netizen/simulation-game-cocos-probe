@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.37
+﻿# ARCHITECTURE — v0.0.2.38
 
-当前版本：v0.0.2.37 / Processing Required Inputs & Failure Safety。核心ProcessingSystem在任何消耗或任务分配前校验当前方法的全部必需输入；公开预览与正式执行共享业务验证，缺料失败保持完整领域状态、库存/储存缓存、事件和对象ID。保留既有Web农事、库存和单槽存读档，Queue契约、三层隔离和正式状态流转保持。
+当前版本：v0.0.2.38 / Runtime ID Recovery & Preview Consistency。核心IdService恢复存档可见对象与历史引用的高水位，GameRuntime统一在正式handler执行前同步；预览在克隆状态的新runtime执行相同规则，不消耗正式序列。保持ActionPipeline协议、Session/Queue契约、SaveFile结构和三层隔离，既有加工、Web农事、库存与单槽存档继续回归。
 
 ## 1. 业务架构不变
 
@@ -90,7 +90,7 @@ ProbeInteraction区分队列处理完成与本次业务成功，menu_confirm核�
 
 ProbeInventory.ts只复制公开MaterialLot选项和储存目标，管理当前批次/目标选择，不拥有可变运行态。逐批浏览当前公开材料的名称、current_form、数量/单位与storage_ref，展示目标支持形态和容量/占用。名称只用于展示，身份和单位取公开选项；不展示DishLot通用库存、完整新鲜度或保鲜倒计时。
 
-既有MenuActionBinding.ts将当前公开MaterialLot与储存目标解析为正式store_item草稿；预览、正式Action、存储审计与回滚沿既有路径。该适配作为已有能力保留，本版只修复ProcessingSystem内部必需输入校验，不改变Session/Queue、ActionPipeline协议或SaveFile，不绕过组件菜单或直接写状态。
+既有MenuActionBinding.ts将当前公开MaterialLot与储存目标解析为正式store_item草稿；预览、正式Action、存储审计与回滚沿既有路径。该适配作为已有能力保留，本版只修复共用ID恢复与预览一致性，不改变Session/Queue、ActionPipeline协议或SaveFile，不绕过组件菜单或直接写状态。
 
 移动对象为整批，不加入拆分数量。容量单位为slot_weight；目标enabled只说明目标自身可用，不保证放得下所选批次，outer不以克数估算容量或复制footprint算法。形态不支持、容量不足和失效选择由既有绑定/preview/Action给出拒绝，失败保留状态，健康操作可继续。同容器移动在核心仍合法，界面只避免无意义重复提交，不新增核心拒绝规则。
 
@@ -103,3 +103,11 @@ ProbeInventory.ts只复制公开MaterialLot选项和储存目标，管理当前�
 契约、预览和公开Host/Component回归分别核对缺白菜、缺盐、盐不足/阈值边界，以及合法不同数量的消耗、任务、推进和领取。失败后健康请求与存读档恢复继续；不通过私有SaveFile写入构造假通过，不新增重复同lot或多primary拒绝/聚合规则。trace.processing.required-inputs连接ProcessingSystem.ts、ProcessingConfigResolver.ts及现有test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-menu。
 
 本版实际触及测试逐一登记args/files/covers并验证单文件affected真正执行自身任务；q:affected仍只用于反馈，版本完成和候选出包按q:full及无缓存q:release。核心进入Web bundle，真实Creator SDK/构建及既有built-web/editor-preview回归需独立执行。没有加工网页，浏览器不声明覆盖缺盐路径。
+
+## 持久ID恢复与预览一致性
+
+IdService观察完整GameState的字符串值及记录键，恢复生成格式ID的每前缀高水位；这只决定技术ID分配，不用于判断材料身份。十进制字符串递增避免Number大后缀精度停滞。同一runtime高水位只升不降，GameRuntime包装全部已注册handler，使直接pipeline、Session和预览新runtime均在业务分配前恢复。ActionPipeline、存档结构与正式业务规则保持。
+
+保证覆盖存档中仍存在的对象和任意历史引用，以及同一runtime已知分配；整个SaveFile已无任何记录的历史ID不能无新增持久化字段地恢复。预览不修改领域状态或正式ID服务；失败保持既有事务语义，不承诺请求序号或已分配ID回滚。
+
+trace.runtime.id-recovery连接IdService.ts、GameRuntime.ts、CocosActionPreviewer.ts与Session；test.stage1a-contract、test.action-preview、test.cocos-session核对各对象/事件、历史引用、跨实例加载、极大后缀及合法恢复。未新增拆分数量规则、网页拆分/加工、Stage1B或wx。真实Creator及既有built/editor浏览器回归独立执行，网页未覆盖的拆分路径由公开核心/Session验收。

@@ -61,3 +61,11 @@ source_of_truth: false
 ## 代码—地图同步
 
 public-api 中 Save/Load 入口说明、runtime/cocos maps 与 `trace.save.storage-failure-recovery`。本轮只澄清并验证已有保证，不新增稳定错误码或底层存储事务。
+
+## 持久ID恢复与预览一致性
+
+IdService观察完整GameState的字符串值及记录键，恢复生成格式ID的每前缀高水位；这只决定技术ID分配，不用于判断材料身份。十进制字符串递增避免Number大后缀精度停滞。同一runtime高水位只升不降，GameRuntime包装全部已注册handler，使直接pipeline、Session和预览新runtime均在业务分配前恢复。ActionPipeline、存档结构与正式业务规则保持。
+
+保证覆盖存档中仍存在的对象和任意历史引用，以及同一runtime已知分配；整个SaveFile已无任何记录的历史ID不能无新增持久化字段地恢复。预览不修改领域状态或正式ID服务；失败保持既有事务语义，不承诺请求序号或已分配ID回滚。
+
+trace.runtime.id-recovery连接IdService.ts、GameRuntime.ts、CocosActionPreviewer.ts与Session；test.stage1a-contract、test.action-preview、test.cocos-session核对各对象/事件、历史引用、跨实例加载、极大后缀及合法恢复。未新增拆分数量规则、网页拆分/加工、Stage1B或wx。真实Creator及既有built/editor浏览器回归独立执行，网页未覆盖的拆分路径由公开核心/Session验收。

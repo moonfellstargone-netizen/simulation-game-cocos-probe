@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.37
+﻿# Code Index — Files — v0.0.2.38
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -116,3 +116,10 @@ trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport
 - `tests/stage1a-contract.test.ts`、`tests/action-preview-boundary.test.ts`、`tests/cocos-runtime-session.test.ts`、`tests/cocos-minimal-menu-binding.test.ts`：领域、预览、公开组件和存读档恢复回归。
 - `tests/quality-affected-contracts.test.mjs`：实际触及测试单文件选择自身执行任务；本版不扩为全仓登记治理。
 - `trace.processing.required-inputs`连接上述链路和processing模块卡。
+
+## 共用ID恢复
+
+- src/game-core/id/IdService.ts：observeExisting恢复可见ID高水位，next确定性递增。
+- src/game-core/runtime/GameRuntime.ts：所有正式handler执行前同步完整GameState，不改变ActionPipeline。
+- tests/stage1a-contract.test.ts、tests/action-preview-boundary.test.ts、tests/cocos-runtime-session.test.ts：直接核心/预览及公开Session跨实例恢复。
+- trace.runtime.id-recovery连接实现、公共路径及相关模块卡。

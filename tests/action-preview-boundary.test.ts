@@ -15,6 +15,51 @@ function makeSession(storage = new InMemorySaveStoragePort()) {
   });
 }
 
+test('repeated split previews before and after loading agree with formal execution without consuming its IDs', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const seed = makeSession(storage);
+  const parameters = { source_lot_id: 'salt_initial_001', quantity: { amount: 10, unit: 'g' } };
+  assert.equal(seed.dispatch('split_lot', parameters).success, true);
+  await seed.save('preview_id_seed');
+  for (const session of [seed, makeSession(storage)]) {
+    if (session !== seed) await session.load('preview_id_seed');
+    const controlStorage = new InMemorySaveStoragePort();
+    const control = makeSession(controlStorage);
+    if (session === seed) {
+      assert.equal(control.dispatch('split_lot', parameters).success, true);
+    } else {
+      await controlStorage.write('preview_id_seed', (await storage.read('preview_id_seed'))!);
+      await control.load('preview_id_seed');
+    }
+    await session.save('preview_id_before');
+    const before = await storage.read('preview_id_before');
+    const beforeView = cloneForCompare(session.getViewModel());
+    const beforeSelectable = cloneForCompare(session.getSelectableViewModel());
+    for (let repeat = 0; repeat < 3; repeat += 1) {
+      const preview = session.preview('split_lot', parameters);
+      assert.equal(preview.success, true);
+      assert.equal(preview.status_code, 'OK');
+      assert.equal(preview.effect_counts.created_objects, 1);
+      assert.deepEqual(preview.side_effect_contract, { save_file_changed: false, domain_events_written: 0, event_log_entries_written: 0, real_id_sequence_consumed: false });
+      const rejected = session.preview('split_lot', { ...parameters, quantity: { amount: 999999, unit: 'g' } });
+      assert.equal(rejected.success, false);
+      assert.equal(rejected.status_code, 'ERR_NOT_ENOUGH_RESOURCE');
+    }
+    await session.save('preview_id_after');
+    assert.equal(await storage.read('preview_id_after'), before);
+    assert.deepEqual(session.getViewModel(), beforeView);
+    assert.deepEqual(session.getSelectableViewModel(), beforeSelectable);
+    const actual = session.dispatch('split_lot', parameters);
+    const expected = control.dispatch('split_lot', parameters);
+    assert.equal(actual.success, true);
+    assert.equal(actual.created_objects[0]?.object_id, 'lot_split_000002');
+    assert.deepEqual(actual, expected, 'previews leave the formal object and event sequence identical to a healthy control');
+    await session.save('preview_id_actual');
+    await control.save('preview_id_control');
+    assert.equal(await storage.read('preview_id_actual'), await controlStorage.read('preview_id_control'));
+  }
+});
+
 test('processing required inputs preview preserves complete saved state and real task/event IDs on rejection and success', async () => {
   const storage = new InMemorySaveStoragePort();
   const controlStorage = new InMemorySaveStoragePort();

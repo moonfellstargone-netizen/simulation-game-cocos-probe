@@ -22,6 +22,41 @@ function makeSession(storage: SaveStoragePort = new InMemorySaveStoragePort()) {
   };
 }
 
+test('fresh sessions resume saved split and event IDs, preserve failed loads and keep IDs above older loaded saves', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const first = makeSession(storage).session;
+  const parameters = { source_lot_id: 'salt_initial_001', quantity: { amount: 10, unit: 'g' } };
+  assert.equal(dispatchAndAssert(first.dispatch('split_lot', parameters), 'first split').created_objects[0]?.object_id, 'lot_split_000001');
+  await first.save('id_recovery_old');
+  const second = makeSession(storage).session;
+  await second.load('id_recovery_old');
+  const beforeFailure = await captureSerializedSession(second, storage, 'id_recovery_before');
+  const beforeView = second.getViewModel();
+  const failed = second.dispatch('split_lot', { ...parameters, source_lot_id: 'missing_lot_for_id_recovery' });
+  assert.equal(failed.success, false);
+  assert.equal(failed.status_code, 'ERR_MATERIAL_LOT_NOT_FOUND');
+  assert.deepEqual(second.getViewModel(), beforeView);
+  assert.equal(await captureSerializedSession(second, storage, 'id_recovery_after_failure'), beforeFailure);
+  const resumed = dispatchAndAssert(second.dispatch('split_lot', parameters), 'restored split');
+  assert.equal(resumed.created_objects[0]?.object_id, 'lot_split_000002');
+  assert.deepEqual(resumed.domain_events.map((event) => event.event_id), ['evt_000003', 'evt_000004']);
+  assert.equal(dispatchAndAssert(second.dispatch('split_lot', parameters), 'next split').created_objects[0]?.object_id, 'lot_split_000003');
+  await second.load('id_recovery_old');
+  const afterOlderLoad = dispatchAndAssert(second.dispatch('split_lot', parameters), 'split after older load');
+  assert.equal(afterOlderLoad.created_objects[0]?.object_id, 'lot_split_000004', 'same-runtime IDs never move backwards after an older load');
+  assert.deepEqual(afterOlderLoad.domain_events.map((event) => event.event_id), ['evt_000007', 'evt_000008']);
+  const beforeBadLoad = await captureSerializedSession(second, storage, 'id_recovery_before_bad_load');
+  await storage.write('id_recovery_broken', '{invalid json');
+  await assert.rejects(second.load('id_recovery_broken'));
+  assert.equal(await captureSerializedSession(second, storage, 'id_recovery_after_bad_load'), beforeBadLoad);
+  assert.equal(dispatchAndAssert(second.dispatch('split_lot', parameters), 'healthy split after rejected load').created_objects[0]?.object_id, 'lot_split_000005');
+  await second.save('id_recovery_latest');
+  const third = makeSession(storage).session;
+  await third.load('id_recovery_latest');
+  assert.equal(dispatchAndAssert(third.dispatch('split_lot', parameters), 'third session split').created_objects[0]?.object_id, 'lot_split_000006');
+  await third.save('id_recovery_complete');
+});
+
 test('processing required inputs direct session failures preserve the save and allow load, healthy start and collection', async () => {
   const storage = new InMemorySaveStoragePort();
   const { session, configs } = makeSession(storage);
