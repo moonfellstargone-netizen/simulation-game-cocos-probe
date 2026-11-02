@@ -1,10 +1,10 @@
-# CHECK_ARCHITECTURE — v0.0.2.43
+# CHECK_ARCHITECTURE — v0.0.2.44
 
-v0.0.2.43 / Order State Alignment & Failure Protection验证订单合法状态、D-1/D/D+1时限边界、过期结算与提交失败保护、完整预览无副作用、健康恢复及跨新会话读档防重复结算；readiness验证公开选项合法性。既有网页能力继续回归，根typecheck和Node不能代替实际Creator SDK、构建与浏览器验收；门禁算法、规则阈值和正式资源保持。
+v0.0.2.44 / Web Tavern Orders & Settlement Feedback验证订单只读来源/副本隔离、显式选择、预览无副作用、实际菜品消费与结算、陈旧回执/错误结果保护、超时和手动存读档恢复。旧视口矩阵、resize及四页经营/故障/销毁回归保持；根typecheck和Node不能代替真实Creator SDK、构建与浏览器验收，不修改门禁策略、阈值或正式资源。
 
 ## 1. 本轮检查目标
 
-既有trace.cocos.web-viewport-input继续追踪视口与物理输入；订单Node验证不替代既有矩阵、resize、农事、拆分、加工、烹饪与清理检查。
+既有trace.cocos.web-viewport-input继续追踪视口与物理输入；新增订单网页验证不替代既有矩阵、resize、农事、拆分、加工、烹饪与清理检查。
 
 保留准备/生命周期full/blocker回归，沿用test:cocos-web-verification-contracts / registry test.cocos-web-verification-contracts验证浏览器工具的参数、来源、HTTP服务和断言失败保护；Node契约不执行真实浏览器。独立cocos:verify:web运行固定Creator构建产物的真实Chrome鼠标点击，记录Button事件、时间变化、Label同步与清理证据；根typecheck只覆盖src，不能代替实际Creator类型、构建或浏览器验收。
 
@@ -12,7 +12,7 @@ v0.0.2.43 / Order State Alignment & Failure Protection验证订单合法状态�
 
 构建网页built-web验收1440×1200、1280×720、960×640、800×600/DPR1，另960×640/DPR2仿真，并在同页按960×640→1440×1200→800×600→960×640执行四次resize点击。编辑器预览editor-preview独立验收1440×1200与960×640/DPR1，同页按960×640→1440×1200→960×640执行三次resize点击。所有约定案例均保持完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、推进命令时间+60和Label同步；存读档命令按本地单槽预期检查时间；不降低断言强度。官方Default设备模拟器在800窗口裁剪固定960px内容，该预览场景未承诺支持，不能据其失败推定构建网页800失败。DPR仿真不等于手机、触摸、微信或Windows系统缩放验证。
 
-Node任务与独立真实验收分别追踪。本版新增trace.orders.legal-state-deadline，保留trace.cocos.web-cooking-loop、trace.cocos.web-processing-loop、trace.cocos.web-inventory-split、trace.inventory.split-quantity及全部既有追踪。test.cocos-engine-probe-lifecycle实际运行cocos-web-cooking.test.ts及既有七测试；test.cocos-web-verification-contracts实际运行烹饪、加工、拆分断言负例及既有工具契约。修改测试逐一登记args/files/covers并验证单文件affected。CI只执行Node完整门禁，不替代Creator/浏览器。
+Node任务与独立真实验收分别追踪。本版新增trace.cocos.web-orders-loop，保留trace.orders.legal-state-deadline、trace.cocos.web-cooking-loop、trace.cocos.web-processing-loop、trace.cocos.web-inventory-split、trace.inventory.split-quantity及全部既有追踪。test.cocos-engine-probe-lifecycle实际运行cocos-web-orders.test.ts及既有八测试；test.cocos-web-verification-contracts实际运行烹饪、加工、拆分断言负例及既有工具契约。修改测试逐一登记args/files/covers并验证单文件affected。CI只执行Node完整门禁，不替代Creator/浏览器。
 
 既有test:cocos-session / registry test.cocos-session继续验证Session边界。test-registry描述Node自动执行集合，traceability-map.json连接模块、文件与门禁追踪；独立真实验收另以构建关联和浏览器证据记录。
 
@@ -52,7 +52,7 @@ cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affe
 
 ## 10. 后续路线（不是授权目标）
 
-Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.43 范围。traceability map 中 `planned` 条目**不是**当前实现。
+Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.44 范围。traceability map 中 `planned` 条目**不是**当前实现。
 
 ## 11. 固定检查短语
 
@@ -96,4 +96,8 @@ trace.cocos.web-cooking-loop登记最小app只读烹饪投影、ProbeCooking.ts/
 
 ## 订单合法状态与截止检查
 
-trace.orders.legal-state-deadline登记DemandResolver、GameRuntime、CocosSelectableViewModel及四个既有full/blocker任务：test.stage1a-contract、test.action-preview、test.cocos-session、test.cocos-ui-readiness。tests/traceability-contracts.test.mjs核实际args/files和full/release可达；tests/quality-affected-contracts.test.mjs核每个本版修改测试及三源单文件选中对应任务。完整失败保护、合法恢复及读档防重交与deadline边界由行为测试核验；正式资源、门禁算法和旧追踪保持。核心进入Web bundle，真实Creator及既有built/editor全部回归仍须本轮独立执行，不能把Node订单测试写成网页订单验收。
+trace.orders.legal-state-deadline登记DemandResolver、GameRuntime、CocosSelectableViewModel及四个既有full/blocker任务：test.stage1a-contract、test.action-preview、test.cocos-session、test.cocos-ui-readiness。tests/traceability-contracts.test.mjs核实际args/files和full/release可达；tests/quality-affected-contracts.test.mjs保留订单保护相关测试及三处来源的单文件任务验证。完整失败保护、合法恢复及读档防重交与deadline边界由行为测试核验；正式资源、门禁算法和旧追踪保持。核心进入Web bundle，真实Creator及既有built/editor全部回归仍须本轮独立执行，不能把Node订单测试写成网页订单验收。
+
+## 网页订单验证登记
+
+trace.cocos.web-orders-loop连接SelectableVM、ProbeOrders/Interaction/Lifetime/CocosWebProbe、既有菜单/草稿及verify/support。readiness/menu/prepare/lifecycle/web-verification沿原full/blocker；新orders测试进入实际args，helper/.meta及测试登记prepare/lifecycle的files/covers。tests/traceability-contracts.test.mjs与quality-affected-contracts.test.mjs核真实登记/执行及所有改动测试单文件选择，不改变runner、策略、timeout或阈值。Creator先实际构建产生SDK后检查，built/editor各960×640订单链、截图及预览后SDK独立执行，旧全部回归保持。

@@ -115,4 +115,14 @@ ProbeProcessing.ts/.meta只复制公开方法/逐要求候选、设施与完整�
 
 ProbeCooking.ts/.meta复制当前公开配方角色、材料、储存及实际DishLot，管理逐角色选择、数量/操作分钟原文、显式火候与本次preview/Action反馈，不读私有SaveFile或复制业务算法。第四页使用真实EditBox及Button，改输入/切页/其他命令/读档清旧预览，busy/销毁/迟到保护和应用失败不重发保持。必需角色缺失的绑定失败与正式预览拒绝均清旧成功，成功只以本次created_objects关联刷新后的真实DishLot，恢复列表不冒充本次产物。
 
-当前实现硬边界与配置偏好分开，只读工具设施/时间成本不新增选择、扣时或消耗。tests/cocos-web-cooking.test.ts实际进入既有生命周期args/files/covers，helper/.meta登记准备/生命周期，readiness和工具契约继续full/blocker；trace.cocos.web-cooking-loop连接。真实Creator/SDK、built/editor各960×640鼠标键盘烹饪与手动恢复独立验收，正常燃料扣减和受控Node燃料不足分清，旧全部回归保留。不扩订单页面、Stage1B或微信。
+当前实现硬边界与配置偏好分开，只读工具设施/时间成本不新增选择、扣时或消耗。tests/cocos-web-cooking.test.ts实际进入既有生命周期args/files/covers，helper/.meta登记准备/生命周期，readiness和工具契约继续full/blocker；trace.cocos.web-cooking-loop连接。真实Creator/SDK、built/editor各960×640鼠标键盘烹饪与手动恢复独立验收，正常燃料扣减和受控Node燃料不足分清，旧全部回归保留。该既有子流程不负责订单页面，不扩Stage1B或微信。
+
+## 网页酒馆订单与结算反馈
+
+SelectableVM.order_options复制issuer_id、deadline_absolute_minute、signed minutes_until_deadline、正式需求的hard/weighted/defects/threshold、submitted refs和实际result_summary。订单名来自正式Profile文本，缺配置为null并不可用，嵌套数据全部独立副本。enabled只表示状态/时限及配置允许尝试，不保证所选菜品匹配；正/零截止余量和负余量来自当前绝对时间，不从day Label反算。StateVM及核心摘要保持。
+
+ProbeOrders.ts/.meta只消费公共数据，管理第五页的显式单订单/单菜品本地选择和本次反馈，不改正式submitted_object_refs数组规则。终态可浏览、无菜品显示真实空态；浏览/选择0命令。preview只认本次校验，不伪造预计奖励；base_reward明确只是配置参考。确认沿既有menu→DraftBuilder→ActionPipeline，并以本次合法preview/ActionResult、实际Order.result_summary、所选菜品真实移除及公共金钱/声望变化关联成功，其他菜品保持。
+
+确认前捕获order/dish与经济基线，避免成功patch先移除选择后误拒本次回执；错误或陈旧结果在ProbeInteraction发布completed前拒绝，应用失败不重发Action。改选择、切页、其他命令和load清旧预览/本次成功，历史结算另行展示；普通拒绝保留合法选择供修正，失效对象清除，不自动换菜品。busy/销毁迟到及本地单槽手动存读档保持。
+
+tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，helper/.meta及测试同时登记prepare/lifecycle；readiness、menu与web-verification继续full/blocker。trace.cocos.web-orders-loop连接这些测试与源/地图，全部旧追踪保持。真实Creator/SDK和built/editor各960×640订单链、实际图检另行验收，保留原视口/resize、农事、库存拆分、加工、烹饪、存读档/故障与销毁。网页禁用重交只记0事件，正式状态/安全/低分拒绝由合法受控Node另验，不冒称微信或手机通过。

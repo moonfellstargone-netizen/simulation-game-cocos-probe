@@ -1006,3 +1006,55 @@ test('built Web retains the 800px resize regression while preview uses its decla
   assert.deepEqual(resizeViewports(false).map(x => [x.width,x.height]), [[960,640],[1440,1200],[800,600],[960,640]]);
   assert.deepEqual(resizeViewports(true).map(x => [x.width,x.height]), [[960,640],[1440,1200],[960,640]]);
 });
+
+
+function orderState(){
+ const state=cookingState();state.panel='orders';
+ const dish={id:'dish',enabled:true,serving_count:2,recognized_dish_id:'cabbage',storage_ref:{location_id:'home',storage_type:'room_temp',container_id:'room'}};
+ state.cooking.dishOptions=[dish,{...structuredClone(dish),id:'other_dish'}];
+ state.orders={orderOptions:[{id:'order',enabled:true,status:'available',quantity_required:{amount:1,unit:'serving'},base_reward:28,minutes_until_deadline:120,demand:{match_threshold:60},result_summary:null,submitted_object_refs:[]}],dishOptions:structuredClone(state.cooking.dishOptions),selectedOrderId:'order',selectedDishId:'dish',money:100,reputation:{west_market_tavern:0},canPreview:true,canSubmit:false,preview:null,result:null};
+ state.displayedOrders={order:'订单',state:'状态：可提交',deadline:'剩余120分钟',quantity:'订单量1份·基础奖励28（仅参考）',demand:'硬要求：安全；偏好（非硬门槛）；阈值60',history:'尚无历史',dish:'菜品',detail:'整批2份',money:'当前金钱100',reputation:'声望0',preview:'请先预览',result:'尚无本次结算'};return state;
+}
+function settledOrderObservation(){
+ const before=orderState();before.orders.preview={success:true,statusCode:'OK_DEMAND_ACCEPTED'};before.orders.canSubmit=true;
+ const after=structuredClone(before);after.operation={...before.operation,sequence:before.operation.sequence+1,name:'menu_confirm',status:'completed',errorMessage:null,message:'订单结算完成'};after.displayedOperation=after.operation.message;
+ Object.assign(after.orders.orderOptions[0],{status:'completed',enabled:false,submitted_object_refs:[{object_type:'DishLot',object_id:'dish'}],result_summary:{match_score:94,reward_final:37,submitted_count:2,result_key:'OK_DEMAND_ACCEPTED'}});
+ Object.assign(after.orders,{money:137,reputation:{west_market_tavern:1},selectedDishId:null,canPreview:false,canSubmit:false,preview:null,result:{orderId:'order',dishLotId:'dish',servingCount:2,matchScore:94,rewardMoney:37,moneyAfter:137,reputationDelta:{west_market_tavern:1}}});
+ after.orders.dishOptions=after.orders.dishOptions.filter(d=>d.id!=='dish');after.cooking.dishOptions=structuredClone(after.orders.dishOptions);after.inventory.targetOptions[0].used_capacity=1;after.cooking.targetOptions=structuredClone(after.inventory.targetOptions);
+ Object.assign(after.displayedOrders,{state:'状态：已完成',money:'当前金钱137',reputation:'声望1',history:'历史奖励37/提交2份',result:'奖励37/匹配94/声望+1/实际提交2份'});
+ return farmingClick(before,after);
+}
+test('order observation checks reject preview side effects, false eligibility and stale confirmation',()=>{
+ const before=orderState(),after=structuredClone(before);after.operation={...before.operation,sequence:before.operation.sequence+1,name:'menu_preview',status:'completed',errorMessage:null,message:'校验通过'};after.displayedOperation='校验通过';after.orders.preview={success:true,statusCode:'OK_DEMAND_ACCEPTED'};after.orders.canSubmit=true;
+ const valid=farmingClick(before,after);assert.doesNotThrow(()=>processingChecks.assertOrderPreviewObservation(valid));
+ for(const mutate of [x=>x.after.orders.money++,x=>x.after.orders.reputation.west_market_tavern++,x=>x.after.orders.orderOptions[0].status='completed',x=>x.after.orders.dishOptions.pop(),x=>x.after.orders.preview.statusCode='STALE',x=>x.eventCount=2]){const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertOrderPreviewObservation(bad));}
+});
+test('order local browsing and disabled repeats cannot dispatch or change domain observations',()=>{
+ const before=orderState(),after=structuredClone(before);after.orders.selectedDishId='other_dish';const valid=farmingClick(before,after);assert.doesNotThrow(()=>processingChecks.assertLocalOrderObservation(valid,{key:'selectedDishId',value:'other_dish'}));
+ for(const mutate of [x=>x.after.operation.sequence++,x=>x.after.orders.money++,x=>x.after.orders.reputation.west_market_tavern++,x=>x.after.inventory.targetOptions[0].used_capacity--]){const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertLocalOrderObservation(bad,{key:'selectedDishId',value:'other_dish'}));}
+ const closed=settledOrderObservation().after;const disabled=farmingClick(closed,structuredClone(closed));disabled.eventCount=0;disabled.layout.buttonInteractable=false;assert.doesNotThrow(()=>processingChecks.assertOrderDisabledObservation(disabled,'SubmitOrder'));
+ const bad=structuredClone(disabled);bad.eventCount=1;assert.throws(()=>processingChecks.assertOrderDisabledObservation(bad,'SubmitOrder'));
+});
+test('order confirmation rejects false reward or reputation, wrong objects, old results and unrelated consumption',()=>{
+ const valid=settledOrderObservation(),expected={rewardMoney:37,reputationDelta:{west_market_tavern:1}};assert.doesNotThrow(()=>processingChecks.assertOrderConfirmObservation(valid,expected));
+ for(const mutate of [x=>x.after.orders.money=999,x=>x.after.orders.reputation.west_market_tavern=999,x=>x.after.orders.result.reputationDelta.west_market_tavern=999,x=>x.after.orders.result.orderId='wrong',x=>x.after.orders.result.dishLotId='other_dish',x=>x.after.orders.orderOptions[0].status='available',x=>x.after.orders.dishOptions=[],x=>x.before.orders.orderOptions[0].minutes_until_deadline=-1,x=>x.before.orders.orderOptions[0].status='completed',x=>x.after.displayedOrders.result='奖励28/提交2份',x=>x.after.inventory.targetOptions[0].used_capacity=3]){const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertOrderConfirmObservation(bad,expected));}
+});
+test('order load recovery and serialized settlement reject stale success, wrong state and lingering storage refs',()=>{
+ const saved=settledOrderObservation().after,before=structuredClone(saved),after=structuredClone(saved);before.orders.money=999;after.orders.result=null;after.operation={...saved.operation,sequence:saved.operation.sequence+1,name:'load',status:'completed',message:'已恢复本地存档',slotId:'web_probe',worldMinute:360};after.displayedOperation=after.operation.message;
+ const valid=farmingClick(before,after);assert.doesNotThrow(()=>processingChecks.assertOrderLoadRecovery(saved,valid));
+ for(const mutate of [x=>x.after.orders.result=saved.orders.result,x=>x.after.orders.money++,x=>x.after.orders.orderOptions[0].status='available']){const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertOrderLoadRecovery(saved,bad));}
+ const rawBefore={dish_lots:[{dish_lot_id:'dish',storage_ref:{container_id:'room'},storage_footprint:{amount:2}},{dish_lot_id:'other'}],storage_containers:[{container_id:'room',used_capacity:4,active_object_refs:[{object_type:'DishLot',object_id:'dish'}]}],orders:[{order_id:'order',status:'available'}],player_state:{money:100}};
+ const rawAfter={dish_lots:[{dish_lot_id:'other'}],storage_containers:[{container_id:'room',used_capacity:2,active_object_refs:[]}],orders:[{order_id:'order',status:'completed'}],player_state:{money:137}};const selected={dishLotId:'dish',orderId:'order',rewardMoney:37};
+ assert.doesNotThrow(()=>processingChecks.assertOrderSerializedSettlement(JSON.stringify(rawBefore),JSON.stringify(rawAfter),selected));
+ for(const mutate of [x=>x.storage_containers[0].active_object_refs=rawBefore.storage_containers[0].active_object_refs,x=>x.storage_containers[0].active_object_refs.push({object_type:'MaterialLot',object_id:'foreign'}),x=>x.storage_containers.push({container_id:'foreign',used_capacity:0,active_object_refs:[]})]){const bad=structuredClone(rawAfter);mutate(bad);assert.throws(()=>processingChecks.assertOrderSerializedSettlement(JSON.stringify(rawBefore),JSON.stringify(bad),selected));}
+});
+
+
+test('order visible state cannot claim available after actual completion or invert signed expiry feedback',()=>{
+ const settled=settledOrderObservation();settled.after.displayedOrders.state='状态：可提交';
+ assert.throws(()=>processingChecks.assertOrderConfirmObservation(settled,{rewardMoney:37,reputationDelta:{west_market_tavern:1}}));
+ const expired=orderState();Object.assign(expired.orders.orderOptions[0],{status:'expired',enabled:false,minutes_until_deadline:-1});Object.assign(expired.orders,{canPreview:false});
+ Object.assign(expired.displayedOrders,{state:'状态：已超时',deadline:'已超时1分钟'});assert.doesNotThrow(()=>processingChecks.assertOrdersProjection(expired));
+ for(const mutate of [x=>x.displayedOrders.state='状态：可提交',x=>x.displayedOrders.deadline='剩余1分钟']){const bad=structuredClone(expired);mutate(bad);assert.throws(()=>processingChecks.assertOrdersProjection(bad));}
+ const available=orderState();available.displayedOrders.state='状态：可提交';available.displayedOrders.deadline='已超时120分钟';assert.throws(()=>processingChecks.assertOrdersProjection(available));
+});

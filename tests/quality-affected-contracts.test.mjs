@@ -14,6 +14,9 @@ const policy = readJson('tools/quality/gate-policy.json');
 
 test('Cocos Web template, preparation and regression changes select the registered probe tasks', () => {
   const cases = [
+    ['apps/cocos-probe/template/assets/scripts/ProbeOrders.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
+    ['apps/cocos-probe/template/assets/scripts/ProbeOrders.ts.meta', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
+    ['tests/cocos-web-orders.test.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
     ['apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle', 'test.cocos-web-verification-contracts', 'quality.architectureBoundary']],
     ['apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
     ['apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle', 'test.cocos-web-verification-contracts']],
@@ -198,28 +201,24 @@ test('binding source, application tests and shared helper changes select both bi
 test('current version changed tests select the task that actually executes each file', () => {
   const cases = [
   [
-    "tests/stage1a-contract.test.ts",
-    "test.stage1a-contract"
+    "tests/cocos-minimal-menu-binding.test.ts",
+    "test.cocos-menu"
   ],
   [
-    "tests/action-preview-boundary.test.ts",
-    "test.action-preview"
-  ],
-  [
-    "tests/cocos-runtime-session.test.ts",
-    "test.cocos-session"
+    "tests/cocos-probe-preparation.test.mjs",
+    "test.cocos-probe-preparation"
   ],
   [
     "tests/cocos-ui-readiness.test.ts",
     "test.cocos-ui-readiness"
   ],
   [
-    "tests/traceability-contracts.test.mjs",
-    "test.traceability-contracts"
+    "tests/cocos-web-orders.test.ts",
+    "test.cocos-engine-probe-lifecycle"
   ],
   [
-    "tests/quality-affected-contracts.test.mjs",
-    "test.quality-affected-contracts"
+    "tests/cocos-web-verification-contracts.test.mjs",
+    "test.cocos-web-verification-contracts"
   ],
   [
     "tests/context-governance-contracts.test.mjs",
@@ -234,6 +233,10 @@ test('current version changed tests select the task that actually executes each 
     "test.project-map-contracts"
   ],
   [
+    "tests/quality-affected-contracts.test.mjs",
+    "test.quality-affected-contracts"
+  ],
+  [
     "tests/quality-gate-contracts.test.mjs",
     "quality.self-test"
   ],
@@ -244,6 +247,10 @@ test('current version changed tests select the task that actually executes each 
   [
     "tests/stage1a-baseline.test.ts",
     "test.stage1a-baseline"
+  ],
+  [
+    "tests/traceability-contracts.test.mjs",
+    "test.traceability-contracts"
   ],
   [
     "tests/version-surface-contracts.test.mjs",

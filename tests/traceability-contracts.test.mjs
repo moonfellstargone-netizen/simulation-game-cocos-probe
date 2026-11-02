@@ -7,6 +7,31 @@ import { resolveGateTasks } from '../tools/quality/lib/resolveGateTasks.mjs';
 const root = process.cwd();
 const readJson = (rel) => JSON.parse(readFileSync(join(root, rel), 'utf8'));
 
+test('Web orders trace closes over executed public data, explicit menu, outer and browser contracts', () => {
+  const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
+  const id = 'trace.cocos.web-orders-loop';
+  const entry = traceabilityMap.entries.find((item) => item.id === id);
+  assert.equal(entry?.status, 'active');
+  assert.ok(traceabilityMap.currentFullReleaseTraceIds.includes(id));
+  const helper = 'apps/cocos-probe/template/assets/scripts/ProbeOrders.ts';
+  const file = 'tests/cocos-web-orders.test.ts';
+  for (const source of [helper, 'src/cocos-app/view-models/CocosSelectableViewModel.ts', 'src/cocos-creator-adapter/menu/MenuActionBinding.ts', 'tools/cocos-probe/verify-web.mjs']) {
+    assert.ok(entry.sourceRefs.includes(source), `${source} must be traced`);
+  }
+  for (const taskId of ['test.cocos-ui-readiness', 'test.cocos-menu', 'test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle', 'test.cocos-web-verification-contracts']) {
+    assert.ok(entry.testRefs.includes(taskId), `${taskId} must be traced`);
+    const task = registry.tests[taskId];
+    assert.equal(task?.stability, 'blocker');
+    for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
+    for (const gate of ['full', 'release']) assert.ok(resolveGateTasks(gate, gatePolicy, registry).some((item) => item.id === taskId));
+  }
+  for (const taskId of ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']) {
+    for (const source of [helper, helper + '.meta', file]) assert.ok(registry.tests[taskId].files.includes(source));
+  }
+  assert.ok(registry.tests['test.cocos-engine-probe-lifecycle'].args.includes(file));
+  assert.ok(readJson('package.json').scripts['test:cocos-engine-probe-lifecycle'].split(/\s+/).includes(file));
+});
+
 test('order state and deadline protection remain traced to executed core, preview, session and read-only option tests', () => {
   const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
   const id = 'trace.orders.legal-state-deadline';

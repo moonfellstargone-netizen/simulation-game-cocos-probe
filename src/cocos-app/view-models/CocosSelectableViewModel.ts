@@ -1,4 +1,4 @@
-import type { ConfigRepository, FacilityRef, Quantity, SaveFile, StorageRef } from '../../game-core';
+import type { ConfigRepository, FacilityRef, Order, Quantity, SaveFile, StorageRef } from '../../game-core';
 
 export interface CocosSelectableOptionBase {
   id: string;
@@ -98,11 +98,45 @@ export interface CocosCookableRecipeOption extends CocosSelectableOptionBase {
   output_estimate: { serving_count: number; total_quantity_g: number } | null;
 }
 
+export interface CocosOrderDemandRequirement {
+  type: string;
+  key: string;
+  min_value?: number;
+  max_value?: number;
+  target_range?: number[];
+  weight?: number;
+  scoring_curve?: string;
+  source_object_field?: string;
+}
+
+export interface CocosOrderDemandOption {
+  display_name_key: string;
+  accepted_object_types: string[];
+  hard_requirements: CocosOrderDemandRequirement[];
+  weighted_requirements: CocosOrderDemandRequirement[];
+  forbidden_defects: string[];
+  acceptable_defects: Record<string, string>;
+  match_threshold: number;
+}
+
+export interface CocosOrderResultSummary {
+  match_score: number | null;
+  reward_final: number | null;
+  submitted_count: number | null;
+  result_key: string | null;
+}
+
 export interface CocosOrderOption extends CocosSelectableOptionBase {
+  issuer_id: string;
   demand_profile_id: string;
   status: string;
   quantity_required: Quantity;
   base_reward: number;
+  deadline_absolute_minute: number | null;
+  minutes_until_deadline: number | null;
+  demand: CocosOrderDemandOption | null;
+  submitted_object_refs: Array<{ object_type: string; object_id: string }>;
+  result_summary: CocosOrderResultSummary | null;
 }
 
 export interface CocosStorageTargetOption extends CocosSelectableOptionBase {
@@ -221,21 +255,7 @@ export class CocosSelectableViewModel {
         enabled: true,
         reason_key: null
       })),
-      order_options: save.orders.map((order) => {
-        const enabled = ['available', 'accepted'].includes(order.status)
-          && typeof order.deadline_absolute_minute === 'number'
-          && save.world_time.absolute_minute <= order.deadline_absolute_minute;
-        return {
-          id: order.order_id,
-          label_key: `order.${order.demand_profile_id}.name`,
-          enabled,
-          reason_key: enabled ? null : 'ui.reason.order_not_open',
-          demand_profile_id: order.demand_profile_id,
-          status: order.status,
-          quantity_required: { ...order.quantity_required },
-          base_reward: order.base_reward
-        };
-      }),
+      order_options: save.orders.map((order) => this.orderOption(save, order)),
       storage_target_options: save.storage_containers.map((container) => ({
         id: container.container_id,
         label_key: `storage.${container.container_id}.name`,
@@ -248,6 +268,49 @@ export class CocosSelectableViewModel {
         supported_forms: [...container.supported_forms]
       })),
       processing_facility_options: processingFacilities
+    };
+  }
+
+  private orderOption(save: SaveFile, order: Order): CocosOrderOption {
+    const profile = Object.entries(this.configs.loadStage1A().documents).find(([path, document]) => {
+      if (!path.startsWith('configs/demands/') || !document || typeof document !== 'object') return false;
+      const candidate = document as { id?: string; demand_profile_id?: string };
+      return candidate.id === order.demand_profile_id || candidate.demand_profile_id === order.demand_profile_id;
+    })?.[1] as (Partial<CocosOrderDemandOption> & { match_threshold?: number }) | undefined;
+    const demand: CocosOrderDemandOption | null = profile && typeof profile.display_name_key === 'string'
+      && Array.isArray(profile.accepted_object_types) && typeof profile.match_threshold === 'number' ? {
+        display_name_key: profile.display_name_key,
+        accepted_object_types: [...profile.accepted_object_types],
+        hard_requirements: structuredClone(profile.hard_requirements ?? []),
+        weighted_requirements: structuredClone(profile.weighted_requirements ?? []),
+        forbidden_defects: [...(profile.forbidden_defects ?? [])],
+        acceptable_defects: { ...profile.acceptable_defects },
+        match_threshold: order.match_threshold
+      } : null;
+    const deadline = typeof order.deadline_absolute_minute === 'number' ? order.deadline_absolute_minute : null;
+    const enabled = demand !== null && ['available', 'accepted'].includes(order.status)
+      && deadline !== null && save.world_time.absolute_minute <= deadline;
+    const result = order.result_summary;
+    return {
+      id: order.order_id,
+      label_key: demand?.display_name_key ?? null,
+      enabled,
+      reason_key: demand === null ? 'ui.reason.order_demand_unavailable' : enabled ? null : 'ui.reason.order_not_open',
+      issuer_id: order.issuer_id,
+      demand_profile_id: order.demand_profile_id,
+      status: order.status,
+      quantity_required: { ...order.quantity_required },
+      base_reward: order.base_reward,
+      deadline_absolute_minute: deadline,
+      minutes_until_deadline: deadline === null ? null : deadline - save.world_time.absolute_minute,
+      demand,
+      submitted_object_refs: order.submitted_object_refs.map((ref) => ({ ...ref })),
+      result_summary: result === null || result === undefined ? null : {
+        match_score: typeof result.match_score === 'number' ? result.match_score : null,
+        reward_final: typeof result.reward_final === 'number' ? result.reward_final : null,
+        submitted_count: typeof result.submitted_count === 'number' ? result.submitted_count : null,
+        result_key: result.result_key ?? null
+      }
     };
   }
 

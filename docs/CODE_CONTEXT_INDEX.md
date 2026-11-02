@@ -1,6 +1,6 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.2.43
+﻿# CODE_CONTEXT_INDEX — v0.0.2.44
 
-版本：v0.0.2.43 / Order State Alignment & Failure Protection / 订单合法状态与失败保护版。
+版本：v0.0.2.44 / Web Tavern Orders & Settlement Feedback / 网页酒馆订单与结算反馈版。
 
 ## 执行前必读顺序
 
@@ -30,7 +30,7 @@
 
 后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包；代码包不保存每轮具体任务上下文；代码包只保存执行端上下文治理约束。
 
-## v0.0.2.43 测试索引
+## v0.0.2.44 测试索引
 
 - `tests/cocos-web-verification-contracts.test.mjs`（`test:cocos-web-verification-contracts`，Node工具契约）
 
@@ -170,4 +170,10 @@ tests/cocos-ui-readiness.test.ts验证公开来源/匹配与副本隔离；tests
 
 先读orders/game-core模块卡与正式active_contract四.5、现有modules/04状态机意图，核active Stage1A、order与submit_order Schema及fixture/expected无相反口径，再读DemandResolver、GameRuntime截止settlement和CocosSelectableViewModel.order_options。available/accepted、now>deadline与expired按既有契约对齐，submitted只在同步事务内；旧failed不迁移。
 
-tests/stage1a-contract.test.ts核正式成功/拒绝、截止结算和完整状态保护；tests/action-preview-boundary.test.ts核无副作用与实际派发一致；tests/cocos-runtime-session.test.ts核合法受控加载、健康恢复及新会话防重交；tests/cocos-ui-readiness.test.ts核选项状态和时限。trace.orders.legal-state-deadline连接四个既有full/blocker，网页订单页未实现，不把这些Node用例称网页或真机测试。
+tests/stage1a-contract.test.ts核正式成功/拒绝、截止结算和完整状态保护；tests/action-preview-boundary.test.ts核无副作用与实际派发一致；tests/cocos-runtime-session.test.ts核合法受控加载、健康恢复及新会话防重交；tests/cocos-ui-readiness.test.ts核选项状态和时限。trace.orders.legal-state-deadline连接四个既有full/blocker，订单领域Node用例与玩家页面分开，不把Node称网页或真机测试。
+
+## 网页酒馆订单入口
+
+先读orders/app/engine模块卡，再读SelectableVM.order_options、既有MenuActionBinding.submit_order和preview/confirm；StateVM已有money/reputation沿用。读取正式Profile与订单字段，hard/weighted需求和实际result_summary分清，不在UI新增匹配/奖励预测。再读ProbeOrders.ts/.meta、ProbeLifetime/Interaction/CocosWebProbe及verify/support，核确认前基线与成功patch时序、陈旧回执、历史/本次区分及不重发已提交Action。
+
+tests/cocos-web-orders.test.ts、readiness/menu、prepare与web-verification分层覆盖，lifecycle实际args/files/covers和trace.cocos.web-orders-loop必须同步。真实Creator、built/editor输入/图检与Node分开；旧v43受控合法状态保护不是网页可达路径证明。

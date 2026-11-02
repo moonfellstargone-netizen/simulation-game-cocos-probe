@@ -1,5 +1,5 @@
 {
-  "version": "0.0.2.43",
+  "version": "0.0.2.44",
   "tests": {
     "static.typecheck": {
       "command": "node",
@@ -787,9 +787,9 @@
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--root-name",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_43",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_44",
         "--output",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_43.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_44.zip",
         "--kind",
         "code"
       ],
@@ -810,11 +810,11 @@
       "command": "python3",
       "args": [
         "tools/check_release_zip.py",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_43.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_2_44.zip",
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--expected-root",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_43",
+        "模拟游戏_Cocos微信试水代码包_v0_0_2_44",
         "--kind",
         "code"
       ],
@@ -1198,7 +1198,10 @@
         "src/cocos-app/view-models/CocosSelectableViewModel.ts",
         "apps/cocos-probe/template/assets/scripts/ProbeCooking.ts",
         "apps/cocos-probe/template/assets/scripts/ProbeCooking.ts.meta",
-        "tests/cocos-web-cooking.test.ts"
+        "tests/cocos-web-cooking.test.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeOrders.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeOrders.ts.meta",
+        "tests/cocos-web-orders.test.ts"
       ],
       "group": "cocos-adapter"
     },
@@ -1215,7 +1218,8 @@
         "tests/cocos-web-inventory.test.ts",
         "tests/cocos-web-split.test.ts",
         "tests/cocos-web-processing.test.ts",
-        "tests/cocos-web-cooking.test.ts"
+        "tests/cocos-web-cooking.test.ts",
+        "tests/cocos-web-orders.test.ts"
       ],
       "covers": [
         "cocos-engine-probe",
@@ -1249,7 +1253,10 @@
         "tests/cocos-web-processing.test.ts",
         "apps/cocos-probe/template/assets/scripts/ProbeCooking.ts",
         "apps/cocos-probe/template/assets/scripts/ProbeCooking.ts.meta",
-        "tests/cocos-web-cooking.test.ts"
+        "tests/cocos-web-cooking.test.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeOrders.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeOrders.ts.meta",
+        "tests/cocos-web-orders.test.ts"
       ],
       "group": "cocos-adapter"
     },

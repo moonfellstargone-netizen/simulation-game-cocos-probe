@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.43
+﻿# Code Index — Files — v0.0.2.44
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -153,3 +153,11 @@ trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport
 - `src/game-core/runtime/GameRuntime.ts`：已有advance_time截止settlement覆盖两开放状态→expired。
 - `src/cocos-app/view-models/CocosSelectableViewModel.ts`：公开order_options.enabled/reason只读对齐。
 - `tests/stage1a-contract.test.ts`、`tests/action-preview-boundary.test.ts`、`tests/cocos-runtime-session.test.ts`、`tests/cocos-ui-readiness.test.ts`：分层行为验收；`trace.orders.legal-state-deadline`连接实际full/blocker任务。
+
+## 网页酒馆订单文件
+
+- `apps/cocos-probe/template/assets/scripts/ProbeOrders.ts`、`.meta`：公共订单/菜品副本、显式选择、预览与本次真实结算/历史结果，登记prepare/lifecycle。
+- `tests/cocos-web-orders.test.ts`：完整Node订单页面消费、失败/陈旧回执、恢复和busy/销毁，进入既有lifecycle实际args。
+- `src/cocos-app/view-models/CocosSelectableViewModel.ts`：最小订单需求/截止/真实结果投影，StateVM保持。
+- `tools/cocos-probe/verify-web.mjs`、`lib/webProbeSupport.mjs`：正常网页订单真实点击、超时与手动读取恢复、实际消费/奖励及观察断言负例；不提供业务注入捷径。
+- 追踪`trace.cocos.web-orders-loop`；正式资源/core及原有trace.orders.legal-state-deadline保持。

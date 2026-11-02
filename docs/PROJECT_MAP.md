@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.43
+﻿# PROJECT_MAP — v0.0.2.44
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.43：**Order State Alignment & Failure Protection**。对齐既有订单available/accepted合法提交、提交时截止拒绝与advance_time将开放订单结算为expired；最小app只读选项按相同状态和时限显示enabled。trace.orders.legal-state-deadline连接核心、公开预览、Session读档与readiness测试；保留既有四页网页及存读档，不新增订单页面、Stage1B或微信。
+v0.0.2.44：**Web Tavern Orders & Settlement Feedback**。现有酒馆订单需求/截止浏览、显式单菜品选择、预览提交与真实结算反馈，形成第五网页；trace.cocos.web-orders-loop连接最小只读投影、既有菜单、outer、工具与分层测试。旧trace.orders.legal-state-deadline继续追踪状态/时限保护，核心和正式资源不改，不新增Stage1B或微信。
 
 ## 3. 权威边界
 

@@ -1,4 +1,4 @@
-﻿# Quality Map — v0.0.2.43
+﻿# Quality Map — v0.0.2.44
 
 ## 系统职责
 
@@ -96,3 +96,7 @@ ProbeCooking.ts/.meta及cocos-web-cooking.test.ts登记既有准备/生命周期
 ## 订单保护验收登记
 
 trace.orders.legal-state-deadline连接三源及test.stage1a-contract、test.action-preview、test.cocos-session、test.cocos-ui-readiness现有full/blocker，实际测试args/files保持。traceability与affected契约分别核追踪可达和单文件执行选择；quality.self-test虽非test.前缀仍是type=test，版本断言修改须纳入审计。门禁任务数、策略和架构阈值保持；真实Creator及既有网页全部回归独立执行，不把受控Node订单状态当网页提交。
+
+## 网页订单验收登记
+
+ProbeOrders.ts/.meta与cocos-web-orders.test.ts登记既有prepare/lifecycle，测试实际进入lifecycle args和package脚本；readiness/menu与web-verification沿原full/blocker。trace.cocos.web-orders-loop连接分层公开数据/outer/工具和真实Creator/built/editor验收，旧27条追踪与全部47任务保持。每个修改测试和主要源/.meta分别执行affected核真实覆盖，最终仍完整45与无缓存发布47，不把Node或DPR仿真当手机/微信。

@@ -1,4 +1,4 @@
-﻿# Cocos Map — v0.0.2.43
+﻿# Cocos Map — v0.0.2.44
 
 ## 系统职责
 
@@ -114,3 +114,13 @@ trace.cocos.web-processing-loop连接CocosSelectableViewModel最小只读投影�
 ## 网页烹饪页面
 
 CocosSelectableViewModel公开现有recipe/structure合并角色、操作硬边界/偏好、工具设施说明及当前燃料→ProbeCooking.ts/.meta管理逐角色选择和原文输入→CocosWebProbe第四页真实Button/EditBox→既有MenuActionBinding.cook_dish。preview/confirm、失败和真实DishLot按本次回传核对，手动读档重建选择，observer只读。trace.cocos.web-cooking-loop连接readiness/prepare/lifecycle/menu/verification，Node不代替Creator/浏览器；既有农事、库存/拆分、加工与存读档保持。
+
+## 网页订单导航与验证
+
+SelectableVM.order_options复制issuer_id、deadline_absolute_minute、signed minutes_until_deadline、正式需求的hard/weighted/defects/threshold、submitted refs和实际result_summary。订单名来自正式Profile文本，缺配置为null并不可用，嵌套数据全部独立副本。enabled只表示状态/时限及配置允许尝试，不保证所选菜品匹配；正/零截止余量和负余量来自当前绝对时间，不从day Label反算。StateVM及核心摘要保持。
+
+ProbeOrders.ts/.meta只消费公共数据，管理第五页的显式单订单/单菜品本地选择和本次反馈，不改正式submitted_object_refs数组规则。终态可浏览、无菜品显示真实空态；浏览/选择0命令。preview只认本次校验，不伪造预计奖励；base_reward明确只是配置参考。确认沿既有menu→DraftBuilder→ActionPipeline，并以本次合法preview/ActionResult、实际Order.result_summary、所选菜品真实移除及公共金钱/声望变化关联成功，其他菜品保持。
+
+确认前捕获order/dish与经济基线，避免成功patch先移除选择后误拒本次回执；错误或陈旧结果在ProbeInteraction发布completed前拒绝，应用失败不重发Action。改选择、切页、其他命令和load清旧预览/本次成功，历史结算另行展示；普通拒绝保留合法选择供修正，失效对象清除，不自动换菜品。busy/销毁迟到及本地单槽手动存读档保持。
+
+tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，helper/.meta及测试同时登记prepare/lifecycle；readiness、menu与web-verification继续full/blocker。trace.cocos.web-orders-loop连接这些测试与源/地图，全部旧追踪保持。真实Creator/SDK和built/editor各960×640订单链、实际图检另行验收，保留原视口/resize、农事、库存拆分、加工、烹饪、存读档/故障与销毁。网页禁用重交只记0事件，正式状态/安全/低分拒绝由合法受控Node另验，不冒称微信或手机通过。

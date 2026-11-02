@@ -13,7 +13,7 @@ source_of_truth: false
 
 ## 不负责什么
 
-- 网页订单面板（本版未提供，后续页面仍属既定Stage1A路线）
+- 网页订单节点和本地选择（由outer第五页负责，见cocos-engine-probe模块卡）
 - 外部支付 / wx 接口
 
 ## 允许依赖
@@ -64,6 +64,10 @@ source_of_truth: false
 
 available与accepted在当前分钟不超过deadline时可按现有需求规则提交。DemandResolver先验证状态和时限，再做既有菜品匹配；通过后仅在同步事务内部进入submitted，既有消费、储存审计、金钱/声望结算后completed。重复提交与submitted/completed/failed/expired/cancelled均拒绝，失败不得消耗菜品、增加奖励或改订单/事件；旧failed不迁移或重开。
 
-GameRuntime既有advance_time截止settlement将available/accepted在now>deadline时转为expired，恰到截止仍保持开放。直接提交过期开放单复用ERR_ORDER_NOT_AVAILABLE，可带:deadline诊断，但保持提交前完整状态，不在拒绝路径偷偷结算。CocosSelectableViewModel只读order_options按同一合法状态和时限给enabled/reason，保持公开shape；enabled不是需求匹配保证。
+GameRuntime既有advance_time截止settlement将available/accepted在now>deadline时转为expired，恰到截止仍保持开放。直接提交过期开放单复用ERR_ORDER_NOT_AVAILABLE，可带:deadline诊断，但保持提交前完整状态，不在拒绝路径偷偷结算。CocosSelectableViewModel只读order_options按同一合法状态和时限给enabled/reason，既有字段语义保持，新增展示字段见网页订单投影；enabled不是需求匹配保证。
 
-trace.orders.legal-state-deadline连接DemandResolver、GameRuntime与CocosSelectableViewModel，以及test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-ui-readiness的现有full/blocker。核心、预览、Session受控合法加载与只读选项按层验收D-1/D/D+1、终态拒绝、需求失败完整保护、合法恢复、成功事件/奖励恰一次和新会话防重交。accepted及过期开放单可用合法受控存档验证；网页尚无订单提交入口，Node不冒充网页订单、手机或微信实测。不新增接单、刷新、聚合/部分交付、评分奖励或数量/时间/重复输入规则。
+trace.orders.legal-state-deadline连接DemandResolver、GameRuntime与CocosSelectableViewModel，以及test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-ui-readiness的现有full/blocker。核心、预览、Session受控合法加载与只读选项按层验收D-1/D/D+1、终态拒绝、需求失败完整保护、合法恢复、成功事件/奖励恰一次和新会话防重交。accepted及过期开放单可用合法受控存档验证；订单领域受控Node用例不冒充网页或真机实测；玩家页面另由trace.cocos.web-orders-loop及真实浏览器验证。不新增接单、刷新、聚合/部分交付、评分奖励或数量/时间/重复输入规则。
+
+## 网页玩家入口与既有领域保护
+
+现有订单域和v43状态/截止保护不变。第五网页沿公开只读需求与既有菜单提交真实DishLot，节点/选择/反馈由outer负责；需求匹配仍只在DemandResolver，基础奖励不是最终奖励预测。trace.orders.legal-state-deadline保留领域保护追踪，trace.cocos.web-orders-loop另追踪玩家页面、公开数据及真实浏览器链；不新增接单/刷新、评分或多菜品规则。

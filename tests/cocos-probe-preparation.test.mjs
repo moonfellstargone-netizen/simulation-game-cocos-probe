@@ -85,6 +85,12 @@ test('prepare derives a complete reproducible work copy with exact input and out
     assert.deepEqual(readFileSync(join(prepared.outputDir, path)), readFileSync(join(source, canonical)));
   }
   const resources = json(join(prepared.outputDir, 'assets/resources/probe-resources.json'));
+  for (const name of ['ProbeOrders.ts', 'ProbeOrders.ts.meta']) {
+    const relative = 'assets/scripts/' + name;
+    const input = 'apps/cocos-probe/template/' + relative;
+    assert.ok(manifest.inputs[input] && manifest.outputs[relative], 'orders helper and metadata require canonical provenance');
+    assert.deepEqual(readFileSync(join(prepared.outputDir, relative)), readFileSync(join(source, input)));
+  }
   const snapshot = json(join(source, 'design_snapshot/generated/stage_1A_runtime_snapshot.json'));
   assert.deepEqual(resources.snapshot, snapshot);
   assert.deepEqual(Object.keys(resources.schemas).sort(), [...snapshot.schema_paths].sort());

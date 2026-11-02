@@ -70,4 +70,8 @@ tests/cocos-ui-readiness.test.ts沿原full/blocker验证配置来源、结构形
 
 ## 订单选项合法性
 
-CocosSelectableViewModel.order_options只读对齐available/accepted与deadline，严格超过截止及submitted/终态给不可用原因，保持当前shape。enabled只代表订单状态和时限允许尝试，不提前复制菜品匹配或奖励算法。trace.orders.legal-state-deadline与tests/cocos-ui-readiness.test.ts、公开preview/Session验证对齐；不新增订单页面或正式Action。
+CocosSelectableViewModel.order_options只读对齐available/accepted与deadline，严格超过截止及submitted/终态给不可用原因，既有字段含义保持，新增展示字段见下节。enabled只代表订单状态、时限和显示配置允许尝试，不提前复制菜品匹配或奖励算法。trace.orders.legal-state-deadline与tests/cocos-ui-readiness.test.ts、公开preview/Session验证对齐；该只读投影不直接创建页面或新增正式Action，页面消费见trace.cocos.web-orders-loop。
+
+## 订单需求与实际结算只读投影
+
+SelectableVM仅扩展现有order_options，复制issuer/deadline/signed余量、配置需求和实际submitted refs/result_summary。hard、weighted、forbidden/acceptable defects与threshold分开，显示名来自正式Profile文本，缺配置返回null与不可用原因；不将base_reward当预计奖励，不填虚假的成功数字。全部数组、需求项与摘要为深度独立副本，不泄漏SaveFile或配置；StateVM和Session保持。tests/cocos-ui-readiness.test.ts验证来源、缺配置及隔离，tests/cocos-minimal-menu-binding.test.ts验证既有显式选择链；trace.cocos.web-orders-loop连接第五页。
