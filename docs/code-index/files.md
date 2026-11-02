@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.41
+﻿# Code Index — Files — v0.0.2.42
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -139,3 +139,10 @@ trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport
 - `apps/cocos-probe/template/assets/scripts/ProbeProcessing.ts`、`.meta`：无cc的逐要求选料/数量、设施与任务本地状态和本次结果；登记准备/生命周期files。
 - `tests/cocos-web-processing.test.ts`：公开Host/Component的缺料/合法加工与任务/恢复行为，进入既有生命周期实际args/files/covers。
 - `ProbeLifetime.ts`、`ProbeInteraction.ts`、`CocosWebProbe.ts`消费既有正式加工命令；`verify-web.mjs`、`lib/webProbeSupport.mjs`及工具契约连接独立真实输入。导航trace.cocos.web-processing-loop，原所有能力与门禁保持。
+
+## 网页烹饪选料与菜品反馈
+
+- `src/cocos-app/view-models/CocosSelectableViewModel.ts`：最小配方/结构合并约束、操作硬边界/偏好与当前燃料只读投影；`tests/cocos-ui-readiness.test.ts`核来源、匹配及副本隔离。
+- `apps/cocos-probe/template/assets/scripts/ProbeCooking.ts`、`.meta`：无cc的逐角色批次/数量、显式操作参数、储存及本次真实DishLot反馈，登记准备/生命周期files。
+- `tests/cocos-web-cooking.test.ts`：公开Host/Component烹饪、预览/失败保护/健康恢复及跨新会话手动读取，进入既有生命周期实际args/files/covers。
+- `ProbeLifetime.ts`、`ProbeInteraction.ts`、`CocosWebProbe.ts`消费已有cook_dish；`verify-web.mjs`、`lib/webProbeSupport.mjs`与工具契约连接独立真实输入。导航trace.cocos.web-cooking-loop，旧全部门禁保持。

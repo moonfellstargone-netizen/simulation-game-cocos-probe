@@ -9,6 +9,108 @@ import { assertClickObservation, assertDisabledInventoryObservation, assertFarmi
 import { verifyWebProbe } from '../tools/cocos-probe/verify-web.mjs';
 import * as processingChecks from '../tools/cocos-probe/lib/webProbeSupport.mjs';
 
+function cookingState() {
+  const state = inventoryState();
+  state.panel = 'cooking';
+  state.farming.materialOptions = structuredClone(state.inventory.lotOptions);
+  state.cooking = {
+    recipeOptions: [{ id: 'recipe', roles: [{ role: 'main', required: true, lot_ids: ['material'] }], fuel: { enabled: true, current_quantity: { amount: 15, unit: 'bundle' }, cost: { amount: 1, unit: 'bundle' } } }],
+    lotOptions: structuredClone(state.inventory.lotOptions), targetOptions: structuredClone(state.inventory.targetOptions), dishOptions: [],
+    selectedRecipeId: 'recipe', selectedRole: 'main', selectedTargetId: 'room', heatLevel: 'high', activeMinutesText: '8',
+    inputSelections: [{ role: 'main', lotId: 'material', quantityText: '30' }], currentInputLotOptions: [structuredClone(state.inventory.lotOptions[0])],
+    currentInputQuantityText: '30', currentInputUnit: 'g', inputError: null, canPreview: true, canCook: false, preview: null, result: null
+  };
+  state.displayedCooking = { recipe: '配方', role: '主料', lot: '材料', quantityText: '30', unit: '克', selection: '已选30克', operation: '大火', minutesText: '8', target: '常温储存', fuel: '燃料15捆', preview: '请先预览', result: '尚无本次菜品', dishes: '暂无菜品' };
+  return state;
+}
+
+test('cooking preview verifies current failure and unchanged materials, fuel and dishes', () => {
+  const before = cookingState(); const after = structuredClone(before);
+  after.operation = { sequence: before.operation.sequence + 1, name: 'menu_preview', status: 'completed', errorMessage: null, slotId: null, worldMinute: null, message: '本次校验通过，尚未执行' };
+  after.displayedOperation = after.operation.message;
+  after.cooking.preview = { success: true, statusCode: 'OK' }; after.cooking.canCook = true;
+  const valid = farmingClick(before, after);
+  assert.doesNotThrow(() => processingChecks.assertCookingPreviewObservation(valid));
+  for (const mutate of [
+    x => { x.after.displayedCooking.fuel = '燃料999捆'; },
+    x => { x.after.cooking.recipeOptions[0].fuel.current_quantity.amount--; },
+    x => { x.after.cooking.dishOptions.push({ id: 'unexpected' }); },
+    x => { x.after.inventory.lotOptions[0].quantity.amount--; },
+    x => { x.after.operation.status = 'failed'; },
+    x => { x.after.cooking.preview.statusCode = 'STALE'; },
+    x => { x.eventCount = 0; }
+  ]) { const bad = structuredClone(valid); mutate(bad); assert.throws(() => processingChecks.assertCookingPreviewObservation(bad)); }
+  const rejected = structuredClone(valid);
+  rejected.after.operation.status = 'failed'; rejected.after.operation.errorMessage = 'ERR_MENU_RECIPE_ROLE_MISSING:side';
+  rejected.after.operation.message = rejected.after.displayedOperation = '缺少必需材料';
+  rejected.after.cooking.preview = { success: false, statusCode: 'ERR_MENU_RECIPE_ROLE_MISSING:side' }; rejected.after.cooking.canCook = false;
+  assert.doesNotThrow(() => processingChecks.assertCookingPreviewObservation(rejected, { statusCode: 'ERR_MENU_RECIPE_ROLE_MISSING:side' }));
+  rejected.after.cooking.canCook = true;
+  assert.throws(() => processingChecks.assertCookingPreviewObservation(rejected, { statusCode: 'ERR_MENU_RECIPE_ROLE_MISSING:side' }));
+});
+
+test('cooking local and disabled input cannot dispatch or mutate the world', () => {
+  const before = cookingState(); const after = structuredClone(before); after.cooking.selectedRole = 'main';
+  const local = farmingClick(before, after);
+  assert.doesNotThrow(() => processingChecks.assertLocalCookingObservation(local, { key: 'selectedRole', value: 'main' }));
+  for (const mutate of [x => { x.after.operation.sequence++; }, x => { x.after.cooking.dishOptions.push({ id: 'fake' }); }, x => { x.after.inventory.targetOptions[0].used_capacity++; }]) {
+    const bad = structuredClone(local); mutate(bad); assert.throws(() => processingChecks.assertLocalCookingObservation(bad, {}));
+  }
+  const disabled = farmingClick(before, structuredClone(before)); disabled.eventCount = 0; disabled.layout.buttonInteractable = false;
+  assert.doesNotThrow(() => processingChecks.assertCookingDisabledObservation(disabled, 'CookDish'));
+  for (const mutate of [x => { x.eventCount = 1; }, x => { x.layout.buttonInteractable = true; }, x => { x.after.cooking.recipeOptions[0].fuel.current_quantity.amount--; }]) {
+    const bad = structuredClone(disabled); mutate(bad); assert.throws(() => processingChecks.assertCookingDisabledObservation(bad, 'CookDish'));
+  }
+});
+
+test('cooking manual load restores exact dishes and fuel while clearing local success', () => {
+  const saved = cookingState(); const before = structuredClone(saved); before.cooking.recipeOptions[0].fuel.current_quantity.amount = 14;
+  const after = structuredClone(saved); after.operation = { sequence: before.operation.sequence + 1, name: 'load', status: 'completed', errorMessage: null, slotId: 'web_probe', worldMinute: timeInMinutes(saved.timeLabel) - 1440, message: '已恢复本地存档' }; after.displayedOperation = after.operation.message;
+  const valid = farmingClick(before, after);
+  assert.doesNotThrow(() => processingChecks.assertCookingLoadRecovery(saved, valid));
+  for (const mutate of [x => { x.after.cooking.recipeOptions[0].fuel.current_quantity.amount--; }, x => { x.after.cooking.dishOptions.push({ id: 'fake' }); }, x => { x.after.cooking.result = { dishLotId: 'old' }; }, x => { x.after.operation.sequence++; }]) {
+    const bad = structuredClone(valid); mutate(bad); assert.throws(() => processingChecks.assertCookingLoadRecovery(saved, bad));
+  }
+});
+
+test('cooking edits require physical events, visible text geometry and invalidated preview', () => {
+  for (const inputName of ['CookingQuantity', 'CookingMinutes']) {
+    const before = cookingState(); const after = structuredClone(before);
+    if (inputName === 'CookingQuantity') { after.cooking.currentInputQuantityText = after.cooking.inputSelections[0].quantityText = after.displayedCooking.quantityText = '20'; }
+    else after.cooking.activeMinutesText = after.displayedCooking.minutesText = '20';
+    const valid = farmingClick(before, after); valid.eventCount = 0; valid.inputName = inputName;
+    valid.focused = { className: 'cocosEditBox', value: '20' }; valid.editEvents = { began: 1, changed: 2, ended: 1 };
+    valid.layout.inputLabels = { text: { ...valid.layout.button }, placeholder: { ...valid.layout.button } };
+    assert.doesNotThrow(() => processingChecks.assertCookingInputObservation(valid, '20'));
+    for (const mutate of [x => { x.editEvents.changed = 0; }, x => { x.focused.value = '8'; }, x => { x.layout.inputLabels.text.left--; }, x => { x.after.cooking.preview = { success: true, statusCode: 'OK' }; }, x => { x.after.operation.sequence++; }]) {
+      const bad = structuredClone(valid); mutate(bad); assert.throws(() => processingChecks.assertCookingInputObservation(bad, '20'));
+    }
+  }
+});
+
+test('cooking confirmation rejects old dishes, false consumption, false fuel and stale preview', () => {
+  const before = cookingState(); before.cooking.preview = { success: true, statusCode: 'OK' }; before.cooking.canCook = true;
+  const after = structuredClone(before);
+  after.operation = { sequence: before.operation.sequence + 1, name: 'menu_confirm', status: 'completed', errorMessage: null, slotId: null, worldMinute: null, message: '烹饪成功' }; after.displayedOperation = after.operation.message;
+  for (const list of [after.inventory.lotOptions, after.cooking.lotOptions, after.farming.materialOptions]) list[0].quantity.amount = 70;
+  after.cooking.recipeOptions[0].fuel.current_quantity.amount = 14;
+  after.displayedCooking.fuel = '燃料14捆';
+  const dish = { id: 'dish-new', recognized_dish_id: 'cooked', serving_count: 2, storage_ref: { location_id: 'home', storage_type: 'room_temp', container_id: 'room' } };
+  after.cooking.dishOptions = [dish]; after.cooking.result = { dishLotId: dish.id, servingCount: 2, recognizedDishId: 'cooked', storageRef: dish.storage_ref };
+  after.cooking.preview = null; after.cooking.canCook = false; after.displayedCooking.result = '烹饪成功，2份';
+  const valid = farmingClick(before, after);
+  assert.doesNotThrow(() => processingChecks.assertCookingConfirmObservation(valid));
+  for (const mutate of [
+    x => { x.before.cooking.dishOptions = structuredClone(x.after.cooking.dishOptions); },
+    x => { x.after.cooking.result.dishLotId = 'wrong'; },
+    x => { x.after.inventory.lotOptions[0].quantity.amount = 100; },
+    x => { x.after.cooking.recipeOptions[0].fuel.current_quantity.amount = 15; },
+    x => { x.after.cooking.preview = { success: true, statusCode: 'OK' }; },
+    x => { x.before.cooking.canCook = false; },
+    x => { x.after.displayedCooking.result = '尚无菜品'; }
+  ]) { const bad = structuredClone(valid); mutate(bad); assert.throws(() => processingChecks.assertCookingConfirmObservation(bad)); }
+});
+
 const root = realpathSync(resolve('.'));
 function fixture(t) {
   const temporary = mkdtempSync(join(tmpdir(), 'cocos-web-contract-'));

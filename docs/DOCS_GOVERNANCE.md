@@ -1,4 +1,4 @@
-﻿# DOCS_GOVERNANCE — v0.0.2.41
+﻿# DOCS_GOVERNANCE — v0.0.2.42
 
 文档治理规范。
 
@@ -99,3 +99,7 @@ trace.cocos.web-farming-loop连接ProbeFarming/ProbeInteraction/ProbeLifetime/Co
 ## 网页加工追踪
 
 trace.cocos.web-processing-loop连接app只读方法/任务投影、outer辅助/组件、工具及readiness/menu/prepare/lifecycle/verification。新增行为测试必须进入现有实际args/files/covers，保留原full/blocker和active条目；任务及预计产物说明不新增正式规则，Node、Creator、built/editor证据分开。
+
+## 网页烹饪追踪
+
+trace.cocos.web-cooking-loop连接现有配方/结构约束和燃料只读投影、ProbeCooking及第四页、工具与readiness/menu/prepare/lifecycle/verification。新增行为测试进入既有实际args/files/covers，full/blocker和全部旧追踪保留；硬约束/偏好、实际DishLot与历史列表、自然网页与受控燃料负例分别说明。文档登记不表示真实Creator/浏览器或手机已通过。

@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.41
+﻿# PROJECT_MAP — v0.0.2.42
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.41：**Web Processing Start & Collection**。最小app公开方法/任务投影支撑网页逐项选料、预览开工、查看任务并领取实际产物，沿既有正式加工及menu_preview/confirm。trace.cocos.web-processing-loop连接公开数据、outer、行为与独立Creator/浏览器验收；保留农事、库存/拆分和本地存读档，不扩Stage1B或微信。
+v0.0.2.42：**Web Cooking Selection & Dish Feedback**。最小app公开配方约束、操作说明和燃料投影支撑网页逐角色选料、填写数量与操作参数、选择储存、预览并获得真实DishLot，沿既有cook_dish及menu_preview/confirm。trace.cocos.web-cooking-loop连接公开数据、outer、行为与独立Creator/浏览器验收；保留农事、库存/拆分、加工和本地存读档，不扩订单页、Stage1B或微信。
 
 ## 3. 权威边界
 

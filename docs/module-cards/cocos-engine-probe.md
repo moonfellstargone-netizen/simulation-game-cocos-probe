@@ -9,7 +9,7 @@ source_of_truth: false
 
 ## 模块职责
 
-apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期桥接。只有该outer可使用cc；旧game-core、cocos-app、cocos-creator-adapter保持engine-neutral。既有网页支持农事、公开材料批次浏览、正式store_item整批转移及手动本地单槽存读档。既有网页拆分及核心校验保持；本版消费app最小只读方法/任务投影，新增网页加工开工至领取，正式匹配、数量、时间和事务仍由既有核心校验，真实输入另行验收。
+apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期桥接。只有该outer可使用cc；旧game-core、cocos-app、cocos-creator-adapter保持engine-neutral。既有网页支持农事、公开材料批次浏览、正式store_item整批转移及手动本地单槽存读档。既有网页拆分及核心校验保持；本版消费app最小只读配方/操作约束及燃料投影，新增第四网页烹饪选料与真实菜品反馈；既有加工页保留，正式匹配、数量、时间和事务仍由既有核心校验，真实输入另行验收。
 
 工程从唯一src/design_snapshot派生runtime、snapshot及全部58项Schema；工作副本、依赖、缓存、报告和构建均在仓库外，禁止手改副本成为第二源码权威。script.loose=false保留标准JavaScript语义，不能恢复Creator默认loose破坏Ajv继承getter的已知转换。
 
@@ -40,7 +40,7 @@ apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期
 
 ## 修改后验证
 
-test:cocos-probe-preparation实际prepare并验证资源、来源及生成runtime；test:cocos-engine-probe-lifecycle同时执行cocos-engine-probe-lifecycle.test.ts、cocos-web-interaction.test.ts、cocos-browser-storage.test.ts、cocos-web-farming.test.ts、cocos-web-inventory.test.ts、cocos-web-split.test.ts与cocos-web-processing.test.ts，验证受控异步生命周期、交互恢复、公开农事及库存转移行为；test:cocos-web-verification-contracts执行既有工具契约及cocos-web-serve-contracts.test.mjs，验证参数、HTTP安全、来源、固定端口与失败保护。三项登记full/blocker，trace.cocos.web-bootstrap-probe和trace.cocos.web-viewport-input分别保留启动与视口追踪。Node契约不执行真实浏览器。
+test:cocos-probe-preparation实际prepare并验证资源、来源及生成runtime；test:cocos-engine-probe-lifecycle同时执行cocos-engine-probe-lifecycle.test.ts、cocos-web-interaction.test.ts、cocos-browser-storage.test.ts、cocos-web-farming.test.ts、cocos-web-inventory.test.ts、cocos-web-split.test.ts、cocos-web-processing.test.ts与cocos-web-cooking.test.ts，验证受控异步生命周期、交互恢复、公开农事及库存转移行为；test:cocos-web-verification-contracts执行既有工具契约及cocos-web-serve-contracts.test.mjs，验证参数、HTTP安全、来源、固定端口与失败保护。三项登记full/blocker，trace.cocos.web-bootstrap-probe和trace.cocos.web-viewport-input分别保留启动与视口追踪。Node契约不执行真实浏览器。
 
 根typecheck只覆盖src；真实Creator类型、构建、预览和浏览器独立验收。cocos:verify:web要求--project、--browser、--report-dir、--build-record均为显式绝对路径；可选--preview-url只接受loopback HTTP。实际浏览器或引擎缺失必须失败或未执行，不能静默skip。
 
@@ -101,7 +101,7 @@ ProbeInventory只复制公开材料选项并管理数量原文、不可编辑的
 
 ProbeLifetime窄消费既有menu_preview/split_lot；ProbeInteraction显式区分preview、confirm和save/load，preview只认本次last_preview_result，不要求ActionResult；confirm仍经既有controller重预览，成功须本次双结果。新批次ID从本次created_objects关联刷新后的公开材料，数量/位置由公开结果取得，不从输入伪造。状态应用异常不自动重发Action；busy/销毁保护保持。
 
-CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；本版加工页见trace.cocos.web-processing-loop，不扩Stage1B或wx。
+CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；既有加工页见trace.cocos.web-processing-loop，本版烹饪页见trace.cocos.web-cooking-loop，不扩Stage1B或wx。
 
 tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实际args/files/covers，test.cocos-web-verification-contracts校验拆分观察断言负例。trace.cocos.web-inventory-split连接这些行为及独立Creator SDK/构建、built-web和editor-preview各960×640真实点击与键盘输入；旧矩阵/resize/农事/转移/存读档/故障及销毁回归保留。桌面输入不代表触摸或微信通过，版本完成仍按q:full及无缓存q:release和精确候选CI。
 
@@ -110,3 +110,9 @@ tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实
 ProbeProcessing.ts/.meta只复制公开方法/逐要求候选、设施与完整任务列表，管理requirement_index本地选择和真实数量原文。工具要求与允许形态只读展示，不新增工具选择或消耗；缺料方法仍可查看，缺盐/不足交正式预览；不在outer解析SaveFile、复制freshness/数量匹配或增添role。既有menu_preview/confirm执行start_processing和collect_processing_result；确认重预览，实际任务/产物从本次created_objects关联刷新公开数据。改输入/切页/其他命令/读档清旧预览，busy/销毁及应用失败不自动重发保持。
 
 任务显示现有active/ready_to_collect/completed等status，领取只对旧collectable列表开放；预计产物与实际领取分清。tests/cocos-web-processing.test.ts进入现有生命周期实际args，helper/.meta及测试登记准备/生命周期files；readiness验证app投影。trace.cocos.web-processing-loop连接Node行为与独立Creator/SDK、built/editor各960×640真实键盘和点击验收，未就绪/重复领取网页只记禁用0事件，正式失败另由Node验证。旧全部视口/resize、农事、库存/拆分、存读档/故障及销毁回归保留。
+
+## 网页烹饪选料与菜品反馈
+
+ProbeCooking.ts/.meta复制当前公开配方角色、材料、储存及实际DishLot，管理逐角色选择、数量/操作分钟原文、显式火候与本次preview/Action反馈，不读私有SaveFile或复制业务算法。第四页使用真实EditBox及Button，改输入/切页/其他命令/读档清旧预览，busy/销毁/迟到保护和应用失败不重发保持。必需角色缺失的绑定失败与正式预览拒绝均清旧成功，成功只以本次created_objects关联刷新后的真实DishLot，恢复列表不冒充本次产物。
+
+当前实现硬边界与配置偏好分开，只读工具设施/时间成本不新增选择、扣时或消耗。tests/cocos-web-cooking.test.ts实际进入既有生命周期args/files/covers，helper/.meta登记准备/生命周期，readiness和工具契约继续full/blocker；trace.cocos.web-cooking-loop连接。真实Creator/SDK、built/editor各960×640鼠标键盘烹饪与手动恢复独立验收，正常燃料扣减和受控Node燃料不足分清，旧全部回归保留。不扩订单页面、Stage1B或微信。

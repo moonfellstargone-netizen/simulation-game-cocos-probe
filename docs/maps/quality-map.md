@@ -1,4 +1,4 @@
-﻿# Quality Map — v0.0.2.41
+﻿# Quality Map — v0.0.2.42
 
 ## 系统职责
 
@@ -88,3 +88,7 @@ trace.cocos.web-inventory-storage连接MenuActionBinding.ts唯一最小store_ite
 ## 网页加工验证登记
 
 新增ProbeProcessing.ts/.meta及cocos-web-processing.test.ts登记既有准备/生命周期files，行为测试进入生命周期实际args与package脚本；readiness登记只读VM。trace.cocos.web-processing-loop连接这些full/blocker任务及既有menu和工具契约，不新增独立gate、不改策略/阈值。单文件affected核实际执行，Creator/SDK和built/editor真实输入独立验收，完整及出包仍按q:full和无缓存q:release。
+
+## 网页烹饪验证登记
+
+ProbeCooking.ts/.meta及cocos-web-cooking.test.ts登记既有准备/生命周期files，行为测试进入生命周期实际args与package脚本；readiness验证合并角色/操作说明/燃料只读投影。trace.cocos.web-cooking-loop连接这些full/blocker任务及既有menu、工具契约；新增测试/源单文件affected必须真正执行，不新建gate或改策略。受控Node燃料负例与自然网页扣减分清，Creator/SDK及built/editor真实数量/时长键盘和点击独立验收，旧全部回归保持。

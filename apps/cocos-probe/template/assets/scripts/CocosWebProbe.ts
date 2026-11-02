@@ -8,6 +8,7 @@ import { ProbeInteraction } from './ProbeInteraction';
 import { ProbeFarming } from './ProbeFarming';
 import { ProbeInventory } from './ProbeInventory';
 import { ProbeProcessing } from './ProbeProcessing';
+import { ProbeCooking } from './ProbeCooking';
 import { BrowserSaveStoragePort, BROWSER_SAVE_SLOT_ID } from './BrowserSaveStoragePort';
 
 const { ccclass } = _decorator;
@@ -22,10 +23,12 @@ interface ProbeView {
   readonly buttons: readonly Button[];
   readonly controls: Record<string, Button>;
   readonly farming: { field: Label; seed: Label; crop: Label; inventory: Label; amount: Label };
-  readonly panels: { farming: Node; inventory: Node; processing: Node };
+  readonly panels: { farming: Node; inventory: Node; processing: Node; cooking: Node };
   readonly inventory: { lot: Label; form: Label; quantity: Label; location: Label; target: Label; capacity: Label; hint: Label };
   readonly split: { input: EditBox; unit: Label; selection: Label; preview: Label; result: Label };
   readonly processing: { input: EditBox; method: Label; facility: Label; requirement: Label; lot: Label; unit: Label; selection: Label; preview: Label; task: Label; result: Label };
+  readonly cooking: { input: EditBox; minutes: EditBox; recipe: Label; role: Label; lot: Label; unit: Label; selection: Label;
+    operation: Label; target: Label; fuel: Label; preview: Label; result: Label; dishes: Label };
 }
 
 // Display names come from the same prepared formal resources; they never select an action target.
@@ -51,11 +54,13 @@ function presentationNames(resources: ProbeResources): Record<string, string> {
   return names;
 }
 
-const DISPLAY_UNITS: Record<string, string> = { count: '粒', g: '克', ml: '毫升' };
+const DISPLAY_UNITS: Record<string, string> = { count: '粒', g: '克', ml: '毫升', bundle: '捆' };
 const displayUnit = (unit: string) => DISPLAY_UNITS[unit] ?? unit;
 const STORAGE_LABELS: Record<string, string> = { room_temp: '常温储存', cellar: '菜窖', pickling_jar: '腌菜缸' };
 const TOOL_LABELS: Record<string, string> = { knife_basic: '基础刀具' };
 const FORM_LABELS: Record<string, string> = { fresh: '鲜材', cut: '切好' };
+const HEAT_LABELS: Record<string, string> = { low: '小火', medium: '中火', high: '大火' };
+const ROLE_LABELS: Record<string, string> = { main: '主料', side: '配料', oil: '油', aromatic: '辛香料' };
 
 function splitRejection(code: string): string {
   if (code === 'ERR_NOT_ENOUGH_RESOURCE') return '数量超过当前库存';
@@ -89,7 +94,8 @@ export class CocosWebProbe extends Component {
     const farming = new ProbeFarming();
     const inventory = new ProbeInventory();
     const processing = new ProbeProcessing();
-    let panel: 'farming' | 'inventory' | 'processing' = 'farming';
+    const cooking = new ProbeCooking();
+    let panel: 'farming' | 'inventory' | 'processing' | 'cooking' = 'farming';
     let names: Record<string, string> = {};
     const alive = () => isValid(ui.root, true);
     const updateButtons = () => {
@@ -117,6 +123,7 @@ export class CocosWebProbe extends Component {
       setEnabled('OpenFarming', enabled && panel !== 'farming');
       setEnabled('OpenInventory', enabled && panel !== 'inventory');
       setEnabled('OpenProcessing', enabled && panel !== 'processing');
+      setEnabled('OpenCooking', enabled && panel !== 'cooking');
       const process = processing.status();
       const method = process.methodOptions.find((item) => item.id === process.selectedMethodId);
       const processEnabled = enabled && panel === 'processing';
@@ -131,6 +138,21 @@ export class CocosWebProbe extends Component {
       const currentInput = process.inputSelections.find((item) => item.requirementIndex === process.selectedRequirementIndex);
       const processInputEnabled = processEnabled && process.currentInputLotOptions.some((item) => item.id === currentInput?.lotId && item.enabled);
       if (ui.processing.input.enabled !== processInputEnabled) ui.processing.input.enabled = processInputEnabled;
+      const cook = cooking.status(); const recipe = cook.recipeOptions.find((item) => item.id === cook.selectedRecipeId);
+      const cookEnabled = enabled && panel === 'cooking';
+      setEnabled('SelectCookingRecipe', cookEnabled && cook.recipeOptions.length > 0);
+      setEnabled('SelectCookingRole', cookEnabled && (recipe?.roles.length ?? 0) > 0);
+      setEnabled('SelectCookingLot', cookEnabled && cook.currentInputLotOptions.some((item) => item.enabled));
+      setEnabled('ClearCookingRole', cookEnabled && cook.selectedRole !== null);
+      setEnabled('SelectCookingHeat', cookEnabled && (recipe?.operation_constraints.heat_levels.length ?? 0) > 0);
+      setEnabled('SelectCookingStorage', cookEnabled && cook.targetOptions.some((item) => item.enabled));
+      setEnabled('CookingPreview', cookEnabled && cook.canPreview);
+      setEnabled('CookDish', cookEnabled && cook.canCook);
+      const cookInput = cook.inputSelections.find((item) => item.role === cook.selectedRole);
+      const cookInputEnabled = cookEnabled && cook.currentInputLotOptions.some((item) => item.id === cookInput?.lotId && item.enabled);
+      if (ui.cooking.input.enabled !== cookInputEnabled) ui.cooking.input.enabled = cookInputEnabled;
+      const minutesEnabled = cookEnabled && recipe !== undefined;
+      if (ui.cooking.minutes.enabled !== minutesEnabled) ui.cooking.minutes.enabled = minutesEnabled;
     };
     const renderFarming = () => {
       if (!alive()) return;
@@ -235,6 +257,43 @@ export class CocosWebProbe extends Component {
         : process.startResult ? `已新增加工任务${process.taskOptions.findIndex((item) => item.id === process.startResult!.taskId) + 1}，完成后领取` : '本次尚无加工结果';
       updateButtons();
     };
+    const renderCooking = () => {
+      if (!alive()) return;
+      const state = cooking.status(); const recipe = state.recipeOptions.find((item) => item.id === state.selectedRecipeId);
+      const role = recipe?.roles.find((item) => item.role === state.selectedRole);
+      const input = state.inputSelections.find((item) => item.role === state.selectedRole);
+      const lot = state.lotOptions.find((item) => item.id === input?.lotId);
+      const target = state.targetOptions.find((item) => item.id === state.selectedTargetId);
+      ui.cooking.recipe.string = recipe ? `配方：${names[recipe.id] ?? '已选配方'}${recipe.enabled ? '' : '（缺少必需材料）'}` : '配方：请选择现有配方';
+      ui.cooking.role.string = role ? `${ROLE_LABELS[role.role] ?? role.role} · ${role.required ? '必需' : '可选'} · ${names[role.base_id ?? ''] ?? '食材'}`
+        + (role.min_quantity ? ` 至少${role.min_quantity.amount}${displayUnit(role.min_quantity.unit)}` : '')
+        + (role.allowed_forms.length ? ` ${role.allowed_forms.map((form) => FORM_LABELS[form] ?? (form === 'cured' ? '腌腊' : form === 'pickled' ? '腌菜' : form)).join('/')}` : '')
+        : '角色：选择配方后查看必需与可选材料';
+      ui.cooking.lot.string = lot ? `${names[lot.base_id] ?? '材料'} · ${names[`${lot.base_id}:${lot.current_form}`] ?? lot.current_form} · 剩${lot.quantity.amount}${displayUnit(lot.quantity.unit)}`
+        : state.currentInputLotOptions.length ? '本角色材料：请选择真实批次' : '本角色暂无可用材料';
+      if (ui.cooking.input.string !== state.currentInputQuantityText) ui.cooking.input.string = state.currentInputQuantityText;
+      if (ui.cooking.minutes.string !== state.activeMinutesText) ui.cooking.minutes.string = state.activeMinutesText;
+      ui.cooking.unit.string = state.currentInputUnit ? displayUnit(state.currentInputUnit) : '—';
+      const selections = state.inputSelections.flatMap((item) => {
+        const selected = state.lotOptions.find((candidate) => candidate.id === item.lotId);
+        return selected && item.quantityText.trim() ? [`${ROLE_LABELS[item.role] ?? item.role}${item.quantityText}${displayUnit(selected.quantity.unit)}`] : [];
+      });
+      ui.cooking.selection.string = selections.length ? '已选：' + selections.join(' / ') : '已选：尚未填写材料数量';
+      const operation = recipe?.operation_constraints;
+      const preference = operation?.time_preference_minutes;
+      ui.cooking.operation.string = operation ? `火候：${state.heatLevel ? HEAT_LABELS[state.heatLevel] ?? state.heatLevel : '请明确选择'}；当前要求${operation.required_heat_level ? HEAT_LABELS[operation.required_heat_level] ?? operation.required_heat_level : '按合法选项'}，分钟整数≥${operation.active_minutes.min}${operation.active_minutes.max === null ? '' : `且≤${operation.active_minutes.max}`}`
+        + `\n偏好${preference?.ideal_min ?? '—'}—${preference?.ideal_max ?? '—'}分钟；设施/工具：${recipe!.facility_requirements.map((id) => names[id] ?? (id === 'basic_stove' ? '基础炉灶' : id)).concat(recipe!.tool_requirements.map((id) => names[id] ?? TOOL_LABELS[id] ?? id)).join('/')}`
+        : '操作：选择配方，再明确选择火候和分钟数';
+      ui.controls.SelectCookingHeat.node.getChildByName('Caption')!.getComponent(Label)!.string = state.heatLevel ? `火候：${HEAT_LABELS[state.heatLevel] ?? state.heatLevel}` : '选择火候';
+      ui.cooking.target.string = target ? `目标：${STORAGE_LABELS[target.storage_type] ?? target.storage_type} · 占用${target.used_capacity}/${target.capacity.amount}` : '目标：请选择储存位置';
+      const fuel = recipe?.fuel;
+      ui.cooking.fuel.string = fuel ? `燃料：当前${fuel.current_quantity.amount}${displayUnit(fuel.current_quantity.unit)} / 每次${fuel.cost.amount}${displayUnit(fuel.cost.unit)}${fuel.enabled ? '' : '（未启用消耗）'}` : '燃料：当前配方无消耗要求';
+      ui.cooking.preview.string = state.preview ? state.preview.success ? '本次校验通过，尚未烹饪' : '本次拒绝，请调整：' + this.cookingRejection(state.preview.statusCode)
+        : state.inputError ?? '先预览，再确认烹饪';
+      ui.cooking.result.string = state.result ? `本次新增：${names[state.result.recognizedDishId ?? ''] ?? '菜品'} ${state.result.servingCount}份` : '本次尚无烹饪结果';
+      ui.cooking.dishes.string = state.dishOptions.length ? `已有菜品${state.dishOptions.length}批：` + state.dishOptions.slice(-2).map((dish) => `${names[dish.recognized_dish_id ?? ''] ?? '菜品'}${dish.serving_count}份`).join('/') : '已有菜品：暂无';
+      updateButtons();
+    };
     const unexpected = (error: unknown, startup = false) => {
       const message = error instanceof Error ? error.message : String(error);
       errors.push(message);
@@ -271,9 +330,11 @@ export class CocosWebProbe extends Component {
             farming.refresh(menu);
             inventory.refresh(menu);
             processing.refresh(menu);
+            cooking.refresh(menu);
             renderFarming();
             renderInventory();
             renderProcessing();
+            renderCooking();
           }
         }
       }),
@@ -290,11 +351,16 @@ export class CocosWebProbe extends Component {
     this.lifetime = lifetime;
     interaction = new ProbeInteraction({
       isAvailable: () => alive() && !lifetime.isDisposed() && lifetime.status().phase === 'ready',
-      execute: (command) => lifetime.execute(command),
+      execute: async (command) => {
+        const result = await lifetime.execute(command);
+        if (alive() && !lifetime.isDisposed()) cooking.acceptCookingResult(command, result);
+        return result;
+      },
       onChange: (state) => {
         ui.operation.string = state.operation.message;
         renderInventory();
         renderProcessing();
+        renderCooking();
       }
     });
     // Capture the stable coordinator and view. Creator may clear Component fields on destruction.
@@ -306,19 +372,24 @@ export class CocosWebProbe extends Component {
         && (command.selection.action_type === 'start_processing' || command.selection.action_type === 'collect_processing_result');
       if (!splitCommand) inventory.invalidateSplitPreview();
       if (!processingCommand) processing.invalidatePreview();
+      const cookingCommand = (command.name === 'menu_preview' || command.name === 'menu_confirm') && command.selection.action_type === 'cook_dish';
+      if (!cookingCommand) cooking.invalidatePreview();
       void commands.execute(command).then((result) => {
         if (!result || !alive() || lifetime.isDisposed()) return;
         inventory.acceptSplitResult(command, result);
         processing.acceptProcessingResult(command, result);
         renderInventory();
         renderProcessing();
+        renderCooking();
       }).catch((error) => {
         // A view-application failure may follow a committed action. Require a fresh
         // player preview instead of leaving the former confirmation enabled.
         inventory.invalidateSplitPreview();
         processing.invalidatePreview();
+        cooking.invalidatePreview();
         renderInventory();
         renderProcessing();
+        renderCooking();
         unexpected(error);
       });
     };
@@ -330,29 +401,47 @@ export class CocosWebProbe extends Component {
       if (commands.status().busy || !alive() || lifetime.status().phase !== 'ready' || lifetime.isDisposed()) return;
       inventory.invalidateSplitPreview();
       processing.invalidatePreview();
+      cooking.invalidatePreview();
       change();
       renderFarming();
       renderInventory();
       renderProcessing();
+      renderCooking();
     });
     localSelection('SelectField', () => farming.selectNextField());
     localSelection('SelectSeed', () => farming.selectNextSeed());
     localSelection('SelectCrop', () => farming.selectNextCrop());
     localSelection('SeedAmountDecrease', () => farming.adjustSeedAmount(-1));
     localSelection('SeedAmountIncrease', () => farming.adjustSeedAmount(1));
-    const switchPanel = (next: 'farming' | 'inventory' | 'processing') => {
+    const switchPanel = (next: 'farming' | 'inventory' | 'processing' | 'cooking') => {
       inventory.invalidateSplitPreview();
       ui.split.input.blur();
       ui.processing.input.blur();
+      ui.cooking.input.blur(); ui.cooking.minutes.blur();
       panel = next;
       ui.panels.farming.active = next === 'farming';
       ui.panels.inventory.active = next === 'inventory';
       ui.panels.processing.active = next === 'processing';
-      ui.title.string = ({ farming: '青岚 · 种植与收获', inventory: '青岚 · 库存与储存', processing: '青岚 · 加工与领取' })[next];
+      ui.panels.cooking.active = next === 'cooking';
+      ui.title.string = ({ farming: '青岚 · 种植与收获', inventory: '青岚 · 库存与储存', processing: '青岚 · 加工与领取', cooking: '青岚 · 烹饪与菜品' })[next];
     };
     localSelection('OpenFarming', () => switchPanel('farming'));
     localSelection('OpenInventory', () => switchPanel('inventory'));
     localSelection('OpenProcessing', () => switchPanel('processing'));
+    localSelection('OpenCooking', () => switchPanel('cooking'));
+    localSelection('SelectCookingRecipe', () => cooking.selectNextRecipe());
+    localSelection('SelectCookingRole', () => cooking.selectNextRole());
+    localSelection('SelectCookingLot', () => cooking.selectNextLot());
+    localSelection('ClearCookingRole', () => cooking.clearRole());
+    localSelection('SelectCookingHeat', () => cooking.selectNextHeat());
+    localSelection('SelectCookingStorage', () => cooking.selectNextStorage());
+    for (const [input, change] of [[ui.cooking.input, () => cooking.setInputQuantity(ui.cooking.input.string)],
+      [ui.cooking.minutes, () => cooking.setActiveMinutes(ui.cooking.minutes.string)]] as const) input.node.on(EditBox.EventType.TEXT_CHANGED, () => {
+      if (commands.status().busy || !alive() || panel !== 'cooking' || lifetime.status().phase !== 'ready' || lifetime.isDisposed()) return;
+      change(); renderCooking();
+    });
+    for (const [name, command] of [['CookingPreview', () => cooking.previewCommand()], ['CookDish', () => cooking.confirmCommand()]] as const)
+      ui.controls[name].node.on(Button.EventType.CLICK, () => { const next = command(); if (next) executeButton(next); });
     localSelection('SelectInventoryLot', () => inventory.selectNextLot());
     localSelection('SelectStorageTarget', () => inventory.selectNextTarget());
     localSelection('SelectProcessingMethod', () => processing.selectNextMethod());
@@ -405,6 +494,13 @@ export class CocosWebProbe extends Component {
         panel,
         inventory: inventory.status(),
         processing: processing.status(),
+        cooking: cooking.status(),
+        displayedCooking: alive() ? {
+          recipe: ui.cooking.recipe.string, role: ui.cooking.role.string, lot: ui.cooking.lot.string,
+          quantityText: ui.cooking.input.string, minutesText: ui.cooking.minutes.string, unit: ui.cooking.unit.string,
+          selection: ui.cooking.selection.string, operation: ui.cooking.operation.string, target: ui.cooking.target.string,
+          fuel: ui.cooking.fuel.string, preview: ui.cooking.preview.string, result: ui.cooking.result.string, dishes: ui.cooking.dishes.string
+        } : null,
         displayedProcessing: alive() ? {
           method: ui.processing.method.string, facility: ui.processing.facility.string,
           requirement: ui.processing.requirement.string, lot: ui.processing.lot.string,
@@ -463,9 +559,10 @@ export class CocosWebProbe extends Component {
 
     const title = this.makeLabel(canvasNode, 'Title', '青岚 · 种植与收获', 286, 28);
     const time = this.makeLabel(canvasNode, 'Time', '等待启动', 195, 23);
-    const panels = { farming: this.makePanel(canvasNode, 'FarmingPanel'), inventory: this.makePanel(canvasNode, 'InventoryPanel'), processing: this.makePanel(canvasNode, 'ProcessingPanel') };
+    const panels = { farming: this.makePanel(canvasNode, 'FarmingPanel'), inventory: this.makePanel(canvasNode, 'InventoryPanel'), processing: this.makePanel(canvasNode, 'ProcessingPanel'), cooking: this.makePanel(canvasNode, 'CookingPanel') };
     panels.inventory.active = false;
     panels.processing.active = false;
+    panels.cooking.active = false;
     const farming = {
       field: this.makeLabel(panels.farming, 'FieldSummary', '地块：等待启动', 155, 18),
       seed: this.makeLabel(panels.farming, 'SeedSummary', '种子：等待启动', 125, 18),
@@ -507,10 +604,28 @@ export class CocosWebProbe extends Component {
     processing.task.node.getComponent(UITransform)!.setContentSize(430, 88);
     processing.task.enableWrapText = true;
     processing.task.lineHeight = 20;
+    const cooking = {
+      recipe: this.makeSectionLabel(panels.cooking, 'CookingRecipe', '配方：请选择', -235, 166, 430, 16),
+      role: this.makeSectionLabel(panels.cooking, 'CookingRole', '角色：请选择配方', -235, 97, 430, 13),
+      lot: this.makeSectionLabel(panels.cooking, 'CookingLot', '本角色材料：请选择', -235, 30, 430, 13),
+      input: this.makeQuantityInput(panels.cooking, -270, -2, 'CookingQuantity', '本角色数量'),
+      unit: this.makeSectionLabel(panels.cooking, 'CookingUnit', '—', -65, -2, 60, 18),
+      selection: this.makeSectionLabel(panels.cooking, 'CookingSelection', '已选：尚未填写', -235, -84, 430, 12),
+      operation: this.makeSectionLabel(panels.cooking, 'CookingOperation', '操作：请选择配方', 235, 166, 430, 12),
+      minutes: this.makeQuantityInput(panels.cooking, 345, 126, 'CookingMinutes', '操作分钟数', 210),
+      target: this.makeSectionLabel(panels.cooking, 'CookingTarget', '目标：请选择储存位置', 235, 90, 430, 12),
+      fuel: this.makeSectionLabel(panels.cooking, 'CookingFuel', '燃料：选择配方后查看', 235, 22, 430, 12),
+      preview: this.makeSectionLabel(panels.cooking, 'CookingPreviewSummary', '先预览，再烹饪', 235, -1, 430, 12),
+      result: this.makeSectionLabel(panels.cooking, 'CookingResult', '本次尚无烹饪结果', 235, -66, 430, 12),
+      dishes: this.makeSectionLabel(panels.cooking, 'CookingDishes', '已有菜品：暂无', 235, -86, 430, 11)
+    };
+    cooking.operation.node.getComponent(UITransform)!.setContentSize(430, 34);
+    cooking.operation.enableWrapText = true; cooking.operation.lineHeight = 16;
     const controls: Record<string, Button> = {
-      OpenFarming: this.makeButton(canvasNode, 'OpenFarming', '种植收获', -300, 239, 260),
-      OpenInventory: this.makeButton(canvasNode, 'OpenInventory', '库存储存', 0, 239, 260),
-      OpenProcessing: this.makeButton(canvasNode, 'OpenProcessing', '加工领取', 300, 239, 260),
+      OpenFarming: this.makeButton(canvasNode, 'OpenFarming', '种植收获', -345, 239, 220),
+      OpenInventory: this.makeButton(canvasNode, 'OpenInventory', '库存储存', -115, 239, 220),
+      OpenProcessing: this.makeButton(canvasNode, 'OpenProcessing', '加工领取', 115, 239, 220),
+      OpenCooking: this.makeButton(canvasNode, 'OpenCooking', '烹饪菜品', 345, 239, 220),
       AdvanceOneHour: this.makeButton(canvasNode, 'AdvanceOneHour', '推进一小时', -155, -120),
       SaveLocal: this.makeButton(canvasNode, 'SaveLocal', '本地保存', -155, -179),
       LoadLocal: this.makeButton(canvasNode, 'LoadLocal', '读取本地存档', 155, -179),
@@ -534,13 +649,21 @@ export class CocosWebProbe extends Component {
       ProcessingPreview: this.makeButton(panels.processing, 'ProcessingPreview', '预览加工', -345, -72, 190),
       StartProcessing: this.makeButton(panels.processing, 'StartProcessing', '确认开工', -125, -72, 190),
       SelectProcessingTask: this.makeButton(panels.processing, 'SelectProcessingTask', '下一项加工任务', 235, 96, 390),
-      CollectProcessing: this.makeButton(panels.processing, 'CollectProcessing', '领取加工产物', 235, -50, 390)
+      CollectProcessing: this.makeButton(panels.processing, 'CollectProcessing', '领取加工产物', 235, -50, 390),
+      SelectCookingRecipe: this.makeButton(panels.cooking, 'SelectCookingRecipe', '选择配方', -235, 130, 410),
+      SelectCookingRole: this.makeButton(panels.cooking, 'SelectCookingRole', '下一食材角色', -345, 62, 190),
+      SelectCookingLot: this.makeButton(panels.cooking, 'SelectCookingLot', '本角色下一批', -125, 62, 190),
+      ClearCookingRole: this.makeButton(panels.cooking, 'ClearCookingRole', '清空本角色选料', -235, -48, 390),
+      SelectCookingHeat: this.makeButton(panels.cooking, 'SelectCookingHeat', '选择火候', 115, 126, 210),
+      SelectCookingStorage: this.makeButton(panels.cooking, 'SelectCookingStorage', '选择菜品储存', 235, 56, 410),
+      CookingPreview: this.makeButton(panels.cooking, 'CookingPreview', '预览烹饪', 125, -31, 200),
+      CookDish: this.makeButton(panels.cooking, 'CookDish', '确认烹饪', 345, -31, 200)
     };
     const buttons = Object.values(controls);
     const phase = this.makeLabel(canvasNode, 'Status', '准备启动', -225, 16);
     const operation = this.makeLabel(canvasNode, 'Operation', '请选择地块和种子后播种', -260, 18);
     this.makeLabel(canvasNode, 'LocalSaveHint', '本浏览器本地存档，刷新后可手动读取', -299, 15);
-    return { root: this.node, title, time, phase, operation, buttons, controls, farming, inventory, panels, split, processing };
+    return { root: this.node, title, time, phase, operation, buttons, controls, farming, inventory, panels, split, processing, cooking };
   }
 
   private makePanel(parent: Node, name: string): Node {
@@ -606,22 +729,33 @@ export class CocosWebProbe extends Component {
     return label;
   }
 
-  private makeQuantityInput(parent: Node, x: number, y: number, name = 'SplitQuantity', placeholderText = '输入拆分数量'): EditBox {
+  private cookingRejection(code: string): string {
+    if (code.startsWith('ERR_MENU_RECIPE_ROLE_MISSING:')) return '必需食材角色未选';
+    if (code.startsWith('ERR_STORAGE_FORM_NOT_SUPPORTED')) return '该位置不支持菜品';
+    if (code.startsWith('ERR_STORAGE_CAPACITY_OVERFLOW')) return '菜品储存空间不足';
+    if (code === 'ERR_NOT_ENOUGH_FUEL') return '燃料不足';
+    if (code === 'ERR_NOT_ENOUGH_RESOURCE') return '材料数量不足';
+    if (code === 'ERR_COOKING_TECHNIQUE_MISMATCH') return '火候不符合当前配方';
+    if (code === 'ERR_COOKING_OPERATION_PROFILE_INVALID') return '请调整操作分钟数';
+    return '请检查食材与数量';
+  }
+
+  private makeQuantityInput(parent: Node, x: number, y: number, name = 'SplitQuantity', placeholderText = '输入拆分数量', width = 270): EditBox {
     const node = new Node(name);
     node.layer = Layers.Enum.UI_2D;
     parent.addChild(node);
     node.setPosition(x, y, 0);
-    node.addComponent(UITransform).setContentSize(270, 44);
+    node.addComponent(UITransform).setContentSize(width, 44);
     const background = new Node('Background');
     background.layer = Layers.Enum.UI_2D;
     node.addChild(background);
-    background.addComponent(UITransform).setContentSize(270, 44);
+    background.addComponent(UITransform).setContentSize(width, 44);
     const graphics = background.addComponent(Graphics);
     graphics.fillColor = new Color(40, 57, 70, 255);
-    graphics.roundRect(-135, -22, 270, 44, 6);
+    graphics.roundRect(-width / 2, -22, width, 44, 6);
     graphics.fill();
-    const text = this.makeSectionLabel(node, 'Text', '', 0, 0, 250, 20);
-    const placeholder = this.makeSectionLabel(node, 'Placeholder', placeholderText, 0, 0, 250, 18);
+    const text = this.makeSectionLabel(node, 'Text', '', 0, 0, width - 20, 20);
+    const placeholder = this.makeSectionLabel(node, 'Placeholder', placeholderText, 0, 0, width - 20, 18);
     for (const label of [text, placeholder]) {
       label.node.getComponent(UITransform)!.setAnchorPoint(0, 1);
       label.horizontalAlign = Label.HorizontalAlign.LEFT;

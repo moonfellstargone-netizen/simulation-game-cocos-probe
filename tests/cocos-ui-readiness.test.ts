@@ -45,6 +45,169 @@ function harvestForProcessing(session: CocosAppRuntimeSession): string {
   return required(harvested.created_objects.find((object) => object.object_type === 'MaterialLot'), 'harvested lot').object_id;
 }
 
+test('cooking recipes expose merged roles, formal operation bounds, display-only requirements and current fuel before harvest', () => {
+  const { session, configs } = makeSessionFixture();
+  const recipes = session.getSelectableViewModel().cookable_recipe_options;
+  const active = configs.requiredDoc<{ active_recipe_variants: string[] }>('configs/active_stage_1A/stage_1A_active_config.yaml');
+  assert.deepEqual(recipes.map((recipe) => recipe.id), active.active_recipe_variants);
+  const recipe = required(recipes[0], 'active recipe remains browsable before harvest');
+  const config = configs.requiredDoc<any>(`configs/cooking/recipe_variants/${recipe.id}.yaml`);
+  const structure = configs.requiredDoc<any>(`configs/cooking/dish_structures/${recipe.dish_structure_id}.yaml`);
+  const formal = JSON.parse(readFileSync(join(process.cwd(), 'design_snapshot/schemas/actions/formal_stage_1A_action_request.schema.json'), 'utf8'));
+  const profileSchema = formal.oneOf.find((entry: any) => entry.properties?.action_type?.const === 'cook_dish').properties.parameters.properties.operation_profile.properties;
+  assert.equal(recipe.enabled, false);
+  assert.deepEqual(recipe.missing_required_roles, ['main']);
+  assert.deepEqual(recipe.roles.map((role) => [role.role, role.required]), [['main', true], ['side', true], ['oil', false], ['aromatic', false]]);
+  const side = required(recipe.roles.find((role) => role.role === 'side'), 'side role');
+  assert.deepEqual(side.allowed_forms, structure.required_roles.side.allowed_forms, 'structure restrictions survive a recipe without forms');
+  assert.deepEqual(side.allowed_base_ids, structure.required_roles.side.allowed_base_ids);
+  assert.deepEqual(side.min_quantity, { amount: config.ingredient_requirements.side.min_quantity_g, unit: 'g' }, 'recipe minimum overrides structure minimum');
+  assert.deepEqual(recipe.tool_requirements, config.tool_requirements);
+  assert.deepEqual(recipe.facility_requirements, config.facility_requirements);
+  assert.deepEqual(recipe.operation_constraints, {
+    heat_levels: profileSchema.heat_level.enum,
+    required_heat_level: structure.technique_expectations.heat_level_preference,
+    active_minutes: { integer: profileSchema.active_minutes.type === 'integer', min: profileSchema.active_minutes.minimum, max: structure.technique_expectations.time_preference_minutes.max },
+    time_preference_minutes: structure.technique_expectations.time_preference_minutes,
+    default_heat_level: config.operation_defaults.heat_level,
+    time_cost_minutes: config.operation_defaults.time_cost_minutes,
+    stamina_cost: config.operation_defaults.stamina_cost
+  }, 'schema and implemented hard limits stay separate from configuration preferences and passive costs');
+  assert.deepEqual(recipe.fuel, {
+    base_id: config.resource_requirements.fuel.base_id, enabled: true,
+    cost: { amount: config.resource_requirements.fuel.amount_bundle, unit: 'bundle' },
+    current_quantity: { amount: 15, unit: 'bundle' }
+  });
+  assert.deepEqual(recipe.output_estimate, config.output_estimate);
+});
+
+test('cooking candidates refresh merged form, unit, quantity and reservation constraints without leaking nested state or config', async () => {
+  const { session, storage, configs } = makeSessionFixture();
+  const cabbageId = harvestForProcessing(session);
+  await session.save('cooking_candidates');
+  const source = required(await storage.read('cooking_candidates'), 'saved cooking inputs');
+  const save = JSON.parse(source) as SaveFile;
+  const projector = new CocosSelectableViewModel(configs);
+  const recipe = () => projector.build(save).cookable_recipe_options[0]!;
+  const candidates = (role: string) => required(recipe().roles.find((item) => item.role === role), role).lot_ids;
+  const cabbage = required(save.inventory.find((lot) => lot.lot_id === cabbageId), 'cabbage');
+  const bacon = required(save.inventory.find((lot) => lot.base_id === 'bacon'), 'bacon');
+  assert.deepEqual(candidates('main'), [cabbageId]);
+  bacon.current_form = 'fresh';
+  assert.deepEqual(candidates('side'), [], 'structure-only cured form is enforced in candidates');
+  assert.equal(projector.build(save).splittable_lot_options.find((lot) => lot.id === bacon.lot_id)?.compatible_recipe_roles.some((role) => role.role === 'side'), false);
+  bacon.current_form = 'cured';
+  const originalQuantity = { ...cabbage.quantity };
+  cabbage.quantity = { amount: 250, unit: 'ml' };
+  assert.deepEqual(candidates('main'), [], 'same amount with incompatible unit cannot enable a role');
+  cabbage.quantity = { amount: 249, unit: 'g' };
+  assert.deepEqual(candidates('main'), []);
+  cabbage.quantity.amount = 250;
+  assert.deepEqual(candidates('main'), [cabbageId], 'recipe minimum boundary remains available');
+  save.reservations.push({ reservation_id: 'readiness_cooking_reservation', actor_id: 'player', target_ref: { object_type: 'MaterialLot', object_id: cabbageId }, quantity: { amount: 1, unit: 'g' }, reason: 'test', created_time: save.world_time.absolute_minute, expire_time: null, status: 'active' });
+  assert.deepEqual(candidates('main'), [], 'reserved batches are not offered as available ingredients');
+  save.reservations.pop();
+  cabbage.quantity = originalQuantity;
+  const before = projector.build(save);
+  const documentsBefore = structuredClone(configs.loadStage1A().documents);
+  const mutable = recipe();
+  mutable.roles[0]!.allowed_forms.length = 0;
+  mutable.roles[0]!.allowed_base_ids.push('detached_base');
+  mutable.roles[0]!.lot_ids.length = 0;
+  mutable.roles[0]!.min_quantity!.amount = 999;
+  mutable.tool_requirements.push('detached_tool');
+  mutable.facility_requirements.length = 0;
+  mutable.operation_constraints.heat_levels.length = 0;
+  mutable.operation_constraints.active_minutes.max = 999;
+  mutable.operation_constraints.time_preference_minutes!.ideal_min = 999;
+  mutable.fuel!.cost.amount = 999;
+  mutable.fuel!.current_quantity.amount = 0;
+  mutable.output_estimate!.serving_count = 999;
+  assert.deepEqual(projector.build(save), before, 'all returned arrays, hints, quantities and estimates are detached');
+  assert.deepEqual(configs.loadStage1A().documents, documentsBefore);
+  assert.deepEqual(save, JSON.parse(source), 'the complete source save remains unchanged');
+});
+
+test('cooking projection follows loaded configuration changes rather than fixture constants', async () => {
+  const { session, storage, configs } = makeSessionFixture();
+  const cabbageId = harvestForProcessing(session);
+  await session.save('cooking_config_sources');
+  const save = JSON.parse(required(await storage.read('cooking_config_sources'), 'cooking source')) as SaveFile;
+  const config = configs.requiredDoc<any>('configs/cooking/recipe_variants/bacon_cabbage_basic.yaml');
+  const structure = configs.requiredDoc<any>('configs/cooking/dish_structures/bacon_cabbage.yaml');
+  config.ingredient_requirements.main.min_quantity_g = 275;
+  config.ingredient_requirements.side.allowed_forms = ['fresh'];
+  structure.technique_expectations.heat_level_preference = 'medium';
+  structure.technique_expectations.time_preference_minutes = { min: 2, ideal_min: 3, ideal_max: 5, max: 7 };
+  config.operation_defaults = { heat_level: 'medium', time_cost_minutes: 14, stamina_cost: 9 };
+  config.tool_requirements = ['configured_tool'];
+  config.facility_requirements = ['configured_stove'];
+  config.resource_requirements.fuel.amount_bundle = 2;
+  config.output_estimate = { serving_count: 3, total_quantity_g: 430 };
+  save.feature_flags.flags.fuel_system_enabled = false;
+  (save.fuel_state.firewood_basic as { quantity: { amount: number } }).quantity.amount = 7;
+  const recipe = new CocosSelectableViewModel(configs).build(save).cookable_recipe_options[0]!;
+  assert.deepEqual(recipe.roles.find((role) => role.role === 'main')?.min_quantity, { amount: 275, unit: 'g' });
+  assert.ok(recipe.roles.find((role) => role.role === 'main')?.lot_ids.includes(cabbageId));
+  assert.deepEqual(recipe.roles.find((role) => role.role === 'side')?.allowed_forms, ['fresh']);
+  assert.deepEqual(recipe.roles.find((role) => role.role === 'side')?.lot_ids, []);
+  assert.equal(recipe.operation_constraints.required_heat_level, 'medium');
+  assert.equal(recipe.operation_constraints.active_minutes.max, 7);
+  assert.deepEqual(recipe.operation_constraints.time_preference_minutes, structure.technique_expectations.time_preference_minutes);
+  assert.equal(recipe.operation_constraints.default_heat_level, 'medium');
+  assert.equal(recipe.operation_constraints.time_cost_minutes, 14);
+  assert.equal(recipe.operation_constraints.stamina_cost, 9);
+  assert.deepEqual(recipe.tool_requirements, ['configured_tool']);
+  assert.deepEqual(recipe.facility_requirements, ['configured_stove']);
+  assert.deepEqual(recipe.fuel, { base_id: 'firewood_basic', enabled: false, cost: { amount: 2, unit: 'bundle' }, current_quantity: { amount: 7, unit: 'bundle' } });
+  assert.deepEqual(recipe.output_estimate, config.output_estimate);
+});
+
+test('cooking projection reports actual fuel and DishLot after preview, storage failure, legal recovery and fresh-session load', async () => {
+  const { session, storage } = makeSessionFixture();
+  const cabbageId = harvestForProcessing(session);
+  const selectable = session.getSelectableViewModel();
+  const recipe = selectable.cookable_recipe_options[0]!;
+  const bacon = required(selectable.splittable_lot_options.find((lot) => lot.base_id === 'bacon'), 'bacon');
+  const target = required(selectable.storage_target_options.find((item) => item.enabled && item.supported_forms.includes('cooked_dish')), 'dish target');
+  const badTarget = required(selectable.storage_target_options.find((item) => item.enabled && !item.supported_forms.includes('cooked_dish')), 'unsupported dish target');
+  const parameters = new CocosActionDraftBuilder().cookDish(recipe.id, {
+    main: { lot_id: cabbageId, quantity: { amount: 250, unit: 'g' } },
+    side: { lot_id: bacon.id, quantity: { amount: 50, unit: 'g' } }
+  }, recipe.technique, { heat_level: 'high', active_minutes: 1 }, {
+    location_id: target.location_id, storage_type: target.storage_type, container_id: target.id
+  }).parameters;
+  await session.save('cooking_before');
+  const before = await storage.read('cooking_before');
+  assert.equal(session.preview('cook_dish', parameters).success, true, 'preference minimum is not a new hard minimum');
+  await session.save('cooking_after_preview');
+  assert.equal(await storage.read('cooking_after_preview'), before);
+  const invalid = { ...parameters, target_storage_ref: { location_id: badTarget.location_id, storage_type: badTarget.storage_type, container_id: badTarget.id } };
+  assert.equal(session.preview('cook_dish', invalid).status_code, 'ERR_STORAGE_FORM_NOT_SUPPORTED');
+  assert.equal(session.dispatch('cook_dish', invalid).status_code, 'ERR_STORAGE_FORM_NOT_SUPPORTED');
+  await session.save('cooking_after_failure');
+  assert.equal(await storage.read('cooking_after_failure'), before, 'storage refusal restores material, fuel, dishes and caches');
+  assert.deepEqual(session.getSelectableViewModel().cookable_recipe_options, selectable.cookable_recipe_options);
+  const cooked = dispatchAndAssert(session.dispatch('cook_dish', parameters), 'cook_dish');
+  const dishId = required(cooked.created_objects.find((object) => object.object_type === 'DishLot'), 'actual created dish').object_id;
+  const after = session.getSelectableViewModel();
+  assert.deepEqual(after.cookable_recipe_options[0]!.fuel!.current_quantity, { amount: 14, unit: 'bundle' });
+  assert.equal(after.splittable_lot_options.find((lot) => lot.id === bacon.id)?.quantity.amount, bacon.quantity.amount - 50);
+  const dish = required(after.submittable_dish_lot_options.find((item) => item.id === dishId), 'actual public dish');
+  assert.equal(dish.serving_count, 2);
+  assert.equal(dish.recognized_dish_id, recipe.dish_structure_id);
+  assert.deepEqual(dish.storage_ref, parameters.target_storage_ref);
+  await session.save('cooking_completed');
+  const afterSerialized = required(await storage.read('cooking_completed'), 'completed save');
+  assert.equal((JSON.parse(afterSerialized) as SaveFile).world_time.absolute_minute, (JSON.parse(before!) as SaveFile).world_time.absolute_minute, 'displayed configured time cost does not invent elapsed time');
+  const restored = makeSessionFixture(storage).session;
+  await restored.load('cooking_completed');
+  assert.deepEqual(restored.getSelectableViewModel(), after);
+  const restoredExpected = structuredClone(after);
+  dish.storage_ref.container_id = 'detached_dish_storage';
+  assert.deepEqual(restored.getSelectableViewModel(), restoredExpected, 'fresh Session is isolated from old public dish references');
+});
+
 test('processing methods remain browsable without cabbage and expose configured input requirements and compatible facilities', () => {
   const { session, configs } = makeSessionFixture();
   const selectable = session.getSelectableViewModel();

@@ -1,10 +1,10 @@
-# CHECK_ARCHITECTURE — v0.0.2.41
+# CHECK_ARCHITECTURE — v0.0.2.42
 
-v0.0.2.41 / Web Processing Start & Collection验证公开加工方法/任务投影、逐项选料与真实数量输入、预览拒绝和合法开工、正常推进后领取实际产物及加工中读档继续。保留库存拆分和失败恢复回归。根typecheck不含outer，Creator SDK和真实键盘/点击必须独立执行；不修改核心数量规则、正式资源或质量策略。
+v0.0.2.42 / Web Cooking Selection & Dish Feedback验证公开配方/燃料投影、逐角色选料、真实数量/时长输入、操作参数与目标储存、预览拒绝和合法烹饪、实际DishLot与手动读档恢复。保留加工、库存拆分和失败恢复回归。根typecheck不含outer，Creator SDK和真实键盘/点击必须独立执行；不修改核心数量规则、正式资源或质量策略。
 
 ## 1. 本轮检查目标
 
-既有trace.cocos.web-viewport-input继续追踪视口与物理输入；新增加工验证不替代原矩阵、resize、拆分与清理检查。
+既有trace.cocos.web-viewport-input继续追踪视口与物理输入；新增烹饪验证不替代原矩阵、resize、农事、拆分、加工与清理检查。
 
 保留准备/生命周期full/blocker回归，沿用test:cocos-web-verification-contracts / registry test.cocos-web-verification-contracts验证浏览器工具的参数、来源、HTTP服务和断言失败保护；Node契约不执行真实浏览器。独立cocos:verify:web运行固定Creator构建产物的真实Chrome鼠标点击，记录Button事件、时间变化、Label同步与清理证据；根typecheck只覆盖src，不能代替实际Creator类型、构建或浏览器验收。
 
@@ -12,7 +12,7 @@ v0.0.2.41 / Web Processing Start & Collection验证公开加工方法/任务投�
 
 构建网页built-web验收1440×1200、1280×720、960×640、800×600/DPR1，另960×640/DPR2仿真，并在同页按960×640→1440×1200→800×600→960×640执行四次resize点击。编辑器预览editor-preview独立验收1440×1200与960×640/DPR1，同页按960×640→1440×1200→960×640执行三次resize点击。所有约定案例均保持完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、推进命令时间+60和Label同步；存读档命令按本地单槽预期检查时间；不降低断言强度。官方Default设备模拟器在800窗口裁剪固定960px内容，该预览场景未承诺支持，不能据其失败推定构建网页800失败。DPR仿真不等于手机、触摸、微信或Windows系统缩放验证。
 
-Node任务与独立真实验收分别追踪。本版新增trace.cocos.web-processing-loop，保留trace.cocos.web-inventory-split、trace.inventory.split-quantity及全部既有追踪。test.cocos-engine-probe-lifecycle实际运行cocos-web-processing.test.ts及既有六测试；test.cocos-web-verification-contracts实际运行加工、拆分断言负例及既有工具契约。修改测试逐一登记args/files/covers并验证单文件affected。CI只执行Node完整门禁，不替代Creator/浏览器。
+Node任务与独立真实验收分别追踪。本版新增trace.cocos.web-cooking-loop，保留trace.cocos.web-processing-loop、trace.cocos.web-inventory-split、trace.inventory.split-quantity及全部既有追踪。test.cocos-engine-probe-lifecycle实际运行cocos-web-cooking.test.ts及既有七测试；test.cocos-web-verification-contracts实际运行烹饪、加工、拆分断言负例及既有工具契约。修改测试逐一登记args/files/covers并验证单文件affected。CI只执行Node完整门禁，不替代Creator/浏览器。
 
 既有test:cocos-session / registry test.cocos-session继续验证Session边界。test-registry描述Node自动执行集合，traceability-map.json连接模块、文件与门禁追踪；独立真实验收另以构建关联和浏览器证据记录。
 
@@ -52,7 +52,7 @@ cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affe
 
 ## 10. 后续路线（不是授权目标）
 
-Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.41 范围。traceability map 中 `planned` 条目**不是**当前实现。
+Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.42 范围。traceability map 中 `planned` 条目**不是**当前实现。
 
 ## 11. 固定检查短语
 
@@ -82,10 +82,14 @@ ProbeInventory只复制公开材料选项并管理数量原文、不可编辑的
 
 ProbeLifetime窄消费既有menu_preview/split_lot；ProbeInteraction显式区分preview、confirm和save/load，preview只认本次last_preview_result，不要求ActionResult；confirm仍经既有controller重预览，成功须本次双结果。新批次ID从本次created_objects关联刷新后的公开材料，数量/位置由公开结果取得，不从输入伪造。状态应用异常不自动重发Action；busy/销毁保护保持。
 
-CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；本版加工页见trace.cocos.web-processing-loop，不扩Stage1B或wx。
+CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；既有加工页见trace.cocos.web-processing-loop，本版烹饪页见trace.cocos.web-cooking-loop，不扩Stage1B或wx。
 
 tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实际args/files/covers，test.cocos-web-verification-contracts校验拆分观察断言负例。trace.cocos.web-inventory-split连接这些行为及独立Creator SDK/构建、built-web和editor-preview各960×640真实点击与键盘输入；旧矩阵/resize/农事/转移/存读档/故障及销毁回归保留。桌面输入不代表触摸或微信通过，版本完成仍按q:full及无缓存q:release和精确候选CI。
 
 ## 网页加工检查入口
 
 trace.cocos.web-processing-loop连接最小app只读投影、outer加工与既有工具。tests/cocos-ui-readiness.test.ts验证投影来源/隔离，tests/cocos-web-processing.test.ts随test.cocos-engine-probe-lifecycle实际运行，ProbeProcessing.ts/.meta同时登记准备与生命周期files。full/blocker、原args及既有trace保留；缺盐/不足正式预览、任务状态及跨新会话读取按层验证，真实Creator/SDK及built/editor键盘/点击另行留证，不由Node或CI推定。
+
+## 网页烹饪检查入口
+
+trace.cocos.web-cooking-loop登记最小app只读烹饪投影、ProbeCooking.ts/.meta及真实组件/工具；cocos-web-cooking.test.ts加入既有生命周期实际args/files/covers，readiness及工具契约继续full/blocker。核合并约束、必需/可选角色、单位、操作硬边界与偏好区别、预览无副作用、储存与受控燃料失败回滚、恢复和真实DishLot。Node燃料负例不冒充自然网页耗尽；真实Creator/SDK和built/editor物理输入独立留证，不降低旧检查。
