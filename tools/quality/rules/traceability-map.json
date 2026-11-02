@@ -1,6 +1,6 @@
 {
   "schemaVersion": "traceability-lite/v1",
-  "projectVersion": "v0.0.2.40",
+  "projectVersion": "v0.0.2.41",
   "currentFullReleaseTraceIds": [
     "trace.stage1a.actionpipeline",
     "trace.stage1a.save-load",
@@ -23,7 +23,8 @@
     "trace.processing.required-inputs",
     "trace.runtime.id-recovery",
     "trace.inventory.split-quantity",
-    "trace.cocos.web-inventory-split"
+    "trace.cocos.web-inventory-split",
+    "trace.cocos.web-processing-loop"
   ],
   "entries": [
     {
@@ -757,6 +758,52 @@
       "docRefs": [
         "docs/module-cards/cocos-engine-probe.md",
         "docs/module-cards/cocos-creator-adapter.md",
+        "docs/maps/cocos-map.md",
+        "docs/maps/runtime-map.md",
+        "docs/code-index/public-api.md"
+      ],
+      "gateRefs": [
+        "full",
+        "release"
+      ],
+      "designRefs": [
+        "docs/SOURCE_DESIGN_PACK.md",
+        "design_snapshot/SOURCE_DESIGN_PACK.txt"
+      ]
+    },
+    {
+      "id": "trace.cocos.web-processing-loop",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": [
+        "cocos-app",
+        "cocos-creator-adapter",
+        "cocos-engine-probe",
+        "tools",
+        "tests"
+      ],
+      "sourceRefs": [
+        "src/cocos-app/view-models/CocosSelectableViewModel.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeProcessing.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts",
+        "apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts",
+        "tools/cocos-probe/verify-web.mjs",
+        "tools/cocos-probe/lib/webProbeSupport.mjs"
+      ],
+      "testRefs": [
+        "test.cocos-ui-readiness",
+        "test.cocos-menu",
+        "test.cocos-probe-preparation",
+        "test.cocos-engine-probe-lifecycle",
+        "test.cocos-web-verification-contracts"
+      ],
+      "docRefs": [
+        "docs/module-cards/cocos-app.md",
+        "docs/module-cards/cocos-engine-probe.md",
+        "docs/module-cards/cocos-creator-adapter.md",
+        "docs/module-cards/processing.md",
         "docs/maps/cocos-map.md",
         "docs/maps/runtime-map.md",
         "docs/code-index/public-api.md"

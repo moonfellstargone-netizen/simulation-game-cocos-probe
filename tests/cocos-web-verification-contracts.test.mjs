@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { assertClickObservation, assertDisabledInventoryObservation, assertFarmingCommandObservation, assertFarmingLoadRecovery, assertFarmingProjection, assertInventoryCommandObservation, assertInventoryLoadRecovery, assertInventoryProjection, assertLocalInventoryObservation, assertLocalSaveRecovery, assertLocalSelectionObservation, assertSplitConfirmObservation, assertSplitDisabledObservation, assertSplitLoadRecovery, assertSplitPreviewObservation, assertSplitProjection, assertSplitQuantityObservation, assertStoredSaveUnchanged, assertUiCommandObservation, capturePreparedSurface, checkPreparedSurfaceAfterBuild, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest, within } from '../tools/cocos-probe/lib/webProbeSupport.mjs';
 import { verifyWebProbe } from '../tools/cocos-probe/verify-web.mjs';
+import * as processingChecks from '../tools/cocos-probe/lib/webProbeSupport.mjs';
 
 const root = realpathSync(resolve('.'));
 function fixture(t) {
@@ -251,6 +252,184 @@ function splitState() {
   state.farming.materialOptions = structuredClone(state.inventory.lotOptions);
   return state;
 }
+
+function processingState() {
+  const state = inventoryState();
+  state.panel = 'processing';
+  state.inventory.lotOptions[0] = { ...state.inventory.lotOptions[0], id: 'cabbage', base_id: 'cabbage', category: 'vegetable', quantity: { amount: 1200, unit: 'g' } };
+  state.inventory.lotOptions[1] = { ...state.inventory.lotOptions[1], id: 'salt', base_id: 'salt', category: 'seasoning', quantity: { amount: 200, unit: 'g' } };
+  state.inventory.selectedLotId = null;
+  state.farming.materialOptions = structuredClone(state.inventory.lotOptions);
+  const facility_ref = { location_id: 'home', storage_type: 'pickling_jar', container_id: 'jar', definition_id: 'jar_definition', facility_id: 'jar' };
+  state.processing = {
+    methodOptions: [{ id: 'method', enabled: true, display_name_key: 'processing.method.name', input_requirements: [
+      { requirement_index: 0, constraints: { category: 'vegetable', allowed_base_ids: ['cabbage'], allowed_forms: ['fresh'], min_freshness: 45 }, min_quantity: null, lot_ids: ['cabbage'] },
+      { requirement_index: 1, constraints: { base_id: 'salt' }, min_quantity: { amount: 8, unit: 'g' }, lot_ids: ['salt'] }
+    ], compatible_facility_ids: ['jar'], time_cost_minutes: 20, process_duration_minutes: 2880 }],
+    lotOptions: structuredClone(state.inventory.lotOptions), facilityOptions: [{ id: 'jar', enabled: true, compatible_method_ids: ['method'], facility_ref }], taskOptions: [],
+    selectedMethodId: 'method', selectedRequirementIndex: 1, inputSelections: [{ requirementIndex: 0, lotId: 'cabbage', quantityText: '300' }, { requirementIndex: 1, lotId: 'salt', quantityText: '15' }],
+    selectedFacilityId: 'jar', selectedTaskId: null, currentInputLotOptions: [structuredClone(state.inventory.lotOptions[1])], currentInputQuantityText: '15', currentInputUnit: 'g', inputError: null,
+    canPreview: true, canStart: false, canCollect: false, preview: null, startResult: null, collectResult: null
+  };
+  state.displayedProcessing = { method: '加工方法', facility: '腌菜缸', requirement: '盐，至少8克', lot: '盐200克', quantityText: '15', unit: '克', selection: '白菜300克、盐15克', preview: '请先预览', task: '暂无加工任务', result: '尚无加工结果' };
+  return state;
+}
+
+function processingReadyState() {
+  const state = processingState();
+  state.processing.preview = { success: true, statusCode: 'OK' };
+  state.processing.canStart = true;
+  return state;
+}
+
+function processingStartedState() {
+  const state = processingReadyState();
+  state.inventory.lotOptions[0].quantity.amount = 900;
+  state.inventory.lotOptions[1].quantity.amount = 185;
+  state.farming.materialOptions = structuredClone(state.inventory.lotOptions);
+  state.processing.lotOptions = structuredClone(state.inventory.lotOptions);
+  state.processing.currentInputLotOptions = [structuredClone(state.inventory.lotOptions[1])];
+  state.processing.taskOptions = [{ id: 'task_new', label_key: 'processing.method.name', enabled: false, reason_key: 'ui.reason.processing_not_ready', method_id: 'method', status: 'active', current_stage: 'fermenting', start_world_minute: 360, expected_finish_minute: 3240,
+    facility_ref: structuredClone(state.processing.facilityOptions[0].facility_ref), expected_output: { base_id: 'cabbage', quantity: { amount: 300, unit: 'g' } } }];
+  state.processing.startResult = { taskId: 'task_new', methodId: 'method' };
+  state.processing.preview = null; state.processing.canStart = false;
+  state.displayedProcessing.task = '加工中'; state.displayedProcessing.result = '加工开工成功';
+  state.operation = { sequence: 1, name: 'menu_confirm', status: 'completed', message: '加工开工成功', errorMessage: null, slotId: null, worldMinute: null };
+  state.displayedOperation = state.operation.message;
+  return state;
+}
+
+test('processing keyboard and browsing observations reject world mutation, synthetic edits and stale preview', () => {
+  const before = processingReadyState();
+  const after = structuredClone(before);
+  after.processing.inputSelections[1].quantityText = after.processing.currentInputQuantityText = after.displayedProcessing.quantityText = '16';
+  after.processing.preview = null; after.processing.canStart = false;
+  const valid = farmingClick(before, after); valid.eventCount = 0;
+  valid.focused = { className: 'cocosEditBox', value: '16' }; valid.editEvents = { began: 1, changed: 1, ended: 1 };
+  valid.layout.inputLabels = { text: { ...valid.layout.button }, placeholder: { ...valid.layout.button } };
+  assert.doesNotThrow(() => processingChecks.assertProcessingQuantityObservation(valid, '16'));
+  for (const mutate of [
+    (x) => { x.eventCount = 1; }, (x) => { x.editEvents.changed = 0; }, (x) => { x.focused.value = '15'; },
+    (x) => { x.layout.inputLabels.text.right++; }, (x) => { x.after.processing.preview = { success: true, statusCode: 'OK' }; },
+    (x) => { x.after.processing.canStart = true; }, (x) => { x.after.inventory.lotOptions[1].quantity.amount--; },
+    (x) => { x.after.operation.sequence++; }, (x) => { x.after.processing.taskOptions.push({ id: 'hidden_task' }); }
+  ]) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => processingChecks.assertProcessingQuantityObservation(invalid, '16'));
+  }
+  const selected = farmingClick(before, structuredClone(before)); selected.after.processing.selectedRequirementIndex = 0;
+  selected.after.processing.preview = null; selected.after.processing.canStart = false;
+  selected.after.processing.currentInputQuantityText = selected.after.displayedProcessing.quantityText = '300';
+  selected.after.processing.currentInputLotOptions = [structuredClone(before.inventory.lotOptions[0])];
+  assert.doesNotThrow(() => processingChecks.assertLocalProcessingObservation(selected, { key: 'selectedRequirementIndex', value: 0 }));
+  const mutated = structuredClone(selected); mutated.after.processing.taskOptions.push({ id: 'task' });
+  assert.throws(() => processingChecks.assertLocalProcessingObservation(mutated, { key: 'selectedRequirementIndex', value: 0 }));
+});
+
+test('processing previews require actual business outcome and preserve inventory, tasks, time and capacity', () => {
+  for (const statusCode of ['OK', 'ERR_PROCESSING_INPUT_MISSING']) {
+    const before = processingState(); const after = structuredClone(before);
+    const success = statusCode === 'OK';
+    after.processing.preview = { success, statusCode }; after.processing.canStart = success;
+    after.operation = { sequence: 1, name: 'menu_preview', status: success ? 'completed' : 'failed', message: success ? '本次校验通过，尚未执行' : '加工所需材料缺失或数量不足', errorMessage: success ? null : statusCode, slotId: null, worldMinute: null };
+    after.displayedOperation = after.operation.message;
+    const valid = farmingClick(before, after);
+    const expected = { statusCode };
+    assert.doesNotThrow(() => processingChecks.assertProcessingPreviewObservation(valid, expected));
+    for (const mutate of [
+      (x) => { x.eventCount = 2; }, (x) => { x.after.processing.preview.statusCode = 'stale'; },
+      (x) => { x.after.operation.status = success ? 'failed' : 'completed'; },
+      (x) => { x.after.processing.canStart = !success; }, (x) => { x.after.inventory.lotOptions[0].quantity.amount--; },
+      (x) => { x.after.processing.taskOptions.push({ id: 'unexpected_task' }); }, (x) => { x.after.inventory.targetOptions[0].used_capacity++; },
+      (x) => { x.after.timeLabel = x.after.displayedTime = 'day 1 minute 380'; }
+    ]) {
+      const invalid = structuredClone(valid); mutate(invalid);
+      assert.throws(() => processingChecks.assertProcessingPreviewObservation(invalid, expected));
+    }
+  }
+});
+
+test('processing start requires exact selected consumption, a new active task, real duration and one-use preview', () => {
+  const valid = farmingClick(processingReadyState(), processingStartedState());
+  assert.doesNotThrow(() => processingChecks.assertProcessingStartObservation(valid));
+  for (const mutate of [
+    (x) => { x.after.inventory.lotOptions[0].quantity.amount = 1200; }, (x) => { x.after.inventory.lotOptions[1].quantity.amount = 200; },
+    (x) => { x.after.processing.taskOptions = []; }, (x) => { x.before.processing.taskOptions = structuredClone(x.after.processing.taskOptions); },
+    (x) => { x.after.processing.taskOptions[0].status = 'ready_to_collect'; }, (x) => { x.after.processing.taskOptions[0].expected_finish_minute = 380; },
+    (x) => { x.after.processing.taskOptions[0].expected_output.quantity.amount = 301; },
+    (x) => { x.after.processing.startResult.taskId = 'wrong_task'; }, (x) => { x.after.processing.canStart = true; },
+    (x) => { x.after.processing.preview = { success: true, statusCode: 'OK' }; }, (x) => { x.after.timeLabel = x.after.displayedTime = 'day 1 minute 380'; }
+  ]) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => processingChecks.assertProcessingStartObservation(invalid));
+  }
+});
+
+test('processing active and completed disabled collection emits no event or command and preserves the whole public world', () => {
+  for (const taskStatus of ['active', 'completed']) {
+    const before = processingStartedState(); before.processing.selectedTaskId = 'task_new'; before.processing.taskOptions[0].status = taskStatus;
+    const valid = farmingClick(before, structuredClone(before)); valid.eventCount = 0; valid.layout.buttonInteractable = false;
+    assert.doesNotThrow(() => processingChecks.assertProcessingDisabledObservation(valid, 'CollectProcessing'));
+    for (const mutate of [
+      (x) => { x.eventCount = 1; }, (x) => { x.after.operation.sequence++; }, (x) => { x.layout.buttonInteractable = true; },
+      (x) => { x.after.processing.taskOptions[0].status = 'ready_to_collect'; }, (x) => { x.after.inventory.lotOptions[0].quantity.amount++; }
+    ]) {
+      const invalid = structuredClone(valid); mutate(invalid);
+      assert.throws(() => processingChecks.assertProcessingDisabledObservation(invalid, 'CollectProcessing'));
+    }
+  }
+});
+
+function processingCollectedState() {
+  const before = processingStartedState(); before.timeLabel = before.displayedTime = 'day 3 minute 360';
+  before.processing.selectedTaskId = 'task_new'; before.processing.canCollect = true;
+  before.processing.taskOptions[0].status = 'ready_to_collect'; before.processing.taskOptions[0].current_stage = 'ready';
+  before.processing.taskOptions[0].enabled = true; before.processing.taskOptions[0].reason_key = null;
+  const after = structuredClone(before);
+  after.processing.taskOptions[0].status = 'completed'; after.processing.taskOptions[0].enabled = false;
+  after.processing.taskOptions[0].reason_key = 'ui.reason.processing_not_ready'; after.processing.canCollect = false;
+  const created = { ...structuredClone(before.inventory.lotOptions[0]), id: 'output_new', current_form: 'pickled', quantity: { amount: 300, unit: 'g' }, storage_ref: { location_id: 'home', storage_type: 'cellar', container_id: 'cellar' } };
+  after.inventory.lotOptions.push(created); after.farming.materialOptions = structuredClone(after.inventory.lotOptions);
+  after.processing.collectResult = { taskId: 'task_new', lotId: 'output_new', quantity: { amount: 300, unit: 'g' } };
+  after.operation = { ...before.operation, sequence: before.operation.sequence + 1, message: '加工产物领取成功' }; after.displayedOperation = after.operation.message;
+  after.displayedProcessing.result = '加工产物领取成功：300克';
+  return farmingClick(before, after);
+}
+
+test('processing collection requires a unique real positive output, exact task transition and stable unrelated inventory', () => {
+  const valid = processingCollectedState();
+  assert.doesNotThrow(() => processingChecks.assertProcessingCollectObservation(valid));
+  for (const mutate of [
+    (x) => { x.after.inventory.lotOptions.pop(); }, (x) => { x.after.inventory.lotOptions.at(-1).quantity.amount = 0; },
+    (x) => { x.after.inventory.lotOptions.at(-1).id = 'cabbage'; x.after.processing.collectResult.lotId = 'cabbage'; },
+    (x) => { x.after.inventory.lotOptions.at(-1).quantity.amount = 301; }, (x) => { x.after.processing.collectResult.quantity.amount = 301; },
+    (x) => { x.after.processing.taskOptions[0].status = 'ready_to_collect'; }, (x) => { x.before.processing.taskOptions[0].status = 'active'; },
+    (x) => { x.after.processing.collectResult.taskId = 'another_task'; }, (x) => { x.after.inventory.lotOptions[1].quantity.amount--; },
+    (x) => { x.after.processing.canCollect = true; }, (x) => { x.after.displayedProcessing.result = '领取成功'; }
+  ]) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => processingChecks.assertProcessingCollectObservation(invalid));
+  }
+});
+
+test('processing manual load restores active tasks and exact saved quantities, clears previews and cannot publish old results', () => {
+  const saved = processingStartedState();
+  const before = processingCollectedState().after;
+  const after = structuredClone(saved); after.processing.startResult = null; after.processing.collectResult = null;
+  after.operation = { sequence: before.operation.sequence + 1, name: 'load', status: 'completed', message: '已恢复本地存档', errorMessage: null, slotId: 'web_probe', worldMinute: 360 };
+  after.displayedOperation = after.operation.message;
+  const valid = farmingClick(before, after);
+  assert.doesNotThrow(() => processingChecks.assertProcessingLoadRecovery(saved, valid));
+  for (const mutate of [
+    (x) => { x.after.processing.taskOptions[0].status = 'completed'; }, (x) => { x.after.inventory.lotOptions[0].quantity.amount++; },
+    (x) => { x.after.processing.preview = { success: true, statusCode: 'OK' }; }, (x) => { x.after.processing.canStart = true; },
+    (x) => { x.after.processing.startResult = { taskId: 'task_new', methodId: 'method' }; },
+    (x) => { x.after.processing.collectResult = { taskId: 'task_new', lotId: 'old', quantity: { amount: 300, unit: 'g' } }; }
+  ]) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => processingChecks.assertProcessingLoadRecovery(saved, invalid));
+  }
+});
 
 function splitReadyState(full = false) {
   const state = splitState();

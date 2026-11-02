@@ -15,7 +15,9 @@ export type ProbeMenuSelection =
     | { action_type: 'plant_crop'; field_option_id: string; seed_lot_option_id: string; seed_quantity: ProbeQuantity }
     | { action_type: 'harvest_crop'; crop_option_id: string }
     | { action_type: 'store_item'; source_lot_option_id: string; target_storage_option_id: string }
-    | { action_type: 'split_lot'; source_lot_option_id: string; quantity: ProbeQuantity };
+    | { action_type: 'split_lot'; source_lot_option_id: string; quantity: ProbeQuantity }
+    | { action_type: 'start_processing'; method_id: string; input_lots: { lot_option_id: string; quantity: ProbeQuantity }[]; facility_option_id: string }
+    | { action_type: 'collect_processing_result'; task_option_id: string };
 
 export type ProbeCommand =
   | { name: 'menu_preview'; selection: ProbeMenuSelection }
@@ -76,6 +78,54 @@ export interface ProbeHarvestableOption {
   readonly field_plot_id: string;
 }
 
+export interface ProbeProcessingRequirement {
+  readonly requirement_index: number;
+  readonly constraints: {
+    readonly category: string | null;
+    readonly base_id: string | null;
+    readonly allowed_base_ids: readonly string[];
+    readonly allowed_forms: readonly string[];
+    readonly min_freshness: number | null;
+  };
+  readonly min_quantity: ProbeQuantity | null;
+  readonly lot_ids: readonly string[];
+}
+
+export interface ProbeProcessingMethodOption {
+  readonly id: string;
+  readonly label_key: string | null;
+  readonly enabled: boolean;
+  readonly reason_key: string | null;
+  readonly input_requirements: readonly ProbeProcessingRequirement[];
+  readonly tool_requirements: readonly string[];
+  readonly compatible_facility_ids: readonly string[];
+  readonly time_cost_minutes: number;
+  readonly process_duration_minutes: number;
+}
+
+export interface ProbeProcessingFacilityOption {
+  readonly id: string;
+  readonly label_key: string | null;
+  readonly enabled: boolean;
+  readonly reason_key: string | null;
+  readonly definition_id: string;
+  readonly compatible_method_ids: readonly string[];
+}
+
+export interface ProbeProcessingTaskOption {
+  readonly id: string;
+  readonly label_key: string | null;
+  readonly enabled: boolean;
+  readonly reason_key: string | null;
+  readonly method_id: string;
+  readonly status: string;
+  readonly current_stage: string;
+  readonly start_world_minute: number;
+  readonly expected_finish_minute: number;
+  readonly facility_ref: ProbeStorageRef & { readonly definition_id: string; readonly facility_id: string };
+  readonly expected_output: { readonly base_id: string | null; readonly quantity: ProbeQuantity | null } | null;
+}
+
 export interface ProbeBusinessResult {
   readonly success: boolean;
   readonly status_code: string;
@@ -91,6 +141,11 @@ export interface ProbeMenuSnapshot {
     readonly harvestable_crop_options: readonly ProbeHarvestableOption[];
     readonly splittable_lot_options: readonly ProbeMaterialOption[];
     readonly storage_target_options: readonly ProbeStorageTargetOption[];
+    readonly processable_lot_options?: readonly ProbeMaterialOption[];
+    readonly processing_facility_options?: readonly ProbeProcessingFacilityOption[];
+    readonly processing_method_options?: readonly ProbeProcessingMethodOption[];
+    readonly processing_task_options?: readonly ProbeProcessingTaskOption[];
+    readonly collectable_task_options?: readonly { readonly id: string; readonly enabled: boolean }[];
   } | null;
   readonly last_preview_result?: (ProbeBusinessResult & { readonly action_type: string }) | null;
   readonly last_action_result?: (ProbeBusinessResult & {

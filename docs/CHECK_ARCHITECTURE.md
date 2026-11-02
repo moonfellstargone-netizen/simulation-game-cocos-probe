@@ -1,10 +1,10 @@
-# CHECK_ARCHITECTURE — v0.0.2.40
+# CHECK_ARCHITECTURE — v0.0.2.41
 
-v0.0.2.40 / Web Inventory Lot Split & Feedback验证网页拆分选择、数量完整解析、本次预览无领域副作用、确认重预览、实际新批次反馈、失败恢复及读档后继续。根typecheck不含outer，Creator SDK和真实键盘/点击必须独立执行；不修改核心数量规则、正式资源或质量策略。
+v0.0.2.41 / Web Processing Start & Collection验证公开加工方法/任务投影、逐项选料与真实数量输入、预览拒绝和合法开工、正常推进后领取实际产物及加工中读档继续。保留库存拆分和失败恢复回归。根typecheck不含outer，Creator SDK和真实键盘/点击必须独立执行；不修改核心数量规则、正式资源或质量策略。
 
 ## 1. 本轮检查目标
 
-既有trace.cocos.web-viewport-input继续追踪视口与物理输入；新增拆分验证不替代原矩阵、resize与清理检查。
+既有trace.cocos.web-viewport-input继续追踪视口与物理输入；新增加工验证不替代原矩阵、resize、拆分与清理检查。
 
 保留准备/生命周期full/blocker回归，沿用test:cocos-web-verification-contracts / registry test.cocos-web-verification-contracts验证浏览器工具的参数、来源、HTTP服务和断言失败保护；Node契约不执行真实浏览器。独立cocos:verify:web运行固定Creator构建产物的真实Chrome鼠标点击，记录Button事件、时间变化、Label同步与清理证据；根typecheck只覆盖src，不能代替实际Creator类型、构建或浏览器验收。
 
@@ -12,7 +12,7 @@ v0.0.2.40 / Web Inventory Lot Split & Feedback验证网页拆分选择、数量�
 
 构建网页built-web验收1440×1200、1280×720、960×640、800×600/DPR1，另960×640/DPR2仿真，并在同页按960×640→1440×1200→800×600→960×640执行四次resize点击。编辑器预览editor-preview独立验收1440×1200与960×640/DPR1，同页按960×640→1440×1200→960×640执行三次resize点击。所有约定案例均保持完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、推进命令时间+60和Label同步；存读档命令按本地单槽预期检查时间；不降低断言强度。官方Default设备模拟器在800窗口裁剪固定960px内容，该预览场景未承诺支持，不能据其失败推定构建网页800失败。DPR仿真不等于手机、触摸、微信或Windows系统缩放验证。
 
-Node任务与独立真实验收分别追踪。新增trace.cocos.web-inventory-split，保留trace.inventory.split-quantity及全部既有追踪。test.cocos-engine-probe-lifecycle实际运行cocos-web-split.test.ts及既有五测试；test.cocos-web-verification-contracts实际运行拆分断言负例及既有工具契约。修改测试逐一登记args/files/covers并验证单文件affected。CI只执行Node完整门禁，不替代Creator/浏览器。
+Node任务与独立真实验收分别追踪。本版新增trace.cocos.web-processing-loop，保留trace.cocos.web-inventory-split、trace.inventory.split-quantity及全部既有追踪。test.cocos-engine-probe-lifecycle实际运行cocos-web-processing.test.ts及既有六测试；test.cocos-web-verification-contracts实际运行加工、拆分断言负例及既有工具契约。修改测试逐一登记args/files/covers并验证单文件affected。CI只执行Node完整门禁，不替代Creator/浏览器。
 
 既有test:cocos-session / registry test.cocos-session继续验证Session边界。test-registry描述Node自动执行集合，traceability-map.json连接模块、文件与门禁追踪；独立真实验收另以构建关联和浏览器证据记录。
 
@@ -52,7 +52,7 @@ cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affe
 
 ## 10. 后续路线（不是授权目标）
 
-Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.40 范围。traceability map 中 `planned` 条目**不是**当前实现。
+Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.41 范围。traceability map 中 `planned` 条目**不是**当前实现。
 
 ## 11. 固定检查短语
 
@@ -74,7 +74,7 @@ Node覆盖正式store_item草稿/preview不变性、整批位置与占用变化�
 
 契约、预览和公开Host/Component回归分别核对缺白菜、缺盐、盐不足/阈值边界，以及合法不同数量的消耗、任务、推进和领取。失败后健康请求与存读档恢复继续；不通过私有SaveFile写入构造假通过，不新增重复同lot或多primary拒绝/聚合规则。trace.processing.required-inputs连接ProcessingSystem.ts、ProcessingConfigResolver.ts及现有test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-menu。
 
-本版实际触及测试逐一登记args/files/covers并验证单文件affected真正执行自身任务；q:affected仍只用于反馈，版本完成和候选出包按q:full及无缓存q:release。核心进入Web bundle，真实Creator SDK/构建及既有built-web/editor-preview回归需独立执行。没有加工网页，浏览器不声明覆盖缺盐路径。
+本版实际触及测试逐一登记args/files/covers并验证单文件affected真正执行自身任务；q:affected仍只用于反馈，版本完成和候选出包按q:full及无缓存q:release。核心进入Web bundle，真实Creator SDK/构建及既有built-web/editor-preview回归需独立执行。核心校验沿用既有实现；网页加工与真实输入由trace.cocos.web-processing-loop独立验收，不从核心Node通过推定。
 
 ## 网页批次拆分与操作反馈
 
@@ -82,6 +82,10 @@ ProbeInventory只复制公开材料选项并管理数量原文、不可编辑的
 
 ProbeLifetime窄消费既有menu_preview/split_lot；ProbeInteraction显式区分preview、confirm和save/load，preview只认本次last_preview_result，不要求ActionResult；confirm仍经既有controller重预览，成功须本次双结果。新批次ID从本次created_objects关联刷新后的公开材料，数量/位置由公开结果取得，不从输入伪造。状态应用异常不自动重发Action；busy/销毁保护保持。
 
-CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。不提供全量快捷按钮、加工界面、Stage1B或wx。
+CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；本版加工页见trace.cocos.web-processing-loop，不扩Stage1B或wx。
 
 tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实际args/files/covers，test.cocos-web-verification-contracts校验拆分观察断言负例。trace.cocos.web-inventory-split连接这些行为及独立Creator SDK/构建、built-web和editor-preview各960×640真实点击与键盘输入；旧矩阵/resize/农事/转移/存读档/故障及销毁回归保留。桌面输入不代表触摸或微信通过，版本完成仍按q:full及无缓存q:release和精确候选CI。
+
+## 网页加工检查入口
+
+trace.cocos.web-processing-loop连接最小app只读投影、outer加工与既有工具。tests/cocos-ui-readiness.test.ts验证投影来源/隔离，tests/cocos-web-processing.test.ts随test.cocos-engine-probe-lifecycle实际运行，ProbeProcessing.ts/.meta同时登记准备与生命周期files。full/blocker、原args及既有trace保留；缺盐/不足正式预览、任务状态及跨新会话读取按层验证，真实Creator/SDK及built/editor键盘/点击另行留证，不由Node或CI推定。

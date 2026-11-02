@@ -1,4 +1,4 @@
-﻿# DOCS_GOVERNANCE — v0.0.2.40
+﻿# DOCS_GOVERNANCE — v0.0.2.41
 
 文档治理规范。
 
@@ -95,3 +95,7 @@ trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebPr
 ## 网页农事追踪
 
 trace.cocos.web-farming-loop连接ProbeFarming/ProbeInteraction/ProbeLifetime/CocosWebProbe、既有准备与真实浏览器工具。tests/cocos-web-farming.test.ts加入现有生命周期任务实际args；full/blocker、files/covers与独立changed-file选择必须核对。成功/拒绝、公开实际数量和读档选择重建由行为与真实点击验收，地图登记不证明功能已通过。既有browser-local-save、web-save-load-recovery、web-viewport-input与web-bootstrap-probe追踪保留。
+
+## 网页加工追踪
+
+trace.cocos.web-processing-loop连接app只读方法/任务投影、outer辅助/组件、工具及readiness/menu/prepare/lifecycle/verification。新增行为测试必须进入现有实际args/files/covers，保留原full/blocker和active条目；任务及预计产物说明不新增正式规则，Node、Creator、built/editor证据分开。

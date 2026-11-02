@@ -300,7 +300,7 @@ const escapePattern = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\
 const visibleNumber = (label, amount, suffix = '') => new RegExp('(^|[^\\d.])' + escapePattern(amount) + '\\s*' + escapePattern(suffix) + '(?![\\d.])').test(label);
 
 export function assertInventoryProjection(state) {
-  assert.ok(state.panel === 'farming' || state.panel === 'inventory', 'the active local panel must be explicit');
+  assert.ok(['farming', 'inventory', 'processing'].includes(state.panel), 'the active local panel must be explicit');
   const inventory = state.inventory;
   assert.ok(inventory && typeof inventory === 'object', 'the public inventory projection must exist');
   for (const key of INVENTORY_COLLECTIONS) assert.ok(Array.isArray(inventory[key]), key + ' must be a public option list');
@@ -527,6 +527,187 @@ export function assertSplitLoadRecovery(savedState, loaded) {
   assert.equal(restored.splitPreview, null, 'manual load invalidates any old preview');
   assert.equal(restored.splitResult, null, 'manual load cannot present an old split as its own result');
   assert.equal(restored.canConfirmSplit, false);
+  assert.match(loaded.after.displayedOperation, /已恢复本地存档/);
+}
+
+const PROCESSING_COLLECTIONS = ['methodOptions', 'lotOptions', 'facilityOptions', 'taskOptions'];
+
+export function assertProcessingProjection(state) {
+  assertInventoryProjection(state);
+  const processing = state.processing;
+  assert.ok(processing && typeof processing === 'object', 'the detached public processing projection must exist');
+  for (const key of PROCESSING_COLLECTIONS) assert.ok(Array.isArray(processing[key]), key + ' must be a public processing list');
+  for (const key of ['methodOptions', 'lotOptions', 'facilityOptions', 'taskOptions']) {
+    const ids = processing[key].map((item) => item.id);
+    assert.equal(new Set(ids).size, ids.length, key + ' IDs must remain unique, including after manual load');
+  }
+  for (const [selected, options] of [['selectedMethodId', 'methodOptions'], ['selectedFacilityId', 'facilityOptions'], ['selectedTaskId', 'taskOptions']]) {
+    assert.ok(processing[selected] === null || typeof processing[selected] === 'string');
+    if (processing[selected] !== null) assert.ok(processing[options].some((item) => item.id === processing[selected]), 'local selection must name a current public processing option');
+  }
+  const method = processing.methodOptions.find((item) => item.id === processing.selectedMethodId);
+  assert.ok(processing.selectedRequirementIndex === null || (Number.isSafeInteger(processing.selectedRequirementIndex)
+    && method?.input_requirements.some((item) => item.requirement_index === processing.selectedRequirementIndex)));
+  assert.ok(Array.isArray(processing.inputSelections) && Array.isArray(processing.currentInputLotOptions));
+  assert.equal(typeof processing.currentInputQuantityText, 'string');
+  assert.ok(processing.currentInputUnit === null || typeof processing.currentInputUnit === 'string');
+  assert.ok(processing.inputError === null || typeof processing.inputError === 'string');
+  for (const key of ['canPreview', 'canStart', 'canCollect']) assert.equal(typeof processing[key], 'boolean');
+  if (processing.canStart) assert.equal(processing.preview?.success, true, 'start requires the current successful preview');
+  if (processing.canCollect) assert.equal(processing.taskOptions.find((task) => task.id === processing.selectedTaskId)?.status, 'ready_to_collect');
+  if (state.panel === 'processing') {
+    for (const key of ['method', 'facility', 'requirement', 'lot', 'quantityText', 'unit', 'selection', 'preview', 'task', 'result']) {
+      assert.equal(typeof state.displayedProcessing?.[key], 'string', key + ' must have observable processing feedback');
+      if (!['quantityText', 'unit'].includes(key)) assert.ok(state.displayedProcessing[key].trim());
+    }
+    assert.equal(state.displayedProcessing.quantityText, processing.currentInputQuantityText);
+    assert.equal(state.displayedProcessing.unit, processing.currentInputUnit === null ? '—' : VISIBLE_UNITS[processing.currentInputUnit] ?? processing.currentInputUnit);
+  }
+  return processing;
+}
+
+function assertProcessingWorldUnchanged(before, after) {
+  assertInventoryWorldUnchanged(before, after);
+  for (const key of PROCESSING_COLLECTIONS) assert.deepEqual(after.processing[key], before.processing[key], 'local processing input or preview must preserve ' + key);
+}
+
+export function assertLocalProcessingObservation(observation, expected) {
+  assertInputObservation(observation);
+  assertProcessingProjection(observation.before); const after = assertProcessingProjection(observation.after);
+  assert.equal(observation.before.busy, false); assert.equal(observation.after.busy, false);
+  assert.deepEqual(observation.after.operation, observation.before.operation, 'local processing navigation must not submit a command');
+  assertProcessingWorldUnchanged(observation.before, observation.after);
+  if (expected.panel !== undefined) assert.equal(observation.after.panel, expected.panel);
+  else if (expected.lotId !== undefined) {
+    assert.equal(observation.after.panel, 'processing');
+    assert.equal(after.selectedRequirementIndex, expected.requirementIndex);
+    assert.equal(after.inputSelections.find((item) => item.requirementIndex === expected.requirementIndex)?.lotId, expected.lotId);
+  }
+  else { assert.equal(observation.after.panel, 'processing'); assert.equal(after[expected.key], expected.value); }
+}
+
+export function assertProcessingQuantityObservation(observation, text) {
+  assertInputObservation(observation, 0);
+  const before = assertProcessingProjection(observation.before); const after = assertProcessingProjection(observation.after);
+  assert.equal(observation.before.panel, 'processing'); assert.equal(observation.after.panel, 'processing');
+  assert.equal(observation.before.busy, false); assert.equal(observation.after.busy, false);
+  assert.deepEqual(observation.after.operation, observation.before.operation, 'typing must not dispatch a command');
+  assertProcessingWorldUnchanged(observation.before, observation.after);
+  assert.equal(after.selectedRequirementIndex, before.selectedRequirementIndex);
+  assert.equal(after.selectedMethodId, before.selectedMethodId);
+  assert.equal(observation.focused?.className, 'cocosEditBox'); assert.equal(observation.focused?.value, text);
+  assert.ok(observation.editEvents.began >= 1 && observation.editEvents.changed >= 1 && observation.editEvents.ended >= 1, 'real Creator edit events are required');
+  const input = observation.layout.button; const epsilon = 1e-6;
+  for (const name of ['text', 'placeholder']) {
+    const label = observation.layout.inputLabels?.[name];
+    assert.ok(label && ['left', 'top', 'right', 'bottom', 'width', 'height'].every((key) => Number.isFinite(label[key])));
+    assert.ok(label.width > 0 && label.height > 0 && label.left >= input.left - epsilon && label.top >= input.top - epsilon
+      && label.right <= input.right + epsilon && label.bottom <= input.bottom + epsilon, name + ' Label must fit inside the real processing EditBox');
+  }
+  assert.equal(after.currentInputQuantityText, text);
+  assert.equal(after.inputSelections.find((item) => item.requirementIndex === after.selectedRequirementIndex)?.quantityText, text);
+  assert.equal(after.preview, null); assert.equal(after.canStart, false);
+  assert.equal(after.startResult, null); assert.equal(after.collectResult, null);
+}
+
+export function assertProcessingDisabledObservation(observation, buttonName) {
+  assertInputObservation(observation, 0);
+  const before = assertProcessingProjection(observation.before); assertProcessingProjection(observation.after);
+  const capability = { ProcessingPreview: 'canPreview', StartProcessing: 'canStart', CollectProcessing: 'canCollect' }[buttonName];
+  assert.ok(capability); assert.equal(before[capability], false);
+  assert.equal(observation.layout.buttonInteractable, false);
+  assert.equal(observation.before.panel, 'processing'); assert.equal(observation.after.panel, 'processing');
+  assert.deepEqual(observation.after.operation, observation.before.operation, 'a disabled processing action submits no command');
+  assertProcessingWorldUnchanged(observation.before, observation.after);
+}
+
+export function assertProcessingPreviewObservation(observation, { statusCode = 'OK' } = {}) {
+  const success = statusCode === 'OK';
+  assertUiCommandObservation(observation, { name: 'menu_preview', status: success ? 'completed' : 'failed', timeLabel: observation.before.timeLabel, errorMessage: success ? null : statusCode });
+  const before = assertProcessingProjection(observation.before); const after = assertProcessingProjection(observation.after);
+  assert.equal(before.canPreview, true);
+  assertProcessingWorldUnchanged(observation.before, observation.after);
+  assert.deepEqual(after.preview, { success, statusCode }); assert.equal(after.canStart, success);
+  assert.equal(after.startResult, null); assert.equal(after.collectResult, null);
+}
+
+export function assertProcessingStartObservation(observation) {
+  assertUiCommandObservation(observation, { name: 'menu_confirm', status: 'completed', timeLabel: observation.before.timeLabel });
+  const before = assertProcessingProjection(observation.before); const after = assertProcessingProjection(observation.after);
+  assert.equal(before.canStart, true);
+  const method = before.methodOptions.find((item) => item.id === before.selectedMethodId);
+  const result = after.startResult;
+  assert.ok(result && result.methodId === method.id && typeof result.taskId === 'string');
+  assert.equal(before.taskOptions.some((task) => task.id === result.taskId), false, 'start must allocate a new task ID');
+  assert.equal(after.taskOptions.length, before.taskOptions.length + 1);
+  const task = after.taskOptions.find((item) => item.id === result.taskId);
+  assert.ok(task); assert.equal(task.method_id, method.id); assert.equal(task.status, 'active'); assert.equal(task.current_stage, 'fermenting');
+  assert.equal(task.start_world_minute, timeInMinutes(observation.before.timeLabel) - 1440);
+  assert.equal(task.expected_finish_minute - task.start_world_minute, method.process_duration_minutes, 'formal duration, never time_cost_minutes, determines readiness');
+  assert.deepEqual(task.facility_ref, before.facilityOptions.find((item) => item.id === before.selectedFacilityId)?.facility_ref);
+  const primarySelection = before.inputSelections[0];
+  const primaryLot = observation.before.inventory.lotOptions.find((lot) => lot.id === primarySelection?.lotId);
+  assert.ok(primaryLot);
+  assert.deepEqual(task.expected_output, { base_id: primaryLot.base_id, quantity: { amount: Number(primarySelection.quantityText), unit: primaryLot.quantity.unit } }, 'the new task must retain the actual primary input quantity as its explicitly expected output');
+  for (const previous of before.taskOptions) assert.deepEqual(after.taskOptions.find((item) => item.id === previous.id), previous);
+  const used = new Map();
+  for (const selection of before.inputSelections) {
+    assert.ok(selection.lotId && Number.isFinite(Number(selection.quantityText)) && Number(selection.quantityText) > 0);
+    used.set(selection.lotId, (used.get(selection.lotId) ?? 0) + Number(selection.quantityText));
+  }
+  for (const lot of observation.before.inventory.lotOptions) {
+    const remaining = observation.after.inventory.lotOptions.find((item) => item.id === lot.id);
+    const consumed = used.get(lot.id) ?? 0;
+    if (consumed === 0) assert.deepEqual(remaining, lot, 'start must preserve unrelated material batches');
+    else if (consumed === lot.quantity.amount) assert.equal(remaining, undefined, 'exhausted input must disappear');
+    else {
+      assert.ok(remaining); assert.deepEqual(remaining.quantity, { amount: lot.quantity.amount - consumed, unit: lot.quantity.unit });
+      for (const key of ['base_id', 'category', 'current_form', 'storage_ref']) assert.deepEqual(remaining[key], lot[key]);
+    }
+  }
+  assert.equal(observation.after.inventory.lotOptions.length, observation.before.inventory.lotOptions.length
+    - observation.before.inventory.lotOptions.filter((lot) => used.get(lot.id) === lot.quantity.amount).length, 'start must not create an output batch');
+  for (const key of ['fieldOptions', 'harvestableOptions', 'seedOptions']) assert.deepEqual(observation.after.farming[key], observation.before.farming[key]);
+  assert.deepEqual(observation.after.farming.materialOptions, observation.after.inventory.lotOptions);
+  assert.equal(after.preview, null); assert.equal(after.canStart, false); assert.equal(after.collectResult, null);
+  assert.match(observation.after.displayedOperation, /加工开工成功/);
+  return task;
+}
+
+export function assertProcessingCollectObservation(observation) {
+  assertUiCommandObservation(observation, { name: 'menu_confirm', status: 'completed', timeLabel: observation.before.timeLabel });
+  const before = assertProcessingProjection(observation.before); const after = assertProcessingProjection(observation.after);
+  assert.equal(before.canCollect, true);
+  const task = before.taskOptions.find((item) => item.id === before.selectedTaskId);
+  assert.equal(task?.status, 'ready_to_collect');
+  const result = after.collectResult;
+  assert.ok(result && result.taskId === task.id && typeof result.lotId === 'string');
+  assert.equal(observation.before.inventory.lotOptions.some((lot) => lot.id === result.lotId), false, 'collection output ID must be new, including after load');
+  const created = observation.after.inventory.lotOptions.find((lot) => lot.id === result.lotId);
+  assert.ok(created && created.quantity.amount > 0);
+  assert.deepEqual(created.quantity, result.quantity); assert.deepEqual(created.quantity, task.expected_output?.quantity);
+  assert.equal(created.base_id, task.expected_output?.base_id);
+  assert.equal(observation.after.inventory.lotOptions.length, observation.before.inventory.lotOptions.length + 1);
+  for (const previous of observation.before.inventory.lotOptions) assert.deepEqual(observation.after.inventory.lotOptions.find((lot) => lot.id === previous.id), previous, 'collection preserves all existing material batches');
+  assert.equal(after.taskOptions.length, before.taskOptions.length);
+  for (const previous of before.taskOptions) assert.deepEqual(after.taskOptions.find((item) => item.id === previous.id), previous.id === task.id
+    ? { ...previous, status: 'completed', enabled: false, reason_key: 'ui.reason.processing_not_ready' } : previous);
+  assert.equal(after.canCollect, false);
+  for (const key of ['fieldOptions', 'harvestableOptions', 'seedOptions']) assert.deepEqual(observation.after.farming[key], observation.before.farming[key]);
+  assert.deepEqual(observation.after.farming.materialOptions, observation.after.inventory.lotOptions);
+  assert.ok(visibleNumber(observation.after.displayedProcessing.result, created.quantity.amount, VISIBLE_UNITS[created.quantity.unit] ?? created.quantity.unit), 'collection feedback must show the actual output quantity and unit');
+  assert.match(observation.after.displayedOperation, /加工产物领取成功/);
+  return created;
+}
+
+export function assertProcessingLoadRecovery(saved, loaded) {
+  assertUiCommandObservation(loaded, { name: 'load', status: 'completed', timeLabel: saved.timeLabel });
+  const after = assertProcessingProjection(loaded.after);
+  for (const key of PROCESSING_COLLECTIONS) assert.deepEqual(after[key], saved.processing[key], 'manual load must restore saved public ' + key);
+  for (const key of INVENTORY_COLLECTIONS) assert.deepEqual(loaded.after.inventory[key], saved.inventory[key]);
+  for (const key of FARMING_COLLECTIONS) assert.deepEqual(loaded.after.farming[key], saved.farming[key]);
+  assert.equal(after.preview, null); assert.equal(after.canStart, false);
+  assert.equal(after.startResult, null); assert.equal(after.collectResult, null);
   assert.match(loaded.after.displayedOperation, /已恢复本地存档/);
 }
 

@@ -55,3 +55,9 @@ Cocos 试水应用层：Session、ViewModel、Action 适配（Dispatcher、Previ
 ## 代码—地图同步
 
 runtime-map、cocos-map、public-api；存储故障保证见 save-load 模块卡、ADR-0003 与 `trace.save.storage-failure-recovery`。
+
+## 加工最小只读投影
+
+CocosSelectableViewModel.ts公开processing_method_options与processing_task_options：配置要求、只读tool_requirements、候选lot_ids、兼容设施及任务现有status/时间/设施。requirement_index仅为UI槽，不是formal role；工具只作说明，不新增选择或消耗。方法无料仍可查看，旧collectable_task_options保持原shape且仅ready。全部嵌套数组、Quantity与facility_ref复制，expected_output明确为预计，不表示已领取。
+
+tests/cocos-ui-readiness.test.ts核配置来源、新鲜度/形态候选刷新、完整source save/config隔离和active→ready→completed跨新Session读取。沿既有test:cocos-ui-readiness full/blocker，trace.cocos.web-processing-loop连接外层消费；Session、预览器、正式参数与core业务保持。

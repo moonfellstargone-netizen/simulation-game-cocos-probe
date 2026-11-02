@@ -40,6 +40,33 @@ export interface CocosCollectableTaskOption extends CocosSelectableOptionBase {
   expected_finish_minute: number;
 }
 
+export interface CocosProcessingInputRequirementOption {
+  requirement_index: number;
+  constraints: {
+    category: string | null;
+    base_id: string | null;
+    allowed_base_ids: string[];
+    allowed_forms: string[];
+    min_freshness: number | null;
+  };
+  min_quantity: Quantity | null;
+  lot_ids: string[];
+}
+
+export interface CocosProcessingMethodOption extends CocosSelectableOptionBase {
+  input_requirements: CocosProcessingInputRequirementOption[];
+  compatible_facility_ids: string[];
+  tool_requirements: string[];
+  time_cost_minutes: number;
+  process_duration_minutes: number;
+}
+
+export interface CocosProcessingTaskOption extends CocosCollectableTaskOption {
+  start_world_minute: number;
+  facility_ref: FacilityRef;
+  expected_output: { base_id: string | null; quantity: Quantity | null } | null;
+}
+
 export interface CocosCookableRecipeRoleOption {
   role: string;
   required: boolean;
@@ -89,6 +116,8 @@ export interface CocosSelectableViewModelData {
   splittable_lot_options: CocosMaterialLotOption[];
   processable_lot_options: CocosMaterialLotOption[];
   collectable_task_options: CocosCollectableTaskOption[];
+  processing_method_options: CocosProcessingMethodOption[];
+  processing_task_options: CocosProcessingTaskOption[];
   cookable_recipe_options: CocosCookableRecipeOption[];
   submittable_dish_lot_options: Array<{ id: string; recognized_dish_id: string | null; serving_count: number; storage_ref: StorageRef; enabled: boolean; reason_key: string | null }>;
   order_options: CocosOrderOption[];
@@ -102,6 +131,7 @@ interface ProcessingRequirement {
   allowed_base_ids?: string[];
   allowed_forms?: string[];
   min_freshness?: number;
+  min_quantity_g?: number;
 }
 
 interface RecipeRequirement {
@@ -119,6 +149,7 @@ export class CocosSelectableViewModel {
     const processingMethodIds = this.processingMethodIds();
     const activeRecipeIds = this.activeRecipeIds();
     const materialOptions = save.inventory.map((lot) => this.materialLotOption(save, lot.lot_id, processingMethodIds, activeRecipeIds));
+    const processingFacilities = this.processingFacilityOptions(save, processingMethodIds);
 
     return {
       field_options: save.fields.map((field) => ({
@@ -155,6 +186,8 @@ export class CocosSelectableViewModel {
         current_stage: task.current_stage,
         expected_finish_minute: task.expected_finish_minute
       })).filter((option) => option.enabled),
+      processing_method_options: processingMethodIds.map((id) => this.processingMethodOption(save, id, processingFacilities)),
+      processing_task_options: save.processing_tasks.map((task) => this.processingTaskOption(task)),
       cookable_recipe_options: activeRecipeIds.map((id) => this.recipeOption(save, id)),
       submittable_dish_lot_options: save.dish_lots.map((lot) => ({
         id: lot.dish_lot_id,
@@ -185,7 +218,54 @@ export class CocosSelectableViewModel {
         used_capacity: container.used_capacity,
         supported_forms: [...container.supported_forms]
       })),
-      processing_facility_options: this.processingFacilityOptions(save, processingMethodIds)
+      processing_facility_options: processingFacilities
+    };
+  }
+
+  private processingMethodOption(save: SaveFile, methodId: string, facilities: CocosProcessingFacilityOption[]): CocosProcessingMethodOption {
+    const method = this.processingMethod(methodId);
+    const requirements = Array.isArray(method.input_view_requirements) ? method.input_view_requirements as ProcessingRequirement[] : [];
+    return {
+      id: methodId,
+      label_key: typeof method.display_name_key === 'string' ? method.display_name_key : `processing.${methodId}.name`,
+      enabled: true,
+      reason_key: null,
+      input_requirements: requirements.map((requirement, requirementIndex) => ({
+        requirement_index: requirementIndex,
+        constraints: {
+          category: typeof requirement.category === 'string' ? requirement.category : null,
+          base_id: typeof requirement.base_id === 'string' ? requirement.base_id : null,
+          allowed_base_ids: Array.isArray(requirement.allowed_base_ids) ? [...requirement.allowed_base_ids] : [],
+          allowed_forms: Array.isArray(requirement.allowed_forms) ? [...requirement.allowed_forms] : [],
+          min_freshness: typeof requirement.min_freshness === 'number' ? requirement.min_freshness : null
+        },
+        min_quantity: typeof requirement.min_quantity_g === 'number' ? { amount: requirement.min_quantity_g, unit: 'g' } : null,
+        lot_ids: save.inventory.filter((lot) => this.lotMatchesProcessingRequirement(lot, requirement)).map((lot) => lot.lot_id)
+      })),
+      compatible_facility_ids: facilities.filter((facility) => facility.compatible_method_ids.includes(methodId)).map((facility) => facility.id),
+      tool_requirements: Array.isArray(method.tool_requirements) ? [...method.tool_requirements] : [],
+      time_cost_minutes: this.requiredNumber(method, 'time_cost_minutes', `processing:${methodId}`),
+      process_duration_minutes: this.requiredNumber(method, 'process_duration_minutes', `processing:${methodId}`)
+    };
+  }
+
+  private processingTaskOption(task: SaveFile['processing_tasks'][number]): CocosProcessingTaskOption {
+    const expectedQuantity = task.output_preview?.quantity ?? task.preview_result?.expected_quantity;
+    return {
+      id: task.task_id,
+      label_key: `processing.${task.method_id}.name`,
+      enabled: task.status === 'ready_to_collect',
+      reason_key: task.status === 'ready_to_collect' ? null : 'ui.reason.processing_not_ready',
+      method_id: task.method_id,
+      status: task.status,
+      current_stage: task.current_stage,
+      start_world_minute: task.start_world_minute,
+      expected_finish_minute: task.expected_finish_minute,
+      facility_ref: { ...task.facility_ref },
+      expected_output: task.output_preview || task.preview_result ? {
+        base_id: task.output_preview?.output_base_id ?? task.preview_result?.expected_output_base_id ?? null,
+        quantity: expectedQuantity === undefined ? null : { ...expectedQuantity }
+      } : null
     };
   }
 
@@ -263,14 +343,16 @@ export class CocosSelectableViewModel {
   private lotMatchesProcessingMethod(lot: SaveFile['inventory'][number], methodId: string): boolean {
     const method = this.processingMethod(methodId);
     const requirements = Array.isArray(method.input_view_requirements) ? method.input_view_requirements as ProcessingRequirement[] : [];
-    return requirements.some((requirement) => {
-      if (typeof requirement.base_id === 'string' && requirement.base_id !== lot.base_id) return false;
-      if (Array.isArray(requirement.allowed_base_ids) && !requirement.allowed_base_ids.includes(lot.base_id)) return false;
-      if (typeof requirement.category === 'string' && requirement.category !== lot.category) return false;
-      if (Array.isArray(requirement.allowed_forms) && !requirement.allowed_forms.includes(lot.current_form)) return false;
-      if (typeof requirement.min_freshness === 'number' && Number(lot.property_profile.freshness ?? 0) < requirement.min_freshness) return false;
-      return true;
-    });
+    return requirements.some((requirement) => this.lotMatchesProcessingRequirement(lot, requirement));
+  }
+
+  private lotMatchesProcessingRequirement(lot: SaveFile['inventory'][number], requirement: ProcessingRequirement): boolean {
+    if (typeof requirement.base_id === 'string' && requirement.base_id !== lot.base_id) return false;
+    if (Array.isArray(requirement.allowed_base_ids) && !requirement.allowed_base_ids.includes(lot.base_id)) return false;
+    if (typeof requirement.category === 'string' && requirement.category !== lot.category) return false;
+    if (Array.isArray(requirement.allowed_forms) && !requirement.allowed_forms.includes(lot.current_form)) return false;
+    if (typeof requirement.min_freshness === 'number' && Number(lot.property_profile.freshness ?? 0) < requirement.min_freshness) return false;
+    return true;
   }
 
   private recipeOption(save: SaveFile, recipeVariantId: string): CocosCookableRecipeOption {
@@ -340,6 +422,12 @@ export class CocosSelectableViewModel {
   private requiredString(record: Record<string, unknown>, key: string, source: string): string {
     const value = record[key];
     if (typeof value !== 'string' || value.length === 0) throw new Error(`ERR_REQUIRED_STRING_MISSING:${source}:${key}`);
+    return value;
+  }
+
+  private requiredNumber(record: Record<string, unknown>, key: string, source: string): number {
+    const value = record[key];
+    if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error(`ERR_REQUIRED_NUMBER_MISSING:${source}:${key}`);
     return value;
   }
 }

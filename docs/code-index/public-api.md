@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.40
+﻿# Code Index — Public API — v0.0.2.41
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -137,7 +137,7 @@ trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebPr
 
 契约、预览和公开Host/Component回归分别核对缺白菜、缺盐、盐不足/阈值边界，以及合法不同数量的消耗、任务、推进和领取。失败后健康请求与存读档恢复继续；不通过私有SaveFile写入构造假通过，不新增重复同lot或多primary拒绝/聚合规则。trace.processing.required-inputs连接ProcessingSystem.ts、ProcessingConfigResolver.ts及现有test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-menu。
 
-本版实际触及测试逐一登记args/files/covers并验证单文件affected真正执行自身任务；q:affected仍只用于反馈，版本完成和候选出包按q:full及无缓存q:release。核心进入Web bundle，真实Creator SDK/构建及既有built-web/editor-preview回归需独立执行。没有加工网页，浏览器不声明覆盖缺盐路径。
+本版实际触及测试逐一登记args/files/covers并验证单文件affected真正执行自身任务；q:affected仍只用于反馈，版本完成和候选出包按q:full及无缓存q:release。核心进入Web bundle，真实Creator SDK/构建及既有built-web/editor-preview回归需独立执行。核心校验沿用既有实现；网页加工与真实输入由trace.cocos.web-processing-loop独立验收，不从核心Node通过推定。
 
 ## 持久ID恢复与预览一致性
 
@@ -145,7 +145,7 @@ IdService观察完整GameState的字符串值及记录键，恢复生成格式ID
 
 保证覆盖存档中仍存在的对象和任意历史引用，以及同一runtime已知分配；整个SaveFile已无任何记录的历史ID不能无新增持久化字段地恢复。预览不修改领域状态或正式ID服务；失败保持既有事务语义，不承诺请求序号或已分配ID回滚。
 
-trace.runtime.id-recovery连接IdService.ts、GameRuntime.ts、CocosActionPreviewer.ts与Session；test.stage1a-contract、test.action-preview、test.cocos-session核对各对象/事件、历史引用、跨实例加载、极大后缀及合法恢复。该ID恢复能力不新增数量规则；网页拆分由outer单独提供，不扩加工、Stage1B或wx。真实Creator及既有built/editor浏览器回归独立执行，核心/Session回归与本版网页拆分真实输入分别验收。
+trace.runtime.id-recovery连接IdService.ts、GameRuntime.ts、CocosActionPreviewer.ts与Session；test.stage1a-contract、test.action-preview、test.cocos-session核对各对象/事件、历史引用、跨实例加载、极大后缀及合法恢复。该ID恢复能力不新增数量规则；网页拆分由outer单独提供，本版加工页独立消费既有正式加工，不扩Stage1B或wx。真实Creator及既有built/editor浏览器回归独立执行，核心/Session回归与网页真实输入分别验收。
 
 ## 拆分数量、定义占用与失败保护
 
@@ -158,3 +158,12 @@ trace.inventory.split-quantity连接InventorySystem及配置调用方，现有te
 ## 网页拆分outer接口
 
 ProbeInventory的setSplitQuantity、invalidateSplitPreview、splitPreviewCommand/splitConfirmCommand及acceptSplitResult管理本地数量与本次回传。ProbeCommand新增既有menu_preview和split_lot窄类型消费，未新增核心/Session/QueueAPI；确认仍走原菜单重预览。真实cc.EditBox属于CocosWebProbe，公开observer只读，准确字段以源码为准；trace.cocos.web-inventory-split追踪。
+
+## 加工方法与完整任务只读选项
+
+- CocosSelectableViewModelData.processing_method_options: CocosProcessingMethodOption[]，含id/label_key、input_requirements、只读tool_requirements、compatible_facility_ids和两个配置时间字段；无材料仍enabled可查看，工具要求只作说明，不新增选择或消耗行为。
+- CocosProcessingInputRequirementOption含requirement_index、constraints（category/base_id、allowed_base_ids/allowed_forms、min_freshness）、min_quantity与lot_ids。索引仅用于本地UI，不进入正式input_lots；候选复用既有matcher，最低量仅按配置投影。
+- processing_task_options: CocosProcessingTaskOption[]，含method/status/current_stage、start_world_minute/expected_finish_minute、facility_ref及expected_output:{base_id,quantity}|null。只有ready可领取，数组/嵌套引用复制；旧collectable_task_options的shape和过滤保持。
+- ProbeProcessing.refresh/status、选择/数量设置、startPreviewCommand/startConfirmCommand/collectCommand及acceptProcessingResult仅管理outer状态，真实命令沿既有menu_preview/confirm。实际任务/产物关联当次created_objects，预计output不当作已获产物；见trace.cocos.web-processing-loop及engine模块卡。
+
+源入口src/cocos-app/view-models/CocosSelectableViewModel.ts、apps/cocos-probe/template/assets/scripts/ProbeProcessing.ts；readiness与cocos-web-processing行为测试分层验证，真实Creator/浏览器另验。

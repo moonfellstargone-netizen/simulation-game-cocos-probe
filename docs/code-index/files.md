@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.40
+﻿# Code Index — Files — v0.0.2.41
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -132,3 +132,10 @@ trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport
 - trace.inventory.split-quantity连接实现、公开路径和地图，不替代正式契约。
 
 | `tests/cocos-web-split.test.ts` | tests | 公开outer拆分、预览/失败保护/跨会话恢复 | 改数量输入或本次预览 | `test:cocos-engine-probe-lifecycle` |
+
+## 网页加工开工与领取
+
+- `src/cocos-app/view-models/CocosSelectableViewModel.ts`：最小方法要求/兼容设施与完整任务只读投影；`tests/cocos-ui-readiness.test.ts`验证配置、候选刷新、深层隔离与跨会话状态。
+- `apps/cocos-probe/template/assets/scripts/ProbeProcessing.ts`、`.meta`：无cc的逐要求选料/数量、设施与任务本地状态和本次结果；登记准备/生命周期files。
+- `tests/cocos-web-processing.test.ts`：公开Host/Component的缺料/合法加工与任务/恢复行为，进入既有生命周期实际args/files/covers。
+- `ProbeLifetime.ts`、`ProbeInteraction.ts`、`CocosWebProbe.ts`消费既有正式加工命令；`verify-web.mjs`、`lib/webProbeSupport.mjs`及工具契约连接独立真实输入。导航trace.cocos.web-processing-loop，原所有能力与门禁保持。

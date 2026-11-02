@@ -1,14 +1,14 @@
 source_design_pack: 模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip
 design_pack_version: v1.5.2.2
-code_package_version: v0.0.2.40
-code_package_npm_version: 0.0.2-40
-code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_40
-version_name: Web Inventory Lot Split & Feedback
-chinese_version_name: 网页批次拆分与操作反馈版
-scope: Add outer-only web inventory split quantity input, preview, confirm and actual result feedback through the existing public menu. Preserve core quantities, ID recovery, ActionPipeline, SaveFile and formal resources.
+code_package_version: v0.0.2.41
+code_package_npm_version: 0.0.2-41
+code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_41
+version_name: Web Processing Start & Collection
+chinese_version_name: 网页加工开工与领取版
+scope: Expose minimal read-only processing method and task options and add the outer web start-to-collection flow through existing public menu actions. Preserve core processing, quantities, time rules, ID recovery, ActionPipeline, SaveFile and formal resources.
 
 formal_source_statement: 正式包 v1.5.2.2 remains authoritative
-context_statement: 网页批次拆分与操作反馈及必要版本/代码包内部检查体系治理；正式设定、核心与Session/Queue不变
-quality_surface: trace.cocos.web-inventory-split, ProbeInventory/Interaction/Lifetime/CocosWebProbe, test.cocos-engine-probe-lifecycle, test.cocos-web-verification-contracts; inherited core/ID/processing/Web traces; q:full, q:release without cache, independent Creator/browser keyboard and click verification
+context_statement: 网页加工开工与领取、最小只读公开投影及必要版本/代码包内部检查体系治理；正式设定、核心与Session/Queue不变
+quality_surface: trace.cocos.web-processing-loop, CocosSelectableViewModel, ProbeProcessing/Interaction/Lifetime/CocosWebProbe, test.cocos-ui-readiness, test.cocos-engine-probe-lifecycle, test.cocos-web-verification-contracts; inherited split/core/ID/processing/Web traces; q:full, q:release without cache, independent Creator/browser keyboard and click verification
 authority_statement: design pack remains authoritative; GitHub repo is daily code authority
 affected_boundary: q:affected and cache probe serve development feedback only; q:full and q:release without cache remain completion authority

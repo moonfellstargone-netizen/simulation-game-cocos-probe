@@ -94,3 +94,7 @@ tests/cocos-minimal-menu-binding.test.ts / test:cocos-menu验证预览不写状�
 ## 网页拆分公开复用
 
 本版outer复用已有MenuActionBinding.split_lot、MinimalMenuInteractionController.preview/confirm及Queue.menu_preview；此模块执行源码保持，确认仍重预览最新Session，不以outer旧预览替代。见trace.cocos.web-inventory-split及engine模块卡。
+
+## 网页加工公开复用
+
+outer新增加工页消费既有MenuActionBinding.start_processing/collect_processing_result及MinimalMenuInteractionController.preview/confirm；菜单绑定和Queue源码保持。input_lots仍只有lot_id与quantity，requirement_index不传播为正式角色；确认重预览当前Session。新增app只读投影与outer行为见trace.cocos.web-processing-loop，未就绪/重复领取正式拒绝继续由现有menu/core测试分层验证。

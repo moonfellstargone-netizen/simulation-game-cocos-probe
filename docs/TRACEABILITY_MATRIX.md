@@ -9,9 +9,9 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.40
+# TRACEABILITY_MATRIX — v0.0.2.41
 
-**Web Inventory Lot Split & Feedback / 网页批次拆分与操作反馈版**
+**Web Processing Start & Collection / 网页加工开工与领取版**
 
 ## 1. 定位
 
@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 本轮沿用**轻量追踪地基**，新增拆分数量与定义占用保护链路，保留持久ID恢复与预览一致性，保留加工必需输入校验与失败保护，继承农事、本地存档、桌面视口与输入验收；既有真实Cocos外层已实现，旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
+- 本轮沿用**轻量追踪地基**，新增网页加工开工至领取追踪，保留网页拆分、数量与定义占用保护、持久ID恢复与预览一致性，以及加工必需输入校验与失败保护，继承农事、本地存档、桌面视口与输入验收；既有真实Cocos外层已实现，旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
 
 ## 2. 状态语义
 
@@ -47,7 +47,7 @@ ProbeInventory只复制公开材料选项并管理数量原文、不可编辑的
 
 ProbeLifetime窄消费既有menu_preview/split_lot；ProbeInteraction显式区分preview、confirm和save/load，preview只认本次last_preview_result，不要求ActionResult；confirm仍经既有controller重预览，成功须本次双结果。新批次ID从本次created_objects关联刷新后的公开材料，数量/位置由公开结果取得，不从输入伪造。状态应用异常不自动重发Action；busy/销毁保护保持。
 
-CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。不提供全量快捷按钮、加工界面、Stage1B或wx。
+CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；本版加工页见trace.cocos.web-processing-loop，不扩Stage1B或wx。
 
 tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实际args/files/covers，test.cocos-web-verification-contracts校验拆分观察断言负例。trace.cocos.web-inventory-split连接这些行为及独立Creator SDK/构建、built-web和editor-preview各960×640真实点击与键盘输入；旧矩阵/resize/农事/转移/存读档/故障及销毁回归保留。桌面输入不代表触摸或微信通过，版本完成仍按q:full及无缓存q:release和精确候选CI。
 
@@ -65,17 +65,17 @@ IdService观察完整GameState的字符串值及记录键，恢复生成格式ID
 
 保证覆盖存档中仍存在的对象和任意历史引用，以及同一runtime已知分配；整个SaveFile已无任何记录的历史ID不能无新增持久化字段地恢复。预览不修改领域状态或正式ID服务；失败保持既有事务语义，不承诺请求序号或已分配ID回滚。
 
-trace.runtime.id-recovery连接IdService.ts、GameRuntime.ts、CocosActionPreviewer.ts与Session；test.stage1a-contract、test.action-preview、test.cocos-session核对各对象/事件、历史引用、跨实例加载、极大后缀及合法恢复。该ID恢复能力不新增数量规则；网页拆分由outer单独提供，不扩加工、Stage1B或wx。真实Creator及既有built/editor浏览器回归独立执行，核心/Session回归与本版网页拆分真实输入分别验收。
+trace.runtime.id-recovery连接IdService.ts、GameRuntime.ts、CocosActionPreviewer.ts与Session；test.stage1a-contract、test.action-preview、test.cocos-session核对各对象/事件、历史引用、跨实例加载、极大后缀及合法恢复。该ID恢复能力不新增数量规则；网页拆分由outer单独提供，本版加工页独立消费既有正式加工，不扩Stage1B或wx。真实Creator及既有built/editor浏览器回归独立执行，核心/Session回归与网页真实输入分别验收。
 
 ### trace.processing.required-inputs
 
 按当前方法配置完整验证必需输入，公开预览和直接正式执行拒绝缺料，且在材料消耗、任务创建与任务ID分配前失败。完整游戏状态、库存/储存缓存、任务与领域事件受保护；正常失败反馈沿既有管线，请求序号不要求回滚。合法不同数量加工、正常推进领取及失败后的存读档恢复继续，不新增重复输入规则。
 
-sourceRefs连接ProcessingSystem、ProcessingConfigResolver、ActionPipeline、Session与菜单绑定；test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-menu沿现有full/blocker实际执行。文档入口为processing模块卡、domain/runtime地图和public-api索引。核心bundle变化后，真实Creator及既有built/preview浏览器回归独立验收；没有加工网页，不以浏览器声称覆盖缺盐路径。
+sourceRefs连接ProcessingSystem、ProcessingConfigResolver、ActionPipeline、Session与菜单绑定；test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-menu沿现有full/blocker实际执行。文档入口为processing模块卡、domain/runtime地图和public-api索引。核心bundle变化后，真实Creator及既有built/preview浏览器回归独立验收；网页加工另由trace.cocos.web-processing-loop连接公开数据、outer与独立真实输入验收，不从本组核心Node通过推定。
 
 ### trace.cocos.web-inventory-storage
 
-玩家逐批浏览公开MaterialLot的名称/形态/数量/位置并明确选择目标，经过MenuActionBinding.ts最小store_item适配及现有preview/Action整批移动；该既有整批转移规则和Session/Queue保持，既有加工/ID恢复及本版拆分校验各自追踪。outer ProbeInventory只保存本地选择，读档后重新核对目标与位置，不把旧结果当本次转移成功。
+玩家逐批浏览公开MaterialLot的名称/形态/数量/位置并明确选择目标，经过MenuActionBinding.ts最小store_item适配及现有preview/Action整批移动；该既有整批转移规则和Session/Queue保持，既有加工/ID恢复及既有拆分校验各自追踪。outer ProbeInventory只保存本地选择，读档后重新核对目标与位置，不把旧结果当本次转移成功。
 
 sourceRefs连接最小菜单适配、ProbeInventory.ts、ProbeLifetime.ts、ProbeInteraction.ts、CocosWebProbe.ts和verify/support。test.cocos-menu与现有lifecycle/prepare/web-verification任务为full/blocker；新增tests/cocos-web-inventory.test.ts进入实际args/files/covers，保留原农事和全部active条目。
 
@@ -277,3 +277,9 @@ Node准备/生命周期通过不代表真实Creator通过；根typecheck仅检�
 ## 6. 未来扩展（本轮不实现）
 
 traceability-lite/v1 地基可后续扩展：schema/config、ADR、release notes、nightly、platform probe、symbol index 等。本轮**不实现**完整自动符号索引或 Nightly 实装。
+
+### trace.cocos.web-processing-loop
+
+最小app只读方法要求/兼容设施与完整任务投影，连接outer ProbeProcessing的逐项选料/数量、预览开工、状态与领取。正式input_lots不增role，旧collectable仅ready，expected_output与本次created_objects实际产物区分；匹配、最低量、等待时间和重复输入语义保持。
+
+sourceRefs为CocosSelectableViewModel、ProbeProcessing/Interaction/Lifetime/CocosWebProbe及verify-web/support。testRefs连接readiness、menu、prepare/lifecycle与web-verification的既有full/blocker，cocos-web-processing.test.ts进入实际args；所有旧active trace保留。公开预览缺料/不足、失败恢复、active→ready→completed、加工中跨新会话读取与实际领取按层验证；未就绪/重复领取网页只验证禁用0事件，直接正式负例由Node覆盖。Creator/SDK及built/editor各960×640真实鼠标/键盘独立验收，旧矩阵/resize和农事/库存/拆分/存读档/故障/销毁回归保持，Node/CI不替代真实输入证据。
