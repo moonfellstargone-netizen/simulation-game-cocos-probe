@@ -1,6 +1,6 @@
 {
   "schemaVersion": "traceability-lite/v1",
-  "projectVersion": "v0.0.2.44",
+  "projectVersion": "v0.0.2.45",
   "currentFullReleaseTraceIds": [
     "trace.stage1a.actionpipeline",
     "trace.stage1a.save-load",
@@ -27,7 +27,8 @@
     "trace.cocos.web-processing-loop",
     "trace.cocos.web-cooking-loop",
     "trace.orders.legal-state-deadline",
-    "trace.cocos.web-orders-loop"
+    "trace.cocos.web-orders-loop",
+    "trace.cocos.cross-step-recovery"
   ],
   "entries": [
     {
@@ -943,6 +944,54 @@
         "docs/module-cards/cocos-creator-adapter.md",
         "docs/maps/cocos-map.md",
         "docs/maps/runtime-map.md",
+        "docs/code-index/public-api.md"
+      ],
+      "gateRefs": [
+        "full",
+        "release"
+      ],
+      "designRefs": [
+        "docs/SOURCE_DESIGN_PACK.md",
+        "design_snapshot/SOURCE_DESIGN_PACK.txt"
+      ]
+    },
+    {
+      "id": "trace.cocos.cross-step-recovery",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": [
+        "cocos-app",
+        "cocos-creator-adapter",
+        "cocos-engine-probe",
+        "tools",
+        "tests"
+      ],
+      "sourceRefs": [
+        "src/cocos-app/runtime/CocosAppRuntimeSession.ts",
+        "src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts",
+        "src/cocos-creator-adapter/CocosSessionHost.ts",
+        "src/cocos-creator-adapter/save/SaveLoadInteractionController.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts",
+        "tools/cocos-probe/verify-web.mjs",
+        "tools/cocos-probe/lib/webProbeSupport.mjs"
+      ],
+      "testRefs": [
+        "test.stage1a-bootstrap",
+        "test.cocos-session",
+        "test.cocos-save-load",
+        "test.cocos-command-queue",
+        "test.cocos-engine-probe-lifecycle",
+        "test.cocos-web-verification-contracts"
+      ],
+      "docRefs": [
+        "docs/module-cards/save-load.md",
+        "docs/module-cards/cocos-app.md",
+        "docs/module-cards/cocos-creator-adapter.md",
+        "docs/module-cards/cocos-engine-probe.md",
+        "docs/maps/runtime-map.md",
+        "docs/maps/cocos-map.md",
         "docs/code-index/public-api.md"
       ],
       "gateRefs": [

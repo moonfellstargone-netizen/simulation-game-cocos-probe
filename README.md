@@ -1,12 +1,12 @@
-# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.44
+# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.45
 
-**Web Tavern Orders & Settlement Feedback / 网页酒馆订单与结算反馈版**
+**Cross-step Save/Load Recovery / 跨步骤存读档恢复版**
 
 本仓库是 Cocos 微信试水代码项目**日常代码权威源**。正式玩法与契约权威仍为正式三包 v1.5.2.2。
 
-- 代码包版本：`v0.0.2.44`
-- npm package version：`0.0.2-44`
-- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_44`（权威源：`tools/quality/rules/project-target.json`）
+- 代码包版本：`v0.0.2.45`
+- npm package version：`0.0.2-45`
+- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_45`（权威源：`tools/quality/rules/project-target.json`）
 - 设计来源：`模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip`
 - 规则权威源：`tools/quality/rules/project-target.json`、`tools/quality/rules/context-doc-surface.rules.json`、`tools/quality/rules/architecture-boundary.rules.json`、`tools/quality/rules/traceability-map.json`
 - 代码权威：本 GitHub 仓库（非 zip 归档包）
@@ -22,7 +22,7 @@
 
 ## Task Intent Lock
 
-本轮唯一目标是网页酒馆订单与结算反馈：浏览现有订单的需求、截止和状态，显式选择一个真实DishLot，沿既有menu_preview/confirm完成提交并显示本次实际结算。最小SelectableVM复制issuer、绝对截止与signed minutes_until_deadline、hard/weighted分离的正式需求、submitted refs和实际result_summary；缺需求配置为null且不可用，不伪装无要求。outer第五页及ProbeOrders只管理本地选择与本次结果，终态订单仍可查看；preview不预测奖励，基础奖励仅参考。本次成功关联实际Order完成、所选菜品移除、结算摘要和公开金钱/声望变化，历史结果与本次反馈分开；陈旧/错误回执在completed发布前拒绝，不重发已提交动作。core、StateVM、Session/Queue、SaveFile与正式资源保持，既有农事、库存/拆分、加工、烹饪和存读档回归保留；不新增接单/刷新/购买、评分奖励、聚合/部分交付、数量/时间/重复输入规则、Stage1B或微信。
+本轮唯一目标是跨步骤手动存读档后的真实续玩：现有九种正式Action经玩家入口自然到达生长中、加工中、可领取、菜品已成、订单完成五个独立保存点，每点在全新会话读取后继续实际操作。加工恢复后领取并再次开工；已完成订单恢复后仍不能重复领奖，并继续创建对象验证既有ID恢复。通过公共bootstrap/Host集成测试和独立浏览器recoveryLoop补齐证据，生产core、Session/Queue、ViewModel、outer组件、SaveFile与正式资源保持。既有五页经营、手动单槽、坏档/存储拒绝、busy/销毁迟到与全部浏览器回归保留；不新增自动保存/自动恢复、多槽、迁移、跨标签仲裁、数量/时间/重复输入/奖励规则、触摸、Stage1B或微信。
 
 工具只读取仓库唯一src/design_snapshot派生的工作副本。prepare继续导出snapshot及全部58项Schema并记录Git来源/输入产物摘要；build记录实际Web产物清单摘要，verify核对构建关联和产物字节后才启动浏览器，拒绝替换或篡改的Web目录。工程、依赖、报告、缓存和构建仍位于仓库外，不形成第二源码权威。
 
@@ -165,3 +165,11 @@ ProbeOrders.ts/.meta只消费公共数据，管理第五页的显式单订单/�
 确认前捕获order/dish与经济基线，避免成功patch先移除选择后误拒本次回执；错误或陈旧结果在ProbeInteraction发布completed前拒绝，应用失败不重发Action。改选择、切页、其他命令和load清旧预览/本次成功，历史结算另行展示；普通拒绝保留合法选择供修正，失效对象清除，不自动换菜品。busy/销毁迟到及本地单槽手动存读档保持。
 
 tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，helper/.meta及测试同时登记prepare/lifecycle；readiness、menu与web-verification继续full/blocker。trace.cocos.web-orders-loop连接这些测试与源/地图，全部旧追踪保持。真实Creator/SDK和built/editor各960×640订单链、实际图检另行验收，保留原视口/resize、农事、库存拆分、加工、烹饪、存读档/故障与销毁。网页禁用重交只记0事件，正式状态/安全/低分拒绝由合法受控Node另验，不冒称微信或手机通过。
+
+## 跨步骤存读档恢复
+
+trace.cocos.cross-step-recovery：五个独立保存点为生长中、加工中、可领取、菜品已成和订单完成，每点从正式资源新局经既有玩家入口自然达成，手动保存后由全新会话读取并实际继续。加工恢复后领取并再开工；完成订单恢复后保持不可重复领奖，并继续创建对象核既有存档对象/引用及新ID。测试者显式Save不表示自动保存。
+
+`tests/stage1a-bootstrap.test.ts`沿公共bootstrap/Host和既有菜单/Queue验证集成；`tools/cocos-probe/verify-web.mjs`、`lib/webProbeSupport.mjs`及`tests/cocos-web-verification-contracts.test.mjs`连接独立recoveryLoop与断言负例。复用既有test.stage1a-bootstrap和test.cocos-web-verification-contracts实际args/files/covers及full/blocker，不新增任务；Session/save-load/Queue/lifecycle旧保护继续运行。
+
+刷新及同context新页均手动读入原保存点后续玩；坏JSON/Schema/Audit、读写拒绝、busy和销毁迟到场景与健康链隔离，失败load保留健康完整状态。生产Session/core/outer组件和正式资源不变；无自动恢复、多槽、迁移或跨标签仲裁。真实Creator/SDK、built/editor物理输入与对应截图须独立留证，Node契约不执行真实浏览器，不代表手机/微信通过。

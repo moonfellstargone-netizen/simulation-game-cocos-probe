@@ -40,7 +40,7 @@ apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期
 
 ## 修改后验证
 
-test:cocos-probe-preparation实际prepare并验证资源、来源及生成runtime；test:cocos-engine-probe-lifecycle同时执行cocos-engine-probe-lifecycle.test.ts、cocos-web-interaction.test.ts、cocos-browser-storage.test.ts、cocos-web-farming.test.ts、cocos-web-inventory.test.ts、cocos-web-split.test.ts、cocos-web-processing.test.ts与cocos-web-cooking.test.ts，验证受控异步生命周期、交互恢复、公开农事及库存转移行为；test:cocos-web-verification-contracts执行既有工具契约及cocos-web-serve-contracts.test.mjs，验证参数、HTTP安全、来源、固定端口与失败保护。三项登记full/blocker，trace.cocos.web-bootstrap-probe和trace.cocos.web-viewport-input分别保留启动与视口追踪。Node契约不执行真实浏览器。
+test:cocos-probe-preparation实际prepare并验证资源、来源及生成runtime；test:cocos-engine-probe-lifecycle同时执行cocos-engine-probe-lifecycle.test.ts、cocos-web-interaction.test.ts、cocos-browser-storage.test.ts、cocos-web-farming.test.ts、cocos-web-inventory.test.ts、cocos-web-split.test.ts、cocos-web-processing.test.ts、cocos-web-cooking.test.ts与cocos-web-orders.test.ts，验证受控异步生命周期、交互恢复、公开农事及库存转移行为；test:cocos-web-verification-contracts执行既有工具契约及cocos-web-serve-contracts.test.mjs，验证参数、HTTP安全、来源、固定端口与失败保护。三项登记full/blocker，trace.cocos.web-bootstrap-probe和trace.cocos.web-viewport-input分别保留启动与视口追踪。Node契约不执行真实浏览器。
 
 根typecheck只覆盖src；真实Creator类型、构建、预览和浏览器独立验收。cocos:verify:web要求--project、--browser、--report-dir、--build-record均为显式绝对路径；可选--preview-url只接受loopback HTTP。实际浏览器或引擎缺失必须失败或未执行，不能静默skip。
 
@@ -126,3 +126,7 @@ ProbeOrders.ts/.meta只消费公共数据，管理第五页的显式单订单/�
 确认前捕获order/dish与经济基线，避免成功patch先移除选择后误拒本次回执；错误或陈旧结果在ProbeInteraction发布completed前拒绝，应用失败不重发Action。改选择、切页、其他命令和load清旧预览/本次成功，历史结算另行展示；普通拒绝保留合法选择供修正，失效对象清除，不自动换菜品。busy/销毁迟到及本地单槽手动存读档保持。
 
 tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，helper/.meta及测试同时登记prepare/lifecycle；readiness、menu与web-verification继续full/blocker。trace.cocos.web-orders-loop连接这些测试与源/地图，全部旧追踪保持。真实Creator/SDK和built/editor各960×640订单链、实际图检另行验收，保留原视口/resize、农事、库存拆分、加工、烹饪、存读档/故障与销毁。网页禁用重交只记0事件，正式状态/安全/低分拒绝由合法受控Node另验，不冒称微信或手机通过。
+
+## 五点恢复的真实浏览器证据
+
+trace.cocos.cross-step-recovery新增verify-web的独立普通玩家recoveryLoop；生长中、加工中、可领取、菜品已成、订单完成各自然达成后手动保存，刷新及同context新页读取同一原点后实际继续。webProbeSupport通用恢复断言与既有web-verification任务负例闭合，保持原专用农事断言及全部五页/矩阵/resize/故障/销毁链。outer组件和观察接口保持，不新增状态写入捷径；Node契约不执行真实浏览器，Creator/SDK及built/editor真实输入、图检另验。

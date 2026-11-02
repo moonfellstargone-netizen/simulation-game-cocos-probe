@@ -1,4 +1,4 @@
-﻿# Cocos Map — v0.0.2.44
+﻿# Cocos Map — v0.0.2.45
 
 ## 系统职责
 
@@ -124,3 +124,7 @@ ProbeOrders.ts/.meta只消费公共数据，管理第五页的显式单订单/�
 确认前捕获order/dish与经济基线，避免成功patch先移除选择后误拒本次回执；错误或陈旧结果在ProbeInteraction发布completed前拒绝，应用失败不重发Action。改选择、切页、其他命令和load清旧预览/本次成功，历史结算另行展示；普通拒绝保留合法选择供修正，失效对象清除，不自动换菜品。busy/销毁迟到及本地单槽手动存读档保持。
 
 tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，helper/.meta及测试同时登记prepare/lifecycle；readiness、menu与web-verification继续full/blocker。trace.cocos.web-orders-loop连接这些测试与源/地图，全部旧追踪保持。真实Creator/SDK和built/editor各960×640订单链、实际图检另行验收，保留原视口/resize、农事、库存拆分、加工、烹饪、存读档/故障与销毁。网页禁用重交只记0事件，正式状态/安全/低分拒绝由合法受控Node另验，不冒称微信或手机通过。
+
+## 五点手动恢复验证
+
+既有五页Button/EditBox与SaveLocal/LoadLocal保持；verify-web独立recoveryLoop从自然玩家操作建立五保存点，刷新/同context新页后真实手动读取并继续。trace.cocos.cross-step-recovery连接工具负例、公共bootstrap和既有Session/Queue/lifecycle保护；不新增observer业务捷径，真实Creator/SDK与built/editor输入另验，不代表触摸或微信。

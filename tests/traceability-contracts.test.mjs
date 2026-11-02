@@ -7,6 +7,54 @@ import { resolveGateTasks } from '../tools/quality/lib/resolveGateTasks.mjs';
 const root = process.cwd();
 const readJson = (rel) => JSON.parse(readFileSync(join(root, rel), 'utf8'));
 
+test('cross-step recovery closes over executed public bootstrap and browser assertion contracts', () => {
+  const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
+  const id = 'trace.cocos.cross-step-recovery';
+  const entry = traceabilityMap.entries.find((item) => item.id === id);
+  assert.equal(entry?.status, 'active');
+  assert.ok(traceabilityMap.currentFullReleaseTraceIds.includes(id));
+  for (const source of [
+    'src/cocos-app/runtime/CocosAppRuntimeSession.ts',
+    'src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts',
+    'src/cocos-creator-adapter/CocosSessionHost.ts',
+    'src/cocos-creator-adapter/save/SaveLoadInteractionController.ts',
+    'apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts',
+    'apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts',
+    'tools/cocos-probe/verify-web.mjs',
+    'tools/cocos-probe/lib/webProbeSupport.mjs'
+  ]) assert.ok(entry.sourceRefs.includes(source), `${source} must be traced`);
+  for (const [taskId, file, modules] of [
+    ['test.stage1a-bootstrap', 'tests/stage1a-bootstrap.test.ts', ['game-core', 'cocos-app', 'cocos-creator-adapter', 'tests']],
+    ['test.cocos-web-verification-contracts', 'tests/cocos-web-verification-contracts.test.mjs', ['tools', 'tests', 'cocos-engine-probe']],
+    ['test.cocos-session', 'tests/cocos-runtime-session.test.ts', ['cocos-app', 'tests']],
+    ['test.cocos-save-load', 'tests/cocos-save-load-ui-binding.test.ts', ['cocos-creator-adapter', 'tests']],
+    ['test.cocos-command-queue', 'tests/cocos-ui-command-queue.test.ts', ['cocos-creator-adapter', 'tests']],
+    ['test.cocos-engine-probe-lifecycle', 'tests/cocos-web-interaction.test.ts', ['cocos-engine-probe', 'tests']]
+  ]) {
+    assert.ok(entry.testRefs.includes(taskId), `${taskId} must be traced`);
+    const task = registry.tests[taskId];
+    assert.equal(task?.stability, 'blocker');
+    for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
+    assert.ok(task.files.includes(file), `${taskId} must register ${file}`);
+    const execution = task.command === 'npm'
+      ? readJson('package.json').scripts[task.args[1]].split(/\s+/)
+      : [task.command, ...task.args];
+    assert.ok(execution.includes(file), `${taskId} must execute ${file}`);
+    for (const module of modules) assert.ok(task.covers.includes(module), `${taskId} must cover ${module}`);
+    for (const gate of ['full', 'release']) {
+      assert.ok(entry.gateRefs.includes(gate));
+      assert.ok(resolveGateTasks(gate, gatePolicy, registry).some((task) => task.id === taskId));
+    }
+  }
+  const browserTask = registry.tests['test.cocos-web-verification-contracts'];
+  for (const source of ['tools/cocos-probe/verify-web.mjs', 'tools/cocos-probe/lib/webProbeSupport.mjs']) {
+    assert.ok(browserTask.files.includes(source), `${source} must reach the executed assertion tests`);
+  }
+  const pkg = readJson('package.json');
+  assert.ok(pkg.scripts['test:stage1a-bootstrap'].split(/\s+/).includes('tests/stage1a-bootstrap.test.ts'));
+  assert.ok(pkg.scripts['test:cocos-web-verification-contracts'].split(/\s+/).includes('tests/cocos-web-verification-contracts.test.mjs'));
+});
+
 test('Web orders trace closes over executed public data, explicit menu, outer and browser contracts', () => {
   const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
   const id = 'trace.cocos.web-orders-loop';

@@ -1064,3 +1064,171 @@ test('visible order settlement must show the actual match score and reputation d
  const expected={rewardMoney:37,reputationDelta:{west_market_tavern:1}};
  for(const label of ['奖励37/匹配999/声望+1/实际提交2份','奖励37/匹配94/声望+999/实际提交2份','奖励37/匹配94/实际提交2份']){const bad=settledOrderObservation();bad.after.displayedOrders.result=label;assert.throws(()=>processingChecks.assertOrderConfirmObservation(bad,expected));}
 });
+
+function crossStepState() {
+  const state = orderState();
+  state.processing = structuredClone(processingStartedState().processing);
+  Object.assign(state.inventory, { splitPreview: null, splitResult: null, canConfirmSplit: false });
+  return state;
+}
+
+function clearCrossStepLocals(state) {
+  for (const [section, keys] of Object.entries({
+    farming: ['selectedFieldId','selectedSeedId','selectedCropId'], inventory: ['selectedLotId','selectedTargetId','splitPreview','splitResult'],
+    processing: ['selectedMethodId','selectedRequirementIndex','selectedFacilityId','selectedTaskId','preview','startResult','collectResult'],
+    cooking: ['selectedRecipeId','selectedRole','selectedTargetId','heatLevel','preview','result'], orders: ['selectedOrderId','selectedDishId','preview','result']
+  })) for (const key of keys) state[section][key] = null;
+  state.processing.inputSelections=[]; state.cooking.inputSelections=[];
+  for (const [section, keys] of Object.entries({farming:['canPlant','canHarvest'],inventory:['canMove','canConfirmSplit'],processing:['canPreview','canStart','canCollect'],cooking:['canPreview','canCook'],orders:['canPreview','canSubmit']}))
+    for (const key of keys) state[section][key]=false;
+  return state;
+}
+
+function crossStepFreshEvidence() {
+  const savedState=crossStepState();
+  savedState.timeLabel=savedState.displayedTime='day 5 minute 360';
+  const initial=clearCrossStepLocals(crossStepState());
+  initial.operation={sequence:0,name:null,status:'idle'};
+  const after=clearCrossStepLocals(structuredClone(savedState));
+  after.operation={sequence:1,name:'load',status:'completed',message:'已恢复本地存档',errorMessage:null,slotId:'web_probe',worldMinute:6120};
+  after.displayedOperation=after.operation.message;
+  const saved={origin:'http://127.0.0.1:1234',key:'qinglan.simulation-game.cocos-probe.save.web_probe',raw:'{"saved":"complete"}',timeLabel:savedState.timeLabel};
+  return {savedState,saved,initial,afterStartup:{...saved},loaded:farmingClick(initial,after),afterLoad:{...saved},documentFresh:true};
+}
+
+test('cross-step fresh recovery rejects missing world entities and stale local success across every panel',()=>{
+  const valid=crossStepFreshEvidence();
+  assert.doesNotThrow(()=>processingChecks.assertCrossStepFreshRecovery(valid));
+  for(const mutate of [
+    x=>x.loaded.after.inventory.lotOptions[0].quantity.amount--,
+    x=>x.loaded.after.processing.taskOptions=[], x=>x.loaded.after.orders.money++,
+    x=>x.loaded.after.orders.orderOptions[0].status='completed',x=>x.loaded.after.cooking.dishOptions=[],
+    x=>x.loaded.after.processing.preview={success:true,statusCode:'OK'},
+    x=>x.loaded.after.orders.result={rewardMoney:37},x=>x.loaded.after.inventory.selectedLotId='material',
+    x=>x.documentFresh=false,x=>x.initial.operation.sequence=1
+  ]) { const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertCrossStepFreshRecovery(bad)); }
+});
+
+test('cross-step failure protection rejects healthy-world replacement and requires the current failed operation',()=>{
+  const before=crossStepState(),after=clearCrossStepLocals(structuredClone(before));
+  after.operation={sequence:before.operation.sequence+1,name:'load',status:'failed',message:'操作未完成，请重试',errorMessage:'controlled-read',slotId:'web_probe',worldMinute:null};
+  after.displayedOperation=after.operation.message;
+  const valid=farmingClick(before,after),expected={name:'load',status:'failed',timeLabel:before.timeLabel,errorMessage:'controlled-read'};
+  assert.doesNotThrow(()=>processingChecks.assertCrossStepFailureObservation(valid,expected));
+  for(const mutate of [x=>x.after.inventory.lotOptions=[],x=>x.after.processing.taskOptions=[],x=>x.after.orders.money=0,x=>x.after.orders.orderOptions=[],x=>x.after.operation.status='completed']){
+    const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertCrossStepFailureObservation(bad,expected));
+  }
+});
+
+function recoveryRaw(state=crossStepState()) {
+  return {
+    world_time:{absolute_minute:timeInMinutes(state.timeLabel)-1440},player_state:{money:state.orders.money},story_flags:{historical_id:'retired_lot_000099'},
+    inventory:state.inventory.lotOptions.map(item=>({...structuredClone(item),lot_id:item.id})),
+    processing_tasks:state.processing.taskOptions.map(item=>({...structuredClone(item),task_id:item.id})),
+    dish_lots:state.cooking.dishOptions.map(item=>({...structuredClone(item),dish_lot_id:item.id})),
+    orders:state.orders.orderOptions.map(item=>({...structuredClone(item),order_id:item.id})),reservations:[],
+    fields:[{field_plot_id:'field',occupied_tiles:1,active_crop_ids:['crop_original']}],
+    crop_instances:[{crop_id:'crop_original',lifecycle_status:'active'}],
+    storage_containers:state.inventory.targetOptions.map(item=>({...structuredClone(item),container_id:item.id}))
+  };
+}
+const recoveryStored = raw => ({origin:'http://127.0.0.1:1234',key:'qinglan.simulation-game.cocos-probe.save.web_probe',raw:JSON.stringify(raw)});
+
+test('cross-step complete serialization rejects partial saves, different bytes and duplicate entity identities',()=>{
+  const valid=recoveryStored(recoveryRaw());
+  assert.doesNotThrow(()=>processingChecks.assertCrossStepSerialization(valid,{...valid}));
+  for(const mutate of [x=>x.raw=JSON.stringify({world_time:{absolute_minute:360}}),x=>x.key='another-slot',x=>x.origin='http://127.0.0.1:99']) {
+    const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertCrossStepSerialization(valid,bad));
+  }
+  for(const mutate of [x=>delete x.crop_instances,x=>x.inventory.push(structuredClone(x.inventory[0])),x=>x.crop_instances[0].crop_id=x.inventory[0].lot_id,x=>delete x.player_state]){
+    const raw=recoveryRaw();mutate(raw);const bad=recoveryStored(raw);assert.throws(()=>processingChecks.assertCrossStepSerialization(bad,{...bad}));
+  }
+});
+
+test('cross-step checkpoint evidence requires the actual saved phase and matching complete public entities',()=>{
+  const states={growing:crossStepState(),processing:crossStepState(),ready:crossStepState(),dish:crossStepState(),completed:crossStepState()};
+  states.growing.farming.fieldOptions[0].occupied_tiles=1;
+  states.ready.processing.taskOptions[0].status='ready_to_collect';
+  states.completed.orders=structuredClone(settledOrderObservation().after.orders);states.completed.orders.result=null;
+  states.completed.cooking.dishOptions=structuredClone(states.completed.orders.dishOptions);
+  for(const [point,state] of Object.entries(states)){
+    const raw=recoveryRaw(state),stored=recoveryStored(raw);
+    assert.doesNotThrow(()=>processingChecks.assertCrossStepCheckpoint(point,state,stored),point);
+    const changed=structuredClone(raw);changed.player_state.money++;
+    assert.throws(()=>processingChecks.assertCrossStepCheckpoint(point,state,recoveryStored(changed)),point+' must match real saved economy');
+  }
+  for(const [point,mutate] of [
+    ['growing',x=>x.crop_instances=[]],['processing',x=>x.processing_tasks[0].status='completed'],
+    ['ready',x=>x.processing_tasks[0].status='active'],['dish',x=>x.dish_lots=[]],['completed',x=>x.orders[0].status='available']
+  ]) {const state=states[point],raw=recoveryRaw(state);mutate(raw);assert.throws(()=>processingChecks.assertCrossStepCheckpoint(point,state,recoveryStored(raw)));}
+});
+
+test('cross-step new identities cannot reuse saved history or overwrite entities after recovery',()=>{
+  const raw=recoveryRaw(),saved=recoveryStored(raw),after=structuredClone(raw);
+  after.crop_instances.push({crop_id:'crop_new',lifecycle_status:'active'});
+  after.inventory.push({...structuredClone(raw.inventory[0]),lot_id:'material_new'});
+  const created=[{kind:'MaterialLot',id:'material_new'}];
+  assert.doesNotThrow(()=>processingChecks.assertCrossStepObservedIds(saved,created));
+  assert.throws(()=>processingChecks.assertCrossStepObservedIds(saved,[{kind:'MaterialLot',id:'retired_lot_000099'}]));
+  assert.doesNotThrow(()=>processingChecks.assertCrossStepCreatedIds(saved,recoveryStored(after),created));
+  for(const identity of ['retired_lot_000099',raw.inventory[0].lot_id]) {
+    const bad=structuredClone(after);bad.inventory.at(-1).lot_id=identity;
+    assert.throws(()=>processingChecks.assertCrossStepCreatedIds(saved,recoveryStored(bad),[{kind:'MaterialLot',id:identity}]));
+  }
+  assert.throws(()=>processingChecks.assertCrossStepCreatedIds(saved,saved,[]));
+});
+
+function completedContinuationEvidence() {
+  const saved=splitState();saved.processing=structuredClone(processingState().processing);saved.cooking=structuredClone(cookingState().cooking);
+  saved.orders=structuredClone(settledOrderObservation().after.orders);saved.orders.result=null;
+  const before=structuredClone(saved),after=structuredClone(saved),planted=plantedState();
+  for(const key of ['fieldOptions','seedOptions','selectedFieldId','canPlant'])after.farming[key]=structuredClone(planted.farming[key]);
+  after.operation=structuredClone(planted.operation);after.displayedOperation=after.operation.message;
+  const plant=farmingClick(before,after);plant.buttonName='PlantCrop';
+  const splitBefore=structuredClone(after),splitAfter=structuredClone(after),ready=splitReadyState(),done=splitCompletedState();
+  splitBefore.panel=splitAfter.panel='inventory';splitBefore.inventory=structuredClone(ready.inventory);splitAfter.inventory=structuredClone(done.inventory);
+  splitBefore.displayedSplit=structuredClone(ready.displayedSplit);splitAfter.displayedSplit=structuredClone(done.displayedSplit);splitAfter.displayedInventory=structuredClone(done.displayedInventory);
+  splitAfter.farming.materialOptions=structuredClone(done.farming.materialOptions);
+  splitAfter.operation={...done.operation,sequence:splitBefore.operation.sequence+1};splitAfter.displayedOperation=splitAfter.operation.message;
+  const split=farmingClick(splitBefore,splitAfter);split.buttonName='SplitConfirm';
+  return{saved,actions:[{actionType:'plant_crop',observation:plant},{actionType:'split_lot',observation:split}],finalState:splitAfter};
+}
+
+test('cross-step continuation requires actual player actions, creation and unchanged completed-order rewards',()=>{
+  const valid=completedContinuationEvidence();
+  assert.doesNotThrow(()=>processingChecks.assertCrossStepContinuation('completed',valid.saved,valid.actions,valid.finalState));
+  for(const mutate of [
+    x=>x.actions=[],x=>x.actions[0].actionType='submit_order',x=>x.actions[0].observation.eventCount=0,
+    x=>x.actions[0].observation.after.farming.seedOptions[0].quantity.amount++,
+    x=>{x.actions.at(-1).observation.after.inventory.splitResult.newLotId='material';},
+    x=>{x.finalState.orders.money++;},x=>{x.actions.at(-1).observation.after.orders.money++;x.finalState.orders.money++;},
+    x=>{x.actions.at(-1).observation.after.orders.reputation.west_market_tavern++;x.finalState.orders.reputation.west_market_tavern++;}
+  ]){const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertCrossStepContinuation('completed',bad.saved,bad.actions,bad.finalState));}
+  assert.throws(()=>processingChecks.assertCrossStepContinuation('growing',valid.saved,valid.actions,valid.finalState));
+});
+
+
+test('cross-step action records exclude verified disabled repeats but reject actual failed or duplicate dispatches',()=>{
+  const {actions}=completedContinuationEvidence(),plant=actions[0].observation;
+  const completed=settledOrderObservation().after;completed.processing=structuredClone(processingState().processing);
+  const disabled=farmingClick(completed,structuredClone(completed));disabled.buttonName='SubmitOrder';disabled.eventCount=0;disabled.layout.buttonInteractable=false;
+  assert.equal(processingChecks.crossStepActionObservations([plant,disabled]).length,1);
+  for(const mutate of [x=>x.eventCount=2,x=>x.after.operation.status='failed',x=>x.after.operation.sequence=x.before.operation.sequence,x=>x.after.operation.name='load']){
+    const bad=structuredClone(plant);mutate(bad);assert.throws(()=>processingChecks.crossStepActionObservations([bad]));
+  }
+  for(const mutate of [x=>x.layout.buttonInteractable=true,x=>x.after.orders.money++,x=>x.after.operation.sequence++]){
+    const bad=structuredClone(disabled);mutate(bad);assert.throws(()=>processingChecks.crossStepActionObservations([bad]));
+  }
+});
+
+
+test('cross-step created identities must really survive as saved entities or retained historical references',()=>{
+  const saved=recoveryStored(recoveryRaw()),after=JSON.parse(saved.raw);
+  after.crop_instances.push({crop_id:'crop_new',lifecycle_status:'active'});
+  assert.throws(()=>processingChecks.assertCrossStepCreatedIds(saved,recoveryStored(after),[{kind:'MaterialLot',id:'phantom_lot'}]));
+  after.processing_tasks[0].input_lot_refs=[{lot_id:'consumed_split'}];
+  after.orders[0].submitted_object_refs=[{object_type:'DishLot',object_id:'consumed_dish'}];
+  assert.doesNotThrow(()=>processingChecks.assertCrossStepCreatedIds(saved,recoveryStored(after),[{kind:'MaterialLot',id:'consumed_split'},{kind:'DishLot',id:'consumed_dish'}]));
+  const missing=structuredClone(after);missing.orders[0].submitted_object_refs=[];
+  assert.throws(()=>processingChecks.assertCrossStepCreatedIds(saved,recoveryStored(missing),[{kind:'DishLot',id:'consumed_dish'}]));
+});

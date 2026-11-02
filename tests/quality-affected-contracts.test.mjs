@@ -201,22 +201,6 @@ test('binding source, application tests and shared helper changes select both bi
 test('current version changed tests select the task that actually executes each file', () => {
   const cases = [
   [
-    "tests/cocos-minimal-menu-binding.test.ts",
-    "test.cocos-menu"
-  ],
-  [
-    "tests/cocos-probe-preparation.test.mjs",
-    "test.cocos-probe-preparation"
-  ],
-  [
-    "tests/cocos-ui-readiness.test.ts",
-    "test.cocos-ui-readiness"
-  ],
-  [
-    "tests/cocos-web-orders.test.ts",
-    "test.cocos-engine-probe-lifecycle"
-  ],
-  [
     "tests/cocos-web-verification-contracts.test.mjs",
     "test.cocos-web-verification-contracts"
   ],
@@ -249,6 +233,10 @@ test('current version changed tests select the task that actually executes each 
     "test.stage1a-baseline"
   ],
   [
+    "tests/stage1a-bootstrap.test.ts",
+    "test.stage1a-bootstrap"
+  ],
+  [
     "tests/traceability-contracts.test.mjs",
     "test.traceability-contracts"
   ],
@@ -270,6 +258,8 @@ test('current version changed tests select the task that actually executes each 
       ? packageJson.scripts[task.args[1]].split(/\s+/)
       : [task.command, ...task.args];
     assert.ok(execution.includes(file), `${taskId} must actually execute ${file}`);
+    assert.equal(task.stability, 'blocker');
+    assert.ok(task.covers.includes('tests'), `${taskId} must cover the changed test module`);
     for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
     assert.equal(result.selectedTasks.some((candidate) => candidate.id === 'release.build'), false);
     assert.equal(result.selectedTasks.some((candidate) => candidate.id === 'release.check'), false);

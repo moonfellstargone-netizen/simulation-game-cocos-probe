@@ -1,4 +1,4 @@
-﻿# Runtime Map — v0.0.2.44
+﻿# Runtime Map — v0.0.2.45
 
 ## 系统职责
 
@@ -117,11 +117,11 @@ tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实
 
 ## 网页烹饪运行链
 
-公开cookable_recipe_options与既有材料/储存/DishLot选项→ProbeCooking本地逐角色数量、显式操作参数和目标→既有menu_preview/confirm→Session/ActionPipeline→本次created_objects与刷新真实菜品/燃料。结构和recipe约束按当前核心合并，硬边界与偏好分开；不把time_cost_minutes当active_minutes或追加扣时。手动保存/新Host读取恢复真实DishLot列表并清旧预览，trace.cocos.web-cooking-loop连接；烹饪规则、Session/Queue、SaveFile保持，无新补给/订单页/平台接入。
+公开cookable_recipe_options与既有材料/储存/DishLot选项→ProbeCooking本地逐角色数量、显式操作参数和目标→既有menu_preview/confirm→Session/ActionPipeline→本次created_objects与刷新真实菜品/燃料。结构和recipe约束按当前核心合并，硬边界与偏好分开；不把time_cost_minutes当active_minutes或追加扣时。手动保存/新Host读取恢复真实DishLot列表并清旧预览，trace.cocos.web-cooking-loop连接；烹饪规则、Session/Queue、SaveFile保持，该烹饪子流程不负责补给或订单页，既有订单页另见下节，不接平台。
 
 ## 订单提交与过期路径
 
-既有submit_order→DemandResolver检查available/accepted及now<=deadline→原需求匹配→事务内submitted→消费/储存审计/奖励→completed；失败由原管线保护完整领域状态。advance_time的既有截止settlement仅在now>deadline将两开放状态转expired；直接过期提交拒绝不改状态。order_options只读同步状态和截止，preview与新Session受控读档见trace.orders.legal-state-deadline，网页订单入口未开放。
+既有submit_order→DemandResolver检查available/accepted及now<=deadline→原需求匹配→事务内submitted→消费/储存审计/奖励→completed；失败由原管线保护完整领域状态。advance_time的既有截止settlement仅在now>deadline将两开放状态转expired；直接过期提交拒绝不改状态。order_options只读同步状态和截止，preview与新Session受控读档见trace.orders.legal-state-deadline，既有网页订单入口由下一节outer提供。
 
 ## 网页订单运行链
 
@@ -132,3 +132,7 @@ ProbeOrders.ts/.meta只消费公共数据，管理第五页的显式单订单/�
 确认前捕获order/dish与经济基线，避免成功patch先移除选择后误拒本次回执；错误或陈旧结果在ProbeInteraction发布completed前拒绝，应用失败不重发Action。改选择、切页、其他命令和load清旧预览/本次成功，历史结算另行展示；普通拒绝保留合法选择供修正，失效对象清除，不自动换菜品。busy/销毁迟到及本地单槽手动存读档保持。
 
 tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，helper/.meta及测试同时登记prepare/lifecycle；readiness、menu与web-verification继续full/blocker。trace.cocos.web-orders-loop连接这些测试与源/地图，全部旧追踪保持。真实Creator/SDK和built/editor各960×640订单链、实际图检另行验收，保留原视口/resize、农事、库存拆分、加工、烹饪、存读档/故障与销毁。网页禁用重交只记0事件，正式状态/安全/低分拒绝由合法受控Node另验，不冒称微信或手机通过。
+
+## 跨步骤恢复运行链
+
+正式资源新局→公共玩家入口九Action→五独立保存点→手动Save→新Host/刷新/同context新页手动Load→真实续玩。trace.cocos.cross-step-recovery连接公共bootstrap测试、verify-web/support与既有错误保护；加工继续领取再开工、已完成订单保持不可重交并继续创建对象。生产机制与既有ID保证边界保持，恢复列表和静态Label不冒充本次Action。

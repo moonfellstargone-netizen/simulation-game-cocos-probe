@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.44
+﻿# ARCHITECTURE — v0.0.2.45
 
-当前版本：v0.0.2.44 / Web Tavern Orders & Settlement Feedback。最小SelectableVM补齐订单需求/截止/实际结果只读投影，outer第五页沿既有显式submit_order菜单完成预览和真实结算反馈。core、StateVM、ActionPipeline、Session/Queue、SaveFile与正式资源保持；新旧页面的真实输入与失败恢复另行验收。
+当前版本：v0.0.2.45 / Cross-step Save/Load Recovery。补齐五个独立保存点经新Host、刷新及同context新页面手动读取后的真实续玩证据，沿既有九Action和公共入口，不改变生产存读档、ID分配、Session/Queue、outer组件、SaveFile或正式资源。真实Creator/SDK与built/editor既有回归和新增恢复链分层验收。
 
 ## 1. 业务架构不变
 
@@ -70,7 +70,7 @@ Node中的准备契约和外层生命周期测试登记为full/blocker，由trac
 
 工具只读取仓库唯一src/design_snapshot派生的工作副本。prepare继续导出snapshot及全部58项Schema并记录Git来源/输入产物摘要；build记录实际Web产物清单摘要，verify核对构建关联和产物字节后才启动浏览器，拒绝替换或篡改的Web目录。工程、依赖、报告、缓存和构建仍位于仓库外，不形成第二源码权威。
 
-保留准备/生命周期full/blocker回归，新增test:cocos-web-verification-contracts / registry test.cocos-web-verification-contracts验证浏览器工具的参数、来源、HTTP服务和断言失败保护；Node契约不执行真实浏览器。独立cocos:verify:web运行固定Creator构建产物的真实Chrome鼠标点击，记录Button事件、时间变化、Label同步与清理证据；根typecheck只覆盖src，不能代替实际Creator类型、构建或浏览器验收。
+保留准备/生命周期full/blocker回归，沿用test:cocos-web-verification-contracts / registry test.cocos-web-verification-contracts验证浏览器工具的参数、来源、HTTP服务和断言失败保护；Node契约不执行真实浏览器。独立cocos:verify:web运行固定Creator构建产物的真实Chrome鼠标点击，记录Button事件、时间变化、Label同步与清理证据；根typecheck只覆盖src，不能代替实际Creator类型、构建或浏览器验收。
 
 窗口变化不得重新创建Host或重复绑定按钮。布局与输入修复只属于apps/cocos-probe外层，浏览器测试工具不能反向成为运行时依赖。
 
@@ -155,3 +155,7 @@ ProbeOrders.ts/.meta只消费公共数据，管理第五页的显式单订单/�
 确认前捕获order/dish与经济基线，避免成功patch先移除选择后误拒本次回执；错误或陈旧结果在ProbeInteraction发布completed前拒绝，应用失败不重发Action。改选择、切页、其他命令和load清旧预览/本次成功，历史结算另行展示；普通拒绝保留合法选择供修正，失效对象清除，不自动换菜品。busy/销毁迟到及本地单槽手动存读档保持。
 
 tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，helper/.meta及测试同时登记prepare/lifecycle；readiness、menu与web-verification继续full/blocker。trace.cocos.web-orders-loop连接这些测试与源/地图，全部旧追踪保持。真实Creator/SDK和built/editor各960×640订单链、实际图检另行验收，保留原视口/resize、农事、库存拆分、加工、烹饪、存读档/故障与销毁。网页禁用重交只记0事件，正式状态/安全/低分拒绝由合法受控Node另验，不冒称微信或手机通过。
+
+## 跨步骤手动恢复的验证边界
+
+trace.cocos.cross-step-recovery补齐五保存点的公共bootstrap和浏览器续玩验证；生产Session仍先读取并校验candidate，成功才替换健康状态，SaveManager仍仅保存SaveFile并在加载时清领域事件。既有ID高水位恢复、Host/Queue与outer组件保持，不新增公开API、自动存档、迁移、多槽或跨标签仲裁。真实Creator/SDK与built/editor输入证据独立记录。

@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.44
+﻿# Code Index — Files — v0.0.2.45
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -161,3 +161,9 @@ trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport
 - `src/cocos-app/view-models/CocosSelectableViewModel.ts`：最小订单需求/截止/真实结果投影，StateVM保持。
 - `tools/cocos-probe/verify-web.mjs`、`lib/webProbeSupport.mjs`：正常网页订单真实点击、超时与手动读取恢复、实际消费/奖励及观察断言负例；不提供业务注入捷径。
 - 追踪`trace.cocos.web-orders-loop`；正式资源/core及原有trace.orders.legal-state-deadline保持。
+
+## 跨步骤恢复文件
+
+- tests/stage1a-bootstrap.test.ts：正式资源公共Host/Queue五独立保存点与读取后真实续玩，沿test.stage1a-bootstrap执行。
+- tools/cocos-probe/verify-web.mjs、tools/cocos-probe/lib/webProbeSupport.mjs：独立浏览器恢复链与完整真值断言；tests/cocos-web-verification-contracts.test.mjs沿既有web-verification任务执行负例。
+- trace.cocos.cross-step-recovery连接上述文件及save-load/app/creator/engine模块卡；生产来源只作继承机制导航，本版不改。
