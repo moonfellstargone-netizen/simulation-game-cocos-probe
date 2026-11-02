@@ -221,16 +221,21 @@ export class CocosSelectableViewModel {
         enabled: true,
         reason_key: null
       })),
-      order_options: save.orders.map((order) => ({
-        id: order.order_id,
-        label_key: `order.${order.demand_profile_id}.name`,
-        enabled: ['available', 'accepted', 'submitted'].includes(order.status),
-        reason_key: ['available', 'accepted', 'submitted'].includes(order.status) ? null : 'ui.reason.order_not_open',
-        demand_profile_id: order.demand_profile_id,
-        status: order.status,
-        quantity_required: { ...order.quantity_required },
-        base_reward: order.base_reward
-      })),
+      order_options: save.orders.map((order) => {
+        const enabled = ['available', 'accepted'].includes(order.status)
+          && typeof order.deadline_absolute_minute === 'number'
+          && save.world_time.absolute_minute <= order.deadline_absolute_minute;
+        return {
+          id: order.order_id,
+          label_key: `order.${order.demand_profile_id}.name`,
+          enabled,
+          reason_key: enabled ? null : 'ui.reason.order_not_open',
+          demand_profile_id: order.demand_profile_id,
+          status: order.status,
+          quantity_required: { ...order.quantity_required },
+          base_reward: order.base_reward
+        };
+      }),
       storage_target_options: save.storage_containers.map((container) => ({
         id: container.container_id,
         label_key: `storage.${container.container_id}.name`,

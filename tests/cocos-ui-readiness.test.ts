@@ -45,6 +45,58 @@ function harvestForProcessing(session: CocosAppRuntimeSession): string {
   return required(harvested.created_objects.find((object) => object.object_type === 'MaterialLot'), 'harvested lot').object_id;
 }
 
+test('order choices admit only open states before or at the deadline through public legal-save loading', async () => {
+  const { session, storage } = makeSessionFixture();
+  await session.save('order_choices_source');
+  const source = JSON.parse(required(await storage.read('order_choices_source'), 'initial legal save')) as SaveFile;
+  const deadline = source.world_time.absolute_minute + 10;
+  for (const status of ['available', 'accepted', 'submitted', 'completed', 'failed', 'expired', 'cancelled']) {
+    for (const offset of [-1, 0, 1]) {
+      const save = structuredClone(source);
+      save.orders[0]!.status = status;
+      save.orders[0]!.deadline_absolute_minute = deadline;
+      save.world_time.absolute_minute = deadline + offset;
+      save.world_time.world_day = Math.floor((deadline + offset) / 1440) + 1;
+      save.world_time.world_minute = (deadline + offset) % 1440;
+      const serialized = JSON.stringify(save);
+      await storage.write('order_choices_controlled', serialized);
+      await session.load('order_choices_controlled');
+      const option = required(session.getSelectableViewModel().order_options[0], 'order remains inspectable');
+      const enabled = ['available', 'accepted'].includes(status) && offset <= 0;
+      assert.equal(option.status, status, 'read-only projection never performs settlement or migrates an old failed order');
+      assert.equal(option.enabled, enabled, `${status} at deadline ${offset}`);
+      assert.equal(option.reason_key, enabled ? null : 'ui.reason.order_not_open');
+      assert.deepEqual(Object.keys(option).sort(), ['base_reward', 'demand_profile_id', 'enabled', 'id', 'label_key', 'quantity_required', 'reason_key', 'status']);
+      await session.save('order_choices_after_projection');
+      assert.equal(await storage.read('order_choices_after_projection'), serialized, 'loading and browsing a legal save do not expire or reopen orders');
+    }
+  }
+});
+
+test('order choice copies cannot change source deadlines, states, rewards or quantities', async () => {
+  const { session, storage, configs } = makeSessionFixture();
+  await session.save('order_choices_detached');
+  const source = required(await storage.read('order_choices_detached'), 'order source save');
+  const save = JSON.parse(source) as SaveFile;
+  save.orders[0]!.status = 'accepted';
+  save.orders[0]!.deadline_absolute_minute = save.world_time.absolute_minute - 1;
+  const before = structuredClone(save);
+  const configBefore = structuredClone(configs.loadStage1A().documents);
+  const projector = new CocosSelectableViewModel(configs);
+  const expected = projector.build(save);
+  assert.equal(expected.order_options[0]!.enabled, false);
+  const mutable = projector.build(save);
+  mutable.order_options[0]!.status = 'available';
+  mutable.order_options[0]!.enabled = true;
+  mutable.order_options[0]!.reason_key = null;
+  mutable.order_options[0]!.base_reward = 9999;
+  mutable.order_options[0]!.quantity_required.amount = 9999;
+  mutable.order_options.length = 0;
+  assert.deepEqual(projector.build(save), expected);
+  assert.deepEqual(save, before);
+  assert.deepEqual(configs.loadStage1A().documents, configBefore);
+});
+
 test('cooking recipes expose merged roles, formal operation bounds, display-only requirements and current fuel before harvest', () => {
   const { session, configs } = makeSessionFixture();
   const recipes = session.getSelectableViewModel().cookable_recipe_options;

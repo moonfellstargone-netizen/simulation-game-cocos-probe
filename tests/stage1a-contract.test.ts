@@ -574,6 +574,163 @@ test('cook_dish consumes configured lots, creates schema-valid DishLot, and keep
   new StorageAudit().assertReconciled(state.save_file);
 });
 
+function prepareOrderState(status: string, deadlineOffset: number) {
+  const prepared = buildRuntime();
+  const { runtime, state, contracts } = prepared;
+  const pickledLotId = preparePickledCabbage(runtime, state);
+  const cook = cookBaconCabbage(runtime, state, pickledLotId, 'order_state_cook');
+  assert.equal(cook.success, true);
+  const dishId = cook.created_objects[0]!.object_id;
+  const order = state.save_file.orders.find((item) => item.order_id === 'tavern_home_dish_001')!;
+  order.status = status;
+  order.deadline_absolute_minute = state.save_file.world_time.absolute_minute + deadlineOffset;
+  contracts.assertSaveFile(state.save_file);
+  new StorageAudit().assertReconciled(state.save_file);
+  const parameters = { order_id: order.order_id, submitted_object_refs: [{ object_type: 'DishLot', object_id: dishId }] };
+  return { ...prepared, dishId, order, parameters };
+}
+
+function assertOrderRefusalUnchanged(prepared: ReturnType<typeof prepareOrderState>, parameters: unknown, code: string, suffix: string) {
+  const before = cloneForCompare(prepared.state);
+  const serializedBefore = new SaveManager().serialize(prepared.state);
+  const refused = dispatch(prepared.runtime, prepared.state, 'submit_order', parameters, suffix);
+  assert.equal(refused.success, false);
+  assert.equal(refused.status_code, code);
+  assert.deepEqual(refused.domain_events, []);
+  assert.deepEqual(refused.event_log_entries, []);
+  assert.deepEqual(refused.consumed_resources, []);
+  assert.deepEqual(refused.created_objects, []);
+  assert.deepEqual(refused.updated_objects, []);
+  assert.deepEqual(prepared.state, before);
+  assert.equal(new SaveManager().serialize(prepared.state), serializedBefore);
+  prepared.contracts.assertSaveFile(prepared.state.save_file);
+  new StorageAudit().assertReconciled(prepared.state.save_file);
+  return refused;
+}
+
+for (const status of ['available', 'accepted']) {
+  for (const deadlineOffset of [1, 0]) {
+    test(`order state: ${status} settles before or exactly at deadline offset ${deadlineOffset} only once`, () => {
+      const prepared = prepareOrderState(status, deadlineOffset);
+      const { runtime, state, contracts, dishId, parameters, order } = prepared;
+      const before = cloneForCompare(state);
+      const submittedDish = before.save_file.dish_lots.find((dish) => dish.dish_lot_id === dishId)!;
+      const storedBefore = before.save_file.storage_containers.find((container) => container.container_id === submittedDish.storage_ref.container_id)!;
+      const result = dispatch(runtime, state, 'submit_order', parameters, `order_state_${status}_${deadlineOffset}`);
+      assert.equal(result.success, true);
+      assert.equal(result.status_code, 'OK_DEMAND_ACCEPTED');
+      assert.equal(order.status, 'completed');
+      assert.deepEqual(order.submitted_object_refs, parameters.submitted_object_refs);
+      assert.equal(order.result_summary?.reward_final, 37, 'the existing real-dish baseline reward is preserved');
+      assert.equal(order.result_summary?.submitted_count, submittedDish.serving_count);
+      assert.equal(state.save_file.player_state.money, Number(before.save_file.player_state.money) + 37);
+      assert.equal(state.save_file.player_state.reputation_map.west_market_tavern, before.save_file.player_state.reputation_map.west_market_tavern + 1);
+      assert.deepEqual(result.domain_events.map((event) => event.event_type), ['order.submitted', 'order.completed']);
+      assert.equal(state.domain_events.length, before.domain_events.length + 2);
+      for (const event of result.domain_events) {
+        assert.deepEqual(event.payload.submitted_object_refs, parameters.submitted_object_refs);
+        assert.equal(event.payload.order_id, order.order_id);
+        contracts.assertDomainEvent(event);
+      }
+      assert.equal(result.consumed_resources.length, 1);
+      assert.equal(result.consumed_resources[0]!.resource_id, dishId);
+      assert.deepEqual(state.save_file.dish_lots, before.save_file.dish_lots.filter((dish) => dish.dish_lot_id !== dishId));
+      assert.deepEqual(state.save_file.inventory, before.save_file.inventory);
+      assert.deepEqual(state.save_file.fuel_state, before.save_file.fuel_state);
+      assert.equal(state.save_file.storage_containers.some((container) => container.active_object_refs.some((ref) => ref.object_type === 'DishLot' && ref.object_id === dishId)), false);
+      assert.equal(state.save_file.storage_containers.find((container) => container.container_id === storedBefore.container_id)!.used_capacity, storedBefore.used_capacity - submittedDish.storage_footprint.amount);
+      contracts.assertSaveFile(state.save_file);
+      new StorageAudit().assertReconciled(state.save_file);
+      assertOrderRefusalUnchanged(prepared, parameters, 'ERR_ORDER_NOT_AVAILABLE', 'order_state_repeat');
+    });
+  }
+
+  test(`order state: directly submitting a past-deadline ${status} order preserves the full state`, () => {
+    const prepared = prepareOrderState(status, -1);
+    const refused = assertOrderRefusalUnchanged(prepared, prepared.parameters, 'ERR_ORDER_NOT_AVAILABLE', 'order_state_deadline_refused');
+    assert.equal(refused.message_params.some((param) => param.key === 'raw_error' && param.value === 'ERR_ORDER_NOT_AVAILABLE:deadline'), true);
+    assert.equal(prepared.state.save_file.orders[0]!.status, status, 'refusal does not secretly expire a loaded open order');
+  });
+
+  test(`order state: advancing time expires ${status} only after the deadline and leaves terminal states closed`, () => {
+    const prepared = prepareOrderState(status, 1);
+    const { runtime, state, contracts, order, parameters } = prepared;
+    const closed = ['submitted', 'completed', 'failed', 'expired', 'cancelled'].map((closedStatus) => ({
+      ...cloneForCompare(order), order_id: `order_state_${closedStatus}`, status: closedStatus,
+      deadline_absolute_minute: state.save_file.world_time.absolute_minute
+    }));
+    state.save_file.orders.push(...closed);
+    contracts.assertSaveFile(state.save_file);
+    const before = cloneForCompare(state);
+    assert.equal(dispatch(runtime, state, 'advance_time', { minutes: 1 }, 'order_state_at_deadline').success, true);
+    assert.equal(order.status, status);
+    assert.deepEqual(state.save_file.orders.slice(1), before.save_file.orders.slice(1));
+    assert.equal(dispatch(runtime, state, 'advance_time', { minutes: 1 }, 'order_state_after_deadline').success, true);
+    assert.equal(order.status, 'expired');
+    assert.deepEqual(state.save_file.orders.slice(1), before.save_file.orders.slice(1));
+    assert.deepEqual(state.save_file.dish_lots, before.save_file.dish_lots);
+    assert.deepEqual(state.save_file.player_state, before.save_file.player_state);
+    assert.deepEqual(order.submitted_object_refs, before.save_file.orders[0]!.submitted_object_refs);
+    assert.equal(state.domain_events.length, before.domain_events.length + 2);
+    assert.deepEqual(state.domain_events.slice(before.domain_events.length).map((event) => event.event_type), ['time.advanced', 'time.advanced']);
+    contracts.assertSaveFile(state.save_file);
+    assertOrderRefusalUnchanged(prepared, parameters, 'ERR_ORDER_NOT_AVAILABLE', 'order_state_expired_refused');
+  });
+
+  test(`order state: ${status} rejects missing or unsupported choices without consuming the healthy dish`, () => {
+    const prepared = prepareOrderState(status, 1);
+    const { runtime, state, parameters } = prepared;
+    assertOrderRefusalUnchanged(prepared, { ...parameters, order_id: 'order_state_missing' }, 'ERR_ORDER_NOT_FOUND', 'order_state_missing_order');
+    assertOrderRefusalUnchanged(prepared, { ...parameters, submitted_object_refs: [{ object_type: 'DishLot', object_id: 'order_state_missing_dish' }] }, 'ERR_DISH_LOT_NOT_FOUND', 'order_state_missing_dish');
+    assertOrderRefusalUnchanged(prepared, { ...parameters, submitted_object_refs: [{ object_type: 'MaterialLot', object_id: 'salt_initial_001' }] }, 'ERR_SUBMITTED_OBJECT_TYPE_UNSUPPORTED', 'order_state_unsupported');
+    assert.equal(dispatch(runtime, state, 'submit_order', parameters, 'order_state_healthy_after_refusal').success, true);
+    assert.equal(state.save_file.orders[0]!.status, 'completed');
+    assert.equal(state.save_file.player_state.money, 137);
+  });
+
+  test(`order state: ${status} demand refusals preserve dish, reward, audit and events`, () => {
+    for (const failure of ['safety', 'defect', 'score']) {
+      const prepared = prepareOrderState(status, 1);
+      const dish = prepared.state.save_file.dish_lots.find((item) => item.dish_lot_id === prepared.dishId)!;
+      if (failure === 'safety') dish.dish_profile.safety_risk = 26;
+      if (failure === 'defect') dish.defects.push('unsafe');
+      if (failure === 'score') {
+        dish.dish_profile.saltiness = 0;
+        dish.dish_profile.oiliness = 0;
+        dish.suitability_tags = [];
+      }
+      prepared.contracts.assertSaveFile(prepared.state.save_file);
+      assertOrderRefusalUnchanged(prepared, prepared.parameters, failure === 'safety' ? 'ERR_DEMAND_REJECTED_SAFETY' : failure === 'defect' ? 'ERR_DEMAND_REJECTED_DEFECT' : 'ERR_DEMAND_SCORE_TOO_LOW', `order_state_${failure}`);
+    }
+  });
+
+  test(`order state: ${status} settlement failure rolls back a consumed dish and reward and can retry`, () => {
+    const prepared = prepareOrderState(status, 1);
+    const { runtime, state, parameters } = prepared;
+    const handler = runtime.registry.get('submit_order');
+    const execute = handler.execute.bind(handler);
+    handler.execute = (currentState, request) => {
+      execute(currentState, request);
+      throw new Error('ERR_ORDER_TEST_SETTLEMENT_REFUSED');
+    };
+    assertOrderRefusalUnchanged(prepared, parameters, 'ERR_ORDER_TEST_SETTLEMENT_REFUSED', 'order_state_late_failure');
+    handler.execute = execute;
+    const recovered = dispatch(runtime, state, 'submit_order', parameters, 'order_state_late_recovery');
+    assert.equal(recovered.success, true);
+    assert.equal(state.save_file.player_state.money, 137);
+    assert.equal(state.save_file.player_state.reputation_map.west_market_tavern, 1);
+    assert.deepEqual(recovered.domain_events.map((event) => event.event_type), ['order.submitted', 'order.completed']);
+    assertOrderRefusalUnchanged(prepared, parameters, 'ERR_ORDER_NOT_AVAILABLE', 'order_state_late_repeated');
+  });
+}
+
+test('order state: every non-open schema-valid state refuses submission with the complete state preserved', () => {
+  for (const status of ['submitted', 'completed', 'failed', 'expired', 'cancelled']) {
+    const prepared = prepareOrderState(status, 1);
+    assertOrderRefusalUnchanged(prepared, prepared.parameters, 'ERR_ORDER_NOT_AVAILABLE', `order_state_closed_${status}`);
+  }
+});
+
 test('submit_order resolves demand profile, completes order, rewards player, and removes submitted DishLot from storage', () => {
   const { contracts, runtime, state } = buildRuntime();
   const pickledLotId = preparePickledCabbage(runtime, state);

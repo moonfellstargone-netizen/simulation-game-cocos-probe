@@ -46,7 +46,10 @@ export class DemandResolver {
   submitOrder(save: SaveFile, orderId: string, submittedRefs: SubmittedObjectRef[]): DemandResolution {
     const order = save.orders.find((item) => item.order_id === orderId);
     if (!order) throw new Error(`ERR_ORDER_NOT_FOUND:${orderId}`);
-    if (order.status !== 'available') throw new Error('ERR_ORDER_NOT_AVAILABLE');
+    if (order.status !== 'available' && order.status !== 'accepted') throw new Error('ERR_ORDER_NOT_AVAILABLE');
+    if (typeof order.deadline_absolute_minute === 'number' && save.world_time.absolute_minute > order.deadline_absolute_minute) {
+      throw new Error('ERR_ORDER_NOT_AVAILABLE:deadline');
+    }
     const profile = this.resolveDemandProfile(order.demand_profile_id);
     const ref = submittedRefs[0];
     if (!ref) throw new Error('ERR_SUBMITTED_OBJECT_MISSING');
@@ -57,7 +60,7 @@ export class DemandResolver {
     const resolution = this.resolve(profile, dish, order);
     if (!resolution.accepted) throw new Error(resolution.reason_code);
 
-    order.status = 'completed';
+    order.status = 'submitted';
     order.submitted_object_refs = submittedRefs.map((item) => ({ ...item }));
     order.result_summary = {
       match_score: resolution.match_score,
@@ -70,6 +73,7 @@ export class DemandResolver {
     if (!playerState.reputation_map) playerState.reputation_map = {};
     playerState.reputation_map.west_market_tavern = Number(playerState.reputation_map.west_market_tavern ?? 0) + resolution.reputation_delta;
     save.dish_lots = save.dish_lots.filter((item) => item.dish_lot_id !== ref.object_id);
+    order.status = 'completed';
     return resolution;
   }
 

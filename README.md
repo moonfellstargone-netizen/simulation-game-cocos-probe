@@ -1,12 +1,12 @@
-# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.42
+# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.43
 
-**Web Cooking Selection & Dish Feedback / 网页烹饪选料与菜品反馈版**
+**Order State Alignment & Failure Protection / 订单合法状态与失败保护版**
 
 本仓库是 Cocos 微信试水代码项目**日常代码权威源**。正式玩法与契约权威仍为正式三包 v1.5.2.2。
 
-- 代码包版本：`v0.0.2.42`
-- npm package version：`0.0.2-42`
-- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_42`（权威源：`tools/quality/rules/project-target.json`）
+- 代码包版本：`v0.0.2.43`
+- npm package version：`0.0.2-43`
+- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_43`（权威源：`tools/quality/rules/project-target.json`）
 - 设计来源：`模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip`
 - 规则权威源：`tools/quality/rules/project-target.json`、`tools/quality/rules/context-doc-surface.rules.json`、`tools/quality/rules/architecture-boundary.rules.json`、`tools/quality/rules/traceability-map.json`
 - 代码权威：本 GitHub 仓库（非 zip 归档包）
@@ -22,7 +22,7 @@
 
 ## Task Intent Lock
 
-本轮唯一目标是网页烹饪选料与菜品反馈：浏览现有配方的必需/可选角色和最低量，逐角色选择公开材料批次与数量，明确选择火候、填写操作时长并选择目标储存，经既有menu_preview/confirm获得真实DishLot，显示实际份数、材料和燃料状态，支持手动保存及全新会话读取后继续。outer管理选择和本次反馈，确认重校验最新状态；改输入、切页、其他命令或读档清旧预览。core业务、Session/Queue、SaveFile和正式资源保持，不新增配方、补给、时间或重复输入规则；既有农事、库存/拆分、加工和存读档回归保留。
+本轮唯一目标是对齐既有订单合法提交状态、截止处理及失败保护：available或accepted且尚未超过deadline的订单可按原需求规则提交；恰到截止仍合法，超过截止直接拒绝并保持提交前完整领域状态，已有advance_time截止结算将两种开放状态转为expired。submitted只作为现有同步事务内部的校验结算短暂态，消费和奖励成功后completed；旧failed终态不迁移或重开。CocosSelectableViewModel只读选项同步合法状态与时限，enabled不保证菜品匹配成功。正式写入仍经ActionPipeline，Session/Queue、SaveFile与正式资源保持；不新增接单、订单刷新、聚合或部分提交、评分奖励、数量/时间/重复输入规则、订单页面、Stage1B或微信。既有农事、库存/拆分、加工、烹饪和存读档回归保留。
 
 工具只读取仓库唯一src/design_snapshot派生的工作副本。prepare继续导出snapshot及全部58项Schema并记录Git来源/输入产物摘要；build记录实际Web产物清单摘要，verify核对构建关联和产物字节后才启动浏览器，拒绝替换或篡改的Web目录。工程、依赖、报告、缓存和构建仍位于仓库外，不形成第二源码权威。
 
@@ -32,7 +32,7 @@
 
 构建网页矩阵含800×600、DPR2及四次resize点击；编辑器预览只承诺1440×1200和960×640/DPR1及960→1440→960三次resize点击，官方Default设备模拟器800裁剪场景未支持。具体范围见外层契约，不推导手机或微信适配。
 
-导航与追踪：本版trace.cocos.web-cooking-loop、既有trace.cocos.web-processing-loop、trace.inventory.split-quantity、既有trace.runtime.id-recovery、既有trace.processing.required-inputs、既有trace.cocos.web-inventory-storage，以及保留的trace.cocos.web-farming-loop、trace.cocos.browser-local-save、trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input和trace.cocos.web-bootstrap-probe。实际失败先定位，不通过降低架构检查、跳过门禁或调用observer.advance代替物理点击制造通过。
+导航与追踪：本版trace.orders.legal-state-deadline、既有trace.cocos.web-cooking-loop、既有trace.cocos.web-processing-loop、trace.inventory.split-quantity、既有trace.runtime.id-recovery、既有trace.processing.required-inputs、既有trace.cocos.web-inventory-storage，以及保留的trace.cocos.web-farming-loop、trace.cocos.browser-local-save、trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input和trace.cocos.web-bootstrap-probe。实际失败先定位，不通过降低架构检查、跳过门禁或调用observer.advance代替物理点击制造通过。
 
 执行方使用Cursor时必须先做预检报告，用户或GPT确认后才可修改文件。复杂任务须先做Scope Discovery。
 
@@ -124,7 +124,7 @@ tests/cocos-web-inventory.test.ts加入既有test:cocos-engine-probe-lifecycle�
 
 契约、预览和公开Host/Component回归分别核对缺白菜、缺盐、盐不足/阈值边界，以及合法不同数量的消耗、任务、推进和领取。失败后健康请求与存读档恢复继续；不通过私有SaveFile写入构造假通过，不新增重复同lot或多primary拒绝/聚合规则。trace.processing.required-inputs连接ProcessingSystem.ts、ProcessingConfigResolver.ts及现有test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-menu。
 
-本版实际触及测试逐一登记args/files/covers并验证单文件affected真正执行自身任务；q:affected仍只用于反馈，版本完成和候选出包按q:full及无缓存q:release。核心进入Web bundle，真实Creator SDK/构建及既有built-web/editor-preview回归需独立执行。核心校验沿用既有实现；网页加工与真实输入由trace.cocos.web-processing-loop独立验收，不从核心Node通过推定。
+实际触及测试逐一登记args/files/covers并验证单文件affected真正执行自身任务；q:affected仍只用于反馈，版本完成和候选出包按q:full及无缓存q:release。核心进入Web bundle，真实Creator SDK/构建及既有built-web/editor-preview回归需独立执行。核心校验沿用既有实现；网页加工与真实输入由trace.cocos.web-processing-loop独立验收，不从核心Node通过推定。
 
 ## 网页批次拆分与操作反馈
 
@@ -132,7 +132,7 @@ ProbeInventory只复制公开材料选项并管理数量原文、不可编辑的
 
 ProbeLifetime窄消费既有menu_preview/split_lot；ProbeInteraction显式区分preview、confirm和save/load，preview只认本次last_preview_result，不要求ActionResult；confirm仍经既有controller重预览，成功须本次双结果。新批次ID从本次created_objects关联刷新后的公开材料，数量/位置由公开结果取得，不从输入伪造。状态应用异常不自动重发Action；busy/销毁保护保持。
 
-CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；既有加工页见trace.cocos.web-processing-loop，本版烹饪页见trace.cocos.web-cooking-loop，不扩Stage1B或wx。
+CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。既有拆分规则、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；既有加工页见trace.cocos.web-processing-loop，既有烹饪页见trace.cocos.web-cooking-loop，不扩Stage1B或wx。
 
 tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实际args/files/covers，test.cocos-web-verification-contracts校验拆分观察断言负例。trace.cocos.web-inventory-split连接这些行为及独立Creator SDK/构建、built-web和editor-preview各960×640真实点击与键盘输入；旧矩阵/resize/农事/转移/存读档/故障及销毁回归保留。桌面输入不代表触摸或微信通过，版本完成仍按q:full及无缓存q:release和精确候选CI。
 
@@ -147,3 +147,11 @@ tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实
 第四页按公开配方角色逐项选批次和数量，使用真实EditBox填写数量与操作分钟，显式选择火候及储存目标。必需材料缺失、单位不符、操作参数或储存失败沿既有菜单/正式预览拒绝；失败清旧成功且不自动换料、重试或半扣料。成功只以本次created_objects中的DishLot关联刷新后的公开菜品，显示真实份数/位置及实际材料和燃料状态。
 
 当前操作硬约束与结构偏好分开显示，不把测试high/8或配方time_cost_minutes作为默认操作参数，不增加世界时间或工具消耗。正常网页核对燃料扣减；燃料耗尽负例由受控合法Node状态覆盖，不能称普通网页耗尽实测，也不新增补给入口。ProbeCooking、readiness和行为/工具契约由trace.cocos.web-cooking-loop连接；真实Creator/SDK与built/editor各960×640鼠标键盘验收独立执行，旧回归保持，桌面不推定手机/微信通过。
+
+## 订单合法状态与失败保护
+
+available与accepted在当前分钟不超过deadline时可按现有需求规则提交。DemandResolver先验证状态和时限，再做既有菜品匹配；通过后仅在同步事务内部进入submitted，既有消费、储存审计、金钱/声望结算后completed。重复提交与submitted/completed/failed/expired/cancelled均拒绝，失败不得消耗菜品、增加奖励或改订单/事件；旧failed不迁移或重开。
+
+GameRuntime既有advance_time截止settlement将available/accepted在now>deadline时转为expired，恰到截止仍保持开放。直接提交过期开放单复用ERR_ORDER_NOT_AVAILABLE，可带:deadline诊断，但保持提交前完整状态，不在拒绝路径偷偷结算。CocosSelectableViewModel只读order_options按同一合法状态和时限给enabled/reason，保持公开shape；enabled不是需求匹配保证。
+
+trace.orders.legal-state-deadline连接DemandResolver、GameRuntime与CocosSelectableViewModel，以及test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-ui-readiness的现有full/blocker。核心、预览、Session受控合法加载与只读选项按层验收D-1/D/D+1、终态拒绝、需求失败完整保护、合法恢复、成功事件/奖励恰一次和新会话防重交。accepted及过期开放单可用合法受控存档验证；网页尚无订单提交入口，Node不冒充网页订单、手机或微信实测。不新增接单、刷新、聚合/部分交付、评分奖励或数量/时间/重复输入规则。

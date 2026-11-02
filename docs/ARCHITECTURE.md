@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.42
+﻿# ARCHITECTURE — v0.0.2.43
 
-当前版本：v0.0.2.42 / Web Cooking Selection & Dish Feedback。最小扩展CocosSelectableViewModel只读配方约束、操作说明和燃料投影，outer通过真实数量/时长输入和既有菜单完成烹饪及真实DishLot反馈；核心、Session/Queue、正式资源和存档协议保持。
+当前版本：v0.0.2.43 / Order State Alignment & Failure Protection。DemandResolver和GameRuntime对齐既有订单available/accepted、提交时deadline与advance_time过期结算；CocosSelectableViewModel只读选项同步可提交状态与时限。ActionPipeline、Session/Queue、SaveFile及正式资源保持，网页既有农事、库存/拆分、加工与烹饪能力继续回归。
 
 ## 1. 业务架构不变
 
@@ -62,7 +62,7 @@ game-core 独立于 Cocos / wx / 表现层。tools/quality 仍是检查工具层
 
 仓库内apps/cocos-probe保存最小工程源模板及外层桥接；tools/cocos-probe/prepare.mjs从现有src/design_snapshot派生浏览器runtime与全部58个声明Schema，在仓库外生成可打开工作副本。probe-source-manifest.json记录sourceCommit、sourceDirty、输入/产物摘要及project-target派生BuildId，副本不成为第二套代码或配置权威。
 
-旧game-core、cocos-app、cocos-creator-adapter仍不接真实 Cocos、不接 wx或fs；只有新增cocos-engine-probe外层可导入cc，并受单向公开runtime边界约束。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture，不新增玩法、微信存储、AOT或资源热更新。旧模块禁止反向依赖apps/cocos-probe。新外层只能消费派生公共runtime，不直接访问核心内部、tests或dev/testing API；浏览器Storage仅由外层BrowserSaveStoragePort经现有Port注入，旧三层不接平台API，wx/fs禁令保持。
+旧game-core、cocos-app、cocos-creator-adapter仍不接真实 Cocos、不接 wx或fs；只有既有cocos-engine-probe外层可导入cc，并受单向公开runtime边界约束。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture，不新增玩法、微信存储、AOT或资源热更新。旧模块禁止反向依赖apps/cocos-probe。新外层只能消费派生公共runtime，不直接访问核心内部、tests或dev/testing API；浏览器Storage仅由外层BrowserSaveStoragePort经现有Port注入，旧三层不接平台API，wx/fs禁令保持。
 
 Node中的准备契约和外层生命周期测试登记为full/blocker，由trace.cocos.web-bootstrap-probe追踪；它们验证实际派生产物、资源完整性、异常路径和确定性生命周期，不冒充引擎运行证据。根typecheck仍仅覆盖src。真实Creator预览与Web构建另行执行，缺引擎时明确失败或未执行，不能静默skip或使用假cc类型声称通过。
 
@@ -102,7 +102,7 @@ ProbeInventory.ts只复制公开MaterialLot选项和储存目标，管理当前�
 
 契约、预览和公开Host/Component回归分别核对缺白菜、缺盐、盐不足/阈值边界，以及合法不同数量的消耗、任务、推进和领取。失败后健康请求与存读档恢复继续；不通过私有SaveFile写入构造假通过，不新增重复同lot或多primary拒绝/聚合规则。trace.processing.required-inputs连接ProcessingSystem.ts、ProcessingConfigResolver.ts及现有test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-menu。
 
-本版实际触及测试逐一登记args/files/covers并验证单文件affected真正执行自身任务；q:affected仍只用于反馈，版本完成和候选出包按q:full及无缓存q:release。核心进入Web bundle，真实Creator SDK/构建及既有built-web/editor-preview回归需独立执行。核心校验沿用既有实现；网页加工与真实输入由trace.cocos.web-processing-loop独立验收，不从核心Node通过推定。
+实际触及测试逐一登记args/files/covers并验证单文件affected真正执行自身任务；q:affected仍只用于反馈，版本完成和候选出包按q:full及无缓存q:release。核心进入Web bundle，真实Creator SDK/构建及既有built-web/editor-preview回归需独立执行。核心校验沿用既有实现；网页加工与真实输入由trace.cocos.web-processing-loop独立验收，不从核心Node通过推定。
 
 ## 持久ID恢复与预览一致性
 
@@ -110,7 +110,7 @@ IdService观察完整GameState的字符串值及记录键，恢复生成格式ID
 
 保证覆盖存档中仍存在的对象和任意历史引用，以及同一runtime已知分配；整个SaveFile已无任何记录的历史ID不能无新增持久化字段地恢复。预览不修改领域状态或正式ID服务；失败保持既有事务语义，不承诺请求序号或已分配ID回滚。
 
-trace.runtime.id-recovery连接IdService.ts、GameRuntime.ts、CocosActionPreviewer.ts与Session；test.stage1a-contract、test.action-preview、test.cocos-session核对各对象/事件、历史引用、跨实例加载、极大后缀及合法恢复。该ID恢复能力不新增数量规则；网页拆分由outer单独提供，既有加工页独立消费正式加工，本版烹饪页消费既有cook_dish，不扩Stage1B或wx。真实Creator及既有built/editor浏览器回归独立执行，核心/Session回归与网页真实输入分别验收。
+trace.runtime.id-recovery连接IdService.ts、GameRuntime.ts、CocosActionPreviewer.ts与Session；test.stage1a-contract、test.action-preview、test.cocos-session核对各对象/事件、历史引用、跨实例加载、极大后缀及合法恢复。该ID恢复能力不新增数量规则；网页拆分由outer单独提供，既有加工页独立消费正式加工，既有烹饪页消费既有cook_dish，不扩Stage1B或wx。真实Creator及既有built/editor浏览器回归独立执行，核心/Session回归与网页真实输入分别验收。
 
 ## 拆分数量、定义占用与失败保护
 
@@ -126,7 +126,7 @@ ProbeInventory只复制公开材料选项并管理数量原文、不可编辑的
 
 ProbeLifetime窄消费既有menu_preview/split_lot；ProbeInteraction显式区分preview、confirm和save/load，preview只认本次last_preview_result，不要求ActionResult；confirm仍经既有controller重预览，成功须本次双结果。新批次ID从本次created_objects关联刷新后的公开材料，数量/位置由公开结果取得，不从输入伪造。状态应用异常不自动重发Action；busy/销毁保护保持。
 
-CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；既有加工页见trace.cocos.web-processing-loop，本版烹饪页见trace.cocos.web-cooking-loop，不扩Stage1B或wx。
+CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。既有拆分规则、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；既有加工页见trace.cocos.web-processing-loop，既有烹饪页见trace.cocos.web-cooking-loop，不扩Stage1B或wx。
 
 tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实际args/files/covers，test.cocos-web-verification-contracts校验拆分观察断言负例。trace.cocos.web-inventory-split连接这些行为及独立Creator SDK/构建、built-web和editor-preview各960×640真实点击与键盘输入；旧矩阵/resize/农事/转移/存读档/故障及销毁回归保留。桌面输入不代表触摸或微信通过，版本完成仍按q:full及无缓存q:release和精确候选CI。
 
@@ -136,4 +136,12 @@ CocosSelectableViewModel既有方法/任务选项，只复制配置和SaveFile�
 
 ## 网页烹饪只读消费
 
-CocosSelectableViewModel从既有recipe/structure及正式Action Schema投影角色约束、操作硬边界/偏好、配置设施工具说明与当前燃料；合并和候选匹配对齐现有CookingSystem，不成为新规则源。ProbeCooking只管理公开选项副本、本地数量/操作参数和本次回传，正式写入经已有MenuActionBinding.cook_dish与ActionPipeline。成功关联本次真实DishLot，失败、读档与改输入清旧预览，不重发Action。trace.cocos.web-cooking-loop连接；core、Session/Queue和SaveFile保持，无燃料补给或菜品通用搬运。
+CocosSelectableViewModel从既有recipe/structure及正式Action Schema投影角色约束、操作硬边界/偏好、配置设施工具说明与当前燃料；合并和候选匹配对齐现有CookingSystem，不成为新规则源。ProbeCooking只管理公开选项副本、本地数量/操作参数和本次回传，正式写入经已有MenuActionBinding.cook_dish与ActionPipeline。成功关联本次真实DishLot，失败、读档与改输入清旧预览，不重发Action。trace.cocos.web-cooking-loop连接；烹饪规则、Session/Queue和SaveFile保持，无燃料补给或菜品通用搬运。
+
+## 订单提交与截止事务边界
+
+available与accepted在当前分钟不超过deadline时可按现有需求规则提交。DemandResolver先验证状态和时限，再做既有菜品匹配；通过后仅在同步事务内部进入submitted，既有消费、储存审计、金钱/声望结算后completed。重复提交与submitted/completed/failed/expired/cancelled均拒绝，失败不得消耗菜品、增加奖励或改订单/事件；旧failed不迁移或重开。
+
+GameRuntime既有advance_time截止settlement将available/accepted在now>deadline时转为expired，恰到截止仍保持开放。直接提交过期开放单复用ERR_ORDER_NOT_AVAILABLE，可带:deadline诊断，但保持提交前完整状态，不在拒绝路径偷偷结算。CocosSelectableViewModel只读order_options按同一合法状态和时限给enabled/reason，保持公开shape；enabled不是需求匹配保证。
+
+trace.orders.legal-state-deadline连接DemandResolver、GameRuntime与CocosSelectableViewModel，以及test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-ui-readiness的现有full/blocker。核心、预览、Session受控合法加载与只读选项按层验收D-1/D/D+1、终态拒绝、需求失败完整保护、合法恢复、成功事件/奖励恰一次和新会话防重交。accepted及过期开放单可用合法受控存档验证；网页尚无订单提交入口，Node不冒充网页订单、手机或微信实测。不新增接单、刷新、聚合/部分交付、评分奖励或数量/时间/重复输入规则。

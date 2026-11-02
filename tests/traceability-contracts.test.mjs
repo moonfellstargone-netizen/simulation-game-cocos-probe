@@ -7,6 +7,36 @@ import { resolveGateTasks } from '../tools/quality/lib/resolveGateTasks.mjs';
 const root = process.cwd();
 const readJson = (rel) => JSON.parse(readFileSync(join(root, rel), 'utf8'));
 
+test('order state and deadline protection remain traced to executed core, preview, session and read-only option tests', () => {
+  const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
+  const id = 'trace.orders.legal-state-deadline';
+  const entry = traceabilityMap.entries.find((item) => item.id === id);
+  assert.equal(entry?.status, 'active');
+  assert.ok(traceabilityMap.currentFullReleaseTraceIds.includes(id));
+  for (const source of [
+    'src/game-core/demand/DemandResolver.ts',
+    'src/game-core/runtime/GameRuntime.ts',
+    'src/cocos-app/view-models/CocosSelectableViewModel.ts'
+  ]) assert.ok(entry.sourceRefs.includes(source), `${source} must remain part of order protection`);
+  for (const [taskId, file] of [
+    ['test.stage1a-contract', 'tests/stage1a-contract.test.ts'],
+    ['test.action-preview', 'tests/action-preview-boundary.test.ts'],
+    ['test.cocos-session', 'tests/cocos-runtime-session.test.ts'],
+    ['test.cocos-ui-readiness', 'tests/cocos-ui-readiness.test.ts']
+  ]) {
+    assert.ok(entry.testRefs.includes(taskId), `${taskId} must be traced`);
+    const task = registry.tests[taskId];
+    assert.equal(task?.stability, 'blocker');
+    for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
+    assert.ok(task.files.includes(file), `${taskId} must register ${file}`);
+    assert.ok(task.args.includes(file), `${taskId} must execute ${file}`);
+    for (const gate of ['full', 'release']) {
+      assert.ok(entry.gateRefs.includes(gate));
+      assert.ok(resolveGateTasks(gate, gatePolicy, registry).some((item) => item.id === taskId));
+    }
+  }
+});
+
 test('Web cooking trace closes over executed public projection and outer regressions', () => {
   const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
   const id = 'trace.cocos.web-cooking-loop';

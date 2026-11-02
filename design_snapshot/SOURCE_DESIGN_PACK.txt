@@ -1,14 +1,14 @@
 source_design_pack: 模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip
 design_pack_version: v1.5.2.2
-code_package_version: v0.0.2.42
-code_package_npm_version: 0.0.2-42
-code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_42
-version_name: Web Cooking Selection & Dish Feedback
-chinese_version_name: 网页烹饪选料与菜品反馈版
-scope: Expose minimal read-only recipe, operation and fuel information and add the outer web cooking selection, preview, confirmation and actual DishLot feedback through existing public menu actions. Preserve core cooking, processing, quantities, time rules, ID recovery, ActionPipeline, SaveFile and formal resources.
+code_package_version: v0.0.2.43
+code_package_npm_version: 0.0.2-43
+code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_43
+version_name: Order State Alignment & Failure Protection
+chinese_version_name: 订单合法状态与失败保护版
+scope: Align existing order submission states available/accepted, deadline checks and expiration settlement; protect failed submissions and expose matching read-only option availability. Preserve ActionPipeline, Session/Queue, SaveFile, formal resources, matching/reward/quantity rules and existing Web capabilities.
 
 formal_source_statement: 正式包 v1.5.2.2 remains authoritative
-context_statement: 网页烹饪角色选料、操作参数与储存、预览确认、实际菜品及燃料反馈；最小只读公开投影与必要版本/代码包内部检查体系治理；正式设定、核心与Session/Queue不变
-quality_surface: trace.cocos.web-cooking-loop, CocosSelectableViewModel, ProbeCooking/Interaction/Lifetime/CocosWebProbe, test.cocos-ui-readiness, test.cocos-engine-probe-lifecycle, test.cocos-web-verification-contracts; inherited split/core/ID/processing/Web traces; q:full, q:release without cache, independent Creator/browser keyboard and click verification
+context_statement: 订单合法状态、提交时截止与既有过期结算、失败保护及最小只读选项对齐；必要版本/代码包内部检查体系治理；正式资源与Session/Queue保持
+quality_surface: trace.orders.legal-state-deadline, DemandResolver, GameRuntime, CocosSelectableViewModel; test.stage1a-contract, test.action-preview, test.cocos-session, test.cocos-ui-readiness; inherited Web/core traces; q:full, q:release without cache, independent Creator/browser regression
 authority_statement: design pack remains authoritative; GitHub repo is daily code authority
 affected_boundary: q:affected and cache probe serve development feedback only; q:full and q:release without cache remain completion authority

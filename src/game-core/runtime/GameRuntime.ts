@@ -74,8 +74,8 @@ export class GameRuntime {
       id: 'order_deadline_minimal_stage_1A',
       settle: (save) => {
         for (const order of save.orders) {
-          if (order.status === 'available' && typeof order.deadline_absolute_minute === 'number' && save.world_time.absolute_minute > order.deadline_absolute_minute) {
-            order.status = 'failed';
+          if ((order.status === 'available' || order.status === 'accepted') && typeof order.deadline_absolute_minute === 'number' && save.world_time.absolute_minute > order.deadline_absolute_minute) {
+            order.status = 'expired';
           }
         }
       }

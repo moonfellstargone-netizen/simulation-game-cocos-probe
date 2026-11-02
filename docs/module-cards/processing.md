@@ -66,4 +66,4 @@ domain-map 与 public-api（如有新 action 类型对外暴露）。
 
 ## 网页加工消费边界
 
-本版ProcessingSystem/ProcessingConfigResolver执行源码不变。网页从app只读方法/任务投影读取现有要求、兼容设施和status，正式请求继续沿start_processing、advance_time和collect_processing_result；不增加重复输入、扣时、工具耐久或补救规则。trace.cocos.web-processing-loop连接该公开消费，既有trace.processing.required-inputs仍负责正式必需输入及失败保护，Node和真实浏览器各自留证。
+既有ProcessingSystem/ProcessingConfigResolver执行规则保持。网页从app只读方法/任务投影读取现有要求、兼容设施和status，正式请求继续沿start_processing、advance_time和collect_processing_result；不增加重复输入、扣时、工具耐久或补救规则。trace.cocos.web-processing-loop连接该公开消费，既有trace.processing.required-inputs仍负责正式必需输入及失败保护，Node和真实浏览器各自留证。
