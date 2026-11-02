@@ -1058,3 +1058,9 @@ test('order visible state cannot claim available after actual completion or inve
  for(const mutate of [x=>x.displayedOrders.state='状态：可提交',x=>x.displayedOrders.deadline='剩余1分钟']){const bad=structuredClone(expired);mutate(bad);assert.throws(()=>processingChecks.assertOrdersProjection(bad));}
  const available=orderState();available.displayedOrders.state='状态：可提交';available.displayedOrders.deadline='已超时120分钟';assert.throws(()=>processingChecks.assertOrdersProjection(available));
 });
+
+
+test('visible order settlement must show the actual match score and reputation delta',()=>{
+ const expected={rewardMoney:37,reputationDelta:{west_market_tavern:1}};
+ for(const label of ['奖励37/匹配999/声望+1/实际提交2份','奖励37/匹配94/声望+999/实际提交2份','奖励37/匹配94/实际提交2份']){const bad=settledOrderObservation();bad.after.displayedOrders.result=label;assert.throws(()=>processingChecks.assertOrderConfirmObservation(bad,expected));}
+});

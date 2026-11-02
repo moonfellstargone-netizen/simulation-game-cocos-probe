@@ -921,7 +921,13 @@ export function assertOrderConfirmObservation(observation,expected={}){
   assert.deepEqual(observation.after.inventory.lotOptions,observation.before.inventory.lotOptions);assert.deepEqual(observation.after.farming.materialOptions,observation.before.farming.materialOptions);
   for(const target of observation.before.inventory.targetOptions){const current=observation.after.inventory.targetOptions.find(item=>item.id===target.id);assert.ok(current);if(target.id===dish.storage_ref.container_id)assert.ok(current.used_capacity<target.used_capacity);else assert.deepEqual(current,target);}
   assert.equal(after.preview,null);assert.equal(after.canSubmit,false);assert.equal(after.selectedDishId,null);assert.match(observation.after.displayedOperation,/订单.*完成/);
-  assert.ok(visibleNumber(observation.after.displayedOrders.result,result.rewardMoney));assert.ok(visibleNumber(observation.after.displayedOrders.result,result.servingCount,'份'));
+  const visibleResult=observation.after.displayedOrders.result;
+  assert.ok(visibleNumber(visibleResult,result.rewardMoney));assert.ok(visibleNumber(visibleResult,result.servingCount,'份'));
+  assert.match(visibleResult,new RegExp('匹配\\s*'+escapePattern(result.matchScore)+'(?![\\d.])'),'visible match score must equal this actual settlement');
+  const visibleReputation=visibleResult.match(/声望(?:变化)?[：:]?\s*([+-]?\d+(?:\.\d+)?(?:\/[+-]?\d+(?:\.\d+)?)*)/);
+  const actualReputation=Object.values(result.reputationDelta).map(value=>(value>=0?'+':'')+value).join('/')||'0';
+  assert.ok(visibleReputation,'visible settlement must include this actual reputation change');
+  assert.equal(visibleReputation[1],actualReputation,'visible reputation change must equal this actual settlement');
   return result;
 }
 export function assertOrderLoadRecovery(saved,loaded){
