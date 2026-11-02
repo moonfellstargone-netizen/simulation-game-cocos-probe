@@ -109,8 +109,9 @@ function runningMessage(command: ProbeCommand): string {
   if (command.name === 'save') return '正在本地保存';
   if (command.name === 'load') return '正在读取本地存档';
   if (command.name === 'menu_preview') return command.selection.action_type === 'cook_dish' ? '正在校验烹饪选择'
+    : command.selection.action_type === 'submit_order' ? '正在校验订单与菜品'
     : command.selection.action_type === 'start_processing' ? '正在校验加工输入' : '正在校验拆分数量';
-  return ({ plant_crop: '正在播种', advance_time: '正在推进时间', harvest_crop: '正在收获', store_item: '正在转移整批物料', split_lot: '正在拆分批次', start_processing: '正在加工开工', collect_processing_result: '正在领取加工产物', cook_dish: '正在烹饪' })[command.selection.action_type];
+  return ({ plant_crop: '正在播种', advance_time: '正在推进时间', harvest_crop: '正在收获', store_item: '正在转移整批物料', split_lot: '正在拆分批次', start_processing: '正在加工开工', collect_processing_result: '正在领取加工产物', cook_dish: '正在烹饪', submit_order: '正在提交订单' })[command.selection.action_type];
 }
 
 function completedMessage(command: ProbeCommand): string {
@@ -124,11 +125,14 @@ function completedMessage(command: ProbeCommand): string {
   if (command.selection.action_type === 'start_processing') return '加工开工成功';
   if (command.selection.action_type === 'collect_processing_result') return '加工产物领取成功';
   if (command.selection.action_type === 'cook_dish') return '烹饪成功';
+  if (command.selection.action_type === 'submit_order') return '订单结算完成';
   return command.selection.minutes === 60 ? '已推进一小时'
     : command.selection.minutes === 1440 ? '已推进一天' : `已推进${command.selection.minutes}分钟`;
 }
 
 function failureMessage(code: string): string {
+  if (code === 'ERR_ORDER_NOT_AVAILABLE') return '订单已超时或当前不可提交';
+  if (code.startsWith('ERR_DEMAND_')) return '菜品不符合当前需求，请调整选择';
   if (code.startsWith('ERR_MENU_RECIPE_ROLE_MISSING:')) return '必需食材角色尚未选择';
   if (code === 'ERR_NOT_ENOUGH_FUEL') return '燃料不足，请保留当前材料';
   if (code.startsWith('ERR_COOKING_')) return '烹饪选择不符合当前配方，请调整后预览';

@@ -6,6 +6,8 @@ import { assertClickObservation, assertDisabledInventoryObservation, assertFarmi
 import { assertLocalProcessingObservation, assertProcessingCollectObservation, assertProcessingDisabledObservation, assertProcessingLoadRecovery, assertProcessingPreviewObservation, assertProcessingProjection, assertProcessingQuantityObservation, assertProcessingStartObservation } from './lib/webProbeSupport.mjs';
 import { assertCookingProjection, assertCookingPreviewObservation, assertCookingConfirmObservation, assertCookingDisabledObservation, assertCookingInputObservation, assertCookingLoadRecovery, assertLocalCookingObservation } from './lib/webProbeSupport.mjs';
 
+import { assertOrdersProjection, assertLocalOrderObservation, assertOrderDisabledObservation, assertOrderPreviewObservation, assertOrderConfirmObservation, assertOrderLoadRecovery, assertOrderSerializedSettlement } from './lib/webProbeSupport.mjs';
+
 const ROOT = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '../..'));
 const MATRIX = [
   { width: 1440, height: 1200, dpr: 1 }, { width: 1280, height: 720, dpr: 1 },
@@ -19,7 +21,8 @@ const SELECTION_BUTTONS = ['SelectField', 'SelectSeed', 'SelectCrop', 'SeedAmoun
 const INVENTORY_LOCAL_BUTTONS = ['OpenInventory', 'OpenFarming', 'SelectInventoryLot', 'SelectStorageTarget'];
 const PROCESSING_LOCAL_BUTTONS = ['OpenProcessing', 'SelectProcessingMethod', 'SelectProcessingInput', 'SelectProcessingLot', 'SelectProcessingFacility', 'SelectProcessingTask'];
 const COOKING_LOCAL_BUTTONS = ['OpenCooking', 'SelectCookingRecipe', 'SelectCookingRole', 'SelectCookingLot', 'ClearCookingRole', 'SelectCookingHeat', 'SelectCookingStorage'];
-const BUTTONS = ['AdvanceOneHour', 'SaveLocal', 'LoadLocal', ...SELECTION_BUTTONS, 'PlantCrop', 'AdvanceOneDay', 'HarvestCrop', ...INVENTORY_LOCAL_BUTTONS, 'MoveInventoryLot', 'SplitPreview', 'SplitConfirm', ...PROCESSING_LOCAL_BUTTONS, 'ProcessingPreview', 'StartProcessing', 'CollectProcessing', ...COOKING_LOCAL_BUTTONS, 'CookingPreview', 'CookDish'];
+const ORDER_LOCAL_BUTTONS = ['OpenOrders','SelectOrder','SelectOrderDish'];
+const BUTTONS = ['AdvanceOneHour', 'SaveLocal', 'LoadLocal', ...SELECTION_BUTTONS, 'PlantCrop', 'AdvanceOneDay', 'HarvestCrop', ...INVENTORY_LOCAL_BUTTONS, 'MoveInventoryLot', 'SplitPreview', 'SplitConfirm', ...PROCESSING_LOCAL_BUTTONS, 'ProcessingPreview', 'StartProcessing', 'CollectProcessing', ...COOKING_LOCAL_BUTTONS, 'CookingPreview', 'CookDish', ...ORDER_LOCAL_BUTTONS, 'OrderPreview', 'SubmitOrder'];
 const STORAGE_KEY = 'qinglan.simulation-game.cocos-probe.save.web_probe';
 const EMPTY_SLOT_ERROR = 'ERR_SAVE_SLOT_NOT_FOUND:web_probe';
 
@@ -100,10 +103,17 @@ async function physicalClick(page, caseName, result, recordDir, buttonName = 'Ad
   result.clicks.push(observation);
   await page.screenshot({ path: join(recordDir, caseName + '.png'), fullPage: true });
   if (disabled) {
-    if (buttonName === 'CookingPreview' || buttonName === 'CookDish') assertCookingDisabledObservation(observation, buttonName);
+    if (buttonName === 'OrderPreview' || buttonName === 'SubmitOrder') assertOrderDisabledObservation(observation, buttonName);
+    else if (buttonName === 'CookingPreview' || buttonName === 'CookDish') assertCookingDisabledObservation(observation, buttonName);
     else if (buttonName === 'SplitPreview' || buttonName === 'SplitConfirm') assertSplitDisabledObservation(observation, buttonName);
     else if (['ProcessingPreview', 'StartProcessing', 'CollectProcessing'].includes(buttonName)) assertProcessingDisabledObservation(observation, buttonName);
     else { assert.equal(buttonName, 'MoveInventoryLot'); assertDisabledInventoryObservation(observation); }
+  } else if (ORDER_LOCAL_BUTTONS.includes(buttonName)) {
+    assertLocalOrderObservation(observation, expected);
+  } else if (buttonName === 'OrderPreview') {
+    assertOrderPreviewObservation(observation, expected);
+  } else if (buttonName === 'SubmitOrder') {
+    assertOrderConfirmObservation(observation, { rewardMoney: 37, reputationDelta: { west_market_tavern: 1 } });
   } else if (COOKING_LOCAL_BUTTONS.includes(buttonName)) {
     assertLocalCookingObservation(observation, expected);
   } else if (buttonName === 'CookingPreview') {
@@ -794,8 +804,74 @@ async function cookingLoop(page, result, recordDir, logs, priorSave) {
   const nextCooked = await physicalClick(page, 'cooking-next-confirm', result, recordDir, 'CookDish');
   assert.notEqual(nextCooked.after.cooking.result.dishLotId, cooked.after.cooking.result.dishLotId);
   assertStoredSaveUnchanged(saved, await storedSave(page));
-  const lifecycle = await disposeProbe(page);
-  return { scope: '960x640 physical mouse/keyboard, ordinary farm/process inputs; missing role, insufficient quantity, unsupported storage, stale preview, exact material/fuel consumption, real DishLot, manual load/reload/new-page recovery; controlled fuel exhaustion is outside browser scope', initial, missing, insufficient, storageRefused, preview, stale, cooked, savedState, saved: storedEvidence(saved), loaded, reloadInitial, reloadLoaded, firstLifecycle, reopenInitial, reopenLoaded, nextCooked, lifecycle };
+  const orders = await ordersLoop(page, result, recordDir, logs, saved);
+  const lifecycle = orders.lifecycle;
+  return { orders, scope: '960x640 physical mouse/keyboard, ordinary farm/process inputs; missing role, insufficient quantity, unsupported storage, stale preview, exact material/fuel consumption, real DishLot, manual load/reload/new-page recovery; controlled fuel exhaustion is outside browser scope', initial, missing, insufficient, storageRefused, preview, stale, cooked, savedState, saved: storedEvidence(saved), loaded, reloadInitial, reloadLoaded, firstLifecycle, reopenInitial, reopenLoaded, nextCooked, lifecycle };
+}
+
+
+async function emptyOrderLoop(browser,url,result,recordDir,logs){
+  const context=await browser.newContext({viewport:{width:960,height:640},deviceScaleFactor:1});
+  try{const page=await context.newPage();watchErrors(page,'orders-empty',logs);await page.goto(url);await awaitReady(page);await attachButtonObservation(page);
+    const initial=await status(page),saved=await storedSave(page);assert.equal(saved.raw,null);
+    await physicalClick(page,'orders-empty-open',result,recordDir,'OpenOrders',{panel:'orders'});
+    const opened=assertOrdersProjection(await status(page));assert.equal(opened.selectedOrderId,null);assert.equal(opened.selectedDishId,null);assert.equal(opened.dishOptions.length,0);
+    assert.ok(opened.orderOptions.length);await physicalClick(page,'orders-empty-inspect',result,recordDir,'SelectOrder',{key:'selectedOrderId',value:opened.orderOptions[0].id});
+    const empty=await physicalClick(page,'orders-empty-preview-disabled',result,recordDir,'OrderPreview',{disabled:true});
+    await physicalClick(page,'orders-empty-submit-disabled',result,recordDir,'SubmitOrder',{disabled:true});assert.match(empty.after.displayedOrders.preview,/暂无菜品/);assertStoredSaveUnchanged(saved,await storedSave(page));
+    const lifecycle=await disposeProbe(page);return{scope:'960x640 ordinary new game, no dish and no injected objects; disabled buttons emit zero events',initial,empty,lifecycle};
+  }finally{await context.close();}
+}
+async function ordersLoop(page,result,recordDir,logs,priorSave){
+  await physicalClick(page,'orders-open',result,recordDir,'OpenOrders',{panel:'orders'});
+  const initial=await status(page),opened=assertOrdersProjection(initial);assert.ok(opened.dishOptions.length>=2,'two existing real cooks supply independent whole DishLots');
+  const order=opened.orderOptions.find(item=>item.enabled);assert.ok(order?.demand && order.minutes_until_deadline>=0);
+  const dish=opened.dishOptions.find(item=>item.enabled);assert.ok(dish);
+  const choose=async(kind,wanted,prefix)=>{
+    const key=kind==='order'?'selectedOrderId':'selectedDishId',collection=kind==='order'?'orderOptions':'dishOptions',button=kind==='order'?'SelectOrder':'SelectOrderDish';
+    const bound=(await status(page)).orders[collection].length;
+    for(let step=0;step<bound;step++){const current=(await status(page)).orders;if(current[key]===wanted)return;
+      const options=current[collection].filter(item=>kind==='order'||item.enabled);const next=options[(options.findIndex(item=>item.id===current[key])+1)%options.length]?.id;
+      assert.ok(next);await physicalClick(page,prefix+'-'+step,result,recordDir,button,{key,value:next});}
+    assert.equal((await status(page)).orders[key],wanted);
+  };
+  await choose('order',order.id,'orders-select-order');await choose('dish',dish.id,'orders-select-dish');
+  const preview=await physicalClick(page,'orders-first-preview',result,recordDir,'OrderPreview');assertStoredSaveUnchanged(priorSave,await storedSave(page));
+  await physicalClick(page,'orders-change-clears-preview',result,recordDir,'SelectOrder',{key:'selectedOrderId',value:order.id});
+  const stale=await physicalClick(page,'orders-stale-confirm-disabled',result,recordDir,'SubmitOrder',{disabled:true});
+  await physicalClick(page,'orders-preview-before-save',result,recordDir,'OrderPreview');
+  await physicalClick(page,'orders-save-open',result,recordDir,'SaveLocal',{name:'save',status:'completed',timeLabel:(await status(page)).timeLabel});
+  const openState=await status(page),saved={...await storedSave(page),timeLabel:openState.timeLabel};assert.ok(saved.raw);assert.equal(openState.orders.preview,null);
+  const advances=[];
+  for(let step=0;(await status(page)).orders.orderOptions.find(item=>item.id===order.id).enabled;step++){
+    assert.ok(step<100,'ordinary day/hour steps must expire this finite order');const current=await status(page),remaining=current.orders.orderOptions.find(item=>item.id===order.id).minutes_until_deadline;
+    const minutes=remaining>=1440?1440:60,button=minutes===1440?'AdvanceOneDay':'AdvanceOneHour';
+    const next=timeInMinutes(current.timeLabel)+minutes;
+    await physicalClick(page,'orders-deadline-step-'+step,result,recordDir,button,minutes===1440?{actionType:'advance_time',status:'completed',timeLabel:`day ${Math.floor(next/1440)} minute ${next%1440}`} :undefined);
+    advances.push({minutes,remaining});assertStoredSaveUnchanged(saved,await storedSave(page));
+  }
+  const expired=await status(page);assert.equal(expired.orders.orderOptions.find(item=>item.id===order.id).status,'expired');assert.equal(expired.orders.money,openState.orders.money);assert.deepEqual(expired.orders.reputation,openState.orders.reputation);assert.deepEqual(expired.orders.dishOptions,openState.orders.dishOptions);
+  await physicalClick(page,'orders-expired-preview-disabled',result,recordDir,'OrderPreview',{disabled:true});
+  const expiredDisabled=await physicalClick(page,'orders-expired-submit-disabled',result,recordDir,'SubmitOrder',{disabled:true});
+  const restored=await physicalClick(page,'orders-load-open',result,recordDir,'LoadLocal',{name:'load',status:'completed',timeLabel:saved.timeLabel});assertOrderLoadRecovery(openState,restored);assertStoredSaveUnchanged(saved,await storedSave(page));
+  await choose('order',order.id,'orders-restored-order');await choose('dish',dish.id,'orders-restored-dish');
+  await physicalClick(page,'orders-legal-preview',result,recordDir,'OrderPreview');
+  const submitted=await physicalClick(page,'orders-confirm',result,recordDir,'SubmitOrder');assertStoredSaveUnchanged(saved,await storedSave(page));
+  const duplicate=await physicalClick(page,'orders-duplicate-disabled',result,recordDir,'SubmitOrder',{disabled:true});
+  await physicalClick(page,'orders-save-completed',result,recordDir,'SaveLocal',{name:'save',status:'completed',timeLabel:submitted.after.timeLabel});
+  const completedState=await status(page),completed={...await storedSave(page),timeLabel:completedState.timeLabel};
+  assertOrderSerializedSettlement(saved.raw,completed.raw,submitted.after.orders.result);
+  await page.reload();await awaitReady(page);await attachButtonObservation(page);const reloadInitial=await status(page),reloadStartup=await storedSave(page);
+  const reloadLoaded=await physicalClick(page,'orders-refresh-manual-load',result,recordDir,'LoadLocal',{name:'load',status:'completed',timeLabel:completed.timeLabel});assertLocalSaveRecovery({saved:completed,initial:reloadInitial,afterStartup:reloadStartup,loaded:reloadLoaded,afterLoad:await storedSave(page)});assertOrderLoadRecovery(completedState,reloadLoaded);
+  await physicalClick(page,'orders-refresh-page',result,recordDir,'OpenOrders',{panel:'orders'});await choose('order',order.id,'orders-refresh-order');
+  await physicalClick(page,'orders-refresh-duplicate-disabled',result,recordDir,'SubmitOrder',{disabled:true});
+  const firstLifecycle=await disposeProbe(page);const context=page.context();await page.close();page=await context.newPage();watchErrors(page,'orders-reopen',logs);await page.goto(result.url);await awaitReady(page);await attachButtonObservation(page);
+  const reopenInitial=await status(page),reopenStartup=await storedSave(page);
+  const reopenLoaded=await physicalClick(page,'orders-reopen-manual-load',result,recordDir,'LoadLocal',{name:'load',status:'completed',timeLabel:completed.timeLabel});assertLocalSaveRecovery({saved:completed,initial:reopenInitial,afterStartup:reopenStartup,loaded:reopenLoaded,afterLoad:await storedSave(page)});assertOrderLoadRecovery(completedState,reopenLoaded);
+  await physicalClick(page,'orders-reopen-page',result,recordDir,'OpenOrders',{panel:'orders'});await choose('order',order.id,'orders-reopen-order');
+  await physicalClick(page,'orders-reopen-duplicate-disabled',result,recordDir,'SubmitOrder',{disabled:true});assert.equal((await status(page)).orders.result,null,'restored history is not a new settlement');assertStoredSaveUnchanged(completed,await storedSave(page));
+  const lifecycle=await disposeProbe(page);
+  return{scope:'960x640 actual mouse, normal two real dishes, open-save/normal-time-expiry/load/recovery, one settlement and fresh-page history; disabled repeat is zero events, direct formal refusal is Node coverage',initial,preview,stale,openState,saved:storedEvidence(saved),advances,expired,expiredDisabled,restored,submitted,duplicate,completedState,completed:storedEvidence(completed),reloadLoaded,firstLifecycle,reopenLoaded,lifecycle};
 }
 
 async function storageFailureRecovery(browser, url, result, recordDir, logs) {
@@ -982,8 +1058,10 @@ export async function verifyWebProbe(options) {
     result.farming = await farmingLoop(browser, result.url, result, recordDir, logs);
     result.inventory = await inventoryLoop(browser, result.url, result, recordDir, logs);
     result.splitting = await splitLoop(browser, result.url, result, recordDir, logs);
+    result.orderEmpty = await emptyOrderLoop(browser, result.url, result, recordDir, logs);
     result.processing = await processingLoop(browser, result.url, result, recordDir, logs);
     result.cooking = result.processing.cooking;
+    result.orders = result.cooking.orders;
     result.storageRecovery = await storageFailureRecovery(browser, result.url, result, recordDir, logs);
     if (!parsed.previewUrl) {
       assert.ok(resourceUrl, 'actual probe resource URL must be observed');

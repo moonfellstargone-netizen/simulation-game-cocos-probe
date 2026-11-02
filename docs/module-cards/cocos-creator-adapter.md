@@ -102,3 +102,7 @@ tests/cocos-minimal-menu-binding.test.ts / test:cocos-menu验证预览不写状�
 ## 网页烹饪公开复用
 
 outer复用既有MenuActionBinding.cook_dish，以recipe_option_id、按角色ingredient_options、operation_profile和target_storage_option_id形成原正式草稿；本模块执行源码和Queue保持。缺必需角色可在绑定层command failed，UI不能借旧preview；confirm仍重预览当前Session并核本次ActionResult。trace.cocos.web-cooking-loop连接app只读补齐、outer和独立验收，不新建设施/工具选择参数。
+
+## 网页订单的既有显式菜单消费
+
+MenuActionBinding.submit_order保持order_option_id与dish_lot_option_ids[]显式参数，经现有preview/confirm构造正式submitted_object_refs；单菜品仅是ProbeOrders界面范围，不给核心数组新增maxItems。确认重预览并取本次ActionResult，StateVM/Session/Queue接口保持。订单需求和实际结果来自最小SelectableVM投影，节点、选择和本次反馈属于outer，见trace.cocos.web-orders-loop。

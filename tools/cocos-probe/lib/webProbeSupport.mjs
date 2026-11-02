@@ -300,7 +300,7 @@ const escapePattern = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\
 const visibleNumber = (label, amount, suffix = '') => new RegExp('(^|[^\\d.])' + escapePattern(amount) + '\\s*' + escapePattern(suffix) + '(?![\\d.])').test(label);
 
 export function assertInventoryProjection(state) {
-  assert.ok(['farming', 'inventory', 'processing', 'cooking'].includes(state.panel), 'the active local panel must be explicit');
+  assert.ok(['farming', 'inventory', 'processing', 'cooking', 'orders'].includes(state.panel), 'the active local panel must be explicit');
   const inventory = state.inventory;
   assert.ok(inventory && typeof inventory === 'object', 'the public inventory projection must exist');
   for (const key of INVENTORY_COLLECTIONS) assert.ok(Array.isArray(inventory[key]), key + ' must be a public option list');
@@ -852,4 +852,94 @@ export function assertLocalSaveRecovery({ saved, initial, afterStartup, loaded, 
   assert.equal(loaded.before.operation.sequence, initial.operation.sequence, 'manual load must be the first command after startup');
   assertUiCommandObservation(loaded, { name: 'load', status: 'completed', timeLabel: saved.timeLabel });
   assertStoredSaveUnchanged(saved, afterLoad);
+}
+
+
+const ORDER_COLLECTIONS = ['orderOptions', 'dishOptions'];
+const ORDER_STATUS_LABELS = { available:'可提交', accepted:'已接受', submitted:'结算中', completed:'已完成', failed:'失败', expired:'已超时', cancelled:'已取消' };
+export function assertOrdersProjection(state) {
+  assertCookingProjection(state);
+  const orders = state.orders; assert.ok(orders && typeof orders === 'object');
+  for (const key of ORDER_COLLECTIONS) { assert.ok(Array.isArray(orders[key])); assert.equal(new Set(orders[key].map(item => item.id)).size, orders[key].length); }
+  for (const [key, collection] of [['selectedOrderId','orderOptions'],['selectedDishId','dishOptions']]) assert.ok(orders[key] === null || orders[collection].some(item => item.id === orders[key]));
+  assert.ok(Number.isFinite(orders.money)); assert.ok(orders.reputation && typeof orders.reputation === 'object');
+  assert.equal(typeof orders.canPreview,'boolean'); assert.equal(typeof orders.canSubmit,'boolean');
+  if (orders.canSubmit) assert.equal(orders.preview?.success,true);
+  if (orders.canPreview) { assert.ok(orders.orderOptions.find(item => item.id === orders.selectedOrderId)?.enabled); assert.ok(orders.dishOptions.find(item => item.id === orders.selectedDishId)?.enabled); }
+  assert.deepEqual(orders.dishOptions,state.cooking.dishOptions,'orders and cooking must observe the same real dishes');
+  if (state.panel === 'orders') {
+    for (const key of ['order','state','deadline','quantity','demand','history','dish','detail','money','reputation','preview','result']) assert.ok(typeof state.displayedOrders?.[key] === 'string' && state.displayedOrders[key].trim(),key+' visible order feedback');
+    assert.ok(visibleNumber(state.displayedOrders.money,orders.money),'money Label must show actual current money');
+    for (const value of Object.values(orders.reputation)) if (typeof value === 'number') assert.ok(visibleNumber(state.displayedOrders.reputation,value),'reputation Label must show actual current values');
+    const order=orders.orderOptions.find(item=>item.id===orders.selectedOrderId);
+    if(order){
+      assert.equal(state.displayedOrders.state,'状态：'+(ORDER_STATUS_LABELS[order.status]??order.status),'visible order state must match actual public status');
+      assert.ok(visibleNumber(state.displayedOrders.quantity,order.quantity_required.amount));assert.ok(visibleNumber(state.displayedOrders.quantity,order.base_reward));assert.match(state.displayedOrders.quantity,/仅参考/);
+      if(order.minutes_until_deadline!==null){assert.ok(visibleNumber(state.displayedOrders.deadline,Math.abs(order.minutes_until_deadline),'分钟'));assert.match(state.displayedOrders.deadline,order.minutes_until_deadline<0?/已超时/:/剩余/,'deadline wording must agree with signed actual remaining time');assert.doesNotMatch(state.displayedOrders.deadline,order.minutes_until_deadline<0?/剩余/:/已超时/);}
+      if(order.demand){assert.match(state.displayedOrders.demand,/硬要求/);assert.match(state.displayedOrders.demand,/偏好（非硬门槛）/);assert.ok(visibleNumber(state.displayedOrders.demand,order.demand.match_threshold));}
+      if(order.result_summary)assert.ok(visibleNumber(state.displayedOrders.history,order.result_summary.reward_final));
+    }
+  }
+  return orders;
+}
+function assertOrdersWorldUnchanged(before,after){
+  assertCookingWorldUnchanged(before,after);
+  for(const key of [...ORDER_COLLECTIONS,'money','reputation'])assert.deepEqual(after.orders[key],before.orders[key],'order local/preview/refusal preserves '+key);
+}
+export function assertLocalOrderObservation(observation,expected={}){
+  assertInputObservation(observation);assertOrdersProjection(observation.before);const after=assertOrdersProjection(observation.after);
+  assert.deepEqual(observation.after.operation,observation.before.operation);assertOrdersWorldUnchanged(observation.before,observation.after);
+  if(expected.panel!==undefined)assert.equal(observation.after.panel,expected.panel);else assert.equal(after[expected.key],expected.value);
+  assert.equal(after.preview,null);assert.equal(after.result,null);assert.equal(after.canSubmit,false);
+}
+export function assertOrderDisabledObservation(observation,button){
+  assertInputObservation(observation,0);const before=assertOrdersProjection(observation.before);assertOrdersProjection(observation.after);
+  assert.equal(before[button==='OrderPreview'?'canPreview':'canSubmit'],false);assert.equal(observation.layout.buttonInteractable,false);
+  assert.deepEqual(observation.after.operation,observation.before.operation);assertOrdersWorldUnchanged(observation.before,observation.after);
+}
+export function assertOrderPreviewObservation(observation,{statusCode='OK_DEMAND_ACCEPTED'}={}){
+  const success=statusCode==='OK_DEMAND_ACCEPTED';
+  assertUiCommandObservation(observation,{name:'menu_preview',status:success?'completed':'failed',timeLabel:observation.before.timeLabel,errorMessage:success?null:statusCode});
+  assertOrdersProjection(observation.before);const after=assertOrdersProjection(observation.after);assertOrdersWorldUnchanged(observation.before,observation.after);
+  assert.deepEqual(after.preview,{success,statusCode});assert.equal(after.canSubmit,success);assert.equal(after.result,null);
+}
+export function assertOrderConfirmObservation(observation,expected={}){
+  assertUiCommandObservation(observation,{name:'menu_confirm',status:'completed',timeLabel:observation.before.timeLabel});
+  const before=assertOrdersProjection(observation.before),after=assertOrdersProjection(observation.after),result=after.result;
+  assert.equal(before.canSubmit,true);assert.ok(result);assert.equal(result.orderId,before.selectedOrderId);assert.equal(result.dishLotId,before.selectedDishId);
+  const oldOrder=before.orderOptions.find(item=>item.id===result.orderId),order=after.orderOptions.find(item=>item.id===result.orderId),dish=before.dishOptions.find(item=>item.id===result.dishLotId);
+  assert.ok(oldOrder?.enabled && oldOrder.status==='available' && oldOrder.minutes_until_deadline>=0 && dish);assert.equal(order.status,'completed');assert.equal(order.enabled,false);
+  assert.deepEqual(order.submitted_object_refs,[{object_type:'DishLot',object_id:dish.id}]);assert.equal(order.result_summary.result_key,'OK_DEMAND_ACCEPTED');
+  assert.equal(order.result_summary.submitted_count,dish.serving_count);assert.equal(result.servingCount,dish.serving_count);assert.equal(result.matchScore,order.result_summary.match_score);
+  assert.equal(result.rewardMoney,order.result_summary.reward_final);assert.equal(after.money-before.money,result.rewardMoney);assert.equal(result.moneyAfter,after.money);
+  assert.deepEqual(after.dishOptions,before.dishOptions.filter(item=>item.id!==dish.id),'only the selected whole DishLot is removed');
+  for(const item of before.orderOptions.filter(item=>item.id!==order.id))assert.deepEqual(after.orderOptions.find(next=>next.id===item.id),item);
+  const changes={};for(const key of new Set([...Object.keys(before.reputation),...Object.keys(after.reputation)])){const a=Number(before.reputation[key]??0),b=Number(after.reputation[key]??0);if(a!==b)changes[key]=b-a;}
+  assert.deepEqual(result.reputationDelta,changes);
+  if(expected.rewardMoney!==undefined)assert.equal(result.rewardMoney,expected.rewardMoney,'canonical real-dish settlement reward');
+  if(expected.reputationDelta!==undefined)assert.deepEqual(changes,expected.reputationDelta,'canonical actual reputation change');
+  assert.deepEqual(observation.after.inventory.lotOptions,observation.before.inventory.lotOptions);assert.deepEqual(observation.after.farming.materialOptions,observation.before.farming.materialOptions);
+  for(const target of observation.before.inventory.targetOptions){const current=observation.after.inventory.targetOptions.find(item=>item.id===target.id);assert.ok(current);if(target.id===dish.storage_ref.container_id)assert.ok(current.used_capacity<target.used_capacity);else assert.deepEqual(current,target);}
+  assert.equal(after.preview,null);assert.equal(after.canSubmit,false);assert.equal(after.selectedDishId,null);assert.match(observation.after.displayedOperation,/订单.*完成/);
+  const visibleResult=observation.after.displayedOrders.result;
+  assert.ok(visibleNumber(visibleResult,result.rewardMoney));assert.ok(visibleNumber(visibleResult,result.servingCount,'份'));
+  assert.match(visibleResult,new RegExp('匹配\\s*'+escapePattern(result.matchScore)+'(?![\\d.])'),'visible match score must equal this actual settlement');
+  const visibleReputation=visibleResult.match(/声望(?:变化)?[：:]?\s*([+-]?\d+(?:\.\d+)?(?:\/[+-]?\d+(?:\.\d+)?)*)/);
+  const actualReputation=Object.values(result.reputationDelta).map(value=>(value>=0?'+':'')+value).join('/')||'0';
+  assert.ok(visibleReputation,'visible settlement must include this actual reputation change');
+  assert.equal(visibleReputation[1],actualReputation,'visible reputation change must equal this actual settlement');
+  return result;
+}
+export function assertOrderLoadRecovery(saved,loaded){
+  assertUiCommandObservation(loaded,{name:'load',status:'completed',timeLabel:saved.timeLabel});const after=assertOrdersProjection(loaded.after);
+  for(const key of [...ORDER_COLLECTIONS,'money','reputation'])assert.deepEqual(after[key],saved.orders[key]);
+  for(const key of INVENTORY_COLLECTIONS)assert.deepEqual(loaded.after.inventory[key],saved.inventory[key]);
+  assert.equal(after.preview,null);assert.equal(after.result,null);assert.equal(after.canSubmit,false);
+}
+export function assertOrderSerializedSettlement(beforeRaw,afterRaw,selected){
+  const before=JSON.parse(beforeRaw),after=JSON.parse(afterRaw);const dish=before.dish_lots.find(item=>item.dish_lot_id===selected.dishLotId);assert.ok(dish);
+  assert.deepEqual(after.dish_lots,before.dish_lots.filter(item=>item.dish_lot_id!==dish.dish_lot_id));
+  assert.equal(after.storage_containers.some(container=>container.active_object_refs.some(ref=>ref.object_type==='DishLot'&&ref.object_id===dish.dish_lot_id)),false);
+  assert.deepEqual(after.storage_containers,before.storage_containers.map(old=>old.container_id===dish.storage_ref.container_id?{...old,used_capacity:old.used_capacity-dish.storage_footprint.amount,active_object_refs:old.active_object_refs.filter(ref=>ref.object_type!=='DishLot'||ref.object_id!==dish.dish_lot_id)}:old),'serialized settlement changes only the selected dish storage reference and footprint');
+  assert.equal(after.orders.find(item=>item.order_id===selected.orderId).status,'completed');assert.equal(after.player_state.money-before.player_state.money,selected.rewardMoney);
 }

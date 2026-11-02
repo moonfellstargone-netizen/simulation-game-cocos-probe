@@ -1,4 +1,4 @@
-﻿# Runtime Map — v0.0.2.43
+﻿# Runtime Map — v0.0.2.44
 
 ## 系统职责
 
@@ -122,3 +122,13 @@ tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实
 ## 订单提交与过期路径
 
 既有submit_order→DemandResolver检查available/accepted及now<=deadline→原需求匹配→事务内submitted→消费/储存审计/奖励→completed；失败由原管线保护完整领域状态。advance_time的既有截止settlement仅在now>deadline将两开放状态转expired；直接过期提交拒绝不改状态。order_options只读同步状态和截止，preview与新Session受控读档见trace.orders.legal-state-deadline，网页订单入口未开放。
+
+## 网页订单运行链
+
+SelectableVM.order_options复制issuer_id、deadline_absolute_minute、signed minutes_until_deadline、正式需求的hard/weighted/defects/threshold、submitted refs和实际result_summary。订单名来自正式Profile文本，缺配置为null并不可用，嵌套数据全部独立副本。enabled只表示状态/时限及配置允许尝试，不保证所选菜品匹配；正/零截止余量和负余量来自当前绝对时间，不从day Label反算。StateVM及核心摘要保持。
+
+ProbeOrders.ts/.meta只消费公共数据，管理第五页的显式单订单/单菜品本地选择和本次反馈，不改正式submitted_object_refs数组规则。终态可浏览、无菜品显示真实空态；浏览/选择0命令。preview只认本次校验，不伪造预计奖励；base_reward明确只是配置参考。确认沿既有menu→DraftBuilder→ActionPipeline，并以本次合法preview/ActionResult、实际Order.result_summary、所选菜品真实移除及公共金钱/声望变化关联成功，其他菜品保持。
+
+确认前捕获order/dish与经济基线，避免成功patch先移除选择后误拒本次回执；错误或陈旧结果在ProbeInteraction发布completed前拒绝，应用失败不重发Action。改选择、切页、其他命令和load清旧预览/本次成功，历史结算另行展示；普通拒绝保留合法选择供修正，失效对象清除，不自动换菜品。busy/销毁迟到及本地单槽手动存读档保持。
+
+tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，helper/.meta及测试同时登记prepare/lifecycle；readiness、menu与web-verification继续full/blocker。trace.cocos.web-orders-loop连接这些测试与源/地图，全部旧追踪保持。真实Creator/SDK和built/editor各960×640订单链、实际图检另行验收，保留原视口/resize、农事、库存拆分、加工、烹饪、存读档/故障与销毁。网页禁用重交只记0事件，正式状态/安全/低分拒绝由合法受控Node另验，不冒称微信或手机通过。

@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.43
+﻿# Code Index — Public API — v0.0.2.44
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -176,6 +176,13 @@ ProbeCooking.refresh/status与本地选择、数量/操作参数设置、preview
 
 ## 订单合法状态与截止语义
 
-既有submit_order参数与Session/Queue接口保持。available/accepted且当前分钟不超过deadline可尝试，submitted只为同步事务内部短暂态；completed/failed/expired/cancelled及过期开放单拒绝，失败不改变领域状态。advance_time严格超过截止时将开放单结算为expired，旧failed不迁移。CocosSelectableViewModel.order_options保持shape，enabled/reason按状态和时限对齐，不保证需求匹配成功。
+既有submit_order参数与Session/Queue接口保持。available/accepted且当前分钟不超过deadline可尝试，submitted只为同步事务内部短暂态；completed/failed/expired/cancelled及过期开放单拒绝，失败不改变领域状态。advance_time严格超过截止时将开放单结算为expired，旧failed不迁移。CocosSelectableViewModel.order_options既有字段含义保持，新增需求/截止/结果只读字段见下节；enabled/reason按状态和时限对齐，不保证需求匹配成功。
 
-trace.orders.legal-state-deadline连接三源及核心、preview、Session手动读档与readiness测试；没有新增接单Action、网页订单入口或SaveFile字段。
+trace.orders.legal-state-deadline连接三源及核心、preview、Session手动读档与readiness测试；没有新增接单Action或SaveFile字段；网页入口由outer沿既有菜单提供。
+
+## 网页订单公开消费
+
+- `CocosSelectableViewModel.order_options`扩展只读issuer、deadline_absolute_minute、signed minutes_until_deadline、正式需求与实际submitted refs/result_summary；hard/weighted分开，缺配置null且不可用，嵌套全部复制。
+- `MenuActionBinding.submit_order`既有显式order_option_id/dish_lot_option_ids[]→正式submitted_object_refs路径保持，confirm仍重预览；UI单选不修改正式参数契约。
+- `ProbeOrders`属于outer，只管理选择、回执前基线和本次反馈，不读取私有SaveFile、直接写状态或预测奖励；成功关联真实Order/菜品/经济结果，历史结果另示。
+- `trace.cocos.web-orders-loop`连接readiness/menu/prepare/lifecycle/web-verification与独立真实Creator/浏览器。

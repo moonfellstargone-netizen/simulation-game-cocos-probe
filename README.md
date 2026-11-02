@@ -1,12 +1,12 @@
-# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.43
+# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.44
 
-**Order State Alignment & Failure Protection / 订单合法状态与失败保护版**
+**Web Tavern Orders & Settlement Feedback / 网页酒馆订单与结算反馈版**
 
 本仓库是 Cocos 微信试水代码项目**日常代码权威源**。正式玩法与契约权威仍为正式三包 v1.5.2.2。
 
-- 代码包版本：`v0.0.2.43`
-- npm package version：`0.0.2-43`
-- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_43`（权威源：`tools/quality/rules/project-target.json`）
+- 代码包版本：`v0.0.2.44`
+- npm package version：`0.0.2-44`
+- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_44`（权威源：`tools/quality/rules/project-target.json`）
 - 设计来源：`模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip`
 - 规则权威源：`tools/quality/rules/project-target.json`、`tools/quality/rules/context-doc-surface.rules.json`、`tools/quality/rules/architecture-boundary.rules.json`、`tools/quality/rules/traceability-map.json`
 - 代码权威：本 GitHub 仓库（非 zip 归档包）
@@ -22,7 +22,7 @@
 
 ## Task Intent Lock
 
-本轮唯一目标是对齐既有订单合法提交状态、截止处理及失败保护：available或accepted且尚未超过deadline的订单可按原需求规则提交；恰到截止仍合法，超过截止直接拒绝并保持提交前完整领域状态，已有advance_time截止结算将两种开放状态转为expired。submitted只作为现有同步事务内部的校验结算短暂态，消费和奖励成功后completed；旧failed终态不迁移或重开。CocosSelectableViewModel只读选项同步合法状态与时限，enabled不保证菜品匹配成功。正式写入仍经ActionPipeline，Session/Queue、SaveFile与正式资源保持；不新增接单、订单刷新、聚合或部分提交、评分奖励、数量/时间/重复输入规则、订单页面、Stage1B或微信。既有农事、库存/拆分、加工、烹饪和存读档回归保留。
+本轮唯一目标是网页酒馆订单与结算反馈：浏览现有订单的需求、截止和状态，显式选择一个真实DishLot，沿既有menu_preview/confirm完成提交并显示本次实际结算。最小SelectableVM复制issuer、绝对截止与signed minutes_until_deadline、hard/weighted分离的正式需求、submitted refs和实际result_summary；缺需求配置为null且不可用，不伪装无要求。outer第五页及ProbeOrders只管理本地选择与本次结果，终态订单仍可查看；preview不预测奖励，基础奖励仅参考。本次成功关联实际Order完成、所选菜品移除、结算摘要和公开金钱/声望变化，历史结果与本次反馈分开；陈旧/错误回执在completed发布前拒绝，不重发已提交动作。core、StateVM、Session/Queue、SaveFile与正式资源保持，既有农事、库存/拆分、加工、烹饪和存读档回归保留；不新增接单/刷新/购买、评分奖励、聚合/部分交付、数量/时间/重复输入规则、Stage1B或微信。
 
 工具只读取仓库唯一src/design_snapshot派生的工作副本。prepare继续导出snapshot及全部58项Schema并记录Git来源/输入产物摘要；build记录实际Web产物清单摘要，verify核对构建关联和产物字节后才启动浏览器，拒绝替换或篡改的Web目录。工程、依赖、报告、缓存和构建仍位于仓库外，不形成第二源码权威。
 
@@ -32,7 +32,7 @@
 
 构建网页矩阵含800×600、DPR2及四次resize点击；编辑器预览只承诺1440×1200和960×640/DPR1及960→1440→960三次resize点击，官方Default设备模拟器800裁剪场景未支持。具体范围见外层契约，不推导手机或微信适配。
 
-导航与追踪：本版trace.orders.legal-state-deadline、既有trace.cocos.web-cooking-loop、既有trace.cocos.web-processing-loop、trace.inventory.split-quantity、既有trace.runtime.id-recovery、既有trace.processing.required-inputs、既有trace.cocos.web-inventory-storage，以及保留的trace.cocos.web-farming-loop、trace.cocos.browser-local-save、trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input和trace.cocos.web-bootstrap-probe。实际失败先定位，不通过降低架构检查、跳过门禁或调用observer.advance代替物理点击制造通过。
+导航与追踪：本版trace.cocos.web-orders-loop、既有trace.orders.legal-state-deadline、既有trace.cocos.web-cooking-loop、既有trace.cocos.web-processing-loop、trace.inventory.split-quantity、既有trace.runtime.id-recovery、既有trace.processing.required-inputs、既有trace.cocos.web-inventory-storage，以及保留的trace.cocos.web-farming-loop、trace.cocos.browser-local-save、trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input和trace.cocos.web-bootstrap-probe。实际失败先定位，不通过降低架构检查、跳过门禁或调用observer.advance代替物理点击制造通过。
 
 执行方使用Cursor时必须先做预检报告，用户或GPT确认后才可修改文件。复杂任务须先做Scope Discovery。
 
@@ -152,6 +152,16 @@ tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实
 
 available与accepted在当前分钟不超过deadline时可按现有需求规则提交。DemandResolver先验证状态和时限，再做既有菜品匹配；通过后仅在同步事务内部进入submitted，既有消费、储存审计、金钱/声望结算后completed。重复提交与submitted/completed/failed/expired/cancelled均拒绝，失败不得消耗菜品、增加奖励或改订单/事件；旧failed不迁移或重开。
 
-GameRuntime既有advance_time截止settlement将available/accepted在now>deadline时转为expired，恰到截止仍保持开放。直接提交过期开放单复用ERR_ORDER_NOT_AVAILABLE，可带:deadline诊断，但保持提交前完整状态，不在拒绝路径偷偷结算。CocosSelectableViewModel只读order_options按同一合法状态和时限给enabled/reason，保持公开shape；enabled不是需求匹配保证。
+GameRuntime既有advance_time截止settlement将available/accepted在now>deadline时转为expired，恰到截止仍保持开放。直接提交过期开放单复用ERR_ORDER_NOT_AVAILABLE，可带:deadline诊断，但保持提交前完整状态，不在拒绝路径偷偷结算。CocosSelectableViewModel只读order_options按同一合法状态和时限给enabled/reason，既有字段语义保持，新增展示字段见网页订单投影；enabled不是需求匹配保证。
 
-trace.orders.legal-state-deadline连接DemandResolver、GameRuntime与CocosSelectableViewModel，以及test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-ui-readiness的现有full/blocker。核心、预览、Session受控合法加载与只读选项按层验收D-1/D/D+1、终态拒绝、需求失败完整保护、合法恢复、成功事件/奖励恰一次和新会话防重交。accepted及过期开放单可用合法受控存档验证；网页尚无订单提交入口，Node不冒充网页订单、手机或微信实测。不新增接单、刷新、聚合/部分交付、评分奖励或数量/时间/重复输入规则。
+trace.orders.legal-state-deadline连接DemandResolver、GameRuntime与CocosSelectableViewModel，以及test.stage1a-contract、test.action-preview、test.cocos-session和test.cocos-ui-readiness的现有full/blocker。核心、预览、Session受控合法加载与只读选项按层验收D-1/D/D+1、终态拒绝、需求失败完整保护、合法恢复、成功事件/奖励恰一次和新会话防重交。accepted及过期开放单可用合法受控存档验证；订单领域受控Node用例不冒充网页或真机实测；玩家页面另由trace.cocos.web-orders-loop及真实浏览器验证。不新增接单、刷新、聚合/部分交付、评分奖励或数量/时间/重复输入规则。
+
+## 网页酒馆订单与结算反馈
+
+SelectableVM.order_options复制issuer_id、deadline_absolute_minute、signed minutes_until_deadline、正式需求的hard/weighted/defects/threshold、submitted refs和实际result_summary。订单名来自正式Profile文本，缺配置为null并不可用，嵌套数据全部独立副本。enabled只表示状态/时限及配置允许尝试，不保证所选菜品匹配；正/零截止余量和负余量来自当前绝对时间，不从day Label反算。StateVM及核心摘要保持。
+
+ProbeOrders.ts/.meta只消费公共数据，管理第五页的显式单订单/单菜品本地选择和本次反馈，不改正式submitted_object_refs数组规则。终态可浏览、无菜品显示真实空态；浏览/选择0命令。preview只认本次校验，不伪造预计奖励；base_reward明确只是配置参考。确认沿既有menu→DraftBuilder→ActionPipeline，并以本次合法preview/ActionResult、实际Order.result_summary、所选菜品真实移除及公共金钱/声望变化关联成功，其他菜品保持。
+
+确认前捕获order/dish与经济基线，避免成功patch先移除选择后误拒本次回执；错误或陈旧结果在ProbeInteraction发布completed前拒绝，应用失败不重发Action。改选择、切页、其他命令和load清旧预览/本次成功，历史结算另行展示；普通拒绝保留合法选择供修正，失效对象清除，不自动换菜品。busy/销毁迟到及本地单槽手动存读档保持。
+
+tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，helper/.meta及测试同时登记prepare/lifecycle；readiness、menu与web-verification继续full/blocker。trace.cocos.web-orders-loop连接这些测试与源/地图，全部旧追踪保持。真实Creator/SDK和built/editor各960×640订单链、实际图检另行验收，保留原视口/resize、农事、库存拆分、加工、烹饪、存读档/故障与销毁。网页禁用重交只记0事件，正式状态/安全/低分拒绝由合法受控Node另验，不冒称微信或手机通过。

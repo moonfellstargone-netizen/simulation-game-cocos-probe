@@ -1,4 +1,4 @@
-﻿# Domain Map — v0.0.2.43
+﻿# Domain Map — v0.0.2.44
 
 ## 系统职责
 
@@ -83,3 +83,7 @@ CookingSystem/Resolver源码和正式资源保持；app按当前正式配置/Sch
 ## 订单合法状态与截止保护
 
 DemandResolver处理available/accepted及提交时截止检查，GameRuntime已有时间settlement处理开放订单过期→expired；仅在同步提交事务内经过submitted。订单失败保护与旧failed不迁移见[orders模块卡](../module-cards/orders.md)和trace.orders.legal-state-deadline，核心/预览/Session/readiness分层验证，不新增聚合、接单、订单页或平台规则。
+
+## 网页订单消费既有领域
+
+DemandResolver与现有状态/截止、真实菜品整批消费、奖励和事务规则保持。SelectableVM只读需求/截止/真实结果→ProbeOrders本地选择→既有menu_preview/confirm→ActionPipeline→真实Order完成/菜品移除/经济变化。trace.cocos.web-orders-loop追踪页面消费，trace.orders.legal-state-deadline保留核心保护，不新增领域Action或规则。

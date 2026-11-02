@@ -22,6 +22,110 @@ function makeSession() {
   return makeSessionFixture().session;
 }
 
+test('v44 order projection exposes configured demand, signed deadline and actual nullable settlement without inventing matching rules', async () => {
+  const { session, storage, configs } = makeSessionFixture();
+  await session.save('v44_projection_source');
+  const save = JSON.parse(required(await storage.read('v44_projection_source'), 'legal source')) as SaveFile;
+  const profile = configs.requiredDoc<Record<string, unknown>>('configs/demands/tavern_home_dish.yaml');
+  const order = save.orders[0]!;
+  let option = required(session.getSelectableViewModel().order_options[0], 'order option');
+  assert.equal(option.issuer_id, order.issuer_id);
+  assert.equal(option.deadline_absolute_minute, order.deadline_absolute_minute);
+  assert.equal(option.minutes_until_deadline, order.deadline_absolute_minute! - save.world_time.absolute_minute);
+  assert.equal(option.label_key, profile.display_name_key);
+  assert.deepEqual(option.demand, {
+    display_name_key: profile.display_name_key, accepted_object_types: profile.accepted_object_types,
+    hard_requirements: profile.hard_requirements, weighted_requirements: profile.weighted_requirements,
+    forbidden_defects: profile.forbidden_defects, acceptable_defects: profile.acceptable_defects,
+    match_threshold: order.match_threshold
+  });
+  assert.deepEqual(option.submitted_object_refs, []);
+  assert.equal(option.result_summary, null);
+  assert.equal(option.quantity_required.amount, 1);
+  assert.equal(option.demand?.hard_requirements.some((item) => item.key === 'serving_count'), false, 'the two-serving preference is not a new hard requirement');
+  assert.equal(option.demand?.weighted_requirements.find((item) => item.key === 'serving_count')?.min_value, 2);
+  assert.equal(session.getSelectableViewModel().submittable_dish_lot_options.length, 0);
+
+  order.status = 'accepted';
+  order.issuer_id = 'v44_test_issuer';
+  order.base_reward = 91;
+  order.match_threshold = 73;
+  order.deadline_absolute_minute = save.world_time.absolute_minute - 2;
+  order.submitted_object_refs = [{ object_type: 'DishLot', object_id: 'v44_historical_dish' }];
+  order.result_summary = { reward_final: 9, result_key: null };
+  profile.display_name_key = 'demand.v44_alternate.name';
+  profile.hard_requirements = [{ type: 'property', key: 'safety_risk', max_value: 23, target_range: [0, 23], weight: 3, scoring_curve: 'threshold', source_object_field: 'DishLot.dish_profile.safety_risk' }];
+  const serialized = JSON.stringify(save);
+  await storage.write('v44_projection_controlled', serialized);
+  await session.load('v44_projection_controlled');
+  option = required(session.getSelectableViewModel().order_options[0], 'loaded order');
+  assert.equal(option.issuer_id, order.issuer_id);
+  assert.equal(option.base_reward, 91);
+  assert.equal(option.label_key, profile.display_name_key);
+  assert.equal(option.demand?.match_threshold, 73, 'the Order override is the effective resolver threshold');
+  assert.deepEqual(option.demand?.hard_requirements, profile.hard_requirements);
+  assert.equal(option.minutes_until_deadline, -2, 'overdue remains signed rather than being silently clamped');
+  assert.equal(option.enabled, false);
+  assert.deepEqual(option.submitted_object_refs, order.submitted_object_refs);
+  assert.deepEqual(option.result_summary, { match_score: null, reward_final: 9, submitted_count: null, result_key: null });
+  await session.save('v44_projection_after_browse');
+  assert.equal(await storage.read('v44_projection_after_browse'), serialized);
+});
+
+test('v44 missing order result summary loads through the public port and remains an absent settlement rather than crashing', async () => {
+  const { session, storage } = makeSessionFixture();
+  await session.save('v44_missing_result_source');
+  const save = JSON.parse(required(await storage.read('v44_missing_result_source'), 'initial legal save')) as SaveFile;
+  delete (save.orders[0] as Partial<SaveFile['orders'][number]>).result_summary;
+  const serialized = JSON.stringify(save);
+  await storage.write('v44_missing_result_controlled', serialized);
+  await session.load('v44_missing_result_controlled');
+  const order = required(session.getSelectableViewModel().order_options[0], 'loaded public order');
+  assert.equal(order.result_summary, null, 'Schema does not require result_summary even though the static Order type does');
+  assert.equal(order.enabled, true);
+  await session.save('v44_missing_result_after_browse');
+  assert.equal(await storage.read('v44_missing_result_after_browse'), serialized);
+});
+
+test('v44 order projection deeply detaches requirement metadata, audit refs and settlement while preserving missing demand as unavailable', async () => {
+  const { session, storage, configs } = makeSessionFixture();
+  await session.save('v44_detached_source');
+  const save = JSON.parse(required(await storage.read('v44_detached_source'), 'legal source')) as SaveFile;
+  const profile = configs.requiredDoc<{ hard_requirements: Array<Record<string, unknown>> }>('configs/demands/tavern_home_dish.yaml');
+  profile.hard_requirements[0]!.target_range = [0, 25];
+  save.orders[0]!.status = 'completed';
+  save.orders[0]!.submitted_object_refs = [{ object_type: 'DishLot', object_id: 'v44_past_dish' }];
+  save.orders[0]!.result_summary = { match_score: 80, reward_final: 34, submitted_count: 2, result_key: 'OK_DEMAND_ACCEPTED' };
+  const beforeSave = structuredClone(save);
+  const beforeConfig = structuredClone(configs.loadStage1A().documents);
+  const projector = new CocosSelectableViewModel(configs);
+  const expected = projector.build(save);
+  const mutable = projector.build(save).order_options[0]!;
+  assert.ok(mutable.demand && mutable.result_summary);
+  mutable.demand.accepted_object_types.push('v44_mutation');
+  mutable.demand.hard_requirements[0]!.max_value = 999;
+  mutable.demand.hard_requirements[0]!.target_range![0] = 999;
+  mutable.demand.weighted_requirements[0]!.target_range![0] = 999;
+  mutable.demand.forbidden_defects.push('v44_mutation');
+  mutable.demand.acceptable_defects.too_salty = 'v44_mutation';
+  mutable.demand.match_threshold = 999;
+  mutable.submitted_object_refs[0]!.object_id = 'v44_mutated_dish';
+  mutable.result_summary.reward_final = 999;
+  mutable.quantity_required.amount = 999;
+  assert.deepEqual(projector.build(save), expected);
+  assert.deepEqual(save, beforeSave);
+  assert.deepEqual(configs.loadStage1A().documents, beforeConfig);
+
+  delete configs.loadStage1A().documents['configs/demands/tavern_home_dish.yaml'];
+  save.orders[0]!.status = 'available';
+  const unavailable = projector.build(save).order_options[0]!;
+  assert.equal(unavailable.demand, null, 'missing profile is not represented as an empty list of requirements');
+  assert.equal(unavailable.enabled, false);
+  assert.equal(unavailable.reason_key, 'ui.reason.order_demand_unavailable');
+  assert.equal(unavailable.label_key, null);
+  assert.deepEqual(unavailable.result_summary, { match_score: 80, reward_final: 34, submitted_count: 2, result_key: 'OK_DEMAND_ACCEPTED' }, 'historical actual data is not fabricated from current config');
+});
+
 function dispatchAndAssert(result: ActionResult, actionType: string): ActionResult {
   assert.equal(result.success, true, `${actionType} failed with ${result.status_code}`);
   return result;
@@ -66,7 +170,7 @@ test('order choices admit only open states before or at the deadline through pub
       assert.equal(option.status, status, 'read-only projection never performs settlement or migrates an old failed order');
       assert.equal(option.enabled, enabled, `${status} at deadline ${offset}`);
       assert.equal(option.reason_key, enabled ? null : 'ui.reason.order_not_open');
-      assert.deepEqual(Object.keys(option).sort(), ['base_reward', 'demand_profile_id', 'enabled', 'id', 'label_key', 'quantity_required', 'reason_key', 'status']);
+      assert.deepEqual(Object.keys(option).sort(), ['base_reward', 'deadline_absolute_minute', 'demand', 'demand_profile_id', 'enabled', 'id', 'issuer_id', 'label_key', 'minutes_until_deadline', 'quantity_required', 'reason_key', 'result_summary', 'status', 'submitted_object_refs']);
       await session.save('order_choices_after_projection');
       assert.equal(await storage.read('order_choices_after_projection'), serialized, 'loading and browsing a legal save do not expire or reopen orders');
     }

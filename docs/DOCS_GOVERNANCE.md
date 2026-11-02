@@ -1,4 +1,4 @@
-﻿# DOCS_GOVERNANCE — v0.0.2.43
+﻿# DOCS_GOVERNANCE — v0.0.2.44
 
 文档治理规范。
 
@@ -107,3 +107,7 @@ trace.cocos.web-cooking-loop连接现有配方/结构约束和燃料只读投影
 ## 订单合法状态与截止追踪
 
 trace.orders.legal-state-deadline只追踪本版三处源与核心/预览/Session/readiness四个真实执行任务；currentFullReleaseTraceIds、registry和人工矩阵保持一致。既有网页烹饪、加工、拆分等追踪保留；正式源决定available/accepted与过期状态，地图不成为新规则权威。真实Creator/浏览器记录与受控Node订单验收分开，文档登记不表示实际测试已通过。
+
+## 网页酒馆订单追踪
+
+新增trace.cocos.web-orders-loop，保留全部旧active/planned追踪。新helper/.meta和orders行为测试必须进入prepare/lifecycle登记，测试实际进入registry.args与package脚本；只写文档或files不算执行覆盖。readiness/menu验证公开数据及显式提交，web-verification验证观察断言负例；真实Creator、built/editor与图检须绑定最终提交来源，不把禁用0事件或受控Node状态称真实玩家正式提交。

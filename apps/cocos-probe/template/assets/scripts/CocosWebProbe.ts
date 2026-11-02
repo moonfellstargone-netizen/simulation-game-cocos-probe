@@ -9,6 +9,7 @@ import { ProbeFarming } from './ProbeFarming';
 import { ProbeInventory } from './ProbeInventory';
 import { ProbeProcessing } from './ProbeProcessing';
 import { ProbeCooking } from './ProbeCooking';
+import { ProbeOrders } from './ProbeOrders';
 import { BrowserSaveStoragePort, BROWSER_SAVE_SLOT_ID } from './BrowserSaveStoragePort';
 
 const { ccclass } = _decorator;
@@ -23,7 +24,8 @@ interface ProbeView {
   readonly buttons: readonly Button[];
   readonly controls: Record<string, Button>;
   readonly farming: { field: Label; seed: Label; crop: Label; inventory: Label; amount: Label };
-  readonly panels: { farming: Node; inventory: Node; processing: Node; cooking: Node };
+  readonly panels: { farming: Node; inventory: Node; processing: Node; cooking: Node; orders: Node };
+  readonly orders: { order: Label; state: Label; deadline: Label; quantity: Label; demand: Label; history: Label; dish: Label; detail: Label; money: Label; reputation: Label; preview: Label; result: Label };
   readonly inventory: { lot: Label; form: Label; quantity: Label; location: Label; target: Label; capacity: Label; hint: Label };
   readonly split: { input: EditBox; unit: Label; selection: Label; preview: Label; result: Label };
   readonly processing: { input: EditBox; method: Label; facility: Label; requirement: Label; lot: Label; unit: Label; selection: Label; preview: Label; task: Label; result: Label };
@@ -54,7 +56,7 @@ function presentationNames(resources: ProbeResources): Record<string, string> {
   return names;
 }
 
-const DISPLAY_UNITS: Record<string, string> = { count: '粒', g: '克', ml: '毫升', bundle: '捆' };
+const DISPLAY_UNITS: Record<string, string> = { count: '粒', g: '克', ml: '毫升', bundle: '捆', serving: '份' };
 const displayUnit = (unit: string) => DISPLAY_UNITS[unit] ?? unit;
 const STORAGE_LABELS: Record<string, string> = { room_temp: '常温储存', cellar: '菜窖', pickling_jar: '腌菜缸' };
 const TOOL_LABELS: Record<string, string> = { knife_basic: '基础刀具' };
@@ -95,7 +97,8 @@ export class CocosWebProbe extends Component {
     const inventory = new ProbeInventory();
     const processing = new ProbeProcessing();
     const cooking = new ProbeCooking();
-    let panel: 'farming' | 'inventory' | 'processing' | 'cooking' = 'farming';
+    const orders = new ProbeOrders();
+    let panel: 'farming' | 'inventory' | 'processing' | 'cooking' | 'orders' = 'farming';
     let names: Record<string, string> = {};
     const alive = () => isValid(ui.root, true);
     const updateButtons = () => {
@@ -124,6 +127,12 @@ export class CocosWebProbe extends Component {
       setEnabled('OpenInventory', enabled && panel !== 'inventory');
       setEnabled('OpenProcessing', enabled && panel !== 'processing');
       setEnabled('OpenCooking', enabled && panel !== 'cooking');
+      setEnabled('OpenOrders', enabled && panel !== 'orders');
+      const orderView = orders.status();
+      setEnabled('SelectOrder', enabled && panel === 'orders' && orderView.orderOptions.length > 0);
+      setEnabled('SelectOrderDish', enabled && panel === 'orders' && orderView.dishOptions.some(item => item.enabled));
+      setEnabled('OrderPreview', enabled && panel === 'orders' && orderView.canPreview);
+      setEnabled('SubmitOrder', enabled && panel === 'orders' && orderView.canSubmit);
       const process = processing.status();
       const method = process.methodOptions.find((item) => item.id === process.selectedMethodId);
       const processEnabled = enabled && panel === 'processing';
@@ -294,6 +303,35 @@ export class CocosWebProbe extends Component {
       ui.cooking.dishes.string = state.dishOptions.length ? `已有菜品${state.dishOptions.length}批：` + state.dishOptions.slice(-2).map((dish) => `${names[dish.recognized_dish_id ?? ''] ?? '菜品'}${dish.serving_count}份`).join('/') : '已有菜品：暂无';
       updateButtons();
     };
+    const renderOrders = () => {
+      if (!alive()) return;
+      const state = orders.status(); const order = state.orderOptions.find(item => item.id === state.selectedOrderId);
+      const dish = state.dishOptions.find(item => item.id === state.selectedDishId);
+      const states: Record<string,string> = { available: '可提交', accepted: '已接受', submitted: '结算中', completed: '已完成', failed: '失败', expired: '已超时', cancelled: '已取消' };
+      const words: Record<string,string> = { safety_risk: '安全风险', saltiness: '咸度', oiliness: '油度', serving_count: '份数', home_style: '家常风味', unsafe: '不安全', watery_dish: '水多', too_salty: '过咸', minor_penalty: '轻扣分', medium_penalty: '中扣分' };
+      const requirement = (item: { key: string; min_value?: number; max_value?: number; target_range?: readonly number[]; weight?: number }) => (words[item.key] ?? item.key)
+        + (item.target_range ? item.target_range.join('—') : `${item.min_value === undefined ? '' : '≥' + item.min_value}${item.max_value === undefined ? '' : '≤' + item.max_value}`)
+        + (item.weight === undefined ? '' : `(权${item.weight})`);
+      ui.orders.order.string = order ? `订单：${names[order.demand_profile_id] ?? '现有酒馆订单'}` : `现有订单${state.orderOptions.length}项，请选择`;
+      ui.orders.state.string = order ? `状态：${states[order.status] ?? order.status}` : '状态：尚未选择';
+      ui.orders.deadline.string = order?.deadline_absolute_minute == null ? '截止：暂无可用截止数据'
+        : `截止：第${Math.floor(order.deadline_absolute_minute / 1440) + 1}天 ${order.deadline_absolute_minute % 1440}分钟 · ${order.minutes_until_deadline! < 0 ? '已超时' : '剩余'}${Math.abs(order.minutes_until_deadline!)}分钟`;
+      ui.orders.quantity.string = order ? `订单量${order.quantity_required.amount}${displayUnit(order.quantity_required.unit)} · 基础奖励${order.base_reward}（仅参考）` : '数量与基础奖励：选择订单后查看';
+      const demand = order?.demand;
+      ui.orders.demand.string = demand ? `硬要求：${demand.hard_requirements.map(requirement).join(' / ') || '无'}\n偏好（非硬门槛）：${demand.weighted_requirements.map(requirement).join(' / ')}\n禁忌：${demand.forbidden_defects.map(key => words[key] ?? key).join('/') || '无'}\n容忍缺陷：${Object.entries(demand.acceptable_defects).map(([key,value]) => `${words[key] ?? key}${words[value] ?? value}`).join('/') || '无'}\n匹配阈值：${demand.match_threshold}；以正式校验为准`
+        : order ? '需求配置不可用，不能提交' : '选择订单查看真实硬要求与偏好';
+      const history = order?.result_summary;
+      ui.orders.history.string = history ? `历史结算：奖励${history.reward_final ?? '—'} / 提交${history.submitted_count ?? '—'}份` : '该订单尚无历史结算';
+      ui.orders.dish.string = dish ? `菜品：${names[dish.recognized_dish_id ?? ''] ?? '真实菜品批次'}` : `可提交菜品${state.dishOptions.length}批，请选择`;
+      ui.orders.detail.string = dish ? `本次整批提交${dish.serving_count}份\n位置：${STORAGE_LABELS[dish.storage_ref.storage_type] ?? dish.storage_ref.storage_type}` : '暂无选择；先烹饪得到真实菜品';
+      ui.orders.money.string = `当前金钱：${state.money ?? '—'}`;
+      ui.orders.reputation.string = '当前声望：' + (Object.entries(state.reputation).map(([key,value]) => `${names[key] ?? (key === 'west_market_tavern' ? '酒馆' : key)} ${value}`).join(' / ') || '暂无');
+      ui.orders.preview.string = state.preview ? state.preview.success ? '本次校验通过，尚未提交' : '本次拒绝：请调整菜品或订单'
+        : state.inputError ?? '请先预览，不预测最终奖励';
+      const result = state.result;
+      ui.orders.result.string = result ? `本次结算：奖励${result.rewardMoney}，匹配${result.matchScore}\n声望变化：${Object.entries(result.reputationDelta).map(([,value]) => `${value >= 0 ? '+' : ''}${value}`).join('/') || '0'} · 实际提交${result.servingCount}份` : '本次尚无订单结算结果';
+      updateButtons();
+    };
     const unexpected = (error: unknown, startup = false) => {
       const message = error instanceof Error ? error.message : String(error);
       errors.push(message);
@@ -331,10 +369,11 @@ export class CocosWebProbe extends Component {
             inventory.refresh(menu);
             processing.refresh(menu);
             cooking.refresh(menu);
+            orders.refresh(menu);
             renderFarming();
             renderInventory();
             renderProcessing();
-            renderCooking();
+            renderCooking(); renderOrders();
           }
         }
       }),
@@ -353,14 +392,14 @@ export class CocosWebProbe extends Component {
       isAvailable: () => alive() && !lifetime.isDisposed() && lifetime.status().phase === 'ready',
       execute: async (command) => {
         const result = await lifetime.execute(command);
-        if (alive() && !lifetime.isDisposed()) cooking.acceptCookingResult(command, result);
+        if (alive() && !lifetime.isDisposed()) { cooking.acceptCookingResult(command, result); orders.acceptOrderResult(command, result); }
         return result;
       },
       onChange: (state) => {
         ui.operation.string = state.operation.message;
         renderInventory();
         renderProcessing();
-        renderCooking();
+        renderCooking(); renderOrders();
       }
     });
     // Capture the stable coordinator and view. Creator may clear Component fields on destruction.
@@ -374,22 +413,24 @@ export class CocosWebProbe extends Component {
       if (!processingCommand) processing.invalidatePreview();
       const cookingCommand = (command.name === 'menu_preview' || command.name === 'menu_confirm') && command.selection.action_type === 'cook_dish';
       if (!cookingCommand) cooking.invalidatePreview();
+      const orderCommand = (command.name === 'menu_preview' || command.name === 'menu_confirm') && command.selection.action_type === 'submit_order';
+      if (!orderCommand) orders.invalidatePreview();
       void commands.execute(command).then((result) => {
         if (!result || !alive() || lifetime.isDisposed()) return;
         inventory.acceptSplitResult(command, result);
         processing.acceptProcessingResult(command, result);
         renderInventory();
         renderProcessing();
-        renderCooking();
+        renderCooking(); renderOrders();
       }).catch((error) => {
         // A view-application failure may follow a committed action. Require a fresh
         // player preview instead of leaving the former confirmation enabled.
         inventory.invalidateSplitPreview();
         processing.invalidatePreview();
-        cooking.invalidatePreview();
+        cooking.invalidatePreview(); orders.invalidatePreview();
         renderInventory();
         renderProcessing();
-        renderCooking();
+        renderCooking(); renderOrders();
         unexpected(error);
       });
     };
@@ -401,19 +442,19 @@ export class CocosWebProbe extends Component {
       if (commands.status().busy || !alive() || lifetime.status().phase !== 'ready' || lifetime.isDisposed()) return;
       inventory.invalidateSplitPreview();
       processing.invalidatePreview();
-      cooking.invalidatePreview();
+      cooking.invalidatePreview(); orders.invalidatePreview();
       change();
       renderFarming();
       renderInventory();
       renderProcessing();
-      renderCooking();
+      renderCooking(); renderOrders();
     });
     localSelection('SelectField', () => farming.selectNextField());
     localSelection('SelectSeed', () => farming.selectNextSeed());
     localSelection('SelectCrop', () => farming.selectNextCrop());
     localSelection('SeedAmountDecrease', () => farming.adjustSeedAmount(-1));
     localSelection('SeedAmountIncrease', () => farming.adjustSeedAmount(1));
-    const switchPanel = (next: 'farming' | 'inventory' | 'processing' | 'cooking') => {
+    const switchPanel = (next: 'farming' | 'inventory' | 'processing' | 'cooking' | 'orders') => {
       inventory.invalidateSplitPreview();
       ui.split.input.blur();
       ui.processing.input.blur();
@@ -423,12 +464,18 @@ export class CocosWebProbe extends Component {
       ui.panels.inventory.active = next === 'inventory';
       ui.panels.processing.active = next === 'processing';
       ui.panels.cooking.active = next === 'cooking';
-      ui.title.string = ({ farming: '青岚 · 种植与收获', inventory: '青岚 · 库存与储存', processing: '青岚 · 加工与领取', cooking: '青岚 · 烹饪与菜品' })[next];
+      ui.panels.orders.active = next === 'orders';
+      ui.title.string = ({ farming: '青岚 · 种植与收获', inventory: '青岚 · 库存与储存', processing: '青岚 · 加工与领取', cooking: '青岚 · 烹饪与菜品', orders: '青岚 · 酒馆订单' })[next];
     };
     localSelection('OpenFarming', () => switchPanel('farming'));
     localSelection('OpenInventory', () => switchPanel('inventory'));
     localSelection('OpenProcessing', () => switchPanel('processing'));
     localSelection('OpenCooking', () => switchPanel('cooking'));
+    localSelection('OpenOrders', () => switchPanel('orders'));
+    localSelection('SelectOrder', () => orders.selectNextOrder());
+    localSelection('SelectOrderDish', () => orders.selectNextDish());
+    for (const [name, command] of [['OrderPreview', () => orders.previewCommand()], ['SubmitOrder', () => orders.confirmCommand()]] as const)
+      ui.controls[name].node.on(Button.EventType.CLICK, () => { const next = command(); if (next) executeButton(next); });
     localSelection('SelectCookingRecipe', () => cooking.selectNextRecipe());
     localSelection('SelectCookingRole', () => cooking.selectNextRole());
     localSelection('SelectCookingLot', () => cooking.selectNextLot());
@@ -438,7 +485,7 @@ export class CocosWebProbe extends Component {
     for (const [input, change] of [[ui.cooking.input, () => cooking.setInputQuantity(ui.cooking.input.string)],
       [ui.cooking.minutes, () => cooking.setActiveMinutes(ui.cooking.minutes.string)]] as const) input.node.on(EditBox.EventType.TEXT_CHANGED, () => {
       if (commands.status().busy || !alive() || panel !== 'cooking' || lifetime.status().phase !== 'ready' || lifetime.isDisposed()) return;
-      change(); renderCooking();
+      change(); renderCooking(); renderOrders();
     });
     for (const [name, command] of [['CookingPreview', () => cooking.previewCommand()], ['CookDish', () => cooking.confirmCommand()]] as const)
       ui.controls[name].node.on(Button.EventType.CLICK, () => { const next = command(); if (next) executeButton(next); });
@@ -495,6 +542,8 @@ export class CocosWebProbe extends Component {
         inventory: inventory.status(),
         processing: processing.status(),
         cooking: cooking.status(),
+        orders: orders.status(),
+        displayedOrders: alive() ? Object.fromEntries(Object.entries(ui.orders).map(([key,label]) => [key,label.string])) : null,
         displayedCooking: alive() ? {
           recipe: ui.cooking.recipe.string, role: ui.cooking.role.string, lot: ui.cooking.lot.string,
           quantityText: ui.cooking.input.string, minutesText: ui.cooking.minutes.string, unit: ui.cooking.unit.string,
@@ -559,10 +608,11 @@ export class CocosWebProbe extends Component {
 
     const title = this.makeLabel(canvasNode, 'Title', '青岚 · 种植与收获', 286, 28);
     const time = this.makeLabel(canvasNode, 'Time', '等待启动', 195, 23);
-    const panels = { farming: this.makePanel(canvasNode, 'FarmingPanel'), inventory: this.makePanel(canvasNode, 'InventoryPanel'), processing: this.makePanel(canvasNode, 'ProcessingPanel'), cooking: this.makePanel(canvasNode, 'CookingPanel') };
+    const panels = { farming: this.makePanel(canvasNode, 'FarmingPanel'), inventory: this.makePanel(canvasNode, 'InventoryPanel'), processing: this.makePanel(canvasNode, 'ProcessingPanel'), cooking: this.makePanel(canvasNode, 'CookingPanel'), orders: this.makePanel(canvasNode, 'OrdersPanel') };
     panels.inventory.active = false;
     panels.processing.active = false;
     panels.cooking.active = false;
+    panels.orders.active = false;
     const farming = {
       field: this.makeLabel(panels.farming, 'FieldSummary', '地块：等待启动', 155, 18),
       seed: this.makeLabel(panels.farming, 'SeedSummary', '种子：等待启动', 125, 18),
@@ -621,11 +671,33 @@ export class CocosWebProbe extends Component {
     };
     cooking.operation.node.getComponent(UITransform)!.setContentSize(430, 34);
     cooking.operation.enableWrapText = true; cooking.operation.lineHeight = 16;
+    const orders = {
+      order: this.makeSectionLabel(panels.orders, 'OrderName', '请选择订单', -235, 166, 430, 16),
+      state: this.makeSectionLabel(panels.orders, 'OrderState', '状态：尚未选择', -235, 94, 430, 14),
+      deadline: this.makeSectionLabel(panels.orders, 'OrderDeadline', '截止：尚未选择', -235, 72, 430, 12),
+      quantity: this.makeSectionLabel(panels.orders, 'OrderQuantity', '数量与基础奖励：尚未选择', -235, 50, 430, 12),
+      demand: this.makeSectionLabel(panels.orders, 'OrderDemand', '选择订单查看需求', -235, -12, 430, 11),
+      history: this.makeSectionLabel(panels.orders, 'OrderHistory', '该订单尚无历史结算', -235, -80, 430, 11),
+      dish: this.makeSectionLabel(panels.orders, 'OrderDish', '请选择真实菜品', 235, 166, 430, 16),
+      detail: this.makeSectionLabel(panels.orders, 'OrderDishDetail', '暂无真实菜品', 235, 86, 430, 12),
+      money: this.makeSectionLabel(panels.orders, 'OrderMoney', '当前金钱：—', 235, 53, 430, 14),
+      reputation: this.makeSectionLabel(panels.orders, 'OrderReputation', '当前声望：—', 235, 32, 430, 12),
+      preview: this.makeSectionLabel(panels.orders, 'OrderPreviewSummary', '请选择订单和菜品', 235, 9, 430, 12),
+      result: this.makeSectionLabel(panels.orders, 'OrderResult', '本次尚无订单结算结果', 235, -76, 430, 12)
+    };
+    for (const [label,height,lineHeight] of [[orders.demand,104,14],[orders.detail,32,15],[orders.result,36,16]] as const) {
+      label.node.getComponent(UITransform)!.setContentSize(430,height); label.enableWrapText = true; label.lineHeight = lineHeight;
+    }
     const controls: Record<string, Button> = {
-      OpenFarming: this.makeButton(canvasNode, 'OpenFarming', '种植收获', -345, 239, 220),
-      OpenInventory: this.makeButton(canvasNode, 'OpenInventory', '库存储存', -115, 239, 220),
-      OpenProcessing: this.makeButton(canvasNode, 'OpenProcessing', '加工领取', 115, 239, 220),
-      OpenCooking: this.makeButton(canvasNode, 'OpenCooking', '烹饪菜品', 345, 239, 220),
+      OpenFarming: this.makeButton(canvasNode, 'OpenFarming', '种植收获', -368, 239, 176),
+      OpenInventory: this.makeButton(canvasNode, 'OpenInventory', '库存储存', -184, 239, 176),
+      OpenProcessing: this.makeButton(canvasNode, 'OpenProcessing', '加工领取', 0, 239, 176),
+      OpenCooking: this.makeButton(canvasNode, 'OpenCooking', '烹饪菜品', 184, 239, 176),
+      OpenOrders: this.makeButton(canvasNode, 'OpenOrders', '酒馆订单', 368, 239, 176),
+      SelectOrder: this.makeButton(panels.orders, 'SelectOrder', '选择现有订单', -235, 130, 410),
+      SelectOrderDish: this.makeButton(panels.orders, 'SelectOrderDish', '选择菜品批次', 235, 130, 410),
+      OrderPreview: this.makeButton(panels.orders, 'OrderPreview', '预览订单', 125, -27, 200),
+      SubmitOrder: this.makeButton(panels.orders, 'SubmitOrder', '确认整批提交', 345, -27, 200),
       AdvanceOneHour: this.makeButton(canvasNode, 'AdvanceOneHour', '推进一小时', -155, -120),
       SaveLocal: this.makeButton(canvasNode, 'SaveLocal', '本地保存', -155, -179),
       LoadLocal: this.makeButton(canvasNode, 'LoadLocal', '读取本地存档', 155, -179),
@@ -663,7 +735,7 @@ export class CocosWebProbe extends Component {
     const phase = this.makeLabel(canvasNode, 'Status', '准备启动', -225, 16);
     const operation = this.makeLabel(canvasNode, 'Operation', '请选择地块和种子后播种', -260, 18);
     this.makeLabel(canvasNode, 'LocalSaveHint', '本浏览器本地存档，刷新后可手动读取', -299, 15);
-    return { root: this.node, title, time, phase, operation, buttons, controls, farming, inventory, panels, split, processing, cooking };
+    return { root: this.node, title, time, phase, operation, buttons, controls, farming, inventory, panels, split, processing, cooking, orders };
   }
 
   private makePanel(parent: Node, name: string): Node {
