@@ -60,10 +60,14 @@ runtime-map、cocos-map、public-api；存储故障保证见 save-load 模块卡
 
 CocosSelectableViewModel.ts公开processing_method_options与processing_task_options：配置要求、只读tool_requirements、候选lot_ids、兼容设施及任务现有status/时间/设施。requirement_index仅为UI槽，不是formal role；工具只作说明，不新增选择或消耗。方法无料仍可查看，旧collectable_task_options保持原shape且仅ready。全部嵌套数组、Quantity与facility_ref复制，expected_output明确为预计，不表示已领取。
 
-tests/cocos-ui-readiness.test.ts核配置来源、新鲜度/形态候选刷新、完整source save/config隔离和active→ready→completed跨新Session读取。沿既有test:cocos-ui-readiness full/blocker，trace.cocos.web-processing-loop连接外层消费；Session、预览器、正式参数与core业务保持。
+tests/cocos-ui-readiness.test.ts核配置来源、新鲜度/形态候选刷新、完整source save/config隔离和active→ready→completed跨新Session读取。沿既有test:cocos-ui-readiness full/blocker，trace.cocos.web-processing-loop连接外层消费；Session、预览器、正式加工参数与加工规则保持。
 
 ## 烹饪最小只读投影
 
 CocosSelectableViewModel的cookable_recipe_options按既有CookingSystem规则合并recipe与dish_structure角色要求，候选同时核单位与最低量；公开操作硬边界与偏好、工具设施和配置时间成本说明、燃料当前量/成本。结构min/理想时段不升级成新硬拒绝，配置时间成本不当active_minutes或自动扣时。所有嵌套副本与源save/config隔离；实际DishLot沿既有submittable_dish_lot_options读取，不增通用搬运。
 
-tests/cocos-ui-readiness.test.ts沿原full/blocker验证配置来源、结构形态/单位候选、偏好区分和隔离；trace.cocos.web-cooking-loop连接outer消费。core/Session/Queue/SaveFile及正式资源保持。
+tests/cocos-ui-readiness.test.ts沿原full/blocker验证配置来源、结构形态/单位候选、偏好区分和隔离；trace.cocos.web-cooking-loop连接outer消费。烹饪规则、Session/Queue/SaveFile及正式资源保持。
+
+## 订单选项合法性
+
+CocosSelectableViewModel.order_options只读对齐available/accepted与deadline，严格超过截止及submitted/终态给不可用原因，保持当前shape。enabled只代表订单状态和时限允许尝试，不提前复制菜品匹配或奖励算法。trace.orders.legal-state-deadline与tests/cocos-ui-readiness.test.ts、公开preview/Session验证对齐；不新增订单页面或正式Action。

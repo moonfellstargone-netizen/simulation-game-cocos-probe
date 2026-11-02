@@ -1,6 +1,6 @@
-﻿# Cocos app — v0.0.2.42 / Web Cooking Selection & Dish Feedback
+﻿# Cocos app — v0.0.2.43 / Order State Alignment & Failure Protection
 
-Cocos app层说明：本目录保存Session、ViewModel与Action适配代码。当前v0.0.2.42最小扩展CocosSelectableViewModel的烹饪配方投影，只读提供合并后的角色约束、操作限制与偏好、工具设施说明和实际燃料信息；正式烹饪沿既有菜单与ActionPipeline，Session协议保持。既有加工方法与任务投影保留；不引入cc/wx/fs或UI直写状态。
+Cocos app层说明：本目录保存Session、ViewModel与Action适配代码。当前v0.0.2.43仅对齐CocosSelectableViewModel订单选项的合法状态与时限：available/accepted且未超过deadline可用，submitted、终态与过期开放单不可用；enabled只代表可尝试提交，不保证需求匹配成功。正式提交经既有ActionPipeline，Session/Queue协议和公开shape保持，既有加工/烹饪只读投影保留；不引入cc/wx/fs或UI直写状态。
 
 日常代码权威见 GitHub 仓库；项目地图入口见 `docs/PROJECT_MAP.md` 与 `docs/GITHUB_WORKFLOW.md`；追踪矩阵见 `docs/TRACEABILITY_MATRIX.md`。
 

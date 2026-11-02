@@ -198,24 +198,28 @@ test('binding source, application tests and shared helper changes select both bi
 test('current version changed tests select the task that actually executes each file', () => {
   const cases = [
   [
+    "tests/stage1a-contract.test.ts",
+    "test.stage1a-contract"
+  ],
+  [
+    "tests/action-preview-boundary.test.ts",
+    "test.action-preview"
+  ],
+  [
+    "tests/cocos-runtime-session.test.ts",
+    "test.cocos-session"
+  ],
+  [
     "tests/cocos-ui-readiness.test.ts",
     "test.cocos-ui-readiness"
-  ],
-  [
-    "tests/cocos-web-processing.test.ts",
-    "test.cocos-engine-probe-lifecycle"
-  ],
-  [
-    "tests/cocos-web-cooking.test.ts",
-    "test.cocos-engine-probe-lifecycle"
   ],
   [
     "tests/traceability-contracts.test.mjs",
     "test.traceability-contracts"
   ],
   [
-    "tests/cocos-web-verification-contracts.test.mjs",
-    "test.cocos-web-verification-contracts"
+    "tests/quality-affected-contracts.test.mjs",
+    "test.quality-affected-contracts"
   ],
   [
     "tests/context-governance-contracts.test.mjs",
@@ -228,10 +232,6 @@ test('current version changed tests select the task that actually executes each 
   [
     "tests/project-map-contracts.test.mjs",
     "test.project-map-contracts"
-  ],
-  [
-    "tests/quality-affected-contracts.test.mjs",
-    "test.quality-affected-contracts"
   ],
   [
     "tests/quality-gate-contracts.test.mjs",
@@ -266,5 +266,21 @@ test('current version changed tests select the task that actually executes each 
     for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
     assert.equal(result.selectedTasks.some((candidate) => candidate.id === 'release.build'), false);
     assert.equal(result.selectedTasks.some((candidate) => candidate.id === 'release.check'), false);
+  }
+});
+
+test('order protection source changes retain their executed core and public boundary tasks', () => {
+  for (const [file, required] of [
+    ['src/game-core/demand/DemandResolver.ts', ['test.stage1a-contract', 'test.action-preview', 'test.cocos-session']],
+    ['src/game-core/runtime/GameRuntime.ts', ['test.stage1a-contract', 'test.action-preview', 'test.cocos-session']],
+    ['src/cocos-app/view-models/CocosSelectableViewModel.ts', ['test.cocos-ui-readiness']]
+  ]) {
+    const changedFiles = [file];
+    const modules = resolveAffectedModules(changedFiles, moduleGraph);
+    const result = resolveAffectedTasks({ changedFiles, affectedModules: modules.affectedModules,
+      fallback: modules.fallback, fallbackReason: modules.fallbackReason,
+      gatePolicy: policy, testRegistry: registry });
+    for (const id of required) assert.ok(result.selectedTasks.some((item) => item.id === id), `${file} alone must select ${id}`);
+    assert.equal(result.selectedTasks.some((item) => ['release.build', 'release.check'].includes(item.id)), false);
   }
 });

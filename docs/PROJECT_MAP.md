@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.42
+﻿# PROJECT_MAP — v0.0.2.43
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.42：**Web Cooking Selection & Dish Feedback**。最小app公开配方约束、操作说明和燃料投影支撑网页逐角色选料、填写数量与操作参数、选择储存、预览并获得真实DishLot，沿既有cook_dish及menu_preview/confirm。trace.cocos.web-cooking-loop连接公开数据、outer、行为与独立Creator/浏览器验收；保留农事、库存/拆分、加工和本地存读档，不扩订单页、Stage1B或微信。
+v0.0.2.43：**Order State Alignment & Failure Protection**。对齐既有订单available/accepted合法提交、提交时截止拒绝与advance_time将开放订单结算为expired；最小app只读选项按相同状态和时限显示enabled。trace.orders.legal-state-deadline连接核心、公开预览、Session读档与readiness测试；保留既有四页网页及存读档，不新增订单页面、Stage1B或微信。
 
 ## 3. 权威边界
 

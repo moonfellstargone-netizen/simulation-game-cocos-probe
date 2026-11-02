@@ -1,6 +1,6 @@
 {
   "schemaVersion": "traceability-lite/v1",
-  "projectVersion": "v0.0.2.42",
+  "projectVersion": "v0.0.2.43",
   "currentFullReleaseTraceIds": [
     "trace.stage1a.actionpipeline",
     "trace.stage1a.save-load",
@@ -25,7 +25,8 @@
     "trace.inventory.split-quantity",
     "trace.cocos.web-inventory-split",
     "trace.cocos.web-processing-loop",
-    "trace.cocos.web-cooking-loop"
+    "trace.cocos.web-cooking-loop",
+    "trace.orders.legal-state-deadline"
   ],
   "entries": [
     {
@@ -854,6 +855,44 @@
         "docs/module-cards/cocos-creator-adapter.md",
         "docs/module-cards/cooking.md",
         "docs/maps/cocos-map.md",
+        "docs/maps/runtime-map.md",
+        "docs/code-index/public-api.md"
+      ],
+      "gateRefs": [
+        "full",
+        "release"
+      ],
+      "designRefs": [
+        "docs/SOURCE_DESIGN_PACK.md",
+        "design_snapshot/SOURCE_DESIGN_PACK.txt"
+      ]
+    },
+    {
+      "id": "trace.orders.legal-state-deadline",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": [
+        "game-core",
+        "cocos-app",
+        "tests"
+      ],
+      "sourceRefs": [
+        "src/game-core/demand/DemandResolver.ts",
+        "src/game-core/runtime/GameRuntime.ts",
+        "src/cocos-app/view-models/CocosSelectableViewModel.ts"
+      ],
+      "testRefs": [
+        "test.stage1a-contract",
+        "test.action-preview",
+        "test.cocos-session",
+        "test.cocos-ui-readiness"
+      ],
+      "docRefs": [
+        "docs/module-cards/orders.md",
+        "docs/module-cards/game-core.md",
+        "docs/module-cards/cocos-app.md",
+        "docs/maps/domain-map.md",
         "docs/maps/runtime-map.md",
         "docs/code-index/public-api.md"
       ],

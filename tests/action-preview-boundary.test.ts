@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { CocosAppRuntimeSession } from '../src/cocos-app/runtime/CocosAppRuntimeSession';
-import { InMemorySaveStoragePort } from '../src/game-core';
+import { InMemorySaveStoragePort, type ActionResult, type SaveFile } from '../src/game-core';
 import { buildRuntime, buildRuntimeWithoutState, cloneForCompare } from './support/runtimeHarness';
 
 function makeSession(storage = new InMemorySaveStoragePort()) {
@@ -14,6 +14,97 @@ function makeSession(storage = new InMemorySaveStoragePort()) {
     nowIso8601: '2026-05-19T00:00:00.000Z'
   });
 }
+
+async function makeOrderPreviewSource() {
+  const storage = new InMemorySaveStoragePort();
+  const session = makeSession(storage);
+  const success = (result: ActionResult) => {
+    assert.equal(result.success, true, result.status_code);
+    return result;
+  };
+  const planted = success(session.dispatch('plant_crop', {
+    field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 1, unit: 'count' }
+  }));
+  success(session.dispatch('advance_time', { minutes: 5400 }));
+  const harvested = success(session.dispatch('harvest_crop', { crop_id: planted.created_objects[0]!.object_id }));
+  const started = success(session.dispatch('start_processing', {
+    method_id: 'pickling_cabbage_basic',
+    input_lots: [
+      { lot_id: harvested.created_objects[0]!.object_id, quantity: { amount: 300, unit: 'g' } },
+      { lot_id: 'salt_initial_001', quantity: { amount: 15, unit: 'g' } }
+    ],
+    facility_ref: { location_id: 'home', storage_type: 'pickling_jar', container_id: 'pickling_jar_basic_01', definition_id: 'pickling_jar_basic', facility_id: 'pickling_jar_basic_01' }
+  }));
+  success(session.dispatch('advance_time', { minutes: 2880 }));
+  const collected = success(session.dispatch('collect_processing_result', { task_id: started.created_objects[0]!.object_id }));
+  const cooked = success(session.dispatch('cook_dish', {
+    recipe_variant_id: 'bacon_cabbage_basic',
+    ingredients: {
+      main: { lot_id: collected.created_objects[0]!.object_id, quantity: { amount: 250, unit: 'g' } },
+      side: { lot_id: 'bacon_initial_001', quantity: { amount: 50, unit: 'g' } },
+      oil: { lot_id: 'oil_initial_001', quantity: { amount: 10, unit: 'ml' } }
+    },
+    technique: 'stir_fry', operation_profile: { heat_level: 'high', active_minutes: 8 }
+  }));
+  await session.save('order_preview_source');
+  const serialized = await storage.read('order_preview_source');
+  assert.ok(serialized);
+  return { save: JSON.parse(serialized) as SaveFile, dishId: cooked.created_objects[0]!.object_id };
+}
+
+test('order previews agree with formal state and deadline eligibility without mutating saves, event history or real IDs', async () => {
+  const source = await makeOrderPreviewSource();
+  const cases = [
+    ...['available', 'accepted'].flatMap((status) => [-1, 0, 1].map((offset) => ({ status, offset, allowed: offset <= 0 }))),
+    ...['submitted', 'completed', 'failed', 'expired', 'cancelled'].map((status) => ({ status, offset: -1, allowed: false }))
+  ];
+  for (const { status, offset, allowed } of cases) {
+    const save = structuredClone(source.save);
+    const order = save.orders[0]!;
+    order.status = status;
+    order.deadline_absolute_minute = save.world_time.absolute_minute - offset;
+    const serialized = JSON.stringify(save);
+    const storage = new InMemorySaveStoragePort();
+    const controlStorage = new InMemorySaveStoragePort();
+    await storage.write('order_preview_seed', serialized);
+    await controlStorage.write('order_preview_seed', serialized);
+    const session = makeSession(storage);
+    const control = makeSession(controlStorage);
+    await session.load('order_preview_seed');
+    await control.load('order_preview_seed');
+    const viewBefore = session.getViewModel();
+    const selectableBefore = session.getSelectableViewModel();
+    const parameters = { order_id: order.order_id, submitted_object_refs: [{ object_type: 'DishLot', object_id: source.dishId }] };
+    for (let repeat = 0; repeat < 2; repeat++) {
+      const preview = session.preview('submit_order', parameters);
+      assert.equal(preview.success, allowed, `${status} at deadline ${offset}`);
+      assert.equal(preview.status_code, allowed ? 'OK_DEMAND_ACCEPTED' : 'ERR_ORDER_NOT_AVAILABLE');
+      assert.deepEqual(preview.side_effect_contract, { save_file_changed: false, domain_events_written: 0, event_log_entries_written: 0, real_id_sequence_consumed: false });
+      if (allowed) {
+        assert.equal(preview.effect_counts.consumed_resources, 1);
+        assert.equal(preview.effect_counts.created_objects, 0);
+      } else {
+        assert.deepEqual(preview.effect_counts, { consumed_resources: 0, created_objects: 0, updated_objects: 0, released_reservations: 0 });
+      }
+      await session.save('order_preview_observed');
+      assert.equal(await storage.read('order_preview_observed'), serialized, 'complete serialized state is unchanged by successful and rejected previews');
+      assert.deepEqual(session.getViewModel(), viewBefore, 'preview does not append event history');
+      assert.deepEqual(session.getSelectableViewModel(), selectableBefore);
+    }
+    const actual = session.dispatch('submit_order', parameters);
+    const expected = control.dispatch('submit_order', parameters);
+    assert.equal(actual.success, allowed);
+    assert.deepEqual(actual, expected, 'preview leaves subsequent formal request, event IDs and results identical to an untouched control');
+    assert.deepEqual(session.getViewModel(), control.getViewModel());
+    await session.save('order_preview_actual');
+    await control.save('order_preview_control');
+    assert.equal(await storage.read('order_preview_actual'), await controlStorage.read('order_preview_control'));
+    if (!allowed) {
+      assert.equal(await storage.read('order_preview_actual'), serialized);
+      assert.deepEqual(session.getViewModel(), viewBefore);
+    }
+  }
+});
 
 test('split quantity preview rejects discrete fractions, preserves formal IDs and agrees on full-source removal', async () => {
   const storage = new InMemorySaveStoragePort();

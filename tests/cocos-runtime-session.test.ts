@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { CocosAppRuntimeSession } from '../src/cocos-app/runtime/CocosAppRuntimeSession';
 import { FieldMenuController } from '../src/cocos-app/controllers/FieldMenuController';
 import { InventoryMenuController } from '../src/cocos-app/controllers/InventoryMenuController';
-import { InMemorySaveStoragePort, type ActionResult, type SaveStoragePort } from '../src/game-core';
+import { InMemorySaveStoragePort, type ActionResult, type SaveFile, type SaveStoragePort } from '../src/game-core';
 import { buildRuntimeWithoutState } from './support/runtimeHarness';
 import { ControlledSaveStoragePort, captureSerializedSession } from './support/controlledSaveStoragePort';
 
@@ -21,6 +21,150 @@ function makeSession(storage: SaveStoragePort = new InMemorySaveStoragePort()) {
     storage
   };
 }
+
+test('a loaded accepted order preserves rejected submissions, recovers legally and remains settled across a fresh session', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const seed = makeSession(storage);
+  const refs = runCoreLoopThroughSession(seed.session, false);
+  const source = JSON.parse(await captureSerializedSession(seed.session, storage, 'accepted_order_source')) as SaveFile;
+  source.orders[0]!.status = 'accepted';
+  source.orders[0]!.deadline_absolute_minute = source.world_time.absolute_minute + 60;
+  const healthy = JSON.stringify(source);
+  await storage.write('accepted_order_healthy', healthy);
+  const session = makeSession(storage).session;
+  const parameters = { order_id: source.orders[0]!.order_id, submitted_object_refs: [{ object_type: 'DishLot', object_id: refs.dish_lot! }] };
+  const unsafe = structuredClone(source);
+  unsafe.dish_lots.find((dish) => dish.dish_lot_id === refs.dish_lot)!.dish_profile.safety_risk = 26;
+  const lowScore = structuredClone(source);
+  const poorDish = lowScore.dish_lots.find((dish) => dish.dish_lot_id === refs.dish_lot)!;
+  poorDish.dish_profile.safety_risk = 0;
+  poorDish.dish_profile.saltiness = 0;
+  poorDish.dish_profile.oiliness = 0;
+  poorDish.suitability_tags = [];
+  poorDish.defects = [];
+  for (const failure of [
+    { save: source, parameters: { ...parameters, submitted_object_refs: [{ object_type: 'DishLot', object_id: 'missing_order_session_dish' }] }, code: 'ERR_DISH_LOT_NOT_FOUND' },
+    { save: unsafe, parameters, code: 'ERR_DEMAND_REJECTED_SAFETY' },
+    { save: lowScore, parameters, code: 'ERR_DEMAND_SCORE_TOO_LOW' }
+  ]) {
+    const serialized = JSON.stringify(failure.save);
+    await storage.write('accepted_order_rejection', serialized);
+    await session.load('accepted_order_rejection');
+    const beforeView = session.getViewModel();
+    const beforeSelectable = session.getSelectableViewModel();
+    assert.equal(beforeSelectable.order_options[0]!.enabled, true, 'enabled represents state and deadline, not a promise that a chosen dish matches');
+    assert.equal(session.preview('submit_order', failure.parameters).status_code, failure.code);
+    const rejected = session.dispatch('submit_order', failure.parameters);
+    assert.equal(rejected.success, false);
+    assert.equal(rejected.status_code, failure.code);
+    assert.deepEqual(rejected.domain_events, []);
+    assert.deepEqual(rejected.event_log_entries, []);
+    assert.deepEqual(rejected.consumed_resources, []);
+    assert.equal(await captureSerializedSession(session, storage, 'accepted_order_after_rejection'), serialized);
+    assert.deepEqual(session.getViewModel(), beforeView);
+    assert.deepEqual(session.getSelectableViewModel(), beforeSelectable);
+    await session.load('accepted_order_healthy');
+    assert.equal(session.preview('submit_order', parameters).success, true, 'a rejected operation leaves healthy requests usable');
+    assert.equal(await captureSerializedSession(session, storage, 'accepted_order_recovered_preview'), healthy);
+  }
+  const completed = dispatchAndAssert(session.dispatch('submit_order', parameters), 'accepted submit_order');
+  assert.deepEqual(completed.domain_events.map((event) => event.event_type), ['order.submitted', 'order.completed']);
+  assert.equal(completed.consumed_resources.length, 1);
+  assert.equal(completed.consumed_resources[0]!.resource_id, refs.dish_lot);
+  const complete = await captureSerializedSession(session, storage, 'accepted_order_completed');
+  const save = JSON.parse(complete) as SaveFile;
+  const order = save.orders[0]!;
+  assert.equal(order.status, 'completed');
+  assert.deepEqual(order.submitted_object_refs, parameters.submitted_object_refs);
+  assert.equal(order.result_summary!.result_key, 'OK_DEMAND_ACCEPTED');
+  assert.ok(order.result_summary!.reward_final! > 0);
+  assert.equal(Number(save.player_state.money) - Number(source.player_state.money), order.result_summary!.reward_final);
+  const profile = seed.configs.requiredDoc<{ reward_rules: { reputation_delta_on_success: number } }>('configs/demands/tavern_home_dish.yaml');
+  const reputation = (state: SaveFile) => Number((state.player_state.reputation_map as Record<string, number>).west_market_tavern);
+  assert.equal(reputation(save) - reputation(source), profile.reward_rules.reputation_delta_on_success);
+  assert.equal(save.dish_lots.some((dish) => dish.dish_lot_id === refs.dish_lot), false);
+  assert.equal(save.storage_containers.some((container) => container.active_object_refs.some((ref) => ref.object_id === refs.dish_lot)), false);
+  assert.deepEqual(save.inventory, source.inventory);
+  assert.deepEqual(save.fuel_state, source.fuel_state);
+  assert.deepEqual(save.world_time, source.world_time);
+  const restored = makeSession(storage).session;
+  await restored.load('accepted_order_completed');
+  for (const current of [session, restored]) {
+    const beforeView = current.getViewModel();
+    const beforeSelectable = current.getSelectableViewModel();
+    assert.equal(beforeSelectable.order_options[0]!.enabled, false);
+    assert.equal(current.preview('submit_order', parameters).status_code, 'ERR_ORDER_NOT_AVAILABLE');
+    const duplicate = current.dispatch('submit_order', parameters);
+    assert.equal(duplicate.success, false);
+    assert.equal(duplicate.status_code, 'ERR_ORDER_NOT_AVAILABLE');
+    assert.deepEqual(duplicate.domain_events, []);
+    assert.deepEqual(duplicate.event_log_entries, []);
+    assert.equal(await captureSerializedSession(current, storage, 'accepted_order_duplicate'), complete);
+    assert.deepEqual(current.getViewModel(), beforeView);
+    assert.deepEqual(current.getSelectableViewModel(), beforeSelectable);
+  }
+});
+
+test('loaded open orders share the inclusive deadline and expire through formal time settlement without reviving old failed saves', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const seed = makeSession(storage).session;
+  const refs = runCoreLoopThroughSession(seed, false);
+  const source = JSON.parse(await captureSerializedSession(seed, storage, 'order_deadline_source')) as SaveFile;
+  const parameters = { order_id: source.orders[0]!.order_id, submitted_object_refs: [{ object_type: 'DishLot', object_id: refs.dish_lot! }] };
+  for (const status of ['available', 'accepted']) {
+    const save = structuredClone(source);
+    save.orders[0]!.status = status;
+    save.orders[0]!.deadline_absolute_minute = save.world_time.absolute_minute + 1;
+    await storage.write('order_deadline_open', JSON.stringify(save));
+    const session = makeSession(storage).session;
+    await session.load('order_deadline_open');
+    assert.equal(session.getSelectableViewModel().order_options[0]!.enabled, true);
+    dispatchAndAssert(session.dispatch('advance_time', { minutes: 1 }), 'advance exactly to deadline');
+    assert.equal(session.getViewModel().orders[0]!.status, status);
+    assert.equal(session.getSelectableViewModel().order_options[0]!.enabled, true);
+    assert.equal(session.preview('submit_order', parameters).success, true, `${status} stays eligible at the exact deadline`);
+    dispatchAndAssert(session.dispatch('advance_time', { minutes: 1 }), 'advance beyond deadline');
+    assert.equal(session.getViewModel().orders[0]!.status, 'expired');
+    assert.equal(session.getSelectableViewModel().order_options[0]!.enabled, false);
+    const expired = await captureSerializedSession(session, storage, 'order_deadline_expired');
+    const expiredSave = JSON.parse(expired) as SaveFile;
+    assert.deepEqual(expiredSave.dish_lots, source.dish_lots);
+    assert.deepEqual(expiredSave.storage_containers, source.storage_containers);
+    assert.equal(expiredSave.player_state.money, source.player_state.money);
+    assert.deepEqual(expiredSave.player_state.reputation_map, source.player_state.reputation_map);
+    const rejected = session.dispatch('submit_order', parameters);
+    assert.equal(rejected.status_code, 'ERR_ORDER_NOT_AVAILABLE');
+    assert.deepEqual(rejected.domain_events, []);
+    assert.equal(await captureSerializedSession(session, storage, 'order_deadline_after_reject'), expired);
+
+    const overdue = structuredClone(source);
+    overdue.orders[0]!.status = status;
+    overdue.orders[0]!.deadline_absolute_minute = overdue.world_time.absolute_minute - 1;
+    const serialized = JSON.stringify(overdue);
+    await storage.write('order_deadline_overdue_open', serialized);
+    await session.load('order_deadline_overdue_open');
+    const view = session.getViewModel();
+    assert.equal(view.orders[0]!.status, status, 'load does not silently settle an overdue open order');
+    assert.equal(session.getSelectableViewModel().order_options[0]!.enabled, false);
+    assert.equal(session.preview('submit_order', parameters).status_code, 'ERR_ORDER_NOT_AVAILABLE');
+    assert.equal(session.dispatch('submit_order', parameters).status_code, 'ERR_ORDER_NOT_AVAILABLE');
+    assert.equal(await captureSerializedSession(session, storage, 'order_deadline_overdue_rejected'), serialized);
+    assert.deepEqual(session.getViewModel(), view);
+    dispatchAndAssert(session.dispatch('advance_time', { minutes: 1 }), 'settle loaded overdue order');
+    assert.equal(session.getViewModel().orders[0]!.status, 'expired');
+  }
+  const oldFailed = structuredClone(source);
+  oldFailed.orders[0]!.status = 'failed';
+  oldFailed.orders[0]!.deadline_absolute_minute = oldFailed.world_time.absolute_minute - 1;
+  const serialized = JSON.stringify(oldFailed);
+  await storage.write('order_deadline_old_failed', serialized);
+  const restored = makeSession(storage).session;
+  await restored.load('order_deadline_old_failed');
+  assert.equal(await captureSerializedSession(restored, storage, 'order_deadline_old_failed_loaded'), serialized, 'old failed states are not migrated');
+  dispatchAndAssert(restored.dispatch('advance_time', { minutes: 1 }), 'advance old failed save');
+  assert.equal(restored.getViewModel().orders[0]!.status, 'failed');
+  assert.equal(restored.getSelectableViewModel().order_options[0]!.enabled, false);
+});
 
 test('split quantity failures preserve saved state and full splits survive a fresh-session load with legal recovery', async () => {
   const storage = new InMemorySaveStoragePort();
@@ -191,7 +335,7 @@ function dispatchAndAssert(result: ActionResult, actionType: string): ActionResu
   return result;
 }
 
-function runCoreLoopThroughSession(session: CocosAppRuntimeSession) {
+function runCoreLoopThroughSession(session: CocosAppRuntimeSession, submitOrder = true) {
   const refs: Record<string, string> = {};
 
   const plant = dispatchAndAssert(session.dispatch('plant_crop', {
@@ -246,10 +390,12 @@ function runCoreLoopThroughSession(session: CocosAppRuntimeSession) {
   }), 'cook_dish');
   refs.dish_lot = cook.created_objects.find((item) => item.object_type === 'DishLot')!.object_id;
 
-  dispatchAndAssert(session.dispatch('submit_order', {
-    order_id: 'tavern_home_dish_001',
-    submitted_object_refs: [{ object_type: 'DishLot', object_id: refs.dish_lot }]
-  }), 'submit_order');
+  if (submitOrder) {
+    dispatchAndAssert(session.dispatch('submit_order', {
+      order_id: 'tavern_home_dish_001',
+      submitted_object_refs: [{ object_type: 'DishLot', object_id: refs.dish_lot }]
+    }), 'submit_order');
+  }
 
   return refs;
 }

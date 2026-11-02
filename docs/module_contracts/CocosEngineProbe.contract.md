@@ -85,7 +85,7 @@ ProbeInventory只复制公开材料选项并管理数量原文、不可编辑的
 
 ProbeLifetime窄消费既有menu_preview/split_lot；ProbeInteraction显式区分preview、confirm和save/load，preview只认本次last_preview_result，不要求ActionResult；confirm仍经既有controller重预览，成功须本次双结果。新批次ID从本次created_objects关联刷新后的公开材料，数量/位置由公开结果取得，不从输入伪造。状态应用异常不自动重发Action；busy/销毁保护保持。
 
-CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；既有加工页见trace.cocos.web-processing-loop，本版烹饪页见trace.cocos.web-cooking-loop，不扩Stage1B或wx。
+CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。既有拆分规则、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；既有加工页见trace.cocos.web-processing-loop，既有烹饪页见trace.cocos.web-cooking-loop，不扩Stage1B或wx。
 
 tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实际args/files/covers，test.cocos-web-verification-contracts校验拆分观察断言负例。trace.cocos.web-inventory-split连接这些行为及独立Creator SDK/构建、built-web和editor-preview各960×640真实点击与键盘输入；旧矩阵/resize/农事/转移/存读档/故障及销毁回归保留。桌面输入不代表触摸或微信通过，版本完成仍按q:full及无缓存q:release和精确候选CI。
 
@@ -95,4 +95,4 @@ ProbeProcessing只管理公开方法/逐要求批次与数量、兼容设施、�
 
 ## 网页烹饪公开消费
 
-ProbeCooking只管理公开配方角色与材料/储存选择、数量及操作参数原文和本次反馈；CocosSelectableViewModel补齐既有合并约束、硬边界/偏好与燃料说明。既有cook_dish菜单链执行并重新预览，失败清旧成功，成功以本次created_objects关联真实DishLot；保存/新页面手动读取重建选择，恢复菜品不冒充本次新产物。trace.cocos.web-cooking-loop连接既有full/blocker任务、真实EditBox/点击与独立Creator/SDK及built/editor证据；受控燃料负例不称网页自然耗尽，不改核心/Session/Queue或正式资源。
+ProbeCooking只管理公开配方角色与材料/储存选择、数量及操作参数原文和本次反馈；CocosSelectableViewModel补齐既有合并约束、硬边界/偏好与燃料说明。既有cook_dish菜单链执行并重新预览，失败清旧成功，成功以本次created_objects关联真实DishLot；保存/新页面手动读取重建选择，恢复菜品不冒充本次新产物。trace.cocos.web-cooking-loop连接既有full/blocker任务、真实EditBox/点击与独立Creator/SDK及built/editor证据；受控燃料负例不称网页自然耗尽，不改烹饪规则、Session/Queue或正式资源。
