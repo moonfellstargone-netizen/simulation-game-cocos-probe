@@ -20,6 +20,9 @@ test('Cocos Web template, preparation and regression changes select the register
     ['apps/cocos-probe/template/assets/scripts/ProbeProcessing.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
     ['apps/cocos-probe/template/assets/scripts/ProbeProcessing.ts.meta', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
     ['tests/cocos-web-processing.test.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
+    ['apps/cocos-probe/template/assets/scripts/ProbeCooking.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
+    ['apps/cocos-probe/template/assets/scripts/ProbeCooking.ts.meta', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
+    ['tests/cocos-web-cooking.test.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
     ['src/cocos-app/view-models/CocosSelectableViewModel.ts', ['test.cocos-ui-readiness', 'test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
     ['apps/cocos-probe/template/assets/scripts/BrowserSaveStoragePort.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle', 'test.cocos-web-verification-contracts']],
     ['tests/cocos-browser-storage.test.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
@@ -201,6 +204,14 @@ test('current version changed tests select the task that actually executes each 
   [
     "tests/cocos-web-processing.test.ts",
     "test.cocos-engine-probe-lifecycle"
+  ],
+  [
+    "tests/cocos-web-cooking.test.ts",
+    "test.cocos-engine-probe-lifecycle"
+  ],
+  [
+    "tests/traceability-contracts.test.mjs",
+    "test.traceability-contracts"
   ],
   [
     "tests/cocos-web-verification-contracts.test.mjs",

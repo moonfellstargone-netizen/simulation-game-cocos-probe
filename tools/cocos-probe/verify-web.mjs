@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertClickObservation, assertDisabledInventoryObservation, assertFarmingCommandObservation, assertFarmingLoadRecovery, assertFarmingProjection, assertInventoryCommandObservation, assertInventoryLoadRecovery, assertInventoryProjection, assertLocalInventoryObservation, assertLocalSaveRecovery, assertLocalSelectionObservation, assertSplitConfirmObservation, assertSplitDisabledObservation, assertSplitLoadRecovery, assertSplitPreviewObservation, assertSplitProjection, assertSplitQuantityObservation, assertStoredSaveUnchanged, assertUiCommandObservation, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest } from './lib/webProbeSupport.mjs';
 import { assertLocalProcessingObservation, assertProcessingCollectObservation, assertProcessingDisabledObservation, assertProcessingLoadRecovery, assertProcessingPreviewObservation, assertProcessingProjection, assertProcessingQuantityObservation, assertProcessingStartObservation } from './lib/webProbeSupport.mjs';
+import { assertCookingProjection, assertCookingPreviewObservation, assertCookingConfirmObservation, assertCookingDisabledObservation, assertCookingInputObservation, assertCookingLoadRecovery, assertLocalCookingObservation } from './lib/webProbeSupport.mjs';
 
 const ROOT = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '../..'));
 const MATRIX = [
@@ -17,7 +18,8 @@ const scroll = (page) => page.evaluate(() => ({ x: scrollX, y: scrollY }));
 const SELECTION_BUTTONS = ['SelectField', 'SelectSeed', 'SelectCrop', 'SeedAmountDecrease', 'SeedAmountIncrease'];
 const INVENTORY_LOCAL_BUTTONS = ['OpenInventory', 'OpenFarming', 'SelectInventoryLot', 'SelectStorageTarget'];
 const PROCESSING_LOCAL_BUTTONS = ['OpenProcessing', 'SelectProcessingMethod', 'SelectProcessingInput', 'SelectProcessingLot', 'SelectProcessingFacility', 'SelectProcessingTask'];
-const BUTTONS = ['AdvanceOneHour', 'SaveLocal', 'LoadLocal', ...SELECTION_BUTTONS, 'PlantCrop', 'AdvanceOneDay', 'HarvestCrop', ...INVENTORY_LOCAL_BUTTONS, 'MoveInventoryLot', 'SplitPreview', 'SplitConfirm', ...PROCESSING_LOCAL_BUTTONS, 'ProcessingPreview', 'StartProcessing', 'CollectProcessing'];
+const COOKING_LOCAL_BUTTONS = ['OpenCooking', 'SelectCookingRecipe', 'SelectCookingRole', 'SelectCookingLot', 'ClearCookingRole', 'SelectCookingHeat', 'SelectCookingStorage'];
+const BUTTONS = ['AdvanceOneHour', 'SaveLocal', 'LoadLocal', ...SELECTION_BUTTONS, 'PlantCrop', 'AdvanceOneDay', 'HarvestCrop', ...INVENTORY_LOCAL_BUTTONS, 'MoveInventoryLot', 'SplitPreview', 'SplitConfirm', ...PROCESSING_LOCAL_BUTTONS, 'ProcessingPreview', 'StartProcessing', 'CollectProcessing', ...COOKING_LOCAL_BUTTONS, 'CookingPreview', 'CookDish'];
 const STORAGE_KEY = 'qinglan.simulation-game.cocos-probe.save.web_probe';
 const EMPTY_SLOT_ERROR = 'ERR_SAVE_SLOT_NOT_FOUND:web_probe';
 
@@ -40,7 +42,7 @@ async function attachButtonObservation(page) {
       if (matches.length !== 1) throw new Error('ERR_WEB_PROBE_BUTTON_MISSING_OR_DUPLICATE:' + name);
       matches[0].node.on(cc.Button.EventType.CLICK, () => { globalThis.__webProbeButtonEvents[name]++; });
     }
-    for (const [name, counters] of [['SplitQuantity', '__webProbeEditEvents'], ['ProcessingQuantity', '__webProbeProcessingEditEvents']]) {
+    for (const [name, counters] of [['SplitQuantity', '__webProbeEditEvents'], ['ProcessingQuantity', '__webProbeProcessingEditEvents'], ['CookingQuantity', '__webProbeCookingEditEvents'], ['CookingMinutes', '__webProbeCookingMinutesEditEvents']]) {
       const edits = cc.director.getScene().getComponentsInChildren(cc.EditBox).filter((item) => item.node.name === name);
       if (edits.length !== 1) throw new Error('ERR_WEB_PROBE_INPUT_MISSING_OR_DUPLICATE:' + name);
       globalThis[counters] = { began: 0, changed: 0, ended: 0 };
@@ -98,9 +100,16 @@ async function physicalClick(page, caseName, result, recordDir, buttonName = 'Ad
   result.clicks.push(observation);
   await page.screenshot({ path: join(recordDir, caseName + '.png'), fullPage: true });
   if (disabled) {
-    if (buttonName === 'SplitPreview' || buttonName === 'SplitConfirm') assertSplitDisabledObservation(observation, buttonName);
+    if (buttonName === 'CookingPreview' || buttonName === 'CookDish') assertCookingDisabledObservation(observation, buttonName);
+    else if (buttonName === 'SplitPreview' || buttonName === 'SplitConfirm') assertSplitDisabledObservation(observation, buttonName);
     else if (['ProcessingPreview', 'StartProcessing', 'CollectProcessing'].includes(buttonName)) assertProcessingDisabledObservation(observation, buttonName);
     else { assert.equal(buttonName, 'MoveInventoryLot'); assertDisabledInventoryObservation(observation); }
+  } else if (COOKING_LOCAL_BUTTONS.includes(buttonName)) {
+    assertLocalCookingObservation(observation, expected);
+  } else if (buttonName === 'CookingPreview') {
+    assertCookingPreviewObservation(observation, expected);
+  } else if (buttonName === 'CookDish') {
+    assertCookingConfirmObservation(observation);
   } else if (PROCESSING_LOCAL_BUTTONS.includes(buttonName)) {
     assertLocalProcessingObservation(observation, expected);
   } else if (buttonName === 'ProcessingPreview') {
@@ -160,7 +169,7 @@ async function physicalQuantityInput(page, caseName, text, result, recordDir, in
   }, inputName);
   const layout = await readLayout();
   const before = await status(page); const scrollBefore = await scroll(page);
-  const counterName = inputName === 'SplitQuantity' ? '__webProbeEditEvents' : '__webProbeProcessingEditEvents';
+  const counterName = ({ SplitQuantity: '__webProbeEditEvents', ProcessingQuantity: '__webProbeProcessingEditEvents', CookingQuantity: '__webProbeCookingEditEvents', CookingMinutes: '__webProbeCookingMinutesEditEvents' })[inputName];
   const counters = await page.evaluate((key) => ({ buttons: { ...globalThis.__webProbeButtonEvents }, edit: { ...globalThis[key] } }), counterName);
   await page.mouse.move(layout.target.x, layout.target.y); await page.mouse.down(); await settle(page);
   const scrollDown = await scroll(page); await page.mouse.up();
@@ -177,7 +186,8 @@ async function physicalQuantityInput(page, caseName, text, result, recordDir, in
     scrollBefore, scrollDown, scrollAfter: await scroll(page) };
   result.inputs.push(observation);
   await page.screenshot({ path: join(recordDir, caseName + '.png'), fullPage: true });
-  if (inputName === 'SplitQuantity') assertSplitQuantityObservation(observation, text);
+  if (inputName === 'CookingQuantity' || inputName === 'CookingMinutes') assertCookingInputObservation(observation, text);
+  else if (inputName === 'SplitQuantity') assertSplitQuantityObservation(observation, text);
   else { assert.equal(inputName, 'ProcessingQuantity'); assertProcessingQuantityObservation(observation, text); }
   return observation;
 }
@@ -689,11 +699,103 @@ async function processingLoop(browser, url, result, recordDir, logs) {
     const secondReady = await advanceToReady(secondTaskId, 'processing-second', secondSaved);
     const nextCollected = await physicalClick(page, 'processing-next-collect', result, recordDir, 'CollectProcessing');
     assert.notEqual(nextCollected.after.processing.collectResult.lotId, collected.after.processing.collectResult.lotId);
-    const lifecycle = await disposeProbe(page); assertStoredSaveUnchanged(secondSaved, await storedSave(page));
+    assertStoredSaveUnchanged(secondSaved, await storedSave(page));
+    const cooking = await cookingLoop(page, result, recordDir, logs, secondSaved);
+    const lifecycle = cooking.lifecycle;
     return { scope: 'isolated 960x640 real mouse and keyboard; ordinary harvest, public method requirements, preview refusal and exact consumption; disabled active/completed collection emits no command; manual save/load, reload and same-context new-page continuation',
       initial, harvested, missingSalt, zero, refused, preview, staleQuantity, staleInput, started, notReady, savedState, saved: storedEvidence(saved), loaded, reloadInitial, reloadLoaded, firstReady, collected, duplicate,
-      nextStarted, secondSavedState, secondSaved: storedEvidence(secondSaved), firstLifecycle, reopenInitial, reopenLoaded, secondReady, nextCollected, lifecycle };
+      nextStarted, secondSavedState, secondSaved: storedEvidence(secondSaved), firstLifecycle, reopenInitial, reopenLoaded, secondReady, nextCollected, cooking, lifecycle };
   } finally { await context.close(); }
+}
+
+async function cookingLoop(page, result, recordDir, logs, priorSave) {
+  // Continue the ordinary farm/process run using its real collected pickled batches.
+  await physicalClick(page, 'cooking-open', result, recordDir, 'OpenCooking', { panel: 'cooking' });
+  const initial = await status(page); const view = assertCookingProjection(initial);
+  assert.equal(view.selectedRecipeId, null); assert.equal(view.activeMinutesText, ''); assert.equal(view.heatLevel, null);
+  const recipe = view.recipeOptions.find(item => item.enabled);
+  assert.ok(recipe, 'the ordinary harvest/process path must make the active recipe available');
+  const choose = async (kind, wanted, prefix) => {
+    const button = { recipe: 'SelectCookingRecipe', role: 'SelectCookingRole', lot: 'SelectCookingLot', target: 'SelectCookingStorage', heat: 'SelectCookingHeat' }[kind];
+    const read = current => {
+      if (kind === 'recipe') return { options: current.recipeOptions, selected: current.selectedRecipeId, id: item => item.id, key: 'selectedRecipeId' };
+      if (kind === 'role') return { options: current.recipeOptions.find(item => item.id === current.selectedRecipeId).roles, selected: current.selectedRole, id: item => item.role, key: 'selectedRole' };
+      if (kind === 'lot') return { options: current.currentInputLotOptions.filter(item => item.enabled), selected: current.inputSelections.find(item => item.role === current.selectedRole)?.lotId, id: item => item.id };
+      if (kind === 'target') return { options: current.targetOptions.filter(item => item.enabled), selected: current.selectedTargetId, id: item => item.id, key: 'selectedTargetId' };
+      return { options: [1, 2, 3], selected: current.heatLevel };
+    };
+    const bound = read((await status(page)).cooking).options.length;
+    for (let step = 0; step < bound; step++) {
+      const current = (await status(page)).cooking; const selection = read(current);
+      if (selection.selected === wanted) return;
+      const next = kind === 'heat' ? null : selection.id(selection.options[(selection.options.findIndex(item => selection.id(item) === selection.selected) + 1) % selection.options.length]);
+      const expected = kind === 'lot' ? { lotId: next } : selection.key ? { key: selection.key, value: next } : {};
+      await physicalClick(page, prefix + '-' + step, result, recordDir, button, expected);
+    }
+    assert.equal(read((await status(page)).cooking).selected, wanted, 'bounded physical cooking selection must reach its public option');
+  };
+  await choose('recipe', recipe.id, 'cooking-recipe');
+  const role = id => recipe.roles.find(item => item.role === id);
+  const pickled = view.lotOptions.filter(item => role('main').lot_ids.includes(item.id) && item.current_form === 'pickled' && item.quantity.amount >= 250);
+  assert.ok(pickled.length >= 2, 'both prior real processing outputs must be available for two independent dishes');
+  const bacon = view.lotOptions.find(item => role('side').lot_ids.includes(item.id) && item.enabled);
+  const oil = view.lotOptions.find(item => role('oil').lot_ids.includes(item.id) && item.enabled);
+  assert.ok(bacon && oil);
+  const room = view.targetOptions.find(item => item.enabled && item.storage_type === 'room_temp');
+  const unsupported = view.targetOptions.find(item => item.enabled && item.storage_type === 'cellar');
+  assert.ok(room && unsupported);
+  const input = async (id, lot, amount, prefix) => {
+    await choose('role', id, prefix + '-role'); await choose('lot', lot.id, prefix + '-lot');
+    await physicalQuantityInput(page, prefix + '-quantity', String(amount), result, recordDir, 'CookingQuantity');
+  };
+  await input('main', pickled[0], 250, 'cooking-main');
+  await choose('heat', 'high', 'cooking-heat');
+  await physicalQuantityInput(page, 'cooking-minutes-8', '8', result, recordDir, 'CookingMinutes');
+  await choose('target', room.id, 'cooking-room');
+  const missing = await physicalClick(page, 'cooking-missing-role', result, recordDir, 'CookingPreview', { statusCode: 'ERR_MENU_RECIPE_ROLE_MISSING:side' });
+  await physicalClick(page, 'cooking-missing-disabled', result, recordDir, 'CookDish', { disabled: true });
+  await input('side', bacon, 49, 'cooking-low-side');
+  const insufficient = await physicalClick(page, 'cooking-low-side-refused', result, recordDir, 'CookingPreview', { statusCode: 'ERR_NOT_ENOUGH_RESOURCE' });
+  await physicalQuantityInput(page, 'cooking-side-50', '50', result, recordDir, 'CookingQuantity');
+  await input('oil', oil, 10, 'cooking-oil');
+  await choose('target', unsupported.id, 'cooking-unsupported');
+  const storageRefused = await physicalClick(page, 'cooking-storage-refused', result, recordDir, 'CookingPreview', { statusCode: 'ERR_STORAGE_FORM_NOT_SUPPORTED' });
+  await choose('target', room.id, 'cooking-restore-room');
+  const preview = await physicalClick(page, 'cooking-legal-preview', result, recordDir, 'CookingPreview');
+  await physicalQuantityInput(page, 'cooking-edit-invalidates-preview', '9', result, recordDir, 'CookingMinutes');
+  const stale = await physicalClick(page, 'cooking-stale-disabled', result, recordDir, 'CookDish', { disabled: true });
+  await physicalQuantityInput(page, 'cooking-restore-8', '8', result, recordDir, 'CookingMinutes');
+  await physicalClick(page, 'cooking-final-preview', result, recordDir, 'CookingPreview');
+  const cooked = await physicalClick(page, 'cooking-first-confirm', result, recordDir, 'CookDish');
+  assertStoredSaveUnchanged(priorSave, await storedSave(page));
+  await physicalClick(page, 'cooking-save-dish', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: cooked.after.timeLabel });
+  const savedState = await status(page); const saved = { ...await storedSave(page), timeLabel: savedState.timeLabel };
+  await physicalClick(page, 'cooking-transient-hour', result, recordDir);
+  const loaded = await physicalClick(page, 'cooking-load-dish', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: saved.timeLabel });
+  assertCookingLoadRecovery(savedState, loaded); assertStoredSaveUnchanged(saved, await storedSave(page));
+  await page.reload(); await awaitReady(page); await attachButtonObservation(page);
+  const reloadInitial = await status(page); const reloadStartup = await storedSave(page);
+  const reloadLoaded = await physicalClick(page, 'cooking-refresh-manual-load', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: saved.timeLabel });
+  assertLocalSaveRecovery({ saved, initial: reloadInitial, afterStartup: reloadStartup, loaded: reloadLoaded, afterLoad: await storedSave(page) });
+  assertCookingLoadRecovery(savedState, reloadLoaded);
+  const firstLifecycle = await disposeProbe(page); assertStoredSaveUnchanged(saved, await storedSave(page));
+  const context = page.context(); await page.close(); page = await context.newPage(); watchErrors(page, 'cooking-reopen', logs);
+  await page.goto(result.url); await awaitReady(page); await attachButtonObservation(page);
+  const reopenInitial = await status(page); const reopenStartup = await storedSave(page);
+  const reopenLoaded = await physicalClick(page, 'cooking-reopen-manual-load', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: saved.timeLabel });
+  assertLocalSaveRecovery({ saved, initial: reopenInitial, afterStartup: reopenStartup, loaded: reopenLoaded, afterLoad: await storedSave(page) });
+  assertCookingLoadRecovery(savedState, reopenLoaded);
+  await physicalClick(page, 'cooking-reopen-page', result, recordDir, 'OpenCooking', { panel: 'cooking' });
+  await choose('recipe', recipe.id, 'cooking-next-recipe');
+  await input('main', pickled[1], 250, 'cooking-next-main'); await input('side', bacon, 50, 'cooking-next-side');
+  await choose('heat', 'high', 'cooking-next-heat'); await choose('target', room.id, 'cooking-next-room');
+  await physicalQuantityInput(page, 'cooking-next-8', '8', result, recordDir, 'CookingMinutes');
+  await physicalClick(page, 'cooking-next-preview', result, recordDir, 'CookingPreview');
+  const nextCooked = await physicalClick(page, 'cooking-next-confirm', result, recordDir, 'CookDish');
+  assert.notEqual(nextCooked.after.cooking.result.dishLotId, cooked.after.cooking.result.dishLotId);
+  assertStoredSaveUnchanged(saved, await storedSave(page));
+  const lifecycle = await disposeProbe(page);
+  return { scope: '960x640 physical mouse/keyboard, ordinary farm/process inputs; missing role, insufficient quantity, unsupported storage, stale preview, exact material/fuel consumption, real DishLot, manual load/reload/new-page recovery; controlled fuel exhaustion is outside browser scope', initial, missing, insufficient, storageRefused, preview, stale, cooked, savedState, saved: storedEvidence(saved), loaded, reloadInitial, reloadLoaded, firstLifecycle, reopenInitial, reopenLoaded, nextCooked, lifecycle };
 }
 
 async function storageFailureRecovery(browser, url, result, recordDir, logs) {
@@ -881,6 +983,7 @@ export async function verifyWebProbe(options) {
     result.inventory = await inventoryLoop(browser, result.url, result, recordDir, logs);
     result.splitting = await splitLoop(browser, result.url, result, recordDir, logs);
     result.processing = await processingLoop(browser, result.url, result, recordDir, logs);
+    result.cooking = result.processing.cooking;
     result.storageRecovery = await storageFailureRecovery(browser, result.url, result, recordDir, logs);
     if (!parsed.previewUrl) {
       assert.ok(resourceUrl, 'actual probe resource URL must be observed');

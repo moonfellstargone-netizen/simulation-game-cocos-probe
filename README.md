@@ -1,12 +1,12 @@
-# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.41
+# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.42
 
-**Web Processing Start & Collection / 网页加工开工与领取版**
+**Web Cooking Selection & Dish Feedback / 网页烹饪选料与菜品反馈版**
 
 本仓库是 Cocos 微信试水代码项目**日常代码权威源**。正式玩法与契约权威仍为正式三包 v1.5.2.2。
 
-- 代码包版本：`v0.0.2.41`
-- npm package version：`0.0.2-41`
-- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_41`（权威源：`tools/quality/rules/project-target.json`）
+- 代码包版本：`v0.0.2.42`
+- npm package version：`0.0.2-42`
+- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_42`（权威源：`tools/quality/rules/project-target.json`）
 - 设计来源：`模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip`
 - 规则权威源：`tools/quality/rules/project-target.json`、`tools/quality/rules/context-doc-surface.rules.json`、`tools/quality/rules/architecture-boundary.rules.json`、`tools/quality/rules/traceability-map.json`
 - 代码权威：本 GitHub 仓库（非 zip 归档包）
@@ -22,7 +22,7 @@
 
 ## Task Intent Lock
 
-本轮唯一目标是网页加工开工至领取：通过最小只读方法/任务投影展示正式输入要求，逐项选择公开批次和数量、兼容设施，经既有menu_preview/confirm开工，正常推进后领取实际产物，并支持加工中手动保存及全新会话读取后继续。outer管理选择、本次预览和结果，确认仍重校验最新状态；修改输入、切页、其他命令或读档使旧预览失效。core业务、Session/Queue、SaveFile和正式资源保持，不新增重复输入或时间规则，既有农事、库存/拆分及存读档能力保留。
+本轮唯一目标是网页烹饪选料与菜品反馈：浏览现有配方的必需/可选角色和最低量，逐角色选择公开材料批次与数量，明确选择火候、填写操作时长并选择目标储存，经既有menu_preview/confirm获得真实DishLot，显示实际份数、材料和燃料状态，支持手动保存及全新会话读取后继续。outer管理选择和本次反馈，确认重校验最新状态；改输入、切页、其他命令或读档清旧预览。core业务、Session/Queue、SaveFile和正式资源保持，不新增配方、补给、时间或重复输入规则；既有农事、库存/拆分、加工和存读档回归保留。
 
 工具只读取仓库唯一src/design_snapshot派生的工作副本。prepare继续导出snapshot及全部58项Schema并记录Git来源/输入产物摘要；build记录实际Web产物清单摘要，verify核对构建关联和产物字节后才启动浏览器，拒绝替换或篡改的Web目录。工程、依赖、报告、缓存和构建仍位于仓库外，不形成第二源码权威。
 
@@ -32,7 +32,7 @@
 
 构建网页矩阵含800×600、DPR2及四次resize点击；编辑器预览只承诺1440×1200和960×640/DPR1及960→1440→960三次resize点击，官方Default设备模拟器800裁剪场景未支持。具体范围见外层契约，不推导手机或微信适配。
 
-导航与追踪：trace.inventory.split-quantity、既有trace.runtime.id-recovery、既有trace.processing.required-inputs、既有trace.cocos.web-inventory-storage，以及保留的trace.cocos.web-farming-loop、trace.cocos.browser-local-save、trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input和trace.cocos.web-bootstrap-probe。实际失败先定位，不通过降低架构检查、跳过门禁或调用observer.advance代替物理点击制造通过。
+导航与追踪：本版trace.cocos.web-cooking-loop、既有trace.cocos.web-processing-loop、trace.inventory.split-quantity、既有trace.runtime.id-recovery、既有trace.processing.required-inputs、既有trace.cocos.web-inventory-storage，以及保留的trace.cocos.web-farming-loop、trace.cocos.browser-local-save、trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input和trace.cocos.web-bootstrap-probe。实际失败先定位，不通过降低架构检查、跳过门禁或调用observer.advance代替物理点击制造通过。
 
 执行方使用Cursor时必须先做预检报告，用户或GPT确认后才可修改文件。复杂任务须先做Scope Discovery。
 
@@ -132,7 +132,7 @@ ProbeInventory只复制公开材料选项并管理数量原文、不可编辑的
 
 ProbeLifetime窄消费既有menu_preview/split_lot；ProbeInteraction显式区分preview、confirm和save/load，preview只认本次last_preview_result，不要求ActionResult；confirm仍经既有controller重预览，成功须本次双结果。新批次ID从本次created_objects关联刷新后的公开材料，数量/位置由公开结果取得，不从输入伪造。状态应用异常不自动重发Action；busy/销毁保护保持。
 
-CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；本版加工页见trace.cocos.web-processing-loop，不扩Stage1B或wx。
+CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；既有加工页见trace.cocos.web-processing-loop，本版烹饪页见trace.cocos.web-cooking-loop，不扩Stage1B或wx。
 
 tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实际args/files/covers，test.cocos-web-verification-contracts校验拆分观察断言负例。trace.cocos.web-inventory-split连接这些行为及独立Creator SDK/构建、built-web和editor-preview各960×640真实点击与键盘输入；旧矩阵/resize/农事/转移/存读档/故障及销毁回归保留。桌面输入不代表触摸或微信通过，版本完成仍按q:full及无缓存q:release和精确候选CI。
 
@@ -141,3 +141,9 @@ tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实
 加工页按公开方法要求逐项选批次并输入数量、选择兼容设施，先预览再开工。任务区区分加工中、可领取与已完成；正常时间推进后领取，实际产物按本次created_objects关联公开库存。方法缺料仍可浏览；配置最低量只是要求提示，缺料/不足由正式预览拒绝。未就绪和已完成任务可查看，领取按钮禁用；直接正式拒绝由Node测试覆盖。
 
 加工中可手动保存，刷新或新页面创建新局后手动读取继续。改输入/选择、切页、其他命令或读档使旧预览失效；失败可修改继续，应用异常不自动重发。trace.cocos.web-processing-loop连接readiness、既有菜单、生命周期/准备与工具契约；Creator/SDK及built/editor各960×640真实点击、键盘输入和图检须独立验收，保留旧矩阵、resize及农事/库存/拆分/存读档/销毁回归。
+
+## 网页烹饪选料与菜品反馈
+
+第四页按公开配方角色逐项选批次和数量，使用真实EditBox填写数量与操作分钟，显式选择火候及储存目标。必需材料缺失、单位不符、操作参数或储存失败沿既有菜单/正式预览拒绝；失败清旧成功且不自动换料、重试或半扣料。成功只以本次created_objects中的DishLot关联刷新后的公开菜品，显示真实份数/位置及实际材料和燃料状态。
+
+当前操作硬约束与结构偏好分开显示，不把测试high/8或配方time_cost_minutes作为默认操作参数，不增加世界时间或工具消耗。正常网页核对燃料扣减；燃料耗尽负例由受控合法Node状态覆盖，不能称普通网页耗尽实测，也不新增补给入口。ProbeCooking、readiness和行为/工具契约由trace.cocos.web-cooking-loop连接；真实Creator/SDK与built/editor各960×640鼠标键盘验收独立执行，旧回归保持，桌面不推定手机/微信通过。

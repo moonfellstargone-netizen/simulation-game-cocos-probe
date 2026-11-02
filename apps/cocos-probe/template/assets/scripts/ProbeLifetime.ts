@@ -17,7 +17,9 @@ export type ProbeMenuSelection =
     | { action_type: 'store_item'; source_lot_option_id: string; target_storage_option_id: string }
     | { action_type: 'split_lot'; source_lot_option_id: string; quantity: ProbeQuantity }
     | { action_type: 'start_processing'; method_id: string; input_lots: { lot_option_id: string; quantity: ProbeQuantity }[]; facility_option_id: string }
-    | { action_type: 'collect_processing_result'; task_option_id: string };
+    | { action_type: 'collect_processing_result'; task_option_id: string }
+    | { action_type: 'cook_dish'; recipe_option_id: string; ingredient_options: Record<string, { lot_option_id: string; quantity: ProbeQuantity }>;
+        operation_profile: { heat_level: string; active_minutes: number }; target_storage_option_id: string };
 
 export type ProbeCommand =
   | { name: 'menu_preview'; selection: ProbeMenuSelection }
@@ -133,6 +135,36 @@ export interface ProbeBusinessResult {
   readonly message_params: readonly { readonly key: string; readonly value: string | number | boolean | null }[];
 }
 
+export interface ProbeCookingRecipeOption {
+  readonly id: string;
+  readonly recipe_variant_id: string;
+  readonly dish_structure_id: string;
+  readonly technique: string;
+  readonly label_key: string;
+  readonly enabled: boolean;
+  readonly reason_key: string | null;
+  readonly roles: readonly { readonly role: string; readonly required: boolean; readonly base_id: string | null;
+    readonly allowed_base_ids: readonly string[]; readonly allowed_forms: readonly string[]; readonly min_quantity: ProbeQuantity | null; readonly lot_ids: readonly string[] }[];
+  readonly missing_required_roles: readonly string[];
+  readonly tool_requirements: readonly string[];
+  readonly facility_requirements: readonly string[];
+  readonly operation_constraints: { readonly heat_levels: readonly string[]; readonly required_heat_level: string | null;
+    readonly active_minutes: { readonly integer: true; readonly min: number; readonly max: number | null };
+    readonly time_preference_minutes: { readonly min?: number; readonly ideal_min?: number; readonly ideal_max?: number; readonly max?: number } | null;
+    readonly default_heat_level: string | null; readonly time_cost_minutes: number | null; readonly stamina_cost: number | null };
+  readonly fuel: { readonly base_id: string; readonly cost: ProbeQuantity; readonly current_quantity: ProbeQuantity; readonly enabled: boolean } | null;
+  readonly output_estimate: { readonly serving_count: number; readonly total_quantity_g: number } | null;
+}
+
+export interface ProbeDishOption {
+  readonly id: string;
+  readonly recognized_dish_id: string | null;
+  readonly serving_count: number;
+  readonly storage_ref: ProbeStorageRef;
+  readonly enabled: boolean;
+  readonly reason_key: string | null;
+}
+
 export interface ProbeMenuSnapshot {
   readonly view_model?: { readonly time_label: string } | null;
   readonly selectable_view_model?: {
@@ -146,6 +178,8 @@ export interface ProbeMenuSnapshot {
     readonly processing_method_options?: readonly ProbeProcessingMethodOption[];
     readonly processing_task_options?: readonly ProbeProcessingTaskOption[];
     readonly collectable_task_options?: readonly { readonly id: string; readonly enabled: boolean }[];
+    readonly cookable_recipe_options?: readonly ProbeCookingRecipeOption[];
+    readonly submittable_dish_lot_options?: readonly ProbeDishOption[];
   } | null;
   readonly last_preview_result?: (ProbeBusinessResult & { readonly action_type: string }) | null;
   readonly last_action_result?: (ProbeBusinessResult & {

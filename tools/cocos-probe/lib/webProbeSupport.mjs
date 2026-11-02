@@ -295,12 +295,12 @@ export function assertFarmingLoadRecovery(saved, loaded) {
 
 const INVENTORY_COLLECTIONS = ['lotOptions', 'targetOptions'];
 const STORAGE_LABELS = { room_temp: '常温储存', cellar: '菜窖', pickling_jar: '腌菜缸' };
-const VISIBLE_UNITS = { count: '粒', g: '克', ml: '毫升' };
+const VISIBLE_UNITS = { count: '粒', g: '克', ml: '毫升', bundle: '捆' };
 const escapePattern = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const visibleNumber = (label, amount, suffix = '') => new RegExp('(^|[^\\d.])' + escapePattern(amount) + '\\s*' + escapePattern(suffix) + '(?![\\d.])').test(label);
 
 export function assertInventoryProjection(state) {
-  assert.ok(['farming', 'inventory', 'processing'].includes(state.panel), 'the active local panel must be explicit');
+  assert.ok(['farming', 'inventory', 'processing', 'cooking'].includes(state.panel), 'the active local panel must be explicit');
   const inventory = state.inventory;
   assert.ok(inventory && typeof inventory === 'object', 'the public inventory projection must exist');
   for (const key of INVENTORY_COLLECTIONS) assert.ok(Array.isArray(inventory[key]), key + ' must be a public option list');
@@ -531,6 +531,122 @@ export function assertSplitLoadRecovery(savedState, loaded) {
 }
 
 const PROCESSING_COLLECTIONS = ['methodOptions', 'lotOptions', 'facilityOptions', 'taskOptions'];
+
+const COOKING_COLLECTIONS = ['recipeOptions', 'lotOptions', 'targetOptions', 'dishOptions'];
+export function assertCookingProjection(state) {
+  assertInventoryProjection(state);
+  const cooking = state.cooking;
+  assert.ok(cooking && typeof cooking === 'object');
+  for (const key of COOKING_COLLECTIONS) {
+    assert.ok(Array.isArray(cooking[key]));
+    const ids = cooking[key].map(item => item.id);
+    assert.equal(new Set(ids).size, ids.length, 'cooking identities must remain unique');
+  }
+  for (const [key, options] of [['selectedRecipeId', 'recipeOptions'], ['selectedTargetId', 'targetOptions']]) {
+    assert.ok(cooking[key] === null || cooking[options].some(item => item.id === cooking[key]));
+  }
+  assert.ok(Array.isArray(cooking.inputSelections));
+  for (const key of ['canPreview', 'canCook']) assert.equal(typeof cooking[key], 'boolean');
+  if (cooking.canCook) assert.equal(cooking.preview?.success, true);
+  if (state.panel === 'cooking') {
+    for (const key of ['recipe', 'role', 'lot', 'selection', 'operation', 'target', 'fuel', 'preview', 'result', 'dishes']) assert.ok(typeof state.displayedCooking?.[key] === 'string' && state.displayedCooking[key].trim(), key + ' must have visible cooking feedback');
+    assert.equal(state.displayedCooking.quantityText, cooking.currentInputQuantityText);
+    assert.equal(state.displayedCooking.minutesText, cooking.activeMinutesText);
+    assert.equal(state.displayedCooking.unit, cooking.currentInputUnit === null ? '—' : VISIBLE_UNITS[cooking.currentInputUnit] ?? cooking.currentInputUnit);
+    const fuel = cooking.recipeOptions.find(item => item.id === cooking.selectedRecipeId)?.fuel;
+    if (fuel) assert.ok(visibleNumber(state.displayedCooking.fuel, fuel.current_quantity.amount, VISIBLE_UNITS[fuel.current_quantity.unit] ?? fuel.current_quantity.unit), 'fuel Label must show the actual current quantity and unit');
+  }
+  return cooking;
+}
+
+function assertCookingWorldUnchanged(before, after) {
+  assertInventoryWorldUnchanged(before, after);
+  for (const key of COOKING_COLLECTIONS) assert.deepEqual(after.cooking[key], before.cooking[key], 'local edit, refusal and preview preserve ' + key);
+}
+
+export function assertLocalCookingObservation(observation, expected) {
+  assertInputObservation(observation);
+  assertCookingProjection(observation.before); const after = assertCookingProjection(observation.after);
+  assert.deepEqual(observation.after.operation, observation.before.operation);
+  assertCookingWorldUnchanged(observation.before, observation.after);
+  if (expected.panel !== undefined) assert.equal(observation.after.panel, expected.panel);
+  else if (expected.lotId !== undefined) assert.equal(after.inputSelections.find(item => item.role === after.selectedRole)?.lotId, expected.lotId);
+  else if (expected.key) assert.equal(after[expected.key], expected.value);
+  assert.equal(after.preview, null); assert.equal(after.canCook, false);
+}
+
+export function assertCookingInputObservation(observation, text) {
+  assertInputObservation(observation, 0);
+  assertCookingProjection(observation.before); const after = assertCookingProjection(observation.after);
+  assert.equal(observation.before.panel, 'cooking'); assert.equal(observation.after.panel, 'cooking');
+  assert.deepEqual(observation.after.operation, observation.before.operation);
+  assertCookingWorldUnchanged(observation.before, observation.after);
+  assert.equal(observation.focused?.className, 'cocosEditBox'); assert.equal(observation.focused?.value, text);
+  assert.ok(['began', 'changed', 'ended'].every(key => observation.editEvents[key] >= 1));
+  const bounds = observation.layout.button;
+  for (const key of ['text', 'placeholder']) {
+    const label = observation.layout.inputLabels?.[key];
+    assert.ok(label && label.width > 0 && label.height > 0 && label.left >= bounds.left - 1e-6 && label.right <= bounds.right + 1e-6 && label.top >= bounds.top - 1e-6 && label.bottom <= bounds.bottom + 1e-6);
+  }
+  assert.equal(observation.inputName === 'CookingMinutes' ? after.activeMinutesText : after.currentInputQuantityText, text);
+  assert.equal(after.preview, null); assert.equal(after.canCook, false); assert.equal(after.result, null);
+}
+
+export function assertCookingDisabledObservation(observation, button) {
+  assertInputObservation(observation, 0);
+  const before = assertCookingProjection(observation.before); assertCookingProjection(observation.after);
+  assert.equal(before[button === 'CookingPreview' ? 'canPreview' : 'canCook'], false);
+  assert.equal(observation.layout.buttonInteractable, false);
+  assert.deepEqual(observation.after.operation, observation.before.operation);
+  assertCookingWorldUnchanged(observation.before, observation.after);
+}
+
+export function assertCookingPreviewObservation(observation, { statusCode = 'OK' } = {}) {
+  const success = statusCode === 'OK';
+  assertUiCommandObservation(observation, { name: 'menu_preview', status: success ? 'completed' : 'failed', timeLabel: observation.before.timeLabel, errorMessage: success ? null : statusCode });
+  const before = assertCookingProjection(observation.before); const after = assertCookingProjection(observation.after);
+  assert.equal(before.canPreview, true); assertCookingWorldUnchanged(observation.before, observation.after);
+  assert.deepEqual(after.preview, { success, statusCode }); assert.equal(after.canCook, success); assert.equal(after.result, null);
+}
+
+export function assertCookingConfirmObservation(observation) {
+  assertUiCommandObservation(observation, { name: 'menu_confirm', status: 'completed', timeLabel: observation.before.timeLabel });
+  const before = assertCookingProjection(observation.before); const after = assertCookingProjection(observation.after);
+  assert.equal(before.canCook, true);
+  const result = after.result; assert.ok(result && typeof result.dishLotId === 'string');
+  const dish = after.dishOptions.find(item => item.id === result.dishLotId);
+  assert.ok(dish && !before.dishOptions.some(item => item.id === dish.id));
+  assert.equal(after.dishOptions.length, before.dishOptions.length + 1);
+  assert.equal(dish.serving_count, result.servingCount); assert.equal(dish.recognized_dish_id, result.recognizedDishId); assert.deepEqual(dish.storage_ref, result.storageRef);
+  assert.equal(dish.storage_ref.container_id, before.selectedTargetId);
+  for (const old of before.dishOptions) assert.deepEqual(after.dishOptions.find(item => item.id === old.id), old);
+  const used = new Map();
+  for (const selected of before.inputSelections.filter(item => item.lotId !== null)) used.set(selected.lotId, (used.get(selected.lotId) ?? 0) + Number(selected.quantityText));
+  for (const lot of observation.before.inventory.lotOptions) {
+    const current = observation.after.inventory.lotOptions.find(item => item.id === lot.id); const amount = used.get(lot.id) ?? 0;
+    if (lot.quantity.amount === amount) assert.equal(current, undefined);
+    else { assert.ok(current); assert.deepEqual(current.quantity, { amount: lot.quantity.amount - amount, unit: lot.quantity.unit }); for (const key of ['base_id', 'current_form', 'storage_ref']) assert.deepEqual(current[key], lot[key]); }
+  }
+  const recipe = before.recipeOptions.find(item => item.id === before.selectedRecipeId);
+  const fuelBefore = recipe.fuel; const fuelAfter = after.recipeOptions.find(item => item.id === recipe.id).fuel;
+  if (fuelBefore?.enabled) {
+    assert.deepEqual(fuelAfter.current_quantity, { amount: fuelBefore.current_quantity.amount - fuelBefore.cost.amount, unit: fuelBefore.current_quantity.unit });
+  } else assert.deepEqual(fuelAfter, fuelBefore);
+  assert.deepEqual(after.lotOptions, observation.after.inventory.lotOptions);
+  assert.deepEqual(observation.after.farming.materialOptions, observation.after.inventory.lotOptions);
+  assert.equal(after.preview, null); assert.equal(after.canCook, false);
+  assert.match(observation.after.displayedOperation, /烹饪成功/);
+  assert.ok(visibleNumber(observation.after.displayedCooking.result, dish.serving_count, '份'));
+  return dish;
+}
+
+export function assertCookingLoadRecovery(saved, loaded) {
+  assertUiCommandObservation(loaded, { name: 'load', status: 'completed', timeLabel: saved.timeLabel });
+  const after = assertCookingProjection(loaded.after);
+  for (const key of COOKING_COLLECTIONS) assert.deepEqual(after[key], saved.cooking[key], 'load must restore cooking ' + key);
+  for (const key of INVENTORY_COLLECTIONS) assert.deepEqual(loaded.after.inventory[key], saved.inventory[key]);
+  assert.equal(after.preview, null); assert.equal(after.canCook, false); assert.equal(after.result, null);
+}
 
 export function assertProcessingProjection(state) {
   assertInventoryProjection(state);

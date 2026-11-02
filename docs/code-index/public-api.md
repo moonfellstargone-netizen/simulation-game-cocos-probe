@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.41
+﻿# Code Index — Public API — v0.0.2.42
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -145,7 +145,7 @@ IdService观察完整GameState的字符串值及记录键，恢复生成格式ID
 
 保证覆盖存档中仍存在的对象和任意历史引用，以及同一runtime已知分配；整个SaveFile已无任何记录的历史ID不能无新增持久化字段地恢复。预览不修改领域状态或正式ID服务；失败保持既有事务语义，不承诺请求序号或已分配ID回滚。
 
-trace.runtime.id-recovery连接IdService.ts、GameRuntime.ts、CocosActionPreviewer.ts与Session；test.stage1a-contract、test.action-preview、test.cocos-session核对各对象/事件、历史引用、跨实例加载、极大后缀及合法恢复。该ID恢复能力不新增数量规则；网页拆分由outer单独提供，本版加工页独立消费既有正式加工，不扩Stage1B或wx。真实Creator及既有built/editor浏览器回归独立执行，核心/Session回归与网页真实输入分别验收。
+trace.runtime.id-recovery连接IdService.ts、GameRuntime.ts、CocosActionPreviewer.ts与Session；test.stage1a-contract、test.action-preview、test.cocos-session核对各对象/事件、历史引用、跨实例加载、极大后缀及合法恢复。该ID恢复能力不新增数量规则；网页拆分由outer单独提供，既有加工页独立消费正式加工，本版烹饪页消费既有cook_dish，不扩Stage1B或wx。真实Creator及既有built/editor浏览器回归独立执行，核心/Session回归与网页真实输入分别验收。
 
 ## 拆分数量、定义占用与失败保护
 
@@ -167,3 +167,9 @@ ProbeInventory的setSplitQuantity、invalidateSplitPreview、splitPreviewCommand
 - ProbeProcessing.refresh/status、选择/数量设置、startPreviewCommand/startConfirmCommand/collectCommand及acceptProcessingResult仅管理outer状态，真实命令沿既有menu_preview/confirm。实际任务/产物关联当次created_objects，预计output不当作已获产物；见trace.cocos.web-processing-loop及engine模块卡。
 
 源入口src/cocos-app/view-models/CocosSelectableViewModel.ts、apps/cocos-probe/template/assets/scripts/ProbeProcessing.ts；readiness与cocos-web-processing行为测试分层验证，真实Creator/浏览器另验。
+
+## 烹饪公开只读选项与outer
+
+CocosSelectableViewModel.cookable_recipe_options包含按当前CookingSystem合并的recipe/structure角色要求及候选；role增加allowed_base_ids并核单位。recipe的operation_constraints含heat_levels、required_heat_level、active_minutes硬边界、time_preference_minutes偏好及配置默认/时间/体力说明；tool_requirements、facility_requirements仅只读，fuel含base_id/cost/current_quantity/enabled，output_estimate明确为预计。准确字段以源码为准，不将配置默认自动填作本次选择，不追加消耗。既有submittable_dish_lot_options承载真实DishLot身份、份数与storage_ref，不增通用菜品搬运。
+
+ProbeCooking.refresh/status与本地选择、数量/操作参数设置、preview/confirm草稿及本次结果接收只管理公开数据副本；真实写入沿既有MenuActionBinding.cook_dish和ActionPipeline。成功关联本次created_objects的真实DishLot，改输入/切页/其他命令/手动读档清旧预览；trace.cocos.web-cooking-loop连接readiness、outer行为及独立Creator/浏览器验收。

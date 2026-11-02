@@ -7,6 +7,30 @@ import { resolveGateTasks } from '../tools/quality/lib/resolveGateTasks.mjs';
 const root = process.cwd();
 const readJson = (rel) => JSON.parse(readFileSync(join(root, rel), 'utf8'));
 
+test('Web cooking trace closes over executed public projection and outer regressions', () => {
+  const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
+  const id = 'trace.cocos.web-cooking-loop';
+  const entry = traceabilityMap.entries.find((item) => item.id === id);
+  assert.equal(entry?.status, 'active');
+  assert.ok(traceabilityMap.currentFullReleaseTraceIds.includes(id));
+  const helper = 'apps/cocos-probe/template/assets/scripts/ProbeCooking.ts';
+  const file = 'tests/cocos-web-cooking.test.ts';
+  assert.ok(entry.sourceRefs.includes(helper));
+  assert.ok(entry.sourceRefs.includes('src/cocos-app/view-models/CocosSelectableViewModel.ts'));
+  for (const taskId of ['test.cocos-ui-readiness', 'test.cocos-menu', 'test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle', 'test.cocos-web-verification-contracts']) {
+    assert.ok(entry.testRefs.includes(taskId), `${taskId} must be traced`);
+    const task = registry.tests[taskId];
+    assert.equal(task?.stability, 'blocker');
+    for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
+    for (const gate of ['full', 'release']) assert.ok(resolveGateTasks(gate, gatePolicy, registry).some((item) => item.id === taskId));
+  }
+  for (const taskId of ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']) {
+    for (const path of [helper, helper + '.meta', file]) assert.ok(registry.tests[taskId].files.includes(path));
+  }
+  assert.ok(registry.tests['test.cocos-engine-probe-lifecycle'].args.includes(file));
+  assert.ok(readJson('package.json').scripts['test:cocos-engine-probe-lifecycle'].split(/\s+/).includes(file));
+});
+
 test('browser local save closes over executed storage and fixed-origin tool tests without changing platform boundaries', () => {
   const { traceabilityMap, registry, gatePolicy, moduleGraph } = loadTraceabilityContext();
   const id = 'trace.cocos.browser-local-save';

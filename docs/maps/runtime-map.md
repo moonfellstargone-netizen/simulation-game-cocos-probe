@@ -1,4 +1,4 @@
-﻿# Runtime Map — v0.0.2.41
+﻿# Runtime Map — v0.0.2.42
 
 ## 系统职责
 
@@ -91,7 +91,7 @@ IdService观察完整GameState的字符串值及记录键，恢复生成格式ID
 
 保证覆盖存档中仍存在的对象和任意历史引用，以及同一runtime已知分配；整个SaveFile已无任何记录的历史ID不能无新增持久化字段地恢复。预览不修改领域状态或正式ID服务；失败保持既有事务语义，不承诺请求序号或已分配ID回滚。
 
-trace.runtime.id-recovery连接IdService.ts、GameRuntime.ts、CocosActionPreviewer.ts与Session；test.stage1a-contract、test.action-preview、test.cocos-session核对各对象/事件、历史引用、跨实例加载、极大后缀及合法恢复。该ID恢复能力不新增数量规则；网页拆分由outer单独提供，本版加工页独立消费既有正式加工，不扩Stage1B或wx。真实Creator及既有built/editor浏览器回归独立执行，核心/Session回归与网页真实输入分别验收。
+trace.runtime.id-recovery连接IdService.ts、GameRuntime.ts、CocosActionPreviewer.ts与Session；test.stage1a-contract、test.action-preview、test.cocos-session核对各对象/事件、历史引用、跨实例加载、极大后缀及合法恢复。该ID恢复能力不新增数量规则；网页拆分由outer单独提供，既有加工页独立消费正式加工，本版烹饪页消费既有cook_dish，不扩Stage1B或wx。真实Creator及既有built/editor浏览器回归独立执行，核心/Session回归与网页真实输入分别验收。
 
 ## 拆分数量、定义占用与失败保护
 
@@ -107,10 +107,14 @@ ProbeInventory只复制公开材料选项并管理数量原文、不可编辑的
 
 ProbeLifetime窄消费既有menu_preview/split_lot；ProbeInteraction显式区分preview、confirm和save/load，preview只认本次last_preview_result，不要求ActionResult；confirm仍经既有controller重预览，成功须本次双结果。新批次ID从本次created_objects关联刷新后的公开材料，数量/位置由公开结果取得，不从输入伪造。状态应用异常不自动重发Action；busy/销毁保护保持。
 
-CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；本版加工页见trace.cocos.web-processing-loop，不扩Stage1B或wx。
+CocosWebProbe接真实cc.EditBox、单位/选择摘要、预览与确认Button；observer只读观察，不提供设置数量或派发业务捷径。核心、Session/Queue、SaveFile、正式schema/config/fixture/expected、依赖版本与门禁算法保持。既有拆分不提供全量快捷按钮；既有加工页见trace.cocos.web-processing-loop，本版烹饪页见trace.cocos.web-cooking-loop，不扩Stage1B或wx。
 
 tests/cocos-web-split.test.ts进入现有test.cocos-engine-probe-lifecycle的实际args/files/covers，test.cocos-web-verification-contracts校验拆分观察断言负例。trace.cocos.web-inventory-split连接这些行为及独立Creator SDK/构建、built-web和editor-preview各960×640真实点击与键盘输入；旧矩阵/resize/农事/转移/存读档/故障及销毁回归保留。桌面输入不代表触摸或微信通过，版本完成仍按q:full及无缓存q:release和精确候选CI。
 
 ## 网页加工运行链
 
 公开processing_method_options/processing_task_options→ProbeProcessing本地选择→既有menu_preview/confirm→Session/ActionPipeline→本次created_objects及刷新公开任务/材料。requirement_index仅在UI使用，旧collectable列表仍只含ready；预计output不作实际产物。active手动保存→新Session/页面读取→正常advance_time→领取及再次开工由分层验证覆盖，trace.cocos.web-processing-loop连接；core时间、SaveFile、Session与Queue保持。
+
+## 网页烹饪运行链
+
+公开cookable_recipe_options与既有材料/储存/DishLot选项→ProbeCooking本地逐角色数量、显式操作参数和目标→既有menu_preview/confirm→Session/ActionPipeline→本次created_objects与刷新真实菜品/燃料。结构和recipe约束按当前核心合并，硬边界与偏好分开；不把time_cost_minutes当active_minutes或追加扣时。手动保存/新Host读取恢复真实DishLot列表并清旧预览，trace.cocos.web-cooking-loop连接；core、Session/Queue、SaveFile保持，无新补给/订单页/平台接入。

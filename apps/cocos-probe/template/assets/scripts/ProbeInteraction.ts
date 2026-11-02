@@ -108,8 +108,9 @@ function validBusinessResult(result: ProbeBusinessResult): boolean {
 function runningMessage(command: ProbeCommand): string {
   if (command.name === 'save') return '正在本地保存';
   if (command.name === 'load') return '正在读取本地存档';
-  if (command.name === 'menu_preview') return command.selection.action_type === 'start_processing' ? '正在校验加工输入' : '正在校验拆分数量';
-  return ({ plant_crop: '正在播种', advance_time: '正在推进时间', harvest_crop: '正在收获', store_item: '正在转移整批物料', split_lot: '正在拆分批次', start_processing: '正在加工开工', collect_processing_result: '正在领取加工产物' })[command.selection.action_type];
+  if (command.name === 'menu_preview') return command.selection.action_type === 'cook_dish' ? '正在校验烹饪选择'
+    : command.selection.action_type === 'start_processing' ? '正在校验加工输入' : '正在校验拆分数量';
+  return ({ plant_crop: '正在播种', advance_time: '正在推进时间', harvest_crop: '正在收获', store_item: '正在转移整批物料', split_lot: '正在拆分批次', start_processing: '正在加工开工', collect_processing_result: '正在领取加工产物', cook_dish: '正在烹饪' })[command.selection.action_type];
 }
 
 function completedMessage(command: ProbeCommand): string {
@@ -122,11 +123,15 @@ function completedMessage(command: ProbeCommand): string {
   if (command.selection.action_type === 'split_lot') return '拆分成功';
   if (command.selection.action_type === 'start_processing') return '加工开工成功';
   if (command.selection.action_type === 'collect_processing_result') return '加工产物领取成功';
+  if (command.selection.action_type === 'cook_dish') return '烹饪成功';
   return command.selection.minutes === 60 ? '已推进一小时'
     : command.selection.minutes === 1440 ? '已推进一天' : `已推进${command.selection.minutes}分钟`;
 }
 
 function failureMessage(code: string): string {
+  if (code.startsWith('ERR_MENU_RECIPE_ROLE_MISSING:')) return '必需食材角色尚未选择';
+  if (code === 'ERR_NOT_ENOUGH_FUEL') return '燃料不足，请保留当前材料';
+  if (code.startsWith('ERR_COOKING_')) return '烹饪选择不符合当前配方，请调整后预览';
   if (code.startsWith('ERR_SAVE_SLOT_NOT_FOUND:')) return '暂无本地存档，请先保存';
   if (code === 'ERR_NOT_ENOUGH_RESOURCE') return '资源不足，请调整数量';
   if (code === 'ERR_FIELD_OCCUPIED') return '地块已占用，请重新选择';

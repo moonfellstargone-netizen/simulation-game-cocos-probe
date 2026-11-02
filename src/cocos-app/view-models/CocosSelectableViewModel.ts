@@ -71,6 +71,7 @@ export interface CocosCookableRecipeRoleOption {
   role: string;
   required: boolean;
   base_id: string | null;
+  allowed_base_ids: string[];
   allowed_forms: string[];
   min_quantity: Quantity | null;
   lot_ids: string[];
@@ -82,6 +83,19 @@ export interface CocosCookableRecipeOption extends CocosSelectableOptionBase {
   technique: string;
   roles: CocosCookableRecipeRoleOption[];
   missing_required_roles: string[];
+  tool_requirements: string[];
+  facility_requirements: string[];
+  operation_constraints: {
+    heat_levels: string[];
+    required_heat_level: string | null;
+    active_minutes: { integer: true; min: number; max: number | null };
+    time_preference_minutes: { min?: number; ideal_min?: number; ideal_max?: number; max?: number } | null;
+    default_heat_level: string | null;
+    time_cost_minutes: number | null;
+    stamina_cost: number | null;
+  };
+  fuel: { base_id: string; enabled: boolean; cost: Quantity; current_quantity: Quantity } | null;
+  output_estimate: { serving_count: number; total_quantity_g: number } | null;
 }
 
 export interface CocosOrderOption extends CocosSelectableOptionBase {
@@ -136,10 +150,20 @@ interface ProcessingRequirement {
 
 interface RecipeRequirement {
   base_id?: string;
+  allowed_base_ids?: string[];
   allowed_forms?: string[];
   min_quantity_g?: number;
   min_quantity_ml?: number;
   optional?: boolean;
+}
+
+interface RecipeStructure {
+  required_roles?: Record<string, RecipeRequirement>;
+  optional_roles?: Record<string, RecipeRequirement>;
+  technique_expectations?: {
+    heat_level_preference?: string;
+    time_preference_minutes?: { min?: number; ideal_min?: number; ideal_max?: number; max?: number };
+  };
 }
 
 export class CocosSelectableViewModel {
@@ -357,20 +381,24 @@ export class CocosSelectableViewModel {
 
   private recipeOption(save: SaveFile, recipeVariantId: string): CocosCookableRecipeOption {
     const recipe = this.recipeVariant(recipeVariantId);
-    const requirements = this.recipeRequirements(recipe);
-    const roles = Object.entries(requirements).map(([role, raw]) => {
-      const requirement = raw as RecipeRequirement;
-      const lotIds = save.inventory.filter((lot) => this.lotMatchesRecipeRequirement(lot, requirement)).map((lot) => lot.lot_id);
+    const structure = this.recipeStructure(recipe);
+    const requirements = this.recipeRequirements(recipe, structure);
+    const roles = Object.entries(requirements).map(([role, requirement]) => {
+      const lotIds = save.inventory.filter((lot) => this.lotMatchesRecipeRequirement(lot, requirement) && this.recipeLotAvailable(save, lot)).map((lot) => lot.lot_id);
       return {
         role,
         required: requirement.optional !== true,
         base_id: typeof requirement.base_id === 'string' ? requirement.base_id : null,
+        allowed_base_ids: [...(requirement.allowed_base_ids ?? (requirement.base_id ? [requirement.base_id] : []))],
         allowed_forms: Array.isArray(requirement.allowed_forms) ? [...requirement.allowed_forms] : [],
         min_quantity: this.minQuantity(requirement),
         lot_ids: lotIds
       };
     });
     const missing = roles.filter((role) => role.required && role.lot_ids.length === 0).map((role) => role.role);
+    const defaults = recipe.operation_defaults as { heat_level?: string; time_cost_minutes?: number; stamina_cost?: number } | undefined;
+    const preferences = structure.technique_expectations;
+    const output = recipe.output_estimate as Record<string, unknown> | undefined;
     return {
       id: recipeVariantId,
       recipe_variant_id: recipeVariantId,
@@ -380,23 +408,61 @@ export class CocosSelectableViewModel {
       dish_structure_id: this.requiredString(recipe, 'dish_structure_id', `recipe:${recipeVariantId}`),
       technique: this.requiredString(recipe, 'technique', `recipe:${recipeVariantId}`),
       roles,
-      missing_required_roles: missing
+      missing_required_roles: missing,
+      tool_requirements: Array.isArray(recipe.tool_requirements) ? [...recipe.tool_requirements] : [],
+      facility_requirements: Array.isArray(recipe.facility_requirements) ? [...recipe.facility_requirements] : [],
+      operation_constraints: {
+        // The formal Stage 1A Action schema fixes these structural constraints.
+        // Configuration preferences below must not introduce an extra hard minimum.
+        heat_levels: ['low', 'medium', 'high'],
+        required_heat_level: preferences?.heat_level_preference ?? null,
+        active_minutes: { integer: true, min: 1, max: preferences?.time_preference_minutes?.max ?? null },
+        time_preference_minutes: preferences?.time_preference_minutes ? { ...preferences.time_preference_minutes } : null,
+        default_heat_level: defaults?.heat_level ?? null,
+        time_cost_minutes: defaults?.time_cost_minutes ?? null,
+        stamina_cost: defaults?.stamina_cost ?? null
+      },
+      fuel: this.recipeFuel(save, recipe),
+      output_estimate: output ? {
+        serving_count: this.requiredNumber(output, 'serving_count', `recipe:${recipeVariantId}`),
+        total_quantity_g: this.requiredNumber(output, 'total_quantity_g', `recipe:${recipeVariantId}`)
+      } : null
     };
   }
 
   private compatibleRecipeRoles(lot: SaveFile['inventory'][number], recipeVariantId: string): string[] {
     const recipe = this.recipeVariant(recipeVariantId);
     return Object.entries(this.recipeRequirements(recipe))
-      .filter(([, raw]) => this.lotMatchesRecipeRequirement(lot, raw as RecipeRequirement))
+      .filter(([, requirement]) => this.lotMatchesRecipeRequirement(lot, requirement))
       .map(([role]) => role);
   }
 
   private lotMatchesRecipeRequirement(lot: SaveFile['inventory'][number], requirement: RecipeRequirement): boolean {
-    if (typeof requirement.base_id === 'string' && requirement.base_id !== lot.base_id) return false;
+    const allowedBaseIds = requirement.allowed_base_ids ?? (requirement.base_id ? [requirement.base_id] : undefined);
+    if (allowedBaseIds && !allowedBaseIds.includes(lot.base_id)) return false;
     if (Array.isArray(requirement.allowed_forms) && !requirement.allowed_forms.includes(lot.current_form)) return false;
     const min = this.minQuantity(requirement);
-    if (min !== null && lot.quantity.unit === min.unit && lot.quantity.amount < min.amount) return false;
+    if (min !== null && (lot.quantity.unit !== min.unit || lot.quantity.amount < min.amount)) return false;
     return true;
+  }
+
+  private recipeLotAvailable(save: SaveFile, lot: SaveFile['inventory'][number]): boolean {
+    return lot.quantity.amount > 0 && !save.reservations.some((reservation) => reservation.status === 'active'
+      && reservation.target_ref.object_type === 'MaterialLot' && reservation.target_ref.object_id === lot.lot_id);
+  }
+
+  private recipeFuel(save: SaveFile, recipe: Record<string, unknown>): CocosCookableRecipeOption['fuel'] {
+    const resources = recipe.resource_requirements as { fuel?: { base_id?: string; amount_bundle?: number; feature_flag?: string } } | undefined;
+    const requirement = resources?.fuel;
+    if (!requirement) return null;
+    const baseId = requirement.base_id ?? 'firewood_basic';
+    const fuel = save.fuel_state[baseId] as { quantity?: Quantity } | undefined;
+    return {
+      base_id: baseId,
+      enabled: !requirement.feature_flag || save.feature_flags.flags[requirement.feature_flag] === true,
+      cost: { amount: requirement.amount_bundle ?? 1, unit: 'bundle' },
+      current_quantity: { amount: fuel?.quantity?.amount ?? 0, unit: fuel?.quantity?.unit ?? 'bundle' }
+    };
   }
 
   private minQuantity(requirement: RecipeRequirement): Quantity | null {
@@ -413,10 +479,18 @@ export class CocosSelectableViewModel {
     return this.configs.requiredDoc<Record<string, unknown>>(`configs/cooking/recipe_variants/${recipeVariantId}.yaml`);
   }
 
-  private recipeRequirements(recipe: Record<string, unknown>): Record<string, unknown> {
+  private recipeStructure(recipe: Record<string, unknown>): RecipeStructure {
+    const structureId = this.requiredString(recipe, 'dish_structure_id', `recipe:${String(recipe.id)}`);
+    return this.configs.requiredDoc<RecipeStructure>(`configs/cooking/dish_structures/${structureId}.yaml`);
+  }
+
+  private recipeRequirements(recipe: Record<string, unknown>, structure = this.recipeStructure(recipe)): Record<string, RecipeRequirement> {
     const requirements = recipe.ingredient_requirements;
     if (!requirements || typeof requirements !== 'object' || Array.isArray(requirements)) throw new Error(`ERR_RECIPE_REQUIREMENTS_INVALID:${String(recipe.id ?? 'unknown')}`);
-    return requirements as Record<string, unknown>;
+    const structureRequirements = { ...structure.required_roles, ...structure.optional_roles };
+    return Object.fromEntries(Object.entries(requirements).map(([role, requirement]) => [role, {
+      ...structureRequirements[role], ...(requirement as RecipeRequirement)
+    }]));
   }
 
   private requiredString(record: Record<string, unknown>, key: string, source: string): string {
