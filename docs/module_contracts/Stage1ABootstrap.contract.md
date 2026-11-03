@@ -53,3 +53,11 @@ source_of_truth: false
 - `test:stage1a-bootstrap` / registry `test.stage1a-bootstrap`：新增`full`+`blocker`任务。
 - `test:cocos-session` / registry `test.cocos-session`：继承Session边界回归。
 - active追踪：`trace.runtime.bootstrap-resources`，gate为full/release。
+
+## 可选预编译Schema输入
+
+Stage1ABootstrapResources.precompiledValidators?: PrecompiledSchemaValidatorSet只描述外部已生成集合；bootstrap不生成或读取函数资源，仅转交核心校验器。
+
+RuntimeSchemaValidator支持显式PrecompiledSchemaValidatorSet：format为runtime-precompiled-schemas/v1，schemaSources按完整资源路径记录JSON.stringify(schema)，validators按正式$id记录ValidateFunction。Stage1ABootstrapResources的可选precompiledValidators字段透明转交该集合。显式提供集合时不创建Ajv、不回退动态编译；完整路径/ID/内容不匹配、重复或无$id、无效/异步函数及非布尔结果均拒绝。未提供时Node/Web维持原Ajv路径。核心仍不接cc/wx/fs、工具或资源读取。
+
+tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / registry test.stage1a-bootstrap实际args/files/covers，沿用full/blocker，不新增任务或降低门禁。该测试覆盖禁用动态Function后的正式启动/合法动作及坏请求、集合/内容拒绝；微信preparation契约覆盖实际facade、全部Schema、来源与生成物篡改，资源预检标记为node-aot-public-bootstrap-passed。Web旧resourcePreflight和默认动态路径保持。Node不替代新提交的Creator/SDK、微信真实输入/日志/重载、Web回归或审查/CI。

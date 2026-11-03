@@ -1,4 +1,4 @@
-﻿# Domain Map — v0.0.2.46
+﻿# Domain Map — v0.0.3.0
 
 ## 系统职责
 
@@ -91,3 +91,7 @@ DemandResolver与现有状态/截止、真实菜品整批消费、奖励和事�
 ## 触摸与小屏归属
 
 ProbeLayout、原生滚动与输入布局属于既有cocos-engine-probe外层，验证工具归tools，行为/工具契约归tests。trace.cocos.touch-small-screen不引入新领域系统，core、Session/Queue、SaveFile及正式业务规则保持；未来微信/Stage1B不是当前实现。
+
+## 微信M1表现边界
+
+cocos-wechat-probe仅消费现有Stage1A公共运行时；唯一正式演示动作是advance_time，不新增领域模型或业务规则。候选身份属于包来源信息，不是SaveFile字段；M2微信存储/生命周期及M3/M4不在本轮实现。

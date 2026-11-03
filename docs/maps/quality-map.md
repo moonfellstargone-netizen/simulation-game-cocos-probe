@@ -1,4 +1,4 @@
-﻿# Quality Map — v0.0.2.46
+﻿# Quality Map — v0.0.3.0
 
 ## 系统职责
 
@@ -104,3 +104,13 @@ ProbeOrders.ts/.meta与cocos-web-orders.test.ts登记既有prepare/lifecycle，�
 ## 触摸与小屏验证登记
 
 tests/cocos-web-layout.test.ts进入既有test.cocos-engine-probe-lifecycle实际args/package脚本，ProbeLayout.ts/.meta及测试登记prepare/lifecycle files；工具断言负例沿既有web-verification。trace.cocos.touch-small-screen与affected/traceability契约闭合，47任务/full45/release47及全部旧回归保持。最终提交独立Creator/SDK、built/editor原生touch与逐图验收不由Node/CI推定。
+
+## 微信M1质量登记
+
+trace.cocos.wechat-m1新增test.cocos-wechat-preparation与test.cocos-wechat-runtime，实际args/files/covers登记，均full/blocker。preparation覆盖微信prepare/build/source/sourceProvenance及共享prepareProject、webProbeSupport与template；旧test.cocos-probe-preparation补共享helper。新outer import/wx-global及旧三层反向依赖为authoritative负例，旧Web禁令保留。Node不执行真实Creator或官方工具；q:affected不替代完整、无缓存发布及对应提交CI。
+
+## Schema预编译质量覆盖
+
+tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / registry test.stage1a-bootstrap实际args/files/covers，沿用full/blocker，不新增任务或降低门禁。该测试覆盖禁用动态Function后的正式启动/合法动作及坏请求、集合/内容拒绝；微信preparation契约覆盖实际facade、全部Schema、来源与生成物篡改，资源预检标记为node-aot-public-bootstrap-passed。Web旧resourcePreflight和默认动态路径保持。Node不替代新提交的Creator/SDK、微信真实输入/日志/重载、Web回归或审查/CI。
+
+trace.cocos.wechat-m1同时连接核心校验/公共bootstrap、编译器工具与既有bootstrap full/blocker任务；trace.runtime.bootstrap-resources保持现有资源装配权威，planned条目不变。

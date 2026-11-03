@@ -83,3 +83,11 @@ trace.inventory.split-quantity连接InventorySystem及配置调用方，现有te
 ## 订单合法状态与截止
 
 DemandResolver与GameRuntime按[orders模块卡](orders.md)对齐available/accepted提交及now>deadline过期→expired，submitted仅在同步事务内部。失败保持提交前完整领域状态与事件，旧failed不迁移，ActionPipeline与SaveFile保持。trace.orders.legal-state-deadline连接既有核心、预览、Session和readiness测试；没有新增接单、聚合或页面业务。
+
+## 显式预编译Schema集合
+
+RuntimeSchemaValidator支持显式PrecompiledSchemaValidatorSet：format为runtime-precompiled-schemas/v1，schemaSources按完整资源路径记录JSON.stringify(schema)，validators按正式$id记录ValidateFunction。Stage1ABootstrapResources的可选precompiledValidators字段透明转交该集合。显式提供集合时不创建Ajv、不回退动态编译；完整路径/ID/内容不匹配、重复或无$id、无效/异步函数及非布尔结果均拒绝。未提供时Node/Web维持原Ajv路径。核心仍不接cc/wx/fs、工具或资源读取。
+
+tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / registry test.stage1a-bootstrap实际args/files/covers，沿用full/blocker，不新增任务或降低门禁。该测试覆盖禁用动态Function后的正式启动/合法动作及坏请求、集合/内容拒绝；微信preparation契约覆盖实际facade、全部Schema、来源与生成物篡改，资源预检标记为node-aot-public-bootstrap-passed。Web旧resourcePreflight和默认动态路径保持。Node不替代新提交的Creator/SDK、微信真实输入/日志/重载、Web回归或审查/CI。
+
+函数实现的来源由构建生产链约束；核心只接收已解析Schema与函数集合，不导入Ajv standalone工具或读取生成文件。公开类型沿现有index.ts的export *自然导出，既有动态校验不变。

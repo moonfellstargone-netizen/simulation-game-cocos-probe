@@ -9,9 +9,9 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.46
+# TRACEABILITY_MATRIX — v0.0.3.0
 
-**Touch Interaction & Small-screen Readiness / 触摸交互与小屏操作收口版**
+**WeChat Stage1A Pilot / 微信真机Stage1A试水版**
 
 ## 1. 定位
 
@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 本轮沿用**轻量追踪地基**，新增触摸与小屏追踪，保留全部既有29条追踪/27个current ID；新增后为30条/28个current。纯几何和输入负例由Node实际执行，真实Creator/SDK、built/editor鼠标/触摸与截图独立验收，全部五页经营/手动恢复/故障和销毁保护保持；旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
+- 本轮新增独立微信M1追踪，保留此前30条/28个current，新增后31条/29个current；M2—M4尚未实现或验收。旧Web、业务核心、Session/Queue、SaveFile和正式资源保持；Node与真实平台证据分别记录。完整AST/symbol自动索引、Nightly和wx storage仍不是当前实现。
 
 ## 2. 状态语义
 
@@ -321,3 +321,17 @@ trace.cocos.cross-step-recovery：五个独立保存点为生长中、加工中�
 ### trace.cocos.touch-small-screen
 
 sourceRefs为ProbeLayout、CocosWebProbe/ProbeInteraction、Web模板及verify-web/support；testRefs复用prepare/lifecycle/web-verification三项full/blocker。布局测试必须在lifecycle实际args/package脚本内，helper/.meta和测试纳入files/covers与单文件affected。旧29条entry/27个current ID保留，新增后30/28。Node负例与真实Creator/SDK、built/editor鼠标/触摸分列，约定尺寸及手机边界见engine模块卡。
+
+## trace.cocos.wechat-m1
+
+active Stage1A追踪连接cocos-wechat-probe/tools/tests，准备与运行任务实际登记full/blocker，并连接authoritative架构负例。sourceRefs包含独立最小outer、共享prepareProject、微信prepare/build/source/sourceProvenance；docRefs连接module-card、ADR-0005、cocos/runtime/quality地图及公共API索引。
+
+候选身份在生成资源内只读，不从SaveFile取得；新构建新身份/空目录，固定commit与dirty边界、工具/配置及产物摘要范围均包外可追溯。临时内存新局不表示微信持久化，Stage1B wx-storage-port仍planned；M2平台读档隔离、M3全链与M4手机/二维码未实现或验收。Node不证明Creator、微信输入/日志/重载或真机通过。
+
+## 微信正式Schema预编译补充覆盖
+
+trace.cocos.wechat-m1扩展sourceRefs至RuntimeSchemaValidator、Stage1ABootstrap和precompiledSchemas编译器，testRefs包含原test.stage1a-bootstrap。新增runtime-precompiled-schema测试进入该任务实际args/files；moduleRefs包含game-core和creator-adapter。
+
+正式Schema构建期预编译仅用于微信M1的动态编译兼容：微信prepare使用当前锁定Ajv standalone，沿既有strict=false、allErrors=true、allowUnionTypes=true校验选项编译全部58项正式Schema，并生成安全ESM导出及明确ID映射。不改正式Schema或业务校验语义，不新增依赖，不猴补Function/eval或使用恒true替代校验器；其他AOT仍不在当前范围。
+
+tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / registry test.stage1a-bootstrap实际args/files/covers，沿用full/blocker，不新增任务或降低门禁。该测试覆盖禁用动态Function后的正式启动/合法动作及坏请求、集合/内容拒绝；微信preparation契约覆盖实际facade、全部Schema、来源与生成物篡改，资源预检标记为node-aot-public-bootstrap-passed。Web旧resourcePreflight和默认动态路径保持。Node不替代新提交的Creator/SDK、微信真实输入/日志/重载、Web回归或审查/CI。

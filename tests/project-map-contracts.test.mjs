@@ -28,6 +28,7 @@ const requiredModuleCards = [
   'docs/module-cards/cocos-app.md',
   'docs/module-cards/cocos-creator-adapter.md',
   'docs/module-cards/cocos-engine-probe.md',
+  'docs/module-cards/cocos-wechat-probe.md',
   'docs/module-cards/quality-tools.md',
   'docs/module-cards/release-tools.md'
 ];
@@ -41,6 +42,16 @@ const moduleCardExplicitPaths = [
 ];
 
 const codeIndexExplicitPaths = [
+  'docs/adr/ADR-0005-independent-wechat-m1-outer.md',
+  'apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts',
+  'apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts',
+  'tools/cocos-probe/lib/prepareProject.mjs',
+  'tools/cocos-wechat-probe/prepare.mjs',
+  'tools/cocos-wechat-probe/build.mjs',
+  'tools/cocos-wechat-probe/lib/source.mjs',
+  'tools/cocos-wechat-probe/lib/sourceProvenance.mjs',
+  'tools/cocos-wechat-probe/lib/precompiledSchemas.mjs',
+  'tests/runtime-precompiled-schema.test.ts',
   'apps/cocos-probe/template/assets/scripts/BrowserSaveStoragePort.ts',
   'tests/cocos-browser-storage.test.ts',
   'tools/cocos-probe/serve.mjs',
@@ -137,12 +148,12 @@ function assertForbiddenPositiveMisauthority(text, pattern) {
   }
 }
 
-test('current version is v0.0.2.46 in package metadata', () => {
+test('current version is v0.0.3.0 in package metadata', () => {
   const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  assert.equal(packageJson.version, '0.0.2-46');
+  assert.equal(packageJson.version, '0.0.3-0');
 
   const projectTarget = JSON.parse(readFileSync(join(root, 'tools/quality/rules/project-target.json'), 'utf8'));
-  assert.equal(projectTarget.version.codePackageVersion, 'v0.0.2.46');
+  assert.equal(projectTarget.version.codePackageVersion, 'v0.0.3.0');
 });
 
 test('project map links traceability matrix entry', () => {

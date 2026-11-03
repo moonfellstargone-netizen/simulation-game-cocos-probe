@@ -1,4 +1,4 @@
-﻿# Runtime Map — v0.0.2.46
+﻿# Runtime Map — v0.0.3.0
 
 ## 系统职责
 
@@ -140,3 +140,13 @@ tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，
 ## 触摸与小屏运行边界
 
 原生触摸/EditBox→既有ProbeInteraction/菜单→Host/Queue→Session/ActionPipeline保持。ProbeLayout仅描述frame几何，原生ScrollView/Mask管理表现滚动；切页/resize不重建会话或重绑业务CLICK。trace.cocos.touch-small-screen连接布局与实际输入证据，不新增SaveFile或core状态入口。
+
+## 微信M1装配
+
+新apps/cocos-wechat-probe外层通过createStage1AHost、QinglanUiSceneProbeComponent公共runtime装配临时新局；WechatProbeController只提交既有advance_time并维护本次操作、busy及销毁迟到保护。candidate-identity生成资源与SaveFile隔离，重载核运行身份不代表恢复进度；M2—M4尚未实现或验收。trace.cocos.wechat-m1连接preparation/runtime测试及独立平台证据，核心入口与事务不变。
+
+## 微信显式Schema预编译装配
+
+RuntimeSchemaValidator支持显式PrecompiledSchemaValidatorSet：format为runtime-precompiled-schemas/v1，schemaSources按完整资源路径记录JSON.stringify(schema)，validators按正式$id记录ValidateFunction。Stage1ABootstrapResources的可选precompiledValidators字段透明转交该集合。显式提供集合时不创建Ajv、不回退动态编译；完整路径/ID/内容不匹配、重复或无$id、无效/异步函数及非布尔结果均拒绝。未提供时Node/Web维持原Ajv路径。核心仍不接cc/wx/fs、工具或资源读取。
+
+微信compileWechatSchemas位于tools/cocos-wechat-probe/lib/precompiledSchemas.mjs，在唯一prepare生产链冻结outputs前生成wechat-precompiled-validators.mjs、wechat-schema-precompile.json及wechat-runtime-entry.mjs。前两者记录安全schema_NNN导出/ID映射、完整Schema内容、编译器版本与选项、实际CommonJS编译器依赖闭包及生成摘要；Node编译器依赖通过Ajv入口的require.cache闭包记录，不能冒称由esbuild运行bundle的metafile捕获。facade显式注入precompiledValidators后再打包到assets/generated/probe-runtime.js，Cocos不直接导入额外standalone文件。核心的绑定检查不以自声明元数据证明函数可信；真实Ajv生成代码及工具/源/依赖字节由prepare和构建来源记录约束。

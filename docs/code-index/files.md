@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.46
+﻿# Code Index — Files — v0.0.3.0
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -174,3 +174,26 @@ trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport
 - tests/cocos-web-layout.test.ts：实际lifecycle执行的布局/边界与无输入副作用行为。
 - CocosWebProbe.ts、probe-viewport.js/css：原生滚动/触摸呈现、resize与视觉视口同步；verify-web/support与既有verification契约记录实际输入与负例。
 - trace.cocos.touch-small-screen连接上述来源、engine模块卡及真实任务登记。
+
+## 微信M1入口
+
+| 路径 | 所属模块 | 用途 | 相关验证 |
+|---|---|---|---|
+| `apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts` | cocos-wechat-probe | 真实cc最小场景与输入 | 真实Creator/官方工具 |
+| `apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts` | cocos-wechat-probe | 只读身份、公共推进与失败保护 | test:cocos-wechat-runtime |
+| `tools/cocos-probe/lib/prepareProject.mjs` | tools | 固定profile共享生产者 | 两项preparation |
+| `tools/cocos-wechat-probe/prepare.mjs` | tools | 微信独立准备 | test:cocos-wechat-preparation |
+| `tools/cocos-wechat-probe/build.mjs` | tools | 独立微信构建与记录 | 工具契约/真实Creator |
+| `tools/cocos-wechat-probe/lib/source.mjs` | tools | 微信来源/产物摘要 | test:cocos-wechat-preparation |
+| `tools/cocos-wechat-probe/lib/sourceProvenance.mjs` | tools | 真实Git/依赖/工具字节 | test:cocos-wechat-preparation |
+| `tests/cocos-wechat-preparation.test.mjs` | tests | 来源、配置、身份与篡改负例 | full/blocker |
+| `tests/cocos-wechat-runtime.test.ts` | tests | 最小正式运行/失败/身份隔离 | full/blocker |
+| `docs/module-cards/cocos-wechat-probe.md` | docs | 新模块入口 | 治理/追踪契约 |
+| `docs/adr/ADR-0005-independent-wechat-m1-outer.md` | docs | 最小平台边界决策 | 治理/追踪契约 |
+
+## 微信Schema预编译入口
+
+- `src/game-core/validation/RuntimeSchemaValidator.ts`：PrecompiledSchemaValidatorSet与完整资源/ID/内容绑定，默认动态路径保持。
+- `src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts`：可选precompiledValidators转交，不增加平台依赖。
+- `tools/cocos-wechat-probe/lib/precompiledSchemas.mjs`：真实Ajv standalone、安全导出映射和实际编译器依赖闭包记录。
+- `tests/runtime-precompiled-schema.test.ts`：显式集合、禁用动态Function的正式启动/动作及拒绝路径，由现test.stage1a-bootstrap执行。

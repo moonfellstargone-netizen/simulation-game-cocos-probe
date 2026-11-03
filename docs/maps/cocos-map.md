@@ -1,4 +1,4 @@
-﻿# Cocos Map — v0.0.2.46
+﻿# Cocos Map — v0.0.3.0
 
 ## 系统职责
 
@@ -132,3 +132,15 @@ tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，
 ## 触摸与小屏交互
 
 CocosWebProbe消费ProbeLayout纯几何，在约定小屏使用原生ScrollView/Mask并订阅/清理resize；模板probe-viewport.js/css同步可视区。点击、滑动取消、滚动后输入与切页通过真实Button/EditBox验证，observer只读布局/滚动。trace.cocos.touch-small-screen保留旧桌面/经营/恢复链，约定尺寸及editor原生WebpageFullScreen验收边界见engine卡/契约。
+
+## 独立微信M1
+
+cocos-wechat-probe并列于Web模块，入口为docs/module-cards/cocos-wechat-probe.md与ADR-0005。只读身份与时间、真实推进Button经公共Host/Binding/Queue；临时内存只建新局，不接wx/fs，不提供微信存读档。tools/cocos-probe/lib/prepareProject.mjs共享正式资源与来源生产；tools/cocos-wechat-probe/{prepare,build}.mjs及lib/source.mjs、lib/sourceProvenance.mjs独立核微信配置/产物/真实Git及工具输入。
+
+test:cocos-wechat-preparation / test.cocos-wechat-preparation实际执行tests/cocos-wechat-preparation.test.mjs；test:cocos-wechat-runtime / test.cocos-wechat-runtime实际执行tests/cocos-wechat-runtime.test.ts，均为full/blocker。trace.cocos.wechat-m1连接新outer、共享生产者、微信构建、候选身份、架构负例和质量登记。Node只能证明受控准备/行为契约；真实Creator3.8.8/SDK、官方微信工具场景/输入/日志/重载、受影响Web回归和最终提交CI各自验收。旧全部追踪、权威架构禁令和Web功能/来源检查保留，不以修改阈值、预期、CI或affected算法通过门禁。
+
+## 微信显式Schema预编译装配
+
+RuntimeSchemaValidator支持显式PrecompiledSchemaValidatorSet：format为runtime-precompiled-schemas/v1，schemaSources按完整资源路径记录JSON.stringify(schema)，validators按正式$id记录ValidateFunction。Stage1ABootstrapResources的可选precompiledValidators字段透明转交该集合。显式提供集合时不创建Ajv、不回退动态编译；完整路径/ID/内容不匹配、重复或无$id、无效/异步函数及非布尔结果均拒绝。未提供时Node/Web维持原Ajv路径。核心仍不接cc/wx/fs、工具或资源读取。
+
+微信compileWechatSchemas位于tools/cocos-wechat-probe/lib/precompiledSchemas.mjs，在唯一prepare生产链冻结outputs前生成wechat-precompiled-validators.mjs、wechat-schema-precompile.json及wechat-runtime-entry.mjs。前两者记录安全schema_NNN导出/ID映射、完整Schema内容、编译器版本与选项、实际CommonJS编译器依赖闭包及生成摘要；Node编译器依赖通过Ajv入口的require.cache闭包记录，不能冒称由esbuild运行bundle的metafile捕获。facade显式注入precompiledValidators后再打包到assets/generated/probe-runtime.js，Cocos不直接导入额外standalone文件。核心的绑定检查不以自声明元数据证明函数可信；真实Ajv生成代码及工具/源/依赖字节由prepare和构建来源记录约束。
