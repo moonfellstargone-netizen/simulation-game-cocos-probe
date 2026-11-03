@@ -9,9 +9,9 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.44
+# TRACEABILITY_MATRIX — v0.0.2.45
 
-**Web Tavern Orders & Settlement Feedback / 网页酒馆订单与结算反馈版**
+**Cross-step Save/Load Recovery / 跨步骤存读档恢复版**
 
 ## 1. 定位
 
@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 本轮沿用**轻量追踪地基**，新增网页酒馆订单与结算反馈追踪，保留订单合法状态与截止失败保护，保留网页烹饪、网页加工、网页拆分、数量与定义占用保护、持久ID恢复与预览一致性，以及加工必需输入校验与失败保护，继承农事、本地存档、桌面视口与输入验收；既有真实Cocos外层已实现，旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
+- 本轮沿用**轻量追踪地基**，新增跨步骤存读档恢复追踪，保留全部既有28条追踪。五独立保存点的新会话续玩、完整状态/ID与失败保护由公共集成测试和真实浏览器分层验收，旧五页经营与存读档/视口/销毁回归保持；既有真实Cocos外层已实现，旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
 
 ## 2. 状态语义
 
@@ -309,3 +309,11 @@ ProbeOrders.ts/.meta只消费公共数据，管理第五页的显式单订单/�
 确认前捕获order/dish与经济基线，避免成功patch先移除选择后误拒本次回执；错误或陈旧结果在ProbeInteraction发布completed前拒绝，应用失败不重发Action。改选择、切页、其他命令和load清旧预览/本次成功，历史结算另行展示；普通拒绝保留合法选择供修正，失效对象清除，不自动换菜品。busy/销毁迟到及本地单槽手动存读档保持。
 
 tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，helper/.meta及测试同时登记prepare/lifecycle；readiness、menu与web-verification继续full/blocker。trace.cocos.web-orders-loop连接这些测试与源/地图，全部旧追踪保持。真实Creator/SDK和built/editor各960×640订单链、实际图检另行验收，保留原视口/resize、农事、库存拆分、加工、烹饪、存读档/故障与销毁。网页禁用重交只记0事件，正式状态/安全/低分拒绝由合法受控Node另验，不冒称微信或手机通过。
+
+### trace.cocos.cross-step-recovery
+
+trace.cocos.cross-step-recovery：五个独立保存点为生长中、加工中、可领取、菜品已成和订单完成，每点从正式资源新局经既有玩家入口自然达成，手动保存后由全新会话读取并实际继续。加工恢复后领取并再开工；完成订单恢复后保持不可重复领奖，并继续创建对象核既有存档对象/引用及新ID。测试者显式Save不表示自动保存。
+
+`tests/stage1a-bootstrap.test.ts`沿公共bootstrap/Host和既有菜单/Queue验证集成；`tools/cocos-probe/verify-web.mjs`、`lib/webProbeSupport.mjs`及`tests/cocos-web-verification-contracts.test.mjs`连接独立recoveryLoop与断言负例。复用既有test.stage1a-bootstrap和test.cocos-web-verification-contracts实际args/files/covers及full/blocker，不新增任务；Session/save-load/Queue/lifecycle旧保护继续运行。
+
+刷新及同context新页均手动读入原保存点后续玩；坏JSON/Schema/Audit、读写拒绝、busy和销毁迟到场景与健康链隔离，失败load保留健康完整状态。生产Session/core/outer组件和正式资源不变；无自动恢复、多槽、迁移或跨标签仲裁。真实Creator/SDK、built/editor物理输入与对应截图须独立留证，Node契约不执行真实浏览器，不代表手机/微信通过。

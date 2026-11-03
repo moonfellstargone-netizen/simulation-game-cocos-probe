@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.44
+﻿# Code Index — Public API — v0.0.2.45
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -186,3 +186,7 @@ trace.orders.legal-state-deadline连接三源及核心、preview、Session手动
 - `MenuActionBinding.submit_order`既有显式order_option_id/dish_lot_option_ids[]→正式submitted_object_refs路径保持，confirm仍重预览；UI单选不修改正式参数契约。
 - `ProbeOrders`属于outer，只管理选择、回执前基线和本次反馈，不读取私有SaveFile、直接写状态或预测奖励；成功关联真实Order/菜品/经济结果，历史结果另示。
 - `trace.cocos.web-orders-loop`连接readiness/menu/prepare/lifecycle/web-verification与独立真实Creator/浏览器。
+
+## 跨步骤恢复公共入口
+
+公共bootstrap→Host→既有菜单/Queue→Session save/load接口保持，无新增公开API。trace.cocos.cross-step-recovery以五个独立自然保存点的全新会话读取和真实续玩核既有保证；读取失败保留健康状态，加载清暂态，后续新对象/事件不覆盖存档仍有的ID或历史引用。真实浏览器通过按钮与键盘操作，observer只读；ID无记录历史恢复和请求序号回滚仍不作新承诺。

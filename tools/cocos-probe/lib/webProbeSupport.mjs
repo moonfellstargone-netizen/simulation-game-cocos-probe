@@ -943,3 +943,230 @@ export function assertOrderSerializedSettlement(beforeRaw,afterRaw,selected){
   assert.deepEqual(after.storage_containers,before.storage_containers.map(old=>old.container_id===dish.storage_ref.container_id?{...old,used_capacity:old.used_capacity-dish.storage_footprint.amount,active_object_refs:old.active_object_refs.filter(ref=>ref.object_type!=='DishLot'||ref.object_id!==dish.dish_lot_id)}:old),'serialized settlement changes only the selected dish storage reference and footprint');
   assert.equal(after.orders.find(item=>item.order_id===selected.orderId).status,'completed');assert.equal(after.player_state.money-before.player_state.money,selected.rewardMoney);
 }
+
+// Cross-step recovery checks consume detached observations and opaque saved bytes only.
+const RECOVERY_COLLECTIONS = {
+  farming: FARMING_COLLECTIONS, inventory: INVENTORY_COLLECTIONS, processing: PROCESSING_COLLECTIONS,
+  cooking: COOKING_COLLECTIONS, orders: [...ORDER_COLLECTIONS, 'money', 'reputation']
+};
+const RECOVERY_ENTITY_ARRAYS = {
+  inventory: ['lot_id', 'MaterialLot'], crop_instances: ['crop_id', 'CropInstance'], processing_tasks: ['task_id', 'ProcessingTask'],
+  dish_lots: ['dish_lot_id', 'DishLot'], orders: ['order_id', 'Order'], reservations: ['reservation_id', 'Reservation'],
+  fields: ['field_plot_id', 'FieldPlot'], storage_containers: ['container_id', 'StorageContainer']
+};
+export const CROSS_STEP_POINTS = ['growing', 'processing', 'ready', 'dish', 'completed'];
+export const CROSS_STEP_REQUIRED_ACTIONS = {
+  growing: ['advance_time', 'harvest_crop', 'store_item', 'split_lot', 'start_processing', 'collect_processing_result', 'cook_dish', 'submit_order', 'plant_crop'],
+  processing: ['advance_time', 'collect_processing_result', 'start_processing'], ready: ['collect_processing_result', 'start_processing'],
+  dish: ['submit_order', 'plant_crop'], completed: ['plant_crop', 'split_lot']
+};
+
+export function crossStepWorld(state) {
+  const world = { timeLabel: state.timeLabel };
+  for (const [section, keys] of Object.entries(RECOVERY_COLLECTIONS)) {
+    assert.ok(state[section] && typeof state[section] === 'object', 'recovery needs the public ' + section + ' projection');
+    world[section] = {};
+    for (const key of keys) {
+      const value = state[section][key];
+      if (!['money', 'reputation'].includes(key)) assert.ok(Array.isArray(value), section + '.' + key + ' must be a public list');
+      else assert.ok(value !== undefined, 'recovery needs actual ' + key);
+      world[section][key] = structuredClone(value);
+    }
+  }
+  return world;
+}
+
+export function assertCrossStepFreshRecovery(evidence) {
+  assertLocalSaveRecovery(evidence);
+  assert.equal(evidence.documentFresh, true, 'recovery must create a new document/session');
+  assert.deepEqual(crossStepWorld(evidence.loaded.after), crossStepWorld(evidence.savedState), 'fresh load must restore every public world collection and the actual economy');
+  const after = evidence.loaded.after;
+  for (const [section, keys] of Object.entries({
+    farming: ['selectedFieldId','selectedSeedId','selectedCropId'], inventory: ['selectedLotId','selectedTargetId','splitPreview','splitResult'],
+    processing: ['selectedMethodId','selectedRequirementIndex','selectedFacilityId','selectedTaskId','preview','startResult','collectResult'],
+    cooking: ['selectedRecipeId','selectedRole','selectedTargetId','heatLevel','preview','result'], orders: ['selectedOrderId','selectedDishId','preview','result']
+  })) for (const key of keys) assert.equal(after[section][key], null, 'fresh load must not import old local ' + section + '.' + key);
+  for (const section of ['processing', 'cooking']) assert.deepEqual(after[section].inputSelections, [], 'fresh load must not resurrect local material selections');
+  for (const [section, keys] of Object.entries({ farming:['canPlant','canHarvest'], inventory:['canMove','canConfirmSplit'], processing:['canPreview','canStart','canCollect'], cooking:['canPreview','canCook'], orders:['canPreview','canSubmit'] }))
+    for (const key of keys) assert.equal(after[section][key], false, 'fresh load must require explicit current selections before ' + key);
+  assert.match(after.displayedOperation, /已恢复本地存档/);
+}
+
+function recoverySave(raw) {
+  assert.ok(typeof raw === 'string' && raw.length > 0, 'a complete opaque SaveFile is required');
+  const save = JSON.parse(raw);
+  assert.ok(save && typeof save === 'object' && !Array.isArray(save));
+  assert.ok(Number.isFinite(save.world_time?.absolute_minute), 'the complete save must include actual world time');
+  assert.ok(save.player_state && typeof save.player_state === 'object');
+  const seen = new Set();
+  for (const [key, [identity]] of Object.entries(RECOVERY_ENTITY_ARRAYS)) {
+    assert.ok(Array.isArray(save[key]), 'complete recovery evidence must include ' + key);
+    for (const entity of save[key]) {
+      const id = entity[identity];
+      assert.ok(typeof id === 'string' && id.length > 0, key + ' must retain its actual identity');
+      assert.ok(!seen.has(id), 'full save must not contain duplicate entity identities: ' + id);
+      seen.add(id);
+    }
+  }
+  return save;
+}
+
+export function assertCrossStepSerialization(saved, reserialized) {
+  assertStoredSaveUnchanged(saved, reserialized);
+  recoverySave(saved.raw); recoverySave(reserialized.raw);
+}
+
+export function assertCrossStepCheckpoint(point, state, stored) {
+  assert.ok(CROSS_STEP_POINTS.includes(point));
+  const save = recoverySave(stored.raw);
+  assert.equal(timeInMinutes(state.timeLabel) - 1440, save.world_time.absolute_minute);
+  assert.equal(state.orders.money, save.player_state.money);
+  for (const [rawKey, section, optionKey, identity] of [
+    ['inventory','inventory','lotOptions','lot_id'], ['processing_tasks','processing','taskOptions','task_id'],
+    ['dish_lots','cooking','dishOptions','dish_lot_id'], ['orders','orders','orderOptions','order_id']
+  ]) {
+    const actual = state[section][optionKey];
+    assert.deepEqual(actual.map(item => item.id).sort(), save[rawKey].map(item => item[identity]).sort(), 'saved and public ' + rawKey + ' identities must agree');
+    for (const item of actual) {
+      const entity = save[rawKey].find(value => value[identity] === item.id);
+      for (const key of ['quantity','current_form','storage_ref','status','serving_count','result_summary','submitted_object_refs'])
+        if (key in item && key in entity) assert.deepEqual(item[key], entity[key], 'saved and public ' + rawKey + ' must agree on ' + key);
+    }
+  }
+  if (point === 'growing') {
+    assert.ok(save.crop_instances.some(crop => crop.lifecycle_status === 'active'));
+    assert.equal(state.farming.harvestableOptions.length, 0);
+    assert.ok(state.farming.fieldOptions.some(field => field.occupied_tiles > 0));
+  } else if (point === 'processing' || point === 'ready') {
+    const expected = point === 'processing' ? 'active' : 'ready_to_collect';
+    assert.ok(save.processing_tasks.some(task => task.status === expected), 'checkpoint must contain a real ' + expected + ' task');
+  } else if (point === 'dish') {
+    assert.ok(save.dish_lots.length > 0, 'dish checkpoint requires an actual saved dish');
+    assert.ok(state.orders.orderOptions.some(order => order.enabled && order.minutes_until_deadline >= 0));
+  } else {
+    assert.ok(save.orders.some(order => order.status === 'completed' && Number.isFinite(order.result_summary?.reward_final)), 'completed checkpoint requires actual settlement history');
+    assert.equal(state.orders.result, null, 'a saved history must not retain a current UI settlement');
+  }
+  return save;
+}
+
+export function assertCrossStepFailureObservation(observation, expected) {
+  assert.equal(expected.status, 'failed');
+  assertUiCommandObservation(observation, expected);
+  assert.deepEqual(crossStepWorld(observation.after), crossStepWorld(observation.before), 'failed storage/load must preserve the entire healthy public world');
+  assert.equal(observation.after.hasSession, true);
+  assert.match(observation.after.displayedOperation, /操作未完成/);
+  for (const [section, keys] of Object.entries({inventory:['splitPreview','splitResult'],processing:['preview','startResult','collectResult'],cooking:['preview','result'],orders:['preview','result']}))
+    for (const key of keys) assert.equal(observation.after[section][key], null, 'a failed load cannot publish stale success: ' + section + '.' + key);
+}
+
+const RECOVERY_BUTTON_ACTIONS = {
+  AdvanceOneHour:'advance_time', AdvanceOneDay:'advance_time', PlantCrop:'plant_crop', HarvestCrop:'harvest_crop', MoveInventoryLot:'store_item',
+  SplitConfirm:'split_lot', StartProcessing:'start_processing', CollectProcessing:'collect_processing_result', CookDish:'cook_dish', SubmitOrder:'submit_order'
+};
+export function assertCrossStepContinuation(point, savedState, actions, finalState) {
+  assert.ok(CROSS_STEP_POINTS.includes(point));
+  assert.ok(Array.isArray(actions) && actions.length > 0, 'recovery must actually continue through player actions');
+  let previous = savedState;
+  const created = [];
+  for (const { actionType, observation } of actions) {
+    assert.equal(RECOVERY_BUTTON_ACTIONS[observation.buttonName], actionType, 'recorded action must belong to its actual physical control');
+    assert.deepEqual(crossStepWorld(observation.before), crossStepWorld(previous), 'actual continuation must not skip a world mutation or healthy reload');
+    const expected = { actionType, status:'completed', timeLabel:observation.after.timeLabel };
+    if (['plant_crop','harvest_crop'].includes(actionType) || observation.buttonName === 'AdvanceOneDay') assertFarmingCommandObservation(observation, expected);
+    else if (actionType === 'advance_time') { assertClickObservation(observation); assertUiCommandObservation(observation,{name:'menu_confirm',status:'completed',timeLabel:observation.after.timeLabel}); }
+    else if (actionType === 'store_item') assertInventoryCommandObservation(observation, {status:'completed',timeLabel:observation.before.timeLabel});
+    else if (actionType === 'split_lot') assertSplitConfirmObservation(observation, {amount:Number(observation.before.inventory.splitQuantityText)});
+    else if (actionType === 'start_processing') assertProcessingStartObservation(observation);
+    else if (actionType === 'collect_processing_result') assertProcessingCollectObservation(observation);
+    else if (actionType === 'cook_dish') assertCookingConfirmObservation(observation);
+    else if (actionType === 'submit_order') assertOrderConfirmObservation(observation, {rewardMoney:37,reputationDelta:{west_market_tavern:1}});
+    for (const [section, key, kind] of [['inventory','lotOptions','MaterialLot'],['processing','taskOptions','ProcessingTask'],['cooking','dishOptions','DishLot']]) {
+      const oldIds = new Set(observation.before[section][key].map(item => item.id));
+      for (const item of observation.after[section][key].filter(item => !oldIds.has(item.id))) created.push({kind,id:item.id});
+    }
+    previous = observation.after;
+  }
+  assert.deepEqual(crossStepWorld(finalState), crossStepWorld(previous), 'the final world must be the actual last continuation result');
+  const performed = new Set(actions.map(item => item.actionType));
+  for (const action of CROSS_STEP_REQUIRED_ACTIONS[point]) assert.ok(performed.has(action), point + ' must actually continue ' + action);
+  if (point === 'processing' || point === 'ready') {
+    const collect = actions.findIndex(item => item.actionType === 'collect_processing_result');
+    const start = actions.findIndex(item => item.actionType === 'start_processing');
+    assert.ok(collect >= 0 && start > collect, 'restored processing must be collected before a new task is started');
+  }
+  if (point === 'completed') {
+    assert.equal(finalState.orders.money, savedState.orders.money, 'completed history must not reward again');
+    assert.deepEqual(finalState.orders.reputation, savedState.orders.reputation);
+    assert.deepEqual(finalState.orders.orderOptions, savedState.orders.orderOptions);
+  }
+  assert.equal(new Set(created.map(item => item.id)).size, created.length, 'newly created identities must not be reused within continuation');
+  return {performedActions:[...performed],created};
+}
+
+function recoverySavedStrings(save) {
+  const strings = new Set();
+  const visit = value => {
+    if (typeof value === 'string') strings.add(value);
+    else if (Array.isArray(value)) value.forEach(visit);
+    else if (value && typeof value === 'object') for (const [key,item] of Object.entries(value)) { strings.add(key); visit(item); }
+  };
+  visit(save); return strings;
+}
+
+export function assertCrossStepObservedIds(saved, created) {
+  const oldStrings = recoverySavedStrings(recoverySave(saved.raw));
+  assert.ok(Array.isArray(created));
+  assert.equal(new Set(created.map(item=>item.id)).size,created.length,'observed creation IDs cannot be duplicated');
+  for (const item of created) {
+    assert.ok(['MaterialLot','ProcessingTask','DishLot'].includes(item.kind));
+    assert.ok(typeof item.id==='string'&&item.id.length>0);
+    assert.ok(!oldStrings.has(item.id),'public creation must not reuse any saved identity or historical reference: '+item.id);
+  }
+  return structuredClone(created);
+}
+
+export function assertCrossStepCreatedIds(saved, finalStored, created) {
+  const before = recoverySave(saved.raw), after = recoverySave(finalStored.raw);
+  assertCrossStepObservedIds(saved,created);
+  const oldStrings = recoverySavedStrings(before), afterStrings = recoverySavedStrings(after), actualKinds = new Map();
+  for (const [key,[identity,kind]] of Object.entries(RECOVERY_ENTITY_ARRAYS)) for (const item of after[key]) actualKinds.set(item[identity],kind);
+  for (const item of created) {
+    assert.ok(afterStrings.has(item.id),'claimed creation must survive in the full save as an entity or retained historical reference: '+item.id);
+    if(actualKinds.has(item.id))assert.equal(item.kind,actualKinds.get(item.id),'current saved entity must match its observed creation kind');
+  }
+  const allNew = new Map(created.map(item => [item.id,item.kind]));
+  for (const [key,[identity,kind]] of Object.entries(RECOVERY_ENTITY_ARRAYS)) {
+    const oldIds = new Set(before[key].map(item => item[identity]));
+    for (const item of after[key]) if (!oldIds.has(item[identity])) allNew.set(item[identity],kind);
+  }
+  assert.ok(allNew.size > 0, 'a recovered session must really create new identities');
+  for (const id of allNew.keys()) assert.ok(!oldStrings.has(id), 'new identity must not reuse any saved identity or historical reference: ' + id);
+  assert.ok([...allNew.values()].includes('CropInstance') || [...allNew.values()].includes('ProcessingTask'), 'recovered continuation must allocate a crop or processing task');
+  return [...allNew].map(([id,kind]) => ({kind,id}));
+}
+
+export function crossStepActionObservations(clicks) {
+  const actions = [];
+  for (const observation of clicks) {
+    const actionType = RECOVERY_BUTTON_ACTIONS[observation.buttonName];
+    if (!actionType) {
+      if (observation.after.operation.sequence !== observation.before.operation.sequence)
+        assert.equal(observation.after.operation.name, 'menu_preview', 'continuation must not hide a save, load or unrecorded formal command');
+      continue;
+    }
+    if (observation.eventCount === 0) {
+      assertInputObservation(observation, 0);
+      assert.equal(observation.layout.buttonInteractable, false, 'only a verified disabled control may be omitted from actual Action records');
+      assert.deepEqual(observation.after.operation, observation.before.operation, 'disabled attempts must not dispatch commands');
+      assert.deepEqual(crossStepWorld(observation.after), crossStepWorld(observation.before), 'disabled attempts must preserve the world');
+      continue;
+    }
+    assert.equal(observation.eventCount, 1, 'actual actions must emit exactly one physical event');
+    assert.equal(observation.after.operation.sequence, observation.before.operation.sequence + 1);
+    assert.equal(observation.after.operation.name, 'menu_confirm');
+    assert.equal(observation.after.operation.status, 'completed', 'a real failed Action must fail verification rather than be silently filtered');
+    actions.push({actionType,observation});
+  }
+  return actions;
+}

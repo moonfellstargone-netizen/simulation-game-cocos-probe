@@ -1,6 +1,6 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.2.44
+﻿# CODE_CONTEXT_INDEX — v0.0.2.45
 
-版本：v0.0.2.44 / Web Tavern Orders & Settlement Feedback / 网页酒馆订单与结算反馈版。
+版本：v0.0.2.45 / Cross-step Save/Load Recovery / 跨步骤存读档恢复版。
 
 ## 执行前必读顺序
 
@@ -30,7 +30,7 @@
 
 后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包；代码包不保存每轮具体任务上下文；代码包只保存执行端上下文治理约束。
 
-## v0.0.2.44 测试索引
+## v0.0.2.45 测试索引
 
 - `tests/cocos-web-verification-contracts.test.mjs`（`test:cocos-web-verification-contracts`，Node工具契约）
 
@@ -58,7 +58,7 @@
 
 先读`apps/cocos-probe/template/build-templates/web-desktop/`源模板、`tools/cocos-probe/build.mjs`、`tools/cocos-probe/verify-web.mjs`及`tools/cocos-probe/lib/webProbeSupport.mjs`；确认`trace.cocos.web-viewport-input`的Node契约与真实鼠标点击证据分离。源模板是修复位置，仓库外生成Web页面不能手改。
 
-保留准备/生命周期full/blocker回归，新增test:cocos-web-verification-contracts / registry test.cocos-web-verification-contracts验证浏览器工具的参数、来源、HTTP服务和断言失败保护；Node契约不执行真实浏览器。独立cocos:verify:web运行固定Creator构建产物的真实Chrome鼠标点击，记录Button事件、时间变化、Label同步与清理证据；根typecheck只覆盖src，不能代替实际Creator类型、构建或浏览器验收。
+保留准备/生命周期full/blocker回归，沿用test:cocos-web-verification-contracts / registry test.cocos-web-verification-contracts验证浏览器工具的参数、来源、HTTP服务和断言失败保护；Node契约不执行真实浏览器。独立cocos:verify:web运行固定Creator构建产物的真实Chrome鼠标点击，记录Button事件、时间变化、Label同步与清理证据；根typecheck只覆盖src，不能代替实际Creator类型、构建或浏览器验收。
 
 ## 真实Cocos Web探针入口
 
@@ -177,3 +177,7 @@ tests/stage1a-contract.test.ts核正式成功/拒绝、截止结算和完整状�
 先读orders/app/engine模块卡，再读SelectableVM.order_options、既有MenuActionBinding.submit_order和preview/confirm；StateVM已有money/reputation沿用。读取正式Profile与订单字段，hard/weighted需求和实际result_summary分清，不在UI新增匹配/奖励预测。再读ProbeOrders.ts/.meta、ProbeLifetime/Interaction/CocosWebProbe及verify/support，核确认前基线与成功patch时序、陈旧回执、历史/本次区分及不重发已提交Action。
 
 tests/cocos-web-orders.test.ts、readiness/menu、prepare与web-verification分层覆盖，lifecycle实际args/files/covers和trace.cocos.web-orders-loop必须同步。真实Creator、built/editor输入/图检与Node分开；旧v43受控合法状态保护不是网页可达路径证明。
+
+## 跨步骤存读档恢复入口
+
+先读save-load、cocos-app、cocos-creator-adapter及cocos-engine-probe模块卡，再读tests/stage1a-bootstrap.test.ts、tools/cocos-probe/verify-web.mjs、tools/cocos-probe/lib/webProbeSupport.mjs和tests/cocos-web-verification-contracts.test.mjs。trace.cocos.cross-step-recovery连接五点新会话续玩证据；公共Session/Host/SaveLoadController、ID与Queue机制保持，测试/工具不成为新业务规则。真实Creator/SDK与built/editor验证另留证。

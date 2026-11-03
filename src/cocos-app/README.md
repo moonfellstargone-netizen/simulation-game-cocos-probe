@@ -1,6 +1,6 @@
-﻿# Cocos app — v0.0.2.44 / Web Tavern Orders & Settlement Feedback
+﻿# Cocos app — v0.0.2.45 / Cross-step Save/Load Recovery
 
-Cocos app层说明：本目录保存Session、ViewModel与Action适配代码。v0.0.2.44最小扩展SelectableVM.order_options的issuer、deadline_absolute_minute和signed minutes_until_deadline、正式需求与实际submitted refs/result_summary，全部嵌套副本独立；hard与weighted分开，缺配置为null且不可用，不复制匹配/评分算法。StateVM既有money/reputation继续供实际反馈，Session/Queue与core保持，不引入cc/wx/fs或UI直写状态。
+Cocos app层说明：本目录保存Session、ViewModel与Action适配代码。v0.0.2.45沿既有公共Host/bootstrap验证五个独立保存点在新会话手动读取后的实际续玩、失败保护及ID恢复，不改变本目录生产API或算法。既有订单需求/截止/实际结果只读投影和全部嵌套副本、StateVM与Session机制保持，不引入cc/wx/fs或UI直写状态。
 
 日常代码权威见 GitHub 仓库；项目地图入口见 `docs/PROJECT_MAP.md` 与 `docs/GITHUB_WORKFLOW.md`；追踪矩阵见 `docs/TRACEABILITY_MATRIX.md`。
 

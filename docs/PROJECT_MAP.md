@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.44
+﻿# PROJECT_MAP — v0.0.2.45
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.44：**Web Tavern Orders & Settlement Feedback**。现有酒馆订单需求/截止浏览、显式单菜品选择、预览提交与真实结算反馈，形成第五网页；trace.cocos.web-orders-loop连接最小只读投影、既有菜单、outer、工具与分层测试。旧trace.orders.legal-state-deadline继续追踪状态/时限保护，核心和正式资源不改，不新增Stage1B或微信。
+v0.0.2.45：**Cross-step Save/Load Recovery**。沿既有九Action与公共玩家入口，补五独立保存点经新会话手动读取后的真实续玩和ID恢复验证；trace.cocos.cross-step-recovery连接公共bootstrap集成、既有Session/Host/保存读取边界、浏览器工具及负例。旧网页五页和全部追踪保持，生产core、Session/Queue、outer组件与正式资源不改，不扩Stage1B、触摸或微信。
 
 ## 3. 权威边界
 
@@ -68,3 +68,7 @@ v0.0.2.44：**Web Tavern Orders & Settlement Feedback**。现有酒馆订单需�
 - [`GITHUB_WORKFLOW.md`](GITHUB_WORKFLOW.md)：分支、PR、预检、Scope Discovery
 - [`DOCS_GOVERNANCE.md`](DOCS_GOVERNANCE.md)：文档状态、DoR/DoD、PR 责任
 - [`GLOSSARY.md`](GLOSSARY.md)：术语，防止 zip / 日志包 / q:affected 混淆
+
+## 跨步骤恢复导航
+
+trace.cocos.cross-step-recovery连接save-load/app/creator/engine四张模块卡、runtime/cocos地图和公共API索引。tests/stage1a-bootstrap.test.ts核公共Host/Queue五点续玩；既有verify-web/support及web-verification负例连接真实浏览器恢复场景。没有新生产模块或API；Node、Creator/SDK、built/editor和最终提交CI分别记录。

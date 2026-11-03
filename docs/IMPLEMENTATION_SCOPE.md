@@ -1,10 +1,10 @@
-# IMPLEMENTATION_SCOPE — v0.0.2.44
+# IMPLEMENTATION_SCOPE — v0.0.2.45
 
-版本：v0.0.2.44 / Web Tavern Orders & Settlement Feedback / 网页酒馆订单与结算反馈版。
+版本：v0.0.2.45 / Cross-step Save/Load Recovery / 跨步骤存读档恢复版。
 
 ## 本轮范围
 
-本轮唯一目标是网页酒馆订单与结算反馈：浏览现有订单的需求、截止和状态，显式选择一个真实DishLot，沿既有menu_preview/confirm完成提交并显示本次实际结算。最小SelectableVM复制issuer、绝对截止与signed minutes_until_deadline、hard/weighted分离的正式需求、submitted refs和实际result_summary；缺需求配置为null且不可用，不伪装无要求。outer第五页及ProbeOrders只管理本地选择与本次结果，终态订单仍可查看；preview不预测奖励，基础奖励仅参考。本次成功关联实际Order完成、所选菜品移除、结算摘要和公开金钱/声望变化，历史结果与本次反馈分开；陈旧/错误回执在completed发布前拒绝，不重发已提交动作。core、StateVM、Session/Queue、SaveFile与正式资源保持，既有农事、库存/拆分、加工、烹饪和存读档回归保留；不新增接单/刷新/购买、评分奖励、聚合/部分交付、数量/时间/重复输入规则、Stage1B或微信。
+本轮唯一目标是跨步骤手动存读档后的真实续玩：现有九种正式Action经玩家入口自然到达生长中、加工中、可领取、菜品已成、订单完成五个独立保存点，每点在全新会话读取后继续实际操作。加工恢复后领取并再次开工；已完成订单恢复后仍不能重复领奖，并继续创建对象验证既有ID恢复。通过公共bootstrap/Host集成测试和独立浏览器recoveryLoop补齐证据，生产core、Session/Queue、ViewModel、outer组件、SaveFile与正式资源保持。既有五页经营、手动单槽、坏档/存储拒绝、busy/销毁迟到与全部浏览器回归保留；不新增自动保存/自动恢复、多槽、迁移、跨标签仲裁、数量/时间/重复输入/奖励规则、触摸、Stage1B或微信。
 
 工具只读取仓库唯一src/design_snapshot派生的工作副本。prepare继续导出snapshot及全部58项Schema并记录Git来源/输入产物摘要；build记录实际Web产物清单摘要，verify核对构建关联和产物字节后才启动浏览器，拒绝替换或篡改的Web目录。工程、依赖、报告、缓存和构建仍位于仓库外，不形成第二源码权威。
 
@@ -12,7 +12,7 @@
 
 构建网页built-web验收1440×1200、1280×720、960×640、800×600/DPR1，另960×640/DPR2仿真，并在同页按960×640→1440×1200→800×600→960×640执行四次resize点击。编辑器预览editor-preview独立验收1440×1200与960×640/DPR1，同页按960×640→1440×1200→960×640执行三次resize点击。所有约定案例均保持完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、推进命令时间+60和Label同步；存读档命令按本地单槽预期检查时间；不降低断言强度。官方Default设备模拟器在800窗口裁剪固定960px内容，该预览场景未承诺支持，不能据其失败推定构建网页800失败。DPR仿真不等于手机、触摸、微信或Windows系统缩放验证。
 
-本轮保留test:cocos-session / registry test.cocos-session、bootstrap、绑定恢复、存储故障和PR CI回归。traceability仍由traceability-map.json与TRACEABILITY_MATRIX对齐；trace.cocos.web-orders-loop追踪本版订单网页，trace.orders.legal-state-deadline追踪既有订单保护，trace.cocos.web-cooking-loop追踪既有烹饪页，trace.cocos.web-processing-loop追踪既有加工页，trace.cocos.web-inventory-split与trace.inventory.split-quantity追踪既有拆分，trace.runtime.id-recovery追踪既有ID恢复，trace.processing.required-inputs追踪既有加工校验，trace.cocos.web-inventory-storage追踪既有库存能力，既有trace.cocos.browser-local-save保持；既有trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input及trace.cocos.web-bootstrap-probe继续有效。版本和BuildId由project-target.json派生。
+本轮保留test:cocos-session / registry test.cocos-session、bootstrap、绑定恢复、存储故障和PR CI回归。trace.cocos.cross-step-recovery追踪本版五点续玩；旧trace.cocos.web-orders-loop、trace.orders.legal-state-deadline、trace.cocos.web-cooking-loop、trace.cocos.web-processing-loop、trace.cocos.web-inventory-split、trace.inventory.split-quantity、trace.runtime.id-recovery、trace.processing.required-inputs、trace.cocos.web-inventory-storage和既有本地存档/交互/视口/启动追踪保持。新增行为进入既有真实args/files/covers，不能以文档登记、Node或旧提交结果代替本轮真实Creator和浏览器验收。
 
 ## 明确不做
 
@@ -113,3 +113,9 @@ ProbeOrders.ts/.meta只消费公共数据，管理第五页的显式单订单/�
 确认前捕获order/dish与经济基线，避免成功patch先移除选择后误拒本次回执；错误或陈旧结果在ProbeInteraction发布completed前拒绝，应用失败不重发Action。改选择、切页、其他命令和load清旧预览/本次成功，历史结算另行展示；普通拒绝保留合法选择供修正，失效对象清除，不自动换菜品。busy/销毁迟到及本地单槽手动存读档保持。
 
 tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，helper/.meta及测试同时登记prepare/lifecycle；readiness、menu与web-verification继续full/blocker。trace.cocos.web-orders-loop连接这些测试与源/地图，全部旧追踪保持。真实Creator/SDK和built/editor各960×640订单链、实际图检另行验收，保留原视口/resize、农事、库存拆分、加工、烹饪、存读档/故障与销毁。网页禁用重交只记0事件，正式状态/安全/低分拒绝由合法受控Node另验，不冒称微信或手机通过。
+
+版本与BuildId继续由`tools/quality/rules/project-target.json`派生；traceability由`tools/quality/rules/traceability-map.json`与`docs/TRACEABILITY_MATRIX.md`对齐。既有`trace.cocos.web-bootstrap-probe`和`trace.cocos.web-viewport-input`保留真实引擎启动、视口与输入的独立验证职责，不因本版恢复链新增而省略。
+
+## 五点恢复与继承回归
+
+trace.cocos.cross-step-recovery连接tests/stage1a-bootstrap.test.ts与既有web-verification任务；五点各由自然玩家操作建立，刷新及同context新页手动读取原点后继续，不覆盖原保存点再假称同档恢复。坏JSON/Schema/Audit、存储拒绝、busy/销毁迟到与健康链隔离。完整状态、领域事件、持久对象/历史引用及后续新ID均须关联；既有五页、视口/resize及全部旧回归保持，Node与CI不替代真实Creator/SDK和built/editor。

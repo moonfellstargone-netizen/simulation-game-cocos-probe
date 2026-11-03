@@ -1,6 +1,6 @@
-# CHECK_ARCHITECTURE — v0.0.2.44
+# CHECK_ARCHITECTURE — v0.0.2.45
 
-v0.0.2.44 / Web Tavern Orders & Settlement Feedback验证订单只读来源/副本隔离、显式选择、预览无副作用、实际菜品消费与结算、陈旧回执/错误结果保护、超时和手动存读档恢复。旧视口矩阵、resize及四页经营/故障/销毁回归保持；根typecheck和Node不能代替真实Creator SDK、构建与浏览器验收，不修改门禁策略、阈值或正式资源。
+v0.0.2.45 / Cross-step Save/Load Recovery验证生长中、加工中、可领取、菜品已成和订单完成五点新会话读档后实际续玩、完整状态与新ID安全，保留失败加载健康状态及旧预览/回执清除保护。旧视口矩阵、resize、五页经营、存储故障和销毁回归保持；根typecheck和Node不能代替真实Creator SDK、构建与浏览器验收，不修改门禁策略、阈值或正式资源。
 
 ## 1. 本轮检查目标
 
@@ -52,7 +52,7 @@ cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affe
 
 ## 10. 后续路线（不是授权目标）
 
-Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.44 范围。traceability map 中 `planned` 条目**不是**当前实现。
+Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.45 范围。traceability map 中 `planned` 条目**不是**当前实现。
 
 ## 11. 固定检查短语
 
@@ -101,3 +101,7 @@ trace.orders.legal-state-deadline登记DemandResolver、GameRuntime、CocosSelec
 ## 网页订单验证登记
 
 trace.cocos.web-orders-loop连接SelectableVM、ProbeOrders/Interaction/Lifetime/CocosWebProbe、既有菜单/草稿及verify/support。readiness/menu/prepare/lifecycle/web-verification沿原full/blocker；新orders测试进入实际args，helper/.meta及测试登记prepare/lifecycle的files/covers。tests/traceability-contracts.test.mjs与quality-affected-contracts.test.mjs核真实登记/执行及所有改动测试单文件选择，不改变runner、策略、timeout或阈值。Creator先实际构建产生SDK后检查，built/editor各960×640订单链、截图及预览后SDK独立执行，旧全部回归保持。
+
+## 跨步骤存读档恢复检查
+
+trace.cocos.cross-step-recovery的新增集成行为由test.stage1a-bootstrap实际运行；工具断言负例由test.cocos-web-verification-contracts实际运行，两项沿用原args/files/covers与full/blocker，不新增task。保留Session/save-load/Queue/lifecycle旧保护；坏档失败核健康完整状态，恢复后实际动作与新ID须有真实结果。最终固定提交仍须q:full、无缓存q:release含build/check、独立Creator/SDK、built/editor新增五点及旧全部回归和精确headCI，不能沿用旧提交数字。

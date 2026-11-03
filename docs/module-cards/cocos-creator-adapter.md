@@ -106,3 +106,7 @@ outer复用既有MenuActionBinding.cook_dish，以recipe_option_id、按角色in
 ## 网页订单的既有显式菜单消费
 
 MenuActionBinding.submit_order保持order_option_id与dish_lot_option_ids[]显式参数，经现有preview/confirm构造正式submitted_object_refs；单菜品仅是ProbeOrders界面范围，不给核心数组新增maxItems。确认重预览并取本次ActionResult，StateVM/Session/Queue接口保持。订单需求和实际结果来自最小SelectableVM投影，节点、选择和本次反馈属于outer，见trace.cocos.web-orders-loop。
+
+## 跨步骤恢复集成入口
+
+trace.cocos.cross-step-recovery的tests/stage1a-bootstrap.test.ts从正式资源经公共bootstrap/Host和既有菜单/Queue覆盖五保存点加载后真实续玩，不借runtimeHarness私写状态代替装配。Host、SaveLoadController和Queue生产代码保持；沿既有全状态失败保护、暂态清除和销毁迟到边界。真实Creator/SDK与built/editor恢复独立留证。

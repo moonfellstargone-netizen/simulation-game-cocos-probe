@@ -8,6 +8,8 @@ import { assertCookingProjection, assertCookingPreviewObservation, assertCooking
 
 import { assertOrdersProjection, assertLocalOrderObservation, assertOrderDisabledObservation, assertOrderPreviewObservation, assertOrderConfirmObservation, assertOrderLoadRecovery, assertOrderSerializedSettlement } from './lib/webProbeSupport.mjs';
 
+import { CROSS_STEP_POINTS, crossStepActionObservations, assertCrossStepCheckpoint, assertCrossStepContinuation, assertCrossStepCreatedIds, assertCrossStepObservedIds, assertCrossStepFailureObservation, assertCrossStepFreshRecovery, assertCrossStepSerialization } from './lib/webProbeSupport.mjs';
+
 const ROOT = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '../..'));
 const MATRIX = [
   { width: 1440, height: 1200, dpr: 1 }, { width: 1280, height: 720, dpr: 1 },
@@ -969,6 +971,264 @@ async function storageFailureRecovery(browser, url, result, recordDir, logs) {
   } finally { await context.close(); }
 }
 
+
+// Only existing physical player controls are used. This separate driver does not alter any older regression loop.
+function recoveryDriver(page, prefix, result, recordDir) {
+  let ordinal = 0;
+  const click = (suffix, button, expected) => physicalClick(page, `${prefix}-${++ordinal}-${suffix}`, result, recordDir, button, expected);
+  const input = (suffix, text, name) => physicalQuantityInput(page, `${prefix}-${++ordinal}-${suffix}`, String(text), result, recordDir, name);
+  const open = async (panel) => {
+    if ((await status(page)).panel === panel) return;
+    return click('open-' + panel, {farming:'OpenFarming',inventory:'OpenInventory',processing:'OpenProcessing',cooking:'OpenCooking',orders:'OpenOrders'}[panel], {panel});
+  };
+  const choose = async (section, kind, wanted) => {
+    const mapping = {
+      farming: {field:['fieldOptions','selectedFieldId','SelectField'],seed:['seedOptions','selectedSeedId','SelectSeed'],crop:['harvestableOptions','selectedCropId','SelectCrop']},
+      inventory: {lot:['lotOptions','selectedLotId','SelectInventoryLot'],target:['targetOptions','selectedTargetId','SelectStorageTarget']},
+      processing: {method:['methodOptions','selectedMethodId','SelectProcessingMethod'],facility:['facilityOptions','selectedFacilityId','SelectProcessingFacility'],task:['taskOptions','selectedTaskId','SelectProcessingTask'],requirement:['requirements','selectedRequirementIndex','SelectProcessingInput'],lot:['currentInputLotOptions','lotId','SelectProcessingLot']},
+      cooking: {recipe:['recipeOptions','selectedRecipeId','SelectCookingRecipe'],role:['roles','selectedRole','SelectCookingRole'],lot:['currentInputLotOptions','lotId','SelectCookingLot'],target:['targetOptions','selectedTargetId','SelectCookingStorage'],heat:['heat','heatLevel','SelectCookingHeat']},
+      orders: {order:['orderOptions','selectedOrderId','SelectOrder'],dish:['dishOptions','selectedDishId','SelectOrderDish']}
+    };
+    const [collection,key,button] = mapping[section][kind];
+    const read = current => {
+      let options = kind === 'requirement' ? current.methodOptions.find(item=>item.id===current.selectedMethodId).input_requirements
+        : kind === 'role' ? current.recipeOptions.find(item=>item.id===current.selectedRecipeId).roles
+        : kind === 'heat' ? current.recipeOptions.find(item=>item.id===current.selectedRecipeId).operation_constraints.heat_levels : current[collection];
+      if ((section === 'processing' && !['task','requirement'].includes(kind)) || (section === 'cooking' && !['role','heat'].includes(kind)) || (section === 'orders' && kind === 'dish')) options=options.filter(item=>item.enabled);
+      const selected = kind === 'lot' && section === 'processing' ? current.inputSelections.find(item=>item.requirementIndex===current.selectedRequirementIndex)?.lotId
+        : kind === 'lot' && section === 'cooking' ? current.inputSelections.find(item=>item.role===current.selectedRole)?.lotId : current[key];
+      const identity = item => kind === 'requirement' ? item.requirement_index : kind === 'role' ? item.role : kind === 'heat' ? item : item.id;
+      return {options,selected,identity};
+    };
+    const bound=read((await status(page))[section]).options.length;
+    assert.ok(bound>0,'ordinary recovery must expose choices for '+section+'.'+kind);
+    for(let step=0;step<bound;step++) {
+      const current=(await status(page))[section], value=read(current);
+      if(value.selected===wanted)return;
+      const next=value.identity(value.options[(value.options.findIndex(item=>value.identity(item)===value.selected)+1)%value.options.length]);
+      const expected=kind==='lot'&&section==='processing'?{requirementIndex:current.selectedRequirementIndex,lotId:next}
+        :kind==='lot'&&section==='cooking'?{lotId:next}:kind==='heat'?{}:{key,value:next};
+      await click('select-'+section+'-'+kind+'-'+step,button,expected);
+    }
+    assert.equal(read((await status(page))[section]).selected,wanted,'bounded physical recovery selection must reach the requested public option');
+  };
+  const day = async suffix => {
+    const next=timeInMinutes((await status(page)).timeLabel)+1440;
+    return click(suffix,'AdvanceOneDay',{actionType:'advance_time',status:'completed',timeLabel:`day ${Math.floor(next/1440)} minute ${next%1440}`});
+  };
+  const plant = async () => {
+    await open('farming');const current=(await status(page)).farming;
+    const field=current.fieldOptions.find(item=>item.enabled),seed=current.seedOptions.find(item=>item.enabled);
+    assert.ok(field&&seed,'ordinary recovery needs an available field and existing seed');
+    await choose('farming','field',field.id);await choose('farming','seed',seed.id);
+    return click('plant','PlantCrop',{actionType:'plant_crop',status:'completed',timeLabel:(await status(page)).timeLabel});
+  };
+  const harvest = async () => {
+    await open('farming');
+    for(let days=0;!(await status(page)).farming.harvestableOptions.some(item=>item.enabled);days++) {
+      assert.ok(days<30,'ordinary recovery crop must mature within the declared bound');await day('mature-day-'+days);
+    }
+    const crop=(await status(page)).farming.harvestableOptions.find(item=>item.enabled);
+    await choose('farming','crop',crop.id);
+    return click('harvest','HarvestCrop',{actionType:'harvest_crop',status:'completed',timeLabel:(await status(page)).timeLabel});
+  };
+  const split = async (amount, sourceId) => {
+    await open('inventory');const current=(await status(page)).inventory;
+    const lot=current.lotOptions.find(item=>sourceId?item.id===sourceId:item.enabled&&item.base_id==='cabbage'&&item.current_form==='fresh'&&item.quantity.amount>amount);
+    assert.ok(lot,'ordinary recovery needs a real fresh split source');
+    await choose('inventory','lot',lot.id);await input('split-'+amount,amount,'SplitQuantity');
+    await click('split-preview','SplitPreview',{status:'completed',statusCode:'OK'});
+    return click('split-confirm','SplitConfirm',{amount});
+  };
+  const storeAndSplit = async () => {
+    await open('inventory');const current=(await status(page)).inventory;
+    const lot=current.lotOptions.find(item=>item.enabled&&item.base_id==='cabbage'&&item.current_form==='fresh'&&item.quantity.amount>=600);
+    const cellar=current.targetOptions.find(item=>item.enabled&&item.storage_type==='cellar'&&item.id!==lot?.storage_ref.container_id&&item.supported_forms.includes(lot.current_form));
+    assert.ok(lot&&cellar,'ordinary harvest must have an existing compatible cellar');
+    await choose('inventory','lot',lot.id);await choose('inventory','target',cellar.id);
+    await click('whole-store','MoveInventoryLot',{status:'completed',timeLabel:(await status(page)).timeLabel});
+    const splitResult=await split(300,lot.id);
+    return splitResult.after.inventory.splitResult.newLotId;
+  };
+  const start = async sourceId => {
+    await open('processing');const current=(await status(page)).processing;
+    const method=current.methodOptions.find(item=>item.enabled&&item.input_requirements.some(requirement=>requirement.constraints.base_id==='salt'));
+    assert.ok(method,'ordinary recovery must expose the existing pickling method');
+    const primary=method.input_requirements.find(requirement=>requirement.constraints.base_id!=='salt');
+    const saltRequirement=method.input_requirements.find(requirement=>requirement.constraints.base_id==='salt');
+    const lot=current.lotOptions.find(item=>item.enabled&&primary.lot_ids.includes(item.id)&&(sourceId?item.id===sourceId:item.current_form==='fresh'&&item.quantity.amount>=300));
+    const salt=current.lotOptions.find(item=>item.enabled&&saltRequirement.lot_ids.includes(item.id));
+    const facility=current.facilityOptions.find(item=>item.enabled&&method.compatible_facility_ids.includes(item.id));
+    assert.ok(lot&&salt&&facility,'existing public resources must support this real processing start');
+    await choose('processing','method',method.id);
+    for(const [requirement,material,amount] of [[primary,lot,300],[saltRequirement,salt,15]]) {
+      await choose('processing','requirement',requirement.requirement_index);await choose('processing','lot',material.id);await input('processing-'+requirement.requirement_index,amount,'ProcessingQuantity');
+    }
+    await choose('processing','facility',facility.id);
+    await click('processing-preview','ProcessingPreview',{statusCode:'OK'});
+    return click('processing-start','StartProcessing');
+  };
+  const ready = async taskId => {
+    await open('processing');await choose('processing','task',taskId);
+    for(let days=0;(await status(page)).processing.taskOptions.find(item=>item.id===taskId)?.status==='active';days++) {
+      assert.ok(days<7,'existing processing must reach ready through ordinary time');await day('processing-day-'+days);
+    }
+    assert.equal((await status(page)).processing.taskOptions.find(item=>item.id===taskId)?.status,'ready_to_collect');
+  };
+  const collect = async taskId => {
+    await open('processing');await choose('processing','task',taskId);
+    const collected=await click('collect','CollectProcessing');
+    await click('duplicate-collect-disabled','CollectProcessing',{disabled:true});
+    return collected;
+  };
+  const cook = async () => {
+    await open('cooking');const current=(await status(page)).cooking;
+    const recipe=current.recipeOptions.find(item=>item.enabled);assert.ok(recipe);
+    await choose('cooking','recipe',recipe.id);
+    for(const [role,amount,form] of [['main',250,'pickled'],['side',50,null],['oil',10,null]]) {
+      const requirement=recipe.roles.find(item=>item.role===role);
+      const lot=current.lotOptions.find(item=>item.enabled&&requirement.lot_ids.includes(item.id)&&item.quantity.amount>=amount&&(!form||item.current_form===form));
+      assert.ok(lot,'ordinary recovery must have actual '+role+' ingredients');
+      await choose('cooking','role',role);await choose('cooking','lot',lot.id);await input('cooking-'+role,amount,'CookingQuantity');
+    }
+    await choose('cooking','heat','high');await input('cooking-minutes',8,'CookingMinutes');
+    const room=current.targetOptions.find(item=>item.enabled&&item.storage_type==='room_temp');assert.ok(room);
+    await choose('cooking','target',room.id);await click('cooking-preview','CookingPreview');
+    return click('cooking-confirm','CookDish');
+  };
+  const submit = async () => {
+    await open('orders');const current=(await status(page)).orders;
+    const order=current.orderOptions.find(item=>item.enabled&&item.minutes_until_deadline>=0),dish=current.dishOptions.find(item=>item.enabled);
+    assert.ok(order&&dish,'ordinary recovery must submit a real saved dish to an eligible existing order');
+    await choose('orders','order',order.id);await choose('orders','dish',dish.id);
+    await click('order-preview','OrderPreview');const settled=await click('order-confirm','SubmitOrder');
+    await click('duplicate-order-disabled','SubmitOrder',{disabled:true});return settled;
+  };
+  return {page,click,input,open,choose,day,plant,harvest,split,storeAndSplit,start,ready,collect,cook,submit};
+}
+
+function recoverySaveEvidence(recordDir, name, stored) {
+  const file=name+'.json';assert.ok(typeof stored.raw==='string');
+  writeFileSync(join(recordDir,file),stored.raw,'utf8');
+  return {...storedEvidence(stored),file};
+}
+
+async function recoverySetup(driver, point) {
+  await driver.plant();if(point==='growing')return {};
+  await driver.harvest();const primaryLotId=await driver.storeAndSplit();const started=await driver.start(primaryLotId);
+  const taskId=started.after.processing.startResult.taskId;if(point==='processing')return {taskId};
+  await driver.ready(taskId);if(point==='ready')return {taskId};
+  await driver.collect(taskId);await driver.cook();if(point==='dish')return {taskId};
+  await driver.submit();return {taskId};
+}
+
+async function recoveryContinue(driver, point, references) {
+  if(point==='growing') {
+    await driver.harvest();const sourceId=await driver.storeAndSplit();const started=await driver.start(sourceId);
+    const taskId=started.after.processing.startResult.taskId;await driver.ready(taskId);await driver.collect(taskId);await driver.cook();await driver.submit();await driver.plant();
+  } else if(point==='processing'||point==='ready') {
+    if(point==='processing')await driver.ready(references.taskId);
+    await driver.collect(references.taskId);await driver.start();
+  } else if(point==='dish') { await driver.submit();await driver.plant(); }
+  else {
+    await driver.open('orders');const completed=(await status(driver.page)).orders;
+    assert.ok(completed.orderOptions.some(item=>item.status==='completed'));
+    await driver.choose('orders','order',completed.orderOptions.find(item=>item.status==='completed').id);
+    await driver.click('restored-duplicate-disabled','SubmitOrder',{disabled:true});
+    await driver.plant();await driver.split(50);
+  }
+}
+
+async function recoveryLoop(browser, url, result, recordDir, logs) {
+  const points=[];
+  for(const point of CROSS_STEP_POINTS) {
+    const context=await browser.newContext({viewport:{width:960,height:640},deviceScaleFactor:1});
+    try {
+      let page=await context.newPage();watchErrors(page,'recovery-'+point+'-setup',logs);
+      await page.goto(url);await awaitReady(page);await attachButtonObservation(page);
+      assert.equal((await storedSave(page)).raw,null,'each recovery point must be an independent ordinary new game');
+      const setup=recoveryDriver(page,'recovery-'+point+'-setup',result,recordDir);
+      const references=await recoverySetup(setup,point);
+      await physicalClick(page,'recovery-'+point+'-save-point',result,recordDir,'SaveLocal',{name:'save',status:'completed',timeLabel:(await status(page)).timeLabel});
+      const savedState=await status(page),saved={...await storedSave(page),timeLabel:savedState.timeLabel};
+      assertCrossStepCheckpoint(point,savedState,saved);
+      const checkpoint={point,savedState,saved:recoverySaveEvidence(recordDir,'recovery-'+point+'-point-save',saved)};
+      for(const mode of ['reload','newpage']) {
+        if(mode==='reload') {await page.evaluate(()=>{globalThis.__crossStepPreviousDocument=true;});await page.reload();}
+        else {await page.close();page=await context.newPage();watchErrors(page,'recovery-'+point+'-'+mode,logs);await page.goto(url);}
+        await awaitReady(page);const documentFresh=await page.evaluate(()=>globalThis.__crossStepPreviousDocument===undefined);
+        const initial=await status(page),afterStartup=await storedSave(page);await attachButtonObservation(page);
+        const loaded=await physicalClick(page,'recovery-'+point+'-'+mode+'-load',result,recordDir,'LoadLocal',{name:'load',status:'completed',timeLabel:saved.timeLabel});
+        const afterLoad=await storedSave(page);
+        assertCrossStepFreshRecovery({saved,savedState,initial,afterStartup,loaded,afterLoad,documentFresh});
+        await physicalClick(page,'recovery-'+point+'-'+mode+'-save-equal',result,recordDir,'SaveLocal',{name:'save',status:'completed',timeLabel:saved.timeLabel});
+        const reserialized=await storedSave(page);assertCrossStepSerialization(saved,reserialized);
+        const driver=recoveryDriver(page,'recovery-'+point+'-'+mode,result,recordDir);driver.page=page;
+        const firstClick=result.clicks.length;await recoveryContinue(driver,point,references);
+        const actions=crossStepActionObservations(result.clicks.slice(firstClick));
+        const finalState=await status(page),continuation=assertCrossStepContinuation(point,loaded.after,actions,finalState);
+        const observedCreatedIds=assertCrossStepObservedIds(saved,continuation.created);
+        assertStoredSaveUnchanged(saved,await storedSave(page));
+        const branch={mode,documentFresh,initial,afterStartup:storedEvidence(afterStartup),loaded,afterLoad:storedEvidence(afterLoad),reserialized:recoverySaveEvidence(recordDir,'recovery-'+point+'-'+mode+'-reserialized',reserialized),actions,continuation,observedCreatedIds,finalState};
+        if(mode==='newpage') {
+          await physicalClick(page,'recovery-'+point+'-'+mode+'-save-final',result,recordDir,'SaveLocal',{name:'save',status:'completed',timeLabel:finalState.timeLabel});
+          const finalSave=await storedSave(page);branch.createdIds=assertCrossStepCreatedIds(saved,finalSave,continuation.created);
+          branch.finalSave=recoverySaveEvidence(recordDir,'recovery-'+point+'-'+mode+'-final-save',finalSave);
+        }
+        await page.screenshot({path:join(recordDir,'recovery-'+point+'-'+mode+'-continued.png'),fullPage:true});
+        branch.screenshot='recovery-'+point+'-'+mode+'-continued.png';
+        branch.lifecycle=await disposeProbe(page);checkpoint[mode]=branch;
+        if(mode==='reload')assertStoredSaveUnchanged(saved,await storedSave(page));
+      }
+      points.push(checkpoint);
+    } finally {await context.close();}
+  }
+  const failures=await crossStepFailureRecovery(browser,url,result,recordDir,logs);
+  return {scope:'five isolated ordinary new games; each original checkpoint is manually loaded after reload and same-context new page, then actually continued; no private state injection or automatic recovery',points,failures};
+}
+
+async function crossStepFailureRecovery(browser,url,result,recordDir,logs) {
+  const context=await browser.newContext({viewport:{width:960,height:640},deviceScaleFactor:1});
+  try {
+    await context.addInitScript(({key})=>{
+      const storage=globalThis.localStorage,read=Storage.prototype.getItem,write=Storage.prototype.setItem;
+      const control={mode:'none',calls:{getter:0,read:0,write:0},readRaw:()=>read.call(storage,key),writeRaw:raw=>write.call(storage,key,raw)};
+      Object.defineProperty(globalThis,'localStorage',{configurable:true,get(){control.calls.getter++;if(control.mode==='getter')throw new Error('controlled-recovery-getter');return storage;}});
+      Storage.prototype.getItem=function(requested){if(this===storage&&requested===key){control.calls.read++;if(control.mode==='read')throw new Error('controlled-recovery-read');}return read.call(this,requested);};
+      Storage.prototype.setItem=function(requested,value){if(this===storage&&requested===key){control.calls.write++;if(control.mode==='write')throw new Error('controlled-recovery-write');}return write.call(this,requested,value);};
+      globalThis.__webProbeStorageFault=control;
+    },{key:STORAGE_KEY});
+    const page=await context.newPage();watchErrors(page,'cross-step-isolated-faults',logs);await page.goto(url);await awaitReady(page);await attachButtonObservation(page);
+    const driver=recoveryDriver(page,'recovery-fault',result,recordDir);await driver.plant();
+    await page.evaluate(()=>{globalThis.__crossStepHealthyObserver=globalThis.__cocosWebProbe;});
+    const failures=[];
+    for(const [index,fault] of [{name:'getter-save',mode:'getter',command:'save'},{name:'getter-load',mode:'getter',command:'load'},{name:'read',mode:'read',command:'load'},{name:'write',mode:'write',command:'save'},{name:'json',command:'load'},{name:'schema',command:'load'},{name:'audit',command:'load'}].entries()) {
+      await driver.click('baseline-'+index,'SaveLocal',{name:'save',status:'completed',timeLabel:(await status(page)).timeLabel});
+      const baseline=await storedSave(page,true),healthy=await status(page);
+      let badRaw=null;
+      if(fault.name==='json')badRaw='{';else if(fault.name==='schema')badRaw='{}';else if(fault.name==='audit'){const bad=JSON.parse(baseline.raw);bad.storage_containers[0].used_capacity+=1;badRaw=JSON.stringify(bad);}
+      const countersBefore=await page.evaluate(({mode,raw})=>{const fault=globalThis.__webProbeStorageFault;if(raw!==null)fault.writeRaw(raw);fault.mode=mode??'none';return {...fault.calls};},{mode:fault.mode,raw:badRaw});
+      const rejected=await storedSave(page,true);
+      const expected={name:fault.command,status:'failed',timeLabel:healthy.timeLabel,...(fault.mode?{errorMessage:'controlled-recovery-'+fault.mode}:{errorMessagePrefix:'ERR_COCOS_SESSION_LOAD_REJECTED:web_probe:'+ (fault.name==='json'?'':'ERR_COCOS_SESSION_VALIDATION_FAILED:load_candidate_before_commit:'+ (fault.name==='schema'?'ERR_SCHEMA_VALIDATION_FAILED:':'ERR_STORAGE_AUDIT_FAILED:'))})};
+      const failed=await driver.click('reject-'+fault.name,fault.command==='load'?'LoadLocal':'SaveLocal',expected);
+      assertCrossStepFailureObservation(failed,expected);assertStoredSaveUnchanged(rejected,await storedSave(page,true));
+      assert.equal(await page.evaluate(()=>globalThis.__crossStepHealthyObserver===globalThis.__cocosWebProbe),true,'failed load must retain the same healthy component/session owner');
+      const countersAfter=await page.evaluate(()=>({...globalThis.__webProbeStorageFault.calls}));
+      const attempted=fault.mode??'read';assert.equal(countersAfter[attempted]-countersBefore[attempted],1,'failed storage must not automatically retry or use a fallback');
+      await page.evaluate(()=>{globalThis.__webProbeStorageFault.mode='none';});
+      await driver.click('serialize-healthy-'+index,'SaveLocal',{name:'save',status:'completed',timeLabel:healthy.timeLabel});
+      const preserved=await storedSave(page,true);assertCrossStepSerialization(baseline,preserved);
+      const continued=await driver.click('continue-without-load-'+index,'AdvanceOneHour');
+      failures.push({name:fault.name,injected:'isolated native Storage rejection or invalid raw string; no private business state injection and no healthy load before continuation',expected,failed,countersBefore,countersAfter,rejected:storedEvidence(rejected),preserved:recoverySaveEvidence(recordDir,'recovery-fault-'+fault.name+'-healthy-save',preserved),continued});
+    }
+    const harvested=await driver.harvest();
+    await driver.click('save-harvested','SaveLocal',{name:'save',status:'completed',timeLabel:harvested.after.timeLabel});
+    const finalSave=recoverySaveEvidence(recordDir,'recovery-fault-final-save',await storedSave(page,true));
+    const lifecycle=await disposeProbe(page);
+    return {scope:'isolated controlled native browser storage faults against a genuine growing world; every failure is followed by full-save equality and actual advance without a healthy load; finally actual harvest',failures,harvested,finalSave,lifecycle};
+  } finally {await context.close();}
+}
+
 function watchErrors(page, name, logs) {
   page.on('console', (message) => logs.push({ caseName: name, type: message.type(), text: message.text() }));
   page.on('pageerror', (error) => logs.push({ caseName: name, type: 'pageerror', text: error.message }));
@@ -1063,6 +1323,7 @@ export async function verifyWebProbe(options) {
     result.cooking = result.processing.cooking;
     result.orders = result.cooking.orders;
     result.storageRecovery = await storageFailureRecovery(browser, result.url, result, recordDir, logs);
+    result.recovery = await recoveryLoop(browser, result.url, result, recordDir, logs);
     if (!parsed.previewUrl) {
       assert.ok(resourceUrl, 'actual probe resource URL must be observed');
       const context = await browser.newContext({ viewport: { width: 960, height: 640 } });

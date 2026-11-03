@@ -75,3 +75,7 @@ CocosSelectableViewModel.order_options只读对齐available/accepted与deadline�
 ## 订单需求与实际结算只读投影
 
 SelectableVM仅扩展现有order_options，复制issuer/deadline/signed余量、配置需求和实际submitted refs/result_summary。hard、weighted、forbidden/acceptable defects与threshold分开，显示名来自正式Profile文本，缺配置返回null与不可用原因；不将base_reward当预计奖励，不填虚假的成功数字。全部数组、需求项与摘要为深度独立副本，不泄漏SaveFile或配置；StateVM和Session保持。tests/cocos-ui-readiness.test.ts验证来源、缺配置及隔离，tests/cocos-minimal-menu-binding.test.ts验证既有显式选择链；trace.cocos.web-orders-loop连接第五页。
+
+## 跨步骤恢复公共会话
+
+trace.cocos.cross-step-recovery通过tests/stage1a-bootstrap.test.ts验证五保存点的新Host读取、后续真实菜单动作、完整状态及持久ID安全。Session/SelectableVM/StateVM生产接口与算法保持；原有Session失败加载/预览无副作用/ID回归继续执行，恢复列表不能当本次成功。真实网页由verify-web独立输入，Node结果不替代引擎或浏览器。
