@@ -1,4 +1,4 @@
-﻿# Quality Map — v0.0.2.45
+﻿# Quality Map — v0.0.2.46
 
 ## 系统职责
 
@@ -100,3 +100,7 @@ trace.orders.legal-state-deadline连接三源及test.stage1a-contract、test.act
 ## 网页订单验收登记
 
 ProbeOrders.ts/.meta与cocos-web-orders.test.ts登记既有prepare/lifecycle，测试实际进入lifecycle args和package脚本；readiness/menu与web-verification沿原full/blocker。trace.cocos.web-orders-loop连接分层公开数据/outer/工具和真实Creator/built/editor验收，旧27条追踪与全部47任务保持。每个修改测试和主要源/.meta分别执行affected核真实覆盖，最终仍完整45与无缓存发布47，不把Node或DPR仿真当手机/微信。
+
+## 触摸与小屏验证登记
+
+tests/cocos-web-layout.test.ts进入既有test.cocos-engine-probe-lifecycle实际args/package脚本，ProbeLayout.ts/.meta及测试登记prepare/lifecycle files；工具断言负例沿既有web-verification。trace.cocos.touch-small-screen与affected/traceability契约闭合，47任务/full45/release47及全部旧回归保持。最终提交独立Creator/SDK、built/editor原生touch与逐图验收不由Node/CI推定。

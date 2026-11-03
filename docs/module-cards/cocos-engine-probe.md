@@ -129,4 +129,18 @@ tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，
 
 ## 五点恢复的真实浏览器证据
 
-trace.cocos.cross-step-recovery新增verify-web的独立普通玩家recoveryLoop；生长中、加工中、可领取、菜品已成、订单完成各自然达成后手动保存，刷新及同context新页读取同一原点后实际继续。webProbeSupport通用恢复断言与既有web-verification任务负例闭合，保持原专用农事断言及全部五页/矩阵/resize/故障/销毁链。outer组件和观察接口保持，不新增状态写入捷径；Node契约不执行真实浏览器，Creator/SDK及built/editor真实输入、图检另验。
+trace.cocos.cross-step-recovery新增verify-web的独立普通玩家recoveryLoop；生长中、加工中、可领取、菜品已成、订单完成各自然达成后手动保存，刷新及同context新页读取同一原点后实际继续。webProbeSupport通用恢复断言与既有web-verification任务负例闭合，保持原专用农事断言及全部五页/矩阵/resize/故障/销毁链。恢复链仍沿既有业务机制，outer仅增加布局/滚动只读诊断，不新增状态写入捷径；Node契约不执行真实浏览器，Creator/SDK及built/editor真实输入、图检另验。
+
+## 触摸与小屏操作准备
+
+trace.cocos.touch-small-screen：built-web约定800×360、844×390、960×432，另844×250→390模拟可视区缩高恢复。compact以真实CSS frame布局，正文至少14CSSpx、按钮/EditBox命中高至少44CSSpx。ProbeLayout纯几何与Cocos原生ScrollView/Mask保证内容可达，切页重置滚动、resize保持Host/observer/Button身份与单次CLICK绑定。
+
+ProbeLayout.ts/.meta及tests/cocos-web-layout.test.ts登记prepare/lifecycle，布局测试真实进入lifecycle args/package脚本；工具观察与负例沿web-verification。按下/滑动取消、滚动后输入、单次tap及本次operation/公开世界需互证。旧鼠标、五页经营/五点恢复、Storage失败/坏档与生命周期链全部保留；Node契约不执行真实浏览器。
+
+输入框通过公开tabIndex管理焦点顺序：compact模式Tab结束当前编辑，下一字段由玩家显式触摸或鼠标选择，避免跳入已初始化的隐藏或Mask外输入框；desktop保留当前页可用输入框的顺序Tab，隐藏或禁用字段不参与。初始创建、enabled状态更新和resize后同步，不改变数量文本解析或正式业务规则。此控件行为仍须真实浏览器核验，不能由源码登记推定手机软键盘通过。
+
+compact重排前通过公开isFocused捕获当前编辑框，缩高/恢复后按布局计划计算夹在有效滚动范围内的offset，再由原生ScrollView.scrollToOffset完整揭示该框；原输入文本、选择、会话与按钮身份保持。无焦点时仍归顶，切页先沿原逻辑结束编辑，约定之外容不下完整字段的窗口才结束编辑。电脑触摸滚动可能自然结束编辑，仍须核原文和世界不变；built缩高证据不推定editor同项或真实手机键盘通过。
+
+editor保留原矩阵，新增触摸用Creator原生WebpageFullScreen控件切换并逐实际canvas/frame几何标注，不篡改预览DOM造支持。电脑hasTouch/DPR或缩高恢复不证明vivo X200s真实键盘、安全区或微信触摸。busy/销毁迟到沿既有受控Node回归与浏览器实际可观察窗口分别说明，不伪造同步Storage pending。真实Creator/SDK、built/editor鼠标/触摸和逐图检查独立留证。
+
+正常经营/存读档链console error必须为零，pageerror在全部场景都必须为零；旧missing-resource预期404单独归类。另有且仅有受控touch-native-cancel负例可记录一条SDK/Chrome诊断全文：Ignored attempt to cancel a touchcancel event with cancelable=false, for example because scrolling is in progress and cannot be interrupted. 必须同时证明原生cancel为trusted、cancelable=false、取消0CLICK/0command、世界保持及后续真实保存/推进/读取健康恢复；保留原始console。全文出现于其他case、被伪标missing-resource、次数非一、原生或恢复证据缺失、其他console error/pageerror均失败，不能泛过滤touch页面或报告原始console零error。该归属来自安装SDK原生touch-input回调与实际负例，不修改SDK或架构/门禁策略。

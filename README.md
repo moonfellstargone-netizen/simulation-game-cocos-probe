@@ -1,12 +1,12 @@
-# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.45
+# 模拟游戏 Cocos 微信试水代码项目 v0.0.2.46
 
-**Cross-step Save/Load Recovery / 跨步骤存读档恢复版**
+**Touch Interaction & Small-screen Readiness / 触摸交互与小屏操作收口版**
 
 本仓库是 Cocos 微信试水代码项目**日常代码权威源**。正式玩法与契约权威仍为正式三包 v1.5.2.2。
 
-- 代码包版本：`v0.0.2.45`
-- npm package version：`0.0.2-45`
-- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_45`（权威源：`tools/quality/rules/project-target.json`）
+- 代码包版本：`v0.0.2.46`
+- npm package version：`0.0.2-46`
+- release 根目录：`模拟游戏_Cocos微信试水代码包_v0_0_2_46`（权威源：`tools/quality/rules/project-target.json`）
 - 设计来源：`模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip`
 - 规则权威源：`tools/quality/rules/project-target.json`、`tools/quality/rules/context-doc-surface.rules.json`、`tools/quality/rules/architecture-boundary.rules.json`、`tools/quality/rules/traceability-map.json`
 - 代码权威：本 GitHub 仓库（非 zip 归档包）
@@ -22,7 +22,7 @@
 
 ## Task Intent Lock
 
-本轮唯一目标是跨步骤手动存读档后的真实续玩：现有九种正式Action经玩家入口自然到达生长中、加工中、可领取、菜品已成、订单完成五个独立保存点，每点在全新会话读取后继续实际操作。加工恢复后领取并再次开工；已完成订单恢复后仍不能重复领奖，并继续创建对象验证既有ID恢复。通过公共bootstrap/Host集成测试和独立浏览器recoveryLoop补齐证据，生产core、Session/Queue、ViewModel、outer组件、SaveFile与正式资源保持。既有五页经营、手动单槽、坏档/存储拒绝、busy/销毁迟到与全部浏览器回归保留；不新增自动保存/自动恢复、多槽、迁移、跨标签仲裁、数量/时间/重复输入/奖励规则、触摸、Stage1B或微信。
+本轮唯一目标是现有Stage1A五页在约定横屏逻辑视口下的电脑触摸与小屏操作准备：built-web覆盖800×360、844×390、960×432，另以844×250→390模拟可视区缩高恢复；compact以实际CSS frame布局，正文至少14CSSpx、按钮和EditBox命中高至少44CSSpx。仅在outer使用纯ProbeLayout、原生ScrollView/Mask、resize与视觉视口同步，选择/数量输入/确认/结果及手动存读档可达，按下或滑动取消不误提交、有效tap只发一次请求，切页重置滚动且resize保留会话和按钮身份。保留原桌面鼠标、全部五页经营、五点手动恢复及失败/销毁保护；core、Session/Queue、SaveFile、正式资源、数量/重复材料/时间/奖励规则与依赖保持。不新增通用UI框架、多点手势、横竖双套设计、自动存档、迁移、多槽、Stage1B或微信；电脑模拟不代表vivo X200s安全区、真实软键盘或微信触摸通过。
 
 工具只读取仓库唯一src/design_snapshot派生的工作副本。prepare继续导出snapshot及全部58项Schema并记录Git来源/输入产物摘要；build记录实际Web产物清单摘要，verify核对构建关联和产物字节后才启动浏览器，拒绝替换或篡改的Web目录。工程、依赖、报告、缓存和构建仍位于仓库外，不形成第二源码权威。
 
@@ -32,7 +32,7 @@
 
 构建网页矩阵含800×600、DPR2及四次resize点击；编辑器预览只承诺1440×1200和960×640/DPR1及960→1440→960三次resize点击，官方Default设备模拟器800裁剪场景未支持。具体范围见外层契约，不推导手机或微信适配。
 
-导航与追踪：本版trace.cocos.web-orders-loop、既有trace.orders.legal-state-deadline、既有trace.cocos.web-cooking-loop、既有trace.cocos.web-processing-loop、trace.inventory.split-quantity、既有trace.runtime.id-recovery、既有trace.processing.required-inputs、既有trace.cocos.web-inventory-storage，以及保留的trace.cocos.web-farming-loop、trace.cocos.browser-local-save、trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input和trace.cocos.web-bootstrap-probe。实际失败先定位，不通过降低架构检查、跳过门禁或调用observer.advance代替物理点击制造通过。
+导航与追踪：本版trace.cocos.touch-small-screen，保留既有trace.cocos.cross-step-recovery、trace.cocos.web-orders-loop、trace.orders.legal-state-deadline、trace.cocos.web-cooking-loop、trace.cocos.web-processing-loop、trace.inventory.split-quantity、trace.runtime.id-recovery、trace.processing.required-inputs、trace.cocos.web-inventory-storage，以及trace.cocos.web-farming-loop、trace.cocos.browser-local-save、trace.cocos.web-save-load-recovery、trace.cocos.web-viewport-input和trace.cocos.web-bootstrap-probe。实际失败先定位，不通过降低架构检查、跳过门禁或调用observer.advance代替物理点击制造通过。
 
 执行方使用Cursor时必须先做预检报告，用户或GPT确认后才可修改文件。复杂任务须先做Scope Discovery。
 
@@ -172,4 +172,8 @@ trace.cocos.cross-step-recovery：五个独立保存点为生长中、加工中�
 
 `tests/stage1a-bootstrap.test.ts`沿公共bootstrap/Host和既有菜单/Queue验证集成；`tools/cocos-probe/verify-web.mjs`、`lib/webProbeSupport.mjs`及`tests/cocos-web-verification-contracts.test.mjs`连接独立recoveryLoop与断言负例。复用既有test.stage1a-bootstrap和test.cocos-web-verification-contracts实际args/files/covers及full/blocker，不新增任务；Session/save-load/Queue/lifecycle旧保护继续运行。
 
-刷新及同context新页均手动读入原保存点后续玩；坏JSON/Schema/Audit、读写拒绝、busy和销毁迟到场景与健康链隔离，失败load保留健康完整状态。生产Session/core/outer组件和正式资源不变；无自动恢复、多槽、迁移或跨标签仲裁。真实Creator/SDK、built/editor物理输入与对应截图须独立留证，Node契约不执行真实浏览器，不代表手机/微信通过。
+刷新及同context新页均手动读入原保存点后续玩；坏JSON/Schema/Audit、读写拒绝、busy和销毁迟到场景与健康链隔离，失败load保留健康完整状态。该恢复链沿既有Session/core及正式资源；当前outer触摸/布局调整另见下节，无自动恢复、多槽、迁移或跨标签仲裁。真实Creator/SDK、built/editor物理输入与对应截图须独立留证，Node契约不执行真实浏览器，不代表手机/微信通过。
+
+## 触摸与小屏操作准备
+
+trace.cocos.touch-small-screen连接ProbeLayout、真实组件/模板、Node负例与独立浏览器触摸场景。built-web约定800×360、844×390、960×432及844×250→390缩高恢复；原鼠标、经营和五点恢复链保留。完整范围见docs/module-cards/cocos-engine-probe.md和保留的CocosEngineProbe契约，电脑模拟不代表手机或微信通过。

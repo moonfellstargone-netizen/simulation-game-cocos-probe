@@ -9,6 +9,7 @@ import { assertCookingProjection, assertCookingPreviewObservation, assertCooking
 import { assertOrdersProjection, assertLocalOrderObservation, assertOrderDisabledObservation, assertOrderPreviewObservation, assertOrderConfirmObservation, assertOrderLoadRecovery, assertOrderSerializedSettlement } from './lib/webProbeSupport.mjs';
 
 import { CROSS_STEP_POINTS, crossStepActionObservations, assertCrossStepCheckpoint, assertCrossStepContinuation, assertCrossStepCreatedIds, assertCrossStepObservedIds, assertCrossStepFailureObservation, assertCrossStepFreshRecovery, assertCrossStepSerialization } from './lib/webProbeSupport.mjs';
+import { crossStepWorld, assertTouchSpatialLayout, assertTouchTapObservation, assertTouchCancelObservation, assertTouchResizeObservation, assertTouchEditDomVisibility, assertTouchDomFrameStable, assertTouchBrowserDiagnostics } from './lib/webProbeSupport.mjs';
 
 const ROOT = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '../..'));
 const MATRIX = [
@@ -60,6 +61,8 @@ async function attachButtonObservation(page) {
 
 async function physicalClick(page, caseName, result, recordDir, buttonName = 'AdvanceOneHour', expected) {
   await settle(page);
+  const touch = result.inputDevice === 'touch';
+  if (touch) await revealTouchControl(page, buttonName, result, recordDir);
   const disabled = expected?.disabled === true;
   const layout = await page.evaluate(async ({ name, disabled }) => {
     const cc = await System.import('cc');
@@ -89,20 +92,29 @@ async function physicalClick(page, caseName, result, recordDir, buttonName = 'Ad
       target: cssPoint(button.node.worldPosition)
     };
   }, { name: buttonName, disabled });
+  if (touch) Object.assign(layout, await touchControlGeometry(page, buttonName));
   const before = await status(page);
   const countBefore = await page.evaluate((name) => globalThis.__webProbeButtonEvents[name], buttonName);
   const scrollBefore = await scroll(page);
   assert.ok(layout.target.x >= 0 && layout.target.x < layout.viewport.width && layout.target.y >= 0 && layout.target.y < layout.viewport.height, 'physical target must be inside the viewport');
   // Keep the same physical pointer coordinates through down/up. Never scroll, retry or retarget a failed click.
-  await page.mouse.move(layout.target.x, layout.target.y);
-  await page.mouse.down();
+  const nativeIndex = touch ? await touchEventIndex(page) : 0;
+  if (touch) await dispatchTouch(page, 'touchStart', layout.target);
+  else { await page.mouse.move(layout.target.x, layout.target.y); await page.mouse.down(); }
   await settle(page);
+  const pressed = touch ? await status(page) : null;
+  const pressEventCount = touch ? await page.evaluate((name) => globalThis.__webProbeButtonEvents[name], buttonName) - countBefore : null;
   const scrollDown = await scroll(page);
-  await page.mouse.up();
+  if (touch) await dispatchTouch(page, 'touchEnd'); else await page.mouse.up();
   await settle(page);
   await page.waitForFunction(() => !globalThis.__cocosWebProbe.status().busy, {}, { timeout: 10000 });
   const observation = { caseName, buttonName, layout, before, after: await status(page), eventCount: await page.evaluate((name) => globalThis.__webProbeButtonEvents[name], buttonName) - countBefore, scrollBefore, scrollDown, scrollAfter: await scroll(page) };
   result.clicks.push(observation);
+  if (touch) {
+    Object.assign(observation, { pointerSource: 'cdp-touch', pressed, pressEventCount, nativeEvents: await touchEventsSince(page, nativeIndex) });
+    const local = [...SELECTION_BUTTONS,...INVENTORY_LOCAL_BUTTONS,...PROCESSING_LOCAL_BUTTONS,...COOKING_LOCAL_BUTTONS,...ORDER_LOCAL_BUTTONS].includes(buttonName);
+    assertTouchTapObservation(observation, { disabled, command: !local });
+  }
   await page.screenshot({ path: join(recordDir, caseName + '.png'), fullPage: true });
   if (disabled) {
     if (buttonName === 'OrderPreview' || buttonName === 'SubmitOrder') assertOrderDisabledObservation(observation, buttonName);
@@ -153,6 +165,8 @@ async function physicalClick(page, caseName, result, recordDir, buttonName = 'Ad
 
 async function physicalQuantityInput(page, caseName, text, result, recordDir, inputName) {
   await settle(page);
+  const touch = result.inputDevice === 'touch';
+  if (touch) await revealTouchControl(page, inputName, result, recordDir, true);
   // Read geometry and event counters only. All text changes below come from real mouse/keyboard input.
   const readLayout = () => page.evaluate(async (name) => {
     const cc = await System.import('cc');
@@ -180,23 +194,39 @@ async function physicalQuantityInput(page, caseName, text, result, recordDir, in
       button: input, inputLabels, viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio }, target: point(edit.node.worldPosition) };
   }, inputName);
   const layout = await readLayout();
+  if (touch) Object.assign(layout, await touchControlGeometry(page, inputName, true));
+  const domBefore = touch ? await touchDomFrame(page) : null;
   const before = await status(page); const scrollBefore = await scroll(page);
   const counterName = ({ SplitQuantity: '__webProbeEditEvents', ProcessingQuantity: '__webProbeProcessingEditEvents', CookingQuantity: '__webProbeCookingEditEvents', CookingMinutes: '__webProbeCookingMinutesEditEvents' })[inputName];
   const counters = await page.evaluate((key) => ({ buttons: { ...globalThis.__webProbeButtonEvents }, edit: { ...globalThis[key] } }), counterName);
-  await page.mouse.move(layout.target.x, layout.target.y); await page.mouse.down(); await settle(page);
-  const scrollDown = await scroll(page); await page.mouse.up();
+  const nativeIndex = touch ? await touchEventIndex(page) : 0;
+  if (touch) await dispatchTouch(page, 'touchStart', layout.target);
+  else { await page.mouse.move(layout.target.x, layout.target.y); await page.mouse.down(); }
+  await settle(page);
+  const pressed = touch ? await status(page) : null;
+  const pressEventCount = touch ? await buttonEventTotal(page) - Object.values(counters.buttons).reduce((sum, value) => sum + value, 0) : null;
+  const scrollDown = await scroll(page);
+  if (touch) await dispatchTouch(page, 'touchEnd'); else await page.mouse.up();
   await page.waitForFunction(() => document.activeElement?.classList.contains('cocosEditBox'), {}, { timeout: 5000 });
   await page.keyboard.press('Control+A'); await page.keyboard.press('Backspace'); await page.keyboard.type(text);
   const focused = await page.evaluate(() => ({ className: document.activeElement?.className, value: document.activeElement?.value }));
+  const domFocused = touch ? await touchDomFrame(page) : null;
   await page.keyboard.press('Tab'); await settle(page);
   // Inspect the rendered text/placeholder geometry again after the real edit and blur.
-  layout.inputLabels = (await readLayout()).inputLabels;
+  const afterLayout = await readLayout();
+  layout.inputLabels = afterLayout.inputLabels;
   const afterCounters = await page.evaluate((key) => ({ buttons: { ...globalThis.__webProbeButtonEvents }, edit: { ...globalThis[key] } }), counterName);
   const observation = { caseName, inputName, text, layout, focused, before, after: await status(page),
     eventCount: BUTTONS.reduce((sum, name) => sum + afterCounters.buttons[name] - counters.buttons[name], 0),
     editEvents: Object.fromEntries(['began', 'changed', 'ended'].map((key) => [key, afterCounters.edit[key] - counters.edit[key]])),
     scrollBefore, scrollDown, scrollAfter: await scroll(page) };
   result.inputs.push(observation);
+  if (touch) {
+    Object.assign(observation, { pointerSource: 'cdp-touch', pressed, pressEventCount, nativeEvents: await touchEventsSince(page, nativeIndex), afterLayout, domBefore, domFocused, domAfter: await touchDomFrame(page) });
+    assertTouchDomFrameStable(domBefore,domFocused);
+    assertTouchDomFrameStable(domBefore,observation.domAfter);
+    assertTouchTapObservation(observation, { input: true });
+  }
   await page.screenshot({ path: join(recordDir, caseName + '.png'), fullPage: true });
   if (inputName === 'CookingQuantity' || inputName === 'CookingMinutes') assertCookingInputObservation(observation, text);
   else if (inputName === 'SplitQuantity') assertSplitQuantityObservation(observation, text);
@@ -973,10 +1003,10 @@ async function storageFailureRecovery(browser, url, result, recordDir, logs) {
 
 
 // Only existing physical player controls are used. This separate driver does not alter any older regression loop.
-function recoveryDriver(page, prefix, result, recordDir) {
+function recoveryDriver(page, prefix, result, recordDir, physical = { click: physicalClick, input: physicalQuantityInput }) {
   let ordinal = 0;
-  const click = (suffix, button, expected) => physicalClick(page, `${prefix}-${++ordinal}-${suffix}`, result, recordDir, button, expected);
-  const input = (suffix, text, name) => physicalQuantityInput(page, `${prefix}-${++ordinal}-${suffix}`, String(text), result, recordDir, name);
+  const click = (suffix, button, expected) => physical.click(page, `${prefix}-${++ordinal}-${suffix}`, result, recordDir, button, expected);
+  const input = (suffix, text, name) => physical.input(page, `${prefix}-${++ordinal}-${suffix}`, String(text), result, recordDir, name);
   const open = async (panel) => {
     if ((await status(page)).panel === panel) return;
     return click('open-' + panel, {farming:'OpenFarming',inventory:'OpenInventory',processing:'OpenProcessing',cooking:'OpenCooking',orders:'OpenOrders'}[panel], {panel});
@@ -1229,9 +1259,353 @@ async function crossStepFailureRecovery(browser,url,result,recordDir,logs) {
   } finally {await context.close();}
 }
 
+const TOUCH_VIEWPORTS = [{ width: 800, height: 360 }, { width: 844, height: 390 }, { width: 960, height: 432 }];
+const touchSessions = new WeakMap();
+const browserInputCases = new WeakMap();
+
+async function dispatchTouch(page, type, point) {
+  if (!touchSessions.has(page)) touchSessions.set(page, await page.context().newCDPSession(page));
+  await touchSessions.get(page).send('Input.dispatchTouchEvent', {
+    type, touchPoints: point ? [{ x: point.x, y: point.y, id: 0, radiusX: 4, radiusY: 4, force: 1 }] : []
+  });
+}
+const touchEventIndex = page => page.evaluate(() => globalThis.__webProbeNativeTouches.length);
+const touchEventsSince = (page, index) => page.evaluate(index => globalThis.__webProbeNativeTouches.slice(index), index);
+const buttonEventTotal = page => page.evaluate(() => Object.values(globalThis.__webProbeButtonEvents).reduce((sum, value) => sum + value, 0));
+
+async function touchDomFrame(page) {
+  return page.evaluate(() => {
+    const rectangle=element=>{const r=element.getBoundingClientRect();return {left:r.left,top:r.top,width:r.width,height:r.height,scrollLeft:element.scrollLeft,scrollTop:element.scrollTop,overflowX:getComputedStyle(element).overflowX,overflowY:getComputedStyle(element).overflowY};};
+    const elements=Object.fromEntries(['GameDiv','Cocos3dGameContainer','GameCanvas'].map(id=>[id,rectangle(document.getElementById(id))]));
+    return {window:{x:scrollX,y:scrollY,width:innerWidth,height:innerHeight},document:rectangle(document.documentElement),body:rectangle(document.body),
+      visualViewport:visualViewport?{width:visualViewport.width,height:visualViewport.height,offsetTop:visualViewport.offsetTop,pageTop:visualViewport.pageTop}:null,
+      elements,active:{tag:document.activeElement?.tagName,id:document.activeElement?.id,className:document.activeElement?.className,value:document.activeElement?.value??null},
+      visibleEditors:[...document.querySelectorAll('.cocosEditBox')].filter(element=>{const s=getComputedStyle(element),r=element.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity)>0&&r.width>0&&r.height>0;}).map(element=>({id:element.id,value:element.value,rect:rectangle(element)}))};
+  });
+}
+
+async function attachTouchObservation(page) {
+  await attachButtonObservation(page);
+  await page.evaluate(async () => {
+    globalThis.__webProbeNativeTouches = [];
+    globalThis.__webProbeCocosTouches = [];
+    for (const type of ['touchstart','touchmove','touchend','touchcancel']) document.addEventListener(type, event => {
+      const point = event.changedTouches[0];
+      globalThis.__webProbeNativeTouches.push({ type, isTrusted: event.isTrusted, cancelable:event.cancelable, target: event.target?.id,
+        identifier: point?.identifier, x: point?.clientX, y: point?.clientY, activeTouches: event.touches.length });
+    }, { capture: true, passive: true });
+    const cc=await System.import('cc');
+    for(const button of cc.director.getScene().getComponentsInChildren(cc.Button)) {
+      for(const [type,event]of [['start',cc.Node.EventType.TOUCH_START],['move',cc.Node.EventType.TOUCH_MOVE],['end',cc.Node.EventType.TOUCH_END],['cancel',cc.Node.EventType.TOUCH_CANCEL]])
+        button.node.on(event,value=>globalThis.__webProbeCocosTouches.push({buttonName:button.node.name,type,engineSimulatedCancel:value.simulate===true}));
+    }
+  });
+}
+
+// Actual engine transforms and ancestor Masks are read; no test setter moves a control or scroll view.
+async function touchControlGeometry(page, name, input = false) {
+  return page.evaluate(async ({name,input}) => {
+    const cc = await System.import('cc'), scene = cc.director.getScene();
+    const component = scene.getComponentsInChildren(input ? cc.EditBox : cc.Button).find(item => item.node.name === name);
+    if (!component?.node.activeInHierarchy) throw new Error('ERR_TOUCH_CONTROL_INACTIVE:' + name);
+    const camera = scene.getComponentsInChildren(cc.Camera).find(item => item.node.name === 'ProbeCamera');
+    const canvas = document.querySelector('#GameCanvas'), css = canvas.getBoundingClientRect();
+    const point = world => { const p = camera.worldToScreen(world); return { x: css.left + css.width * p.x / canvas.width, y: css.top + css.height * (1 - p.y / canvas.height) }; };
+    const bounds = transform => {
+      const positions = [-transform.anchorPoint.x * transform.width, (1 - transform.anchorPoint.x) * transform.width]
+        .flatMap(x => [-transform.anchorPoint.y * transform.height, (1 - transform.anchorPoint.y) * transform.height].map(y => point(transform.convertToWorldSpaceAR(new cc.Vec3(x,y,0)))));
+      const left = Math.min(...positions.map(p => p.x)), right = Math.max(...positions.map(p => p.x));
+      const top = Math.min(...positions.map(p => p.y)), bottom = Math.max(...positions.map(p => p.y));
+      return {left,top,right,bottom,width:right-left,height:bottom-top};
+    };
+    const canvasRect = { left:css.left, top:css.top, right:css.right, bottom:css.bottom, width:css.width, height:css.height };
+    const intersect = (a,b) => { const left=Math.max(a.left,b.left),top=Math.max(a.top,b.top),right=Math.min(a.right,b.right),bottom=Math.min(a.bottom,b.bottom); return {left,top,right,bottom,width:right-left,height:bottom-top}; };
+    const clipFor = node => { let clip={...canvasRect}; for(let parent=node.parent;parent;parent=parent.parent) if(parent.getComponent(cc.Mask)) clip=intersect(clip,bounds(parent.getComponent(cc.UITransform))); return clip; };
+    const transform = component.node.getComponent(cc.UITransform), button = bounds(transform), clip = clipFor(component.node), target = point(component.node.worldPosition);
+    const captions = input ? [component.textLabel,component.placeholderLabel] : component.node.getComponentsInChildren(cc.Label);
+    const fontSizes = captions.filter(Boolean).map(label => { const t=label.node.getComponent(cc.UITransform); return label.fontSize * bounds(t).height / t.height; });
+    const overlappingButtons = scene.getComponentsInChildren(cc.Button).filter(other => {
+      if(other===component || !other.node.activeInHierarchy || !other.interactable) return false;
+      const rectangle=intersect(bounds(other.node.getComponent(cc.UITransform)),clipFor(other.node));
+      return target.x>rectangle.left&&target.x<rectangle.right&&target.y>rectangle.top&&target.y<rectangle.bottom;
+    }).map(item => item.node.name);
+    return { canvas:canvasRect, button, clip, target, fontSizes, overlappingButtons,
+      buttonInteractable: input ? undefined : component.interactable,
+      viewport:{width:innerWidth,height:innerHeight,dpr:devicePixelRatio} };
+  }, {name,input});
+}
+
+async function rawTouchGesture(page, caseName, result, recordDir, {gesture, name, from, to, steps = 6, destroy = false}) {
+  const previousCase=browserInputCases.get(page);browserInputCases.set(page,caseName);
+  const before=await status(page), scrollBefore=await scroll(page), nativeIndex=await touchEventIndex(page), count=await buttonEventTotal(page);
+  const offsetBefore=before.layout.scrollOffset;
+  const layout=name?await touchControlGeometry(page,name):null,cocosIndex=await page.evaluate(()=>globalThis.__webProbeCocosTouches.length);
+  await dispatchTouch(page,'touchStart',from); await settle(page);
+  const pressed=await status(page), pressEventCount=await buttonEventTotal(page)-count, scrollDown=await scroll(page);
+  if(to) for(let step=1;step<=steps;step++) {
+    await dispatchTouch(page,'touchMove',{x:from.x+(to.x-from.x)*step/steps,y:from.y+(to.y-from.y)*step/steps}); await settle(page);
+  }
+  if(destroy) {
+    // The existing lifecycle-only observer entry is never used for ordinary player actions.
+    await page.evaluate(() => globalThis.__cocosWebProbe.dispose());
+    await page.waitForFunction(() => globalThis.__cocosWebProbe.status().phase === 'closed');
+  }
+  await dispatchTouch(page,gesture==='cancel'?'touchCancel':'touchEnd'); await settle(page);
+  const after=await status(page), observation={caseName,gesture,buttonName:name??null,pointerSource:'cdp-touch',before,pressed,after,
+    pressEventCount,eventCount:await buttonEventTotal(page)-count,nativeEvents:await touchEventsSince(page,nativeIndex),
+    offsetBefore,offsetAfter:after.layout.scrollOffset,scrollBefore,scrollDown,scrollAfter:await scroll(page),layout,path:{from,to:to??null},
+    cocosEvents:await page.evaluate(index=>globalThis.__webProbeCocosTouches.slice(index),cocosIndex)};
+  result.gestures.push(observation);
+  assertTouchCancelObservation(observation,{scrolled:gesture==='scroll',destroyed:destroy});
+  if(!caseName.includes('-reveal-')) await page.screenshot({path:join(recordDir,caseName+'.png'),fullPage:true});
+  if(previousCase===undefined)browserInputCases.delete(page);else browserInputCases.set(page,previousCase);
+  return observation;
+}
+
+async function revealTouchControl(page, name, result, recordDir, input = false) {
+  for(let attempt=0;attempt<40;attempt++) {
+    const geometry=await touchControlGeometry(page,name,input), {button,clip}=geometry;
+    result.lastGeometry={name,input,layout:geometry};
+    if(button.left>=clip.left-.5&&button.right<=clip.right+.5&&button.top>=clip.top-.5&&button.bottom<=clip.bottom+.5) {
+      assertTouchSpatialLayout(geometry);return geometry;
+    }
+    assert.ok(button.height<=clip.height+.5&&button.width<=clip.width+.5,'touch control must fit its actual scroll viewport');
+    const up=button.bottom>clip.bottom;
+    const from={x:clip.right-8,y:clip.top+clip.height*(up?.8:.2)}, to={x:clip.right-8,y:clip.top+clip.height*(up?.2:.8)};
+    await rawTouchGesture(page,`touch-reveal-${result.gestures.length}-${name}`,result,recordDir,{gesture:'scroll',from,to});
+  }
+  throw new Error('ERR_TOUCH_CONTROL_UNREACHABLE:'+name);
+}
+
+async function selectNativePreviewWindow(page) {
+  // These are the installed Creator's own visible device controls, not injected Canvas styles/configuration.
+  const before=await page.locator('#view-select').getAttribute('value');
+  const nativeIndex=await page.evaluate(()=>{
+    if(!globalThis.__previewDeviceClicks){globalThis.__previewDeviceClicks=[];document.querySelector('#view-select').addEventListener('click',event=>globalThis.__previewDeviceClicks.push({isTrusted:event.isTrusted,device:event.target?.getAttribute('data-device')??null}),true);}
+    return globalThis.__previewDeviceClicks.length;
+  });
+  if(before!=='WebpageFullScreen') {
+    await page.locator('#view-select .view-select').click();
+    await page.locator('#view-select li[data-device="WebpageFullScreen"]').click();
+  }
+  await page.waitForFunction(() => document.querySelector('#view-select')?.getAttribute('value') === 'WebpageFullScreen');
+  await page.waitForFunction(() => {
+    const r=document.querySelector('#GameCanvas')?.getBoundingClientRect();
+    return r && Math.abs(r.width-innerWidth)<=1 && Math.abs(r.height-innerHeight)<=1;
+  });
+  await settle(page);
+  const events=await page.evaluate(index=>globalThis.__previewDeviceClicks.slice(index),nativeIndex);
+  if(before!=='WebpageFullScreen')assert.ok(events.some(event=>event.device==='WebpageFullScreen'&&event.isTrusted===true),'preview device must be selected using an actual native UI click');
+  return {before,after:await page.locator('#view-select').getAttribute('value'),interacted:before!=='WebpageFullScreen',events,
+    frameEvents:await page.evaluate(()=>globalThis.__previewFrameEvents?.slice()??[])};
+}
+
+async function observeNativePreviewFrames(page) {
+  await page.evaluate(async () => {
+    if(globalThis.__previewFrameEvents)return;
+    globalThis.__previewFrameEvents=[];
+    const cc=await System.import('cc'),size=value=>({width:value.width,height:value.height});
+    const record=(type,args=[])=>{
+      const canvas=document.querySelector('#GameCanvas'),r=canvas.getBoundingClientRect();
+      globalThis.__previewFrameEvents.push({type,at:performance.now(),args:args.map(value=>typeof value==='number'?value:null),
+        screen:size(cc.screen.windowSize),dpr:cc.screen.devicePixelRatio,frame:size(cc.view.getFrameSize()),design:size(cc.view.getDesignResolutionSize()),visible:size(cc.view.getVisibleSize()),
+        canvas:{left:r.left,top:r.top,width:r.width,height:r.height,backingWidth:canvas.width,backingHeight:canvas.height},layout:globalThis.__cocosWebProbe.status().layout});
+    };
+    cc.screen.on('window-resize',(...args)=>record('screen.window-resize',args));
+    cc.view.on('canvas-resize',(...args)=>record('view.canvas-resize',args));
+    cc.view.on('design-resolution-changed',(...args)=>record('view.design-resolution-changed',args));
+    record('before-native-device-selection');
+  });
+}
+
+async function assertTouchCanvas(page, viewport, evidence) {
+  try { await page.waitForFunction(({width,height}) => {
+    const state=globalThis.__cocosWebProbe.status(),r=document.querySelector('#GameCanvas').getBoundingClientRect();
+    return state.layout?.mode==='compact' && Math.abs(r.left)<=1e-4 && Math.abs(r.top)<=1e-4 && Math.abs(r.width-width)<=1 && Math.abs(r.height-height)<=1
+      && Math.abs(state.layout.frame.width-width)<=1 && Math.abs(state.layout.frame.height-height)<=1;
+  },viewport); } catch (error) {
+    if(evidence) evidence.failedCanvas=await page.evaluate(async () => {
+      const r=document.querySelector('#GameCanvas').getBoundingClientRect(),canvas=document.querySelector('#GameCanvas');
+      const cc=await System.import('cc');
+      const size=value=>value?{width:value.width,height:value.height}:null;
+      return {window:{width:innerWidth,height:innerHeight},canvas:{left:r.left,top:r.top,width:r.width,height:r.height,backingWidth:canvas.width,backingHeight:canvas.height},
+        device:document.querySelector('#view-select')?.getAttribute('value')??null,frame:size(cc.view.getFrameSize()),visible:size(cc.view.getVisibleSize()),screen:size(cc.screen.windowSize),
+        devicePixelRatio:cc.screen.devicePixelRatio,browserDevicePixelRatio:devicePixelRatio,designResolution:size(cc.view.getDesignResolutionSize()),scale:{x:cc.view.getScaleX(),y:cc.view.getScaleY()},layout:globalThis.__cocosWebProbe.status().layout,
+        previewFrameEvents:globalThis.__previewFrameEvents??[]};
+    });
+    throw error;
+  }
+  return page.evaluate(() => {const r=document.querySelector('#GameCanvas').getBoundingClientRect();return {left:r.left,top:r.top,width:r.width,height:r.height};});
+}
+
+async function touchIdentityVerified(page) {
+  return page.evaluate(async names => {
+    const cc=await System.import('cc'),buttons=cc.director.getScene().getComponentsInChildren(cc.Button);
+    return globalThis.__touchResizeIdentity.observer===globalThis.__cocosWebProbe
+      && names.every(name=>globalThis.__touchResizeIdentity.nodes[name]===buttons.find(button=>button.node.name===name).node);
+  },BUTTONS);
+}
+
+async function touchPanelReachability(page, driver, result, recordDir, viewportIndex, panels) {
+  for(const panel of ['farming','inventory','processing','cooking','orders']) {
+    await driver.open(panel);
+    const controls=await page.evaluate(async () => {const cc=await System.import('cc'),scene=cc.director.getScene();return [
+      ...scene.getComponentsInChildren(cc.Button).filter(item=>item.node.activeInHierarchy).map(item=>({name:item.node.name,input:false})),
+      ...scene.getComponentsInChildren(cc.EditBox).filter(item=>item.node.activeInHierarchy).map(item=>({name:item.node.name,input:true}))
+    ];});
+    const screenshots=[`touch-${viewportIndex}-${panel}-top.png`,`touch-${viewportIndex}-${panel}-bottom.png`];
+    await page.screenshot({path:join(recordDir,screenshots[0]),fullPage:true});
+    const layouts=[],evidence={panel,controls:layouts,screenshots,state:await status(page)};panels.push(evidence);
+    for(const control of controls) layouts.push({name:control.name,input:control.input,layout:await revealTouchControl(page,control.name,result,recordDir,control.input)});
+    await page.screenshot({path:join(recordDir,screenshots[1]),fullPage:true});
+    const labels=await page.evaluate(async () => {
+      const cc=await System.import('cc'),scene=cc.director.getScene(),camera=scene.getComponentsInChildren(cc.Camera).find(item=>item.node.name==='ProbeCamera');
+      const canvas=document.querySelector('#GameCanvas'),rect=canvas.getBoundingClientRect();
+      return scene.getComponentsInChildren(cc.Label).filter(label=>label.node.activeInHierarchy&&label.string.length>0).map(label=>{
+        const t=label.node.getComponent(cc.UITransform),a=camera.worldToScreen(t.convertToWorldSpaceAR(new cc.Vec3(0,0,0))),b=camera.worldToScreen(t.convertToWorldSpaceAR(new cc.Vec3(0,t.height,0)));
+        return {name:label.node.name,text:label.string,fontSizeCss:label.fontSize*Math.abs(b.y-a.y)*rect.height/canvas.height/t.height};
+      });
+    });
+    Object.assign(evidence,{labels,state:await status(page)});
+    assert.ok(labels.length>0&&labels.every(label=>label.fontSizeCss>=14-1e-4),'all actual active body/control Labels must be at least 14 CSS pixels');
+  }
+  return panels;
+}
+
+async function touchEditDom(page, name) {
+  const geometry=await touchControlGeometry(page,name,true);
+  return page.evaluate(({input,clip}) => {
+    const active=document.activeElement;
+    const elements=[...document.querySelectorAll('.cocosEditBox')].map(element=>{
+      const r=element.getBoundingClientRect(),style=getComputedStyle(element);
+      return {active:element===active,styleLeft:element.style.left,visible:style.display!=='none'&&style.visibility!=='hidden'&&Number(style.opacity)>0&&r.width>0&&r.height>0,
+        rect:{left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}};
+    });
+    return {active:active?.classList.contains('cocosEditBox')??false,className:active?.className??null,value:active?.value??null,elements,input,clip};
+  },{input:geometry.button,clip:geometry.clip});
+}
+
+async function focusTouchEdit(page, name, text, result, recordDir, caseName) {
+  if(await page.evaluate(()=>document.activeElement?.classList.contains('cocosEditBox')??false)) await page.keyboard.press('Tab');
+  const layout=await revealTouchControl(page,name,result,recordDir,true),before=await status(page),scrollBefore=await scroll(page);
+  const nativeIndex=await touchEventIndex(page),count=await buttonEventTotal(page);
+  const editBefore=await page.evaluate(()=>({...globalThis.__webProbeEditEvents}));
+  await dispatchTouch(page,'touchStart',layout.target);await settle(page);
+  const pressed=await status(page),pressEventCount=await buttonEventTotal(page)-count,scrollDown=await scroll(page);
+  await dispatchTouch(page,'touchEnd');await settle(page);
+  await page.waitForFunction(()=>document.activeElement?.classList.contains('cocosEditBox'));
+  await page.keyboard.press('Control+A');await page.keyboard.press('Backspace');await page.keyboard.type(text);await settle(page);
+  const editAfter=await page.evaluate(()=>({...globalThis.__webProbeEditEvents}));
+  const dom=await touchEditDom(page,name);
+  const observation={caseName,inputName:name,text,before,pressed,after:await status(page),layout,pointerSource:'cdp-touch',
+    eventCount:await buttonEventTotal(page)-count,pressEventCount,nativeEvents:await touchEventsSince(page,nativeIndex),
+    scrollBefore,scrollDown,scrollAfter:await scroll(page),focused:{className:dom.className,value:dom.value},
+    editEvents:Object.fromEntries(['began','changed','ended'].map(key=>[key,editAfter[key]-editBefore[key]])),dom};
+  (result.focusedEdits??=[]).push(observation);
+  assertTouchTapObservation(observation,{input:true,editingOpen:true});assertTouchEditDomVisibility(dom,{focused:true,text});
+  await page.screenshot({path:join(recordDir,caseName+'.png'),fullPage:true});return observation;
+}
+
+export async function touchLoop(browser,url,recordDir,logs,previewMode,parentResult) {
+  const result={inputDevice:'touch',clicks:[],inputs:[],gestures:[],viewports:[],resizes:[],previewSelections:[],previewDevice:previewMode?'Creator WebpageFullScreen visible device control':null,
+    limits:'Desktop Chromium hasTouch/CDP only; keyboard is desktop input; viewport contraction is not a phone keyboard, safe area or WeChat test.'};
+  // Publish the live evidence object before any assertion, so a failed gesture is retained by the outer finally.
+  parentResult.touch=result;
+  const context=await browser.newContext({viewport:TOUCH_VIEWPORTS[0],deviceScaleFactor:1,hasTouch:true});
+  try {
+    const page=await context.newPage();watchErrors(page,'touch',logs);
+    await page.goto(url);await awaitReady(page);
+    if(previewMode){await observeNativePreviewFrames(page);result.previewSelections.push(await selectNativePreviewWindow(page));}
+    await assertTouchCanvas(page,TOUCH_VIEWPORTS[0],result);await attachTouchObservation(page);
+    const driver=recoveryDriver(page,'touch-main',result,recordDir);
+    const button=await revealTouchControl(page,'AdvanceOneHour',result,recordDir);
+    result.cancelled=await rawTouchGesture(page,'touch-native-cancel',result,recordDir,{gesture:'cancel',name:'AdvanceOneHour',from:button.target});
+    result.draggedOut=await rawTouchGesture(page,'touch-native-dragout',result,recordDir,{gesture:'dragout',name:'AdvanceOneHour',from:button.target,to:{x:button.target.x,y:button.button.top-12}});
+    const child=await revealTouchControl(page,'SelectField',result,recordDir);
+    result.cancelledByScroll=await rawTouchGesture(page,'touch-native-scroll-child-cancel',result,recordDir,{gesture:'scroll',name:'SelectField',from:child.target,to:{x:child.target.x,y:Math.max(4,child.target.y-70)}});
+    await driver.click('cancel-baseline-save','SaveLocal',{name:'save',status:'completed',timeLabel:(await status(page)).timeLabel});
+    const baseline=await status(page);
+    await driver.click('cancel-recovery-advance','AdvanceOneHour');
+    await driver.click('cancel-recovery-load','LoadLocal',{name:'load',status:'completed',timeLabel:baseline.timeLabel});
+    assert.deepEqual(crossStepWorld(await status(page)),crossStepWorld(baseline));
+    const first=result.clicks.length;
+    await recoverySetup(driver,'completed');
+    result.mainActions=crossStepActionObservations(result.clicks.slice(first));
+    assert.deepEqual(new Set(result.mainActions.map(item=>item.actionType)),new Set(['plant_crop','advance_time','harvest_crop','store_item','split_lot','start_processing','collect_processing_result','cook_dish','submit_order']));
+    const completed=await status(page);
+    await driver.click('completed-save','SaveLocal',{name:'save',status:'completed',timeLabel:completed.timeLabel});
+    const saved=await storedSave(page);result.saved=recoverySaveEvidence(recordDir,'touch-completed',saved);
+    await driver.click('after-completed-save-advance','AdvanceOneHour');
+    const loaded=await driver.click('completed-load','LoadLocal',{name:'load',status:'completed',timeLabel:completed.timeLabel});
+    assert.deepEqual(crossStepWorld(loaded.after),crossStepWorld(completed));assertStoredSaveUnchanged(saved,await storedSave(page));result.loaded=loaded;
+    await page.evaluate(async names => {const cc=await System.import('cc');const buttons=cc.director.getScene().getComponentsInChildren(cc.Button);globalThis.__touchResizeIdentity={observer:globalThis.__cocosWebProbe,nodes:Object.fromEntries(names.map(name=>[name,buttons.find(button=>button.node.name===name).node]))};},BUTTONS);
+    for(let index=0;index<TOUCH_VIEWPORTS.length;index++) {
+      const viewport=TOUCH_VIEWPORTS[index];
+      if(index>0) {
+        const before=await status(page);await page.setViewportSize(viewport);
+        if(previewMode) {
+          const actualCanvas=await page.locator('#GameCanvas').boundingBox();assert.ok(actualCanvas);
+          await page.mouse.move(actualCanvas.x+10,actualCanvas.y+5);await page.locator('#view-select .view-select').click();
+          await page.locator('#view-select li[data-device="Default"]').click();result.previewSelections.push(await selectNativePreviewWindow(page));
+        }
+        const canvas=await assertTouchCanvas(page,viewport,result);
+        const identityVerified=await touchIdentityVerified(page);
+        const observation={before,after:await status(page),viewport,canvas,identityVerified};result.resizes.push(observation);assertTouchResizeObservation(observation);
+        await driver.split(index===1?50:25);
+      }
+      const viewportEvidence={viewport,canvas:await assertTouchCanvas(page,viewport,result),panels:[]};result.viewports.push(viewportEvidence);
+      await touchPanelReachability(page,driver,result,recordDir,index,viewportEvidence.panels);
+    }
+    // A real EditBox input was used above; this separate window change only simulates lost viewport height.
+    if(!previewMode) {
+      // Focus is kept open for both real gestures and the simulated viewport change.
+      await page.setViewportSize({width:844,height:390});await assertTouchCanvas(page,{width:844,height:390},result);
+      await driver.open('inventory');
+      const lot=(await status(page)).inventory.lotOptions.find(item=>item.enabled&&item.base_id==='cabbage'&&item.current_form==='fresh'&&item.quantity.amount>100);
+      assert.ok(lot);await driver.choose('inventory','lot',lot.id);
+      await focusTouchEdit(page,'SplitQuantity','31',result,recordDir,'touch-focus-before-scroll');
+      const area=(await touchControlGeometry(page,'SplitQuantity',true)).clip;
+      const drag=await rawTouchGesture(page,'touch-scroll-while-editing',result,recordDir,{gesture:'scroll',from:{x:area.right-4,y:area.top+area.height*.8},to:{x:area.right-4,y:area.top+area.height*.2}});
+      const afterScroll=await touchEditDom(page,'SplitQuantity');result.focusedScroll={drag,domAfter:afterScroll};
+      assertTouchEditDomVisibility(afterScroll);
+      await focusTouchEdit(page,'SplitQuantity','32',result,recordDir,'touch-focus-before-viewport-contraction');
+      const before=await status(page),contraction={realKeyboard:false,focusWasOpen:true};result.viewportContraction=contraction;
+      await page.setViewportSize({width:844,height:250});
+      const contractedCanvas=await assertTouchCanvas(page,{width:844,height:250},result);
+      contraction.contractedCanvas=contractedCanvas;
+      assert.deepEqual(crossStepWorld(await status(page)),crossStepWorld(before));
+      const contracted={before,after:await status(page),viewport:{width:844,height:250},canvas:contractedCanvas,identityVerified:await touchIdentityVerified(page)};
+      contraction.contracted=contracted;
+      assertTouchResizeObservation(contracted);
+      assert.equal((await status(page)).inventory.splitQuantityText,'32');
+      const contractedDom=await touchEditDom(page,'SplitQuantity');contraction.contractedDom=contractedDom;assertTouchEditDomVisibility(contractedDom);
+      await page.screenshot({path:join(recordDir,'touch-viewport-contracted.png'),fullPage:true});
+      await page.setViewportSize({width:844,height:390});
+      const canvas=await assertTouchCanvas(page,{width:844,height:390},result);
+      const identityVerified=await touchIdentityVerified(page);
+      const restored={before,after:await status(page),viewport:{width:844,height:390},canvas,identityVerified};contraction.restored=restored;assertTouchResizeObservation(restored);
+      assert.equal(restored.after.inventory.splitQuantityText,'32');
+      const restoredDom=await touchEditDom(page,'SplitQuantity');contraction.restoredDom=restoredDom;assertTouchEditDomVisibility(restoredDom);
+      if(restoredDom.active)await page.keyboard.press('Tab');
+      await driver.split(10);
+      await page.screenshot({path:join(recordDir,'touch-viewport-restored.png'),fullPage:true});
+    }
+    result.finalState=await status(page);result.lifecycle=await disposeProbe(page);
+  } finally {await context.close();}
+  const lateContext=await browser.newContext({viewport:TOUCH_VIEWPORTS[0],deviceScaleFactor:1,hasTouch:true});
+  try {
+    const page=await lateContext.newPage();watchErrors(page,'touch-destroy',logs);await page.goto(url);await awaitReady(page);
+    if(previewMode){await observeNativePreviewFrames(page);result.previewSelections.push(await selectNativePreviewWindow(page));}
+    await assertTouchCanvas(page,TOUCH_VIEWPORTS[0],result);await attachTouchObservation(page);
+    const target=await revealTouchControl(page,'AdvanceOneHour',result,recordDir);
+    result.destroyedDuringTouch=await rawTouchGesture(page,'touch-destroy-before-release',result,recordDir,{gesture:'destroy',name:'AdvanceOneHour',from:target.target,destroy:true});
+  } finally {await lateContext.close();}
+  return result;
+}
+
 function watchErrors(page, name, logs) {
-  page.on('console', (message) => logs.push({ caseName: name, type: message.type(), text: message.text() }));
-  page.on('pageerror', (error) => logs.push({ caseName: name, type: 'pageerror', text: error.message }));
+  page.on('console', (message) => logs.push({ caseName: browserInputCases.get(page)??name, type: message.type(), text: message.text() }));
+  page.on('pageerror', (error) => logs.push({ caseName: browserInputCases.get(page)??name, type: 'pageerror', text: error.message }));
 }
 
 export async function verifyWebProbe(options) {
@@ -1324,6 +1698,7 @@ export async function verifyWebProbe(options) {
     result.orders = result.cooking.orders;
     result.storageRecovery = await storageFailureRecovery(browser, result.url, result, recordDir, logs);
     result.recovery = await recoveryLoop(browser, result.url, result, recordDir, logs);
+    await touchLoop(browser, result.url, recordDir, logs, Boolean(parsed.previewUrl), result);
     if (!parsed.previewUrl) {
       assert.ok(resourceUrl, 'actual probe resource URL must be observed');
       const context = await browser.newContext({ viewport: { width: 960, height: 640 } });
@@ -1362,7 +1737,7 @@ export async function verifyWebProbe(options) {
         } finally { release(); }
       } finally { await context.close(); }
     }
-    assert.deepEqual(logs.filter((entry) => entry.type === 'pageerror' || (entry.type === 'error' && entry.caseName !== 'missing-resource')), [], 'unexpected browser errors');
+    result.expectedNativeCancelDiagnostics=assertTouchBrowserDiagnostics(logs,result.touch);
     if (!parsed.previewUrl) assert.deepEqual(webTreeDigest(join(projectDir, 'build/web-desktop')), result.webBuild, 'Web files must remain unchanged during verification');
     result.passed = true;
   } catch (error) {

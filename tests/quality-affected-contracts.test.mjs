@@ -14,6 +14,9 @@ const policy = readJson('tools/quality/gate-policy.json');
 
 test('Cocos Web template, preparation and regression changes select the registered probe tasks', () => {
   const cases = [
+    ['apps/cocos-probe/template/assets/scripts/ProbeLayout.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
+    ['apps/cocos-probe/template/assets/scripts/ProbeLayout.ts.meta', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
+    ['tests/cocos-web-layout.test.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
     ['apps/cocos-probe/template/assets/scripts/ProbeOrders.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
     ['apps/cocos-probe/template/assets/scripts/ProbeOrders.ts.meta', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
     ['tests/cocos-web-orders.test.ts', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']],
@@ -38,7 +41,7 @@ test('Cocos Web template, preparation and regression changes select the register
     ['tools/cocos-probe/build.mjs', ['test.cocos-probe-preparation', 'test.cocos-web-verification-contracts']],
     ['apps/cocos-probe/template/build-templates/web-desktop/index.ejs', ['test.cocos-probe-preparation', 'test.cocos-web-verification-contracts']],
     ['apps/cocos-probe/template/build-templates/web-desktop/probe-viewport.css', ['test.cocos-probe-preparation', 'test.cocos-web-verification-contracts']],
-    ['apps/cocos-probe/template/build-templates/web-desktop/probe-viewport.js', ['test.cocos-probe-preparation', 'test.cocos-web-verification-contracts']],
+    ['apps/cocos-probe/template/build-templates/web-desktop/probe-viewport.js', ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle', 'test.cocos-web-verification-contracts']],
     ['tools/cocos-probe/verify-web.mjs', ['test.cocos-web-verification-contracts']],
     ['tools/cocos-probe/lib/webProbeSupport.mjs', ['test.cocos-web-verification-contracts']],
     ['tests/cocos-web-verification-contracts.test.mjs', ['test.cocos-web-verification-contracts']],

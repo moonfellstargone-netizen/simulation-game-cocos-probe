@@ -1,6 +1,6 @@
-﻿# ARCHITECTURE — v0.0.2.45
+﻿# ARCHITECTURE — v0.0.2.46
 
-当前版本：v0.0.2.45 / Cross-step Save/Load Recovery。补齐五个独立保存点经新Host、刷新及同context新页面手动读取后的真实续玩证据，沿既有九Action和公共入口，不改变生产存读档、ID分配、Session/Queue、outer组件、SaveFile或正式资源。真实Creator/SDK与built/editor既有回归和新增恢复链分层验收。
+当前版本：v0.0.2.46 / Touch Interaction & Small-screen Readiness。仅outer布局、原生输入/滚动与浏览器验证支持约定电脑横屏逻辑视口；复用既有正式玩家入口与ActionPipeline，core、Session/Queue、SaveFile和正式资源保持。ProbeLayout为无引擎的纯几何辅助，不建设通用UI框架；真实Creator/SDK与built/editor鼠标、触摸和缩高恢复分别验收。
 
 ## 1. 业务架构不变
 
@@ -158,4 +158,8 @@ tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，
 
 ## 跨步骤手动恢复的验证边界
 
-trace.cocos.cross-step-recovery补齐五保存点的公共bootstrap和浏览器续玩验证；生产Session仍先读取并校验candidate，成功才替换健康状态，SaveManager仍仅保存SaveFile并在加载时清领域事件。既有ID高水位恢复、Host/Queue与outer组件保持，不新增公开API、自动存档、迁移、多槽或跨标签仲裁。真实Creator/SDK与built/editor输入证据独立记录。
+trace.cocos.cross-step-recovery补齐五保存点的公共bootstrap和浏览器续玩验证；生产Session仍先读取并校验candidate，成功才替换健康状态，SaveManager仍仅保存SaveFile并在加载时清领域事件。既有ID高水位恢复、Host/Queue机制保持，outer布局和只读诊断见触摸与小屏章节，不新增公开API、自动存档、迁移、多槽或跨标签仲裁。真实Creator/SDK与built/editor输入证据独立记录。
+
+## 触摸与小屏外层边界
+
+ProbeLayout只根据CSS frame生成只读节点矩形；CocosWebProbe在既有outer中应用布局、原生ScrollView/Mask及resize清理。选择、数量和正式命令仍沿既有公共玩家入口，不把滚动或触摸事件变为新业务事务。窗口变化保持Host/observer/Button身份，销毁移除订阅；trace.cocos.touch-small-screen连接纯几何/工具负例和独立引擎验收。

@@ -1,6 +1,6 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.2.45
+﻿# CODE_CONTEXT_INDEX — v0.0.2.46
 
-版本：v0.0.2.45 / Cross-step Save/Load Recovery / 跨步骤存读档恢复版。
+版本：v0.0.2.46 / Touch Interaction & Small-screen Readiness / 触摸交互与小屏操作收口版。
 
 ## 执行前必读顺序
 
@@ -30,7 +30,7 @@
 
 后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包；代码包不保存每轮具体任务上下文；代码包只保存执行端上下文治理约束。
 
-## v0.0.2.45 测试索引
+## v0.0.2.46 测试索引
 
 - `tests/cocos-web-verification-contracts.test.mjs`（`test:cocos-web-verification-contracts`，Node工具契约）
 
@@ -181,3 +181,7 @@ tests/cocos-web-orders.test.ts、readiness/menu、prepare与web-verification分�
 ## 跨步骤存读档恢复入口
 
 先读save-load、cocos-app、cocos-creator-adapter及cocos-engine-probe模块卡，再读tests/stage1a-bootstrap.test.ts、tools/cocos-probe/verify-web.mjs、tools/cocos-probe/lib/webProbeSupport.mjs和tests/cocos-web-verification-contracts.test.mjs。trace.cocos.cross-step-recovery连接五点新会话续玩证据；公共Session/Host/SaveLoadController、ID与Queue机制保持，测试/工具不成为新业务规则。真实Creator/SDK与built/editor验证另留证。
+
+## 触摸与小屏入口
+
+先读cocos-engine-probe模块卡和CocosEngineProbe契约，再读ProbeLayout.ts、CocosWebProbe.ts、模板probe-viewport.js/css及tests/cocos-web-layout.test.ts。工具侧沿verify-web.mjs、webProbeSupport.mjs及既有verification负例。trace.cocos.touch-small-screen连接上述文件与真实args/files/covers；observer只读几何和滚动，不提供状态修改捷径。

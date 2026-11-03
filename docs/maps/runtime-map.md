@@ -1,4 +1,4 @@
-﻿# Runtime Map — v0.0.2.45
+﻿# Runtime Map — v0.0.2.46
 
 ## 系统职责
 
@@ -136,3 +136,7 @@ tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，
 ## 跨步骤恢复运行链
 
 正式资源新局→公共玩家入口九Action→五独立保存点→手动Save→新Host/刷新/同context新页手动Load→真实续玩。trace.cocos.cross-step-recovery连接公共bootstrap测试、verify-web/support与既有错误保护；加工继续领取再开工、已完成订单保持不可重交并继续创建对象。生产机制与既有ID保证边界保持，恢复列表和静态Label不冒充本次Action。
+
+## 触摸与小屏运行边界
+
+原生触摸/EditBox→既有ProbeInteraction/菜单→Host/Queue→Session/ActionPipeline保持。ProbeLayout仅描述frame几何，原生ScrollView/Mask管理表现滚动；切页/resize不重建会话或重绑业务CLICK。trace.cocos.touch-small-screen连接布局与实际输入证据，不新增SaveFile或core状态入口。

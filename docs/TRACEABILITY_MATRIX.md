@@ -9,9 +9,9 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.45
+# TRACEABILITY_MATRIX — v0.0.2.46
 
-**Cross-step Save/Load Recovery / 跨步骤存读档恢复版**
+**Touch Interaction & Small-screen Readiness / 触摸交互与小屏操作收口版**
 
 ## 1. 定位
 
@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 本轮沿用**轻量追踪地基**，新增跨步骤存读档恢复追踪，保留全部既有28条追踪。五独立保存点的新会话续玩、完整状态/ID与失败保护由公共集成测试和真实浏览器分层验收，旧五页经营与存读档/视口/销毁回归保持；既有真实Cocos外层已实现，旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
+- 本轮沿用**轻量追踪地基**，新增触摸与小屏追踪，保留全部既有29条追踪/27个current ID；新增后为30条/28个current。纯几何和输入负例由Node实际执行，真实Creator/SDK、built/editor鼠标/触摸与截图独立验收，全部五页经营/手动恢复/故障和销毁保护保持；旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
 
 ## 2. 状态语义
 
@@ -316,4 +316,8 @@ trace.cocos.cross-step-recovery：五个独立保存点为生长中、加工中�
 
 `tests/stage1a-bootstrap.test.ts`沿公共bootstrap/Host和既有菜单/Queue验证集成；`tools/cocos-probe/verify-web.mjs`、`lib/webProbeSupport.mjs`及`tests/cocos-web-verification-contracts.test.mjs`连接独立recoveryLoop与断言负例。复用既有test.stage1a-bootstrap和test.cocos-web-verification-contracts实际args/files/covers及full/blocker，不新增任务；Session/save-load/Queue/lifecycle旧保护继续运行。
 
-刷新及同context新页均手动读入原保存点后续玩；坏JSON/Schema/Audit、读写拒绝、busy和销毁迟到场景与健康链隔离，失败load保留健康完整状态。生产Session/core/outer组件和正式资源不变；无自动恢复、多槽、迁移或跨标签仲裁。真实Creator/SDK、built/editor物理输入与对应截图须独立留证，Node契约不执行真实浏览器，不代表手机/微信通过。
+刷新及同context新页均手动读入原保存点后续玩；坏JSON/Schema/Audit、读写拒绝、busy和销毁迟到场景与健康链隔离，失败load保留健康完整状态。该恢复链沿既有Session/core及正式资源；当前outer触摸/布局调整另见下节，无自动恢复、多槽、迁移或跨标签仲裁。真实Creator/SDK、built/editor物理输入与对应截图须独立留证，Node契约不执行真实浏览器，不代表手机/微信通过。
+
+### trace.cocos.touch-small-screen
+
+sourceRefs为ProbeLayout、CocosWebProbe/ProbeInteraction、Web模板及verify-web/support；testRefs复用prepare/lifecycle/web-verification三项full/blocker。布局测试必须在lifecycle实际args/package脚本内，helper/.meta和测试纳入files/covers与单文件affected。旧29条entry/27个current ID保留，新增后30/28。Node负例与真实Creator/SDK、built/editor鼠标/触摸分列，约定尺寸及手机边界见engine模块卡。
