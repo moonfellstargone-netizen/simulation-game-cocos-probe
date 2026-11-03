@@ -66,7 +66,7 @@
     "cocos:prepare:wechat": "node tools/cocos-wechat-probe/prepare.mjs",
     "cocos:build:wechat": "node tools/cocos-wechat-probe/build.mjs",
     "test:cocos-wechat-preparation": "node --test tests/cocos-wechat-preparation.test.mjs",
-    "test:cocos-wechat-runtime": "node --import tsx --test tests/cocos-wechat-runtime.test.ts"
+    "test:cocos-wechat-runtime": "node --import tsx --test tests/cocos-wechat-runtime.test.ts tests/cocos-wechat-data-clone.test.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

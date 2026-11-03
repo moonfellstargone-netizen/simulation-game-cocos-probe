@@ -69,6 +69,55 @@ test('precompiled formal schemas retain default dynamic validation decisions and
   assert.throws(() => compiled.assertSchemasAvailable(['missing_contract.schema.json']), /ERR_RUNTIME_SCHEMA_NOT_LOADED/);
 });
 
+test('precompiled source binding permits recursive object key reordering but retains strict JSON contents', () => {
+  const reorder = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(reorder);
+    if (value !== null && typeof value === 'object') {
+      return Object.fromEntries(Object.entries(value).reverse().map(([key, item]) => [key, reorder(item)]));
+    }
+    return value;
+  };
+  const reordered = reorder(schemas) as Record<string, unknown>;
+  assert.notEqual(JSON.stringify(reordered), JSON.stringify(schemas));
+  assert.doesNotThrow(() => RuntimeSchemaValidator.fromSnapshotSchemas(reordered, precompiled));
+  const reorderedSources = Object.fromEntries(Object.entries(reordered).map(([path, schema]) => [path, JSON.stringify(schema)]));
+  assert.doesNotThrow(() => RuntimeSchemaValidator.fromSnapshotSchemas(schemas, { ...precompiled, schemaSources: reorderedSources }));
+
+  const path = 'schemas/action_result.schema.json';
+  const changed = (mutate: (schema: Record<string, unknown>) => void): Record<string, unknown> => {
+    const copy = structuredClone(schemas);
+    mutate(copy[path] as Record<string, unknown>);
+    return copy;
+  };
+  const changedSchemas = [
+    changed(schema => (schema.required as string[]).reverse()),
+    changed(schema => { (schema.required as string[])[0] = 'different_required_field'; }),
+    changed(schema => { (schema.required as string[]).pop(); }),
+    changed(schema => { (schema.required as string[]).push('extra_required_field'); }),
+    changed(schema => { schema.type = 'array'; }),
+    changed(schema => { delete (schema.properties as Record<string, unknown>).request_id; }),
+    changed(schema => { (schema.properties as Record<string, unknown>).extra_field = { type: 'string' }; })
+  ];
+  for (const modified of changedSchemas) {
+    assert.throws(() => RuntimeSchemaValidator.fromSnapshotSchemas(modified, precompiled), /ERR_PRECOMPILED_SCHEMA_SOURCE_MISMATCH/);
+    const schemaSources = { ...precompiled.schemaSources, [path]: JSON.stringify(modified[path]) };
+    assert.throws(() => RuntimeSchemaValidator.fromSnapshotSchemas(schemas, { ...precompiled, schemaSources }), /ERR_PRECOMPILED_SCHEMA_SOURCE_MISMATCH/);
+  }
+  for (const source of ['{broken JSON', 'undefined', '', 'null']) {
+    assert.throws(() => RuntimeSchemaValidator.fromSnapshotSchemas(schemas,
+      { ...precompiled, schemaSources: { ...precompiled.schemaSources, [path]: source } }), /ERR_PRECOMPILED_SCHEMA_SOURCE_MISMATCH/);
+  }
+  const nonJsonSchemas = [undefined, () => true, Symbol('not JSON'), NaN, Infinity, 1n, new Date('2026-11-03T00:00:00Z'), new Map(), [, 1]]
+    .map(value => changed(schema => { schema.non_json_value = value; }));
+  nonJsonSchemas.push(changed(schema => { schema.cycle = schema; }));
+  nonJsonSchemas.push(changed(schema => { Object.defineProperty(schema, 'hidden', { value: true }); }));
+  nonJsonSchemas.push(changed(schema => { Object.defineProperty(schema, 'getter', { enumerable: true, get: () => true }); }));
+  nonJsonSchemas.push(changed(schema => { Object.defineProperty(schema, Symbol('non-JSON key'), { value: true, enumerable: true }); }));
+  for (const modified of nonJsonSchemas) {
+    assert.throws(() => RuntimeSchemaValidator.fromSnapshotSchemas(modified, precompiled), /ERR_PRECOMPILED_SCHEMA_SOURCE_MISMATCH/);
+  }
+});
+
 test('precompiled sets reject missing, extra, mismatched, duplicate and asynchronous validator resources without fallback', () => {
   const copy = (): PrecompiledSchemaValidatorSet => ({ ...precompiled,
     schemaSources: { ...precompiled.schemaSources }, validators: { ...precompiled.validators } });
@@ -114,6 +163,11 @@ import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 const directory = process.argv[1];
 const input = JSON.parse(readFileSync(directory + '/resources.json', 'utf8'));
+const reorder = value => Array.isArray(value) ? value.map(reorder) : value !== null && typeof value === 'object'
+  ? Object.fromEntries(Object.entries(value).reverse().map(([key, item]) => [key, reorder(item)])) : value;
+const originalSchemas = JSON.stringify(input.schemas);
+input.schemas = reorder(input.schemas);
+assert.notEqual(JSON.stringify(input.schemas), originalSchemas);
 let dynamicAttempts = 0;
 globalThis.Function = new Proxy(globalThis.Function, {
   construct() { dynamicAttempts++; throw new Error('ERR_TEST_DYNAMIC_FUNCTION_DISABLED'); },

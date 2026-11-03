@@ -41,10 +41,15 @@ const RESOURCE_PREFLIGHT = `
 import { readFileSync } from 'node:fs';
 try {
 const input = JSON.parse(readFileSync(0, 'utf8'));
-// Only the verification subprocess simulates a platform without dynamic Function.
-// The generated runtime never modifies global Function or eval.
-if (input.aot) Object.defineProperty(globalThis, 'Function', { value: undefined, writable: false, configurable: false });
+// Only this subprocess simulates the platform; generated code never changes globals.
+let dynamicFunctionAttempts = 0;
+if (input.aot) {
+  const unavailable = () => { dynamicFunctionAttempts++; throw new Error('ERR_DYNAMIC_FUNCTION_UNAVAILABLE'); };
+  globalThis.Function = new Proxy(globalThis.Function, { construct: unavailable, apply: unavailable });
+  globalThis.structuredClone = undefined;
+}
 const runtime = await import('data:text/javascript;base64,' + input.runtime);
+if (input.aot && globalThis.structuredClone !== undefined) throw new Error('ERR_WECHAT_CLONE_GLOBAL_MUTATED');
 const host = runtime.createStage1AHost({
   ...input.resources,
   storage: new runtime.InMemorySaveStoragePort(),
@@ -64,6 +69,8 @@ if (input.aot) {
     throw new Error('ERR_WECHAT_AOT_REJECTION_PREFLIGHT');
   }
   await component.unmount();
+  if (dynamicFunctionAttempts !== 0) throw new Error('ERR_WECHAT_DYNAMIC_FUNCTION_ATTEMPT');
+  if (globalThis.structuredClone !== undefined) throw new Error('ERR_WECHAT_CLONE_GLOBAL_MUTATED');
 }
 host.destroySession();
 } catch (error) {
@@ -194,10 +201,22 @@ export async function prepareProbeProject({ rootDir = PROJECT_ROOT, outputDir, p
   }
   let precompiled = null;
   if (profileName === 'wechat') {
-    readSourceFile(root, 'tools/cocos-wechat-probe/lib/precompiledSchemas.mjs', inputs);
-    const { compileWechatSchemas } = await import('../../cocos-wechat-probe/lib/precompiledSchemas.mjs');
+    const compilerHelper = 'tools/cocos-wechat-probe/lib/precompiledSchemas.mjs';
+    const sourceCompilerBytes = readSourceFile(root, compilerHelper, inputs);
+    const toolRoot = realpathSync(PROJECT_ROOT);
+    const actualCompilerBytes = readSourceFile(toolRoot, compilerHelper, new Map());
+    if (!sourceCompilerBytes.equals(actualCompilerBytes)) {
+      throw new Error('ERR_PROBE_COMPILER_SOURCE_MISMATCH:' + compilerHelper);
+    }
+    const compilerUrl = new URL('../../cocos-wechat-probe/lib/precompiledSchemas.mjs', import.meta.url);
+    // A cached helper with different bytes must never be credited to this source input.
+    compilerUrl.searchParams.set('sourceSha256', sha256(actualCompilerBytes));
+    const { compileWechatSchemas } = await import(compilerUrl.href);
     try { precompiled = compileWechatSchemas(resources.schemas); }
     catch (error) { throw new Error('ERR_PROBE_SCHEMA_PRECOMPILE:' + (error instanceof Error ? error.message : String(error))); }
+    if (!readSourceFile(toolRoot, compilerHelper, new Map()).equals(actualCompilerBytes)) {
+      throw new Error('ERR_PROBE_COMPILER_SOURCE_CHANGED:' + compilerHelper);
+    }
     // Node-side compiler execution is not part of esbuild's browser metafile.
     // Record its actual loaded CommonJS closure in the existing dependency namespace.
     for (const path of precompiled.compilerDependencyPaths) {
@@ -218,6 +237,7 @@ export async function prepareProbeProject({ rootDir = PROJECT_ROOT, outputDir, p
     metafile: true,
     logLevel: 'silent',
     nodePaths: [join(PROJECT_ROOT, 'node_modules')],
+    ...(profileName === 'wechat' ? { inject: [join(root, 'apps/cocos-wechat-probe/runtime/WechatDataClone.ts')] } : {}),
     plugins: [{
       name: 'record-canonical-runtime-inputs',
       setup(bundler) {

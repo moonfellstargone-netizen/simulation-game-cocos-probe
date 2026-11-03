@@ -197,3 +197,8 @@ trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport
 - `src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts`：可选precompiledValidators转交，不增加平台依赖。
 - `tools/cocos-wechat-probe/lib/precompiledSchemas.mjs`：真实Ajv standalone、安全导出映射和实际编译器依赖闭包记录。
 - `tests/runtime-precompiled-schema.test.ts`：显式集合、禁用动态Function的正式启动/动作及拒绝路径，由现test.stage1a-bootstrap执行。
+
+## 微信DTO复制入口
+
+- `apps/cocos-wechat-probe/runtime/WechatDataClone.ts`：bundle局部标准自由标识符适配，属于cocos-wechat-probe。
+- `tests/cocos-wechat-data-clone.test.ts`：DTO原生对比、别名/循环/空位/特殊键与不支持输入拒绝，由原test.cocos-wechat-runtime实际执行。

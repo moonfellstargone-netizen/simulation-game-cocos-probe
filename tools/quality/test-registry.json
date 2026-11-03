@@ -1351,7 +1351,9 @@
         "apps/cocos-wechat-probe/template/settings/v2/packages/project.json",
         "apps/cocos-wechat-probe/template/tsconfig.json",
         "tools/cocos-wechat-probe/lib/sourceProvenance.mjs",
-        "tools/cocos-wechat-probe/lib/precompiledSchemas.mjs"
+        "tools/cocos-wechat-probe/lib/precompiledSchemas.mjs",
+        "apps/cocos-wechat-probe/runtime/WechatDataClone.ts",
+        "tests/cocos-wechat-data-clone.test.ts"
       ],
       "group": "cocos-adapter"
     },
@@ -1361,7 +1363,8 @@
         "--import",
         "tsx",
         "--test",
-        "tests/cocos-wechat-runtime.test.ts"
+        "tests/cocos-wechat-runtime.test.ts",
+        "tests/cocos-wechat-data-clone.test.ts"
       ],
       "covers": [
         "cocos-wechat-probe",
@@ -1392,7 +1395,9 @@
         "apps/cocos-wechat-probe/template/package.json",
         "apps/cocos-wechat-probe/template/settings/v2/packages/engine.json",
         "apps/cocos-wechat-probe/template/settings/v2/packages/project.json",
-        "apps/cocos-wechat-probe/template/tsconfig.json"
+        "apps/cocos-wechat-probe/template/tsconfig.json",
+        "apps/cocos-wechat-probe/runtime/WechatDataClone.ts",
+        "tests/cocos-wechat-data-clone.test.ts"
       ],
       "group": "cocos-adapter"
     }

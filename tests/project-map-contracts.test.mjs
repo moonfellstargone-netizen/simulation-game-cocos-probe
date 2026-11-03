@@ -52,6 +52,8 @@ const codeIndexExplicitPaths = [
   'tools/cocos-wechat-probe/lib/sourceProvenance.mjs',
   'tools/cocos-wechat-probe/lib/precompiledSchemas.mjs',
   'tests/runtime-precompiled-schema.test.ts',
+  'apps/cocos-wechat-probe/runtime/WechatDataClone.ts',
+  'tests/cocos-wechat-data-clone.test.ts',
   'apps/cocos-probe/template/assets/scripts/BrowserSaveStoragePort.ts',
   'tests/cocos-browser-storage.test.ts',
   'tools/cocos-probe/serve.mjs',

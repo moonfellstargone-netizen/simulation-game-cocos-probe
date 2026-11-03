@@ -9,3 +9,7 @@
 ### 正式Schema构建期预编译兼容
 
 微信prepare使用已锁定Ajv standalone生成全部正式Schema校验器，明确注入公共bootstrap。核心可选显式集合完整校验路径/ID/Schema内容及同步函数，默认Node/Web保持原动态路径；缺失、错配或无效集合拒绝，不回退或跳过校验。现bootstrap full/blocker任务执行新增受控测试，正式资源和业务契约不变，其他AOT与M2—M4不开放。
+
+### 微信DTO复制目标兼容
+
+微信runtime仅通过esbuild inject局部绑定纯DTO structuredClone适配，保留undefined、别名/循环和数组空位，不支持输入及transfer明确拒绝。无全局修改、核心源反向import或默认Web变化；原runtime任务执行新增对比/失败保护测试，仍为M1候选。

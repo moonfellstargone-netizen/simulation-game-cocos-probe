@@ -1066,7 +1066,8 @@
         "tools/cocos-wechat-probe/lib/sourceProvenance.mjs",
         "src/game-core/validation/RuntimeSchemaValidator.ts",
         "src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts",
-        "tools/cocos-wechat-probe/lib/precompiledSchemas.mjs"
+        "tools/cocos-wechat-probe/lib/precompiledSchemas.mjs",
+        "apps/cocos-wechat-probe/runtime/WechatDataClone.ts"
       ],
       "testRefs": [
         "test.cocos-wechat-preparation",

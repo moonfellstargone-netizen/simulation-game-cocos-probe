@@ -99,12 +99,29 @@ test('fixed Wechat preparation records exact public inputs and distinct same-com
   }
   for (const name of precompile.compilerDependencyInputs) assert.ok(manifest.dependencyInputs[name], name);
   assert.ok(manifest.inputs['tools/cocos-wechat-probe/lib/precompiledSchemas.mjs']);
+  assert.ok(manifest.inputs['apps/cocos-wechat-probe/runtime/WechatDataClone.ts']);
   assert.equal(precompile.generatedModuleSha256, sha256(readFileSync(join(prepared.outputDir, 'wechat-precompiled-validators.mjs'))));
   assert.equal(manifest.runtimeEntrySha256, sha256(readFileSync(join(prepared.outputDir, 'wechat-runtime-entry.mjs'))));
   assert.equal(readWechatPreparedProject({ rootDir: source, project: prepared.outputDir }).identity.candidate_id, identity.candidate_id);
 });
 
-test('published Wechat facade boots and validates with Function unavailable and binds every formal Schema', () => {
+test('a clean alternate source cannot claim a different compiler helper that the tool did not execute', async () => {
+  const alternate = join(temporary, 'different-compiler-source');
+  cpSync(source, alternate, { recursive: true });
+  const helper = 'tools/cocos-wechat-probe/lib/precompiledSchemas.mjs';
+  const helperPath = join(alternate, helper);
+  writeFileSync(helperPath, Buffer.concat([Buffer.from("throw new Error('DIFFERENT_SOURCE_HELPER_MUST_NOT_EXECUTE');\n"), readFileSync(helperPath)]));
+  const git = args => execFileSync('git', ['-C', alternate, ...args], { stdio: 'pipe' });
+  git(['add', helper]);
+  git(['-c', 'user.name=Wechat Preparation Contract', '-c', 'user.email=contracts@example.invalid', 'commit', '--quiet', '-m', 'controlled different source compiler']);
+  assert.equal(git(['status', '--porcelain']).toString('utf8').trim(), '');
+  const destination = join(temporary, 'different-compiler-output');
+  await assert.rejects(prepareWechatProbe({ rootDir: alternate, outputDir: destination, appId }),
+    error => error.message === 'ERR_PROBE_COMPILER_SOURCE_MISMATCH:' + helper);
+  assert.equal(existsSync(destination), false, 'mismatched executable source must fail before publishing any output');
+});
+
+test('published Wechat facade boots without Function or native structuredClone and binds every formal Schema', () => {
   const child = spawnSync(process.execPath, ['--input-type=module', '--eval', `
     import assert from 'node:assert/strict';
     import { readFileSync } from 'node:fs';
@@ -114,7 +131,9 @@ test('published Wechat facade boots and validates with Function unavailable and 
     let attempts = 0;
     const unavailable = () => { attempts++; throw new Error('ERR_DYNAMIC_FUNCTION_UNAVAILABLE'); };
     globalThis.Function = new Proxy(globalThis.Function, { construct: unavailable, apply: unavailable });
+    globalThis.structuredClone = undefined;
     const runtime = await import('data:text/javascript;base64,' + bytes.toString('base64'));
+    assert.equal(globalThis.structuredClone, undefined);
     const createHost = input => runtime.createStage1AHost({ ...input, storage: new runtime.InMemorySaveStoragePort(), nowIso8601: '2026-11-03T00:00:00.000Z' });
     const host = createHost(resources);
     const component = new runtime.QinglanUiSceneProbeComponent(host, { applyNodeBindingPatch() {} });
@@ -130,7 +149,7 @@ test('published Wechat facade boots and validates with Function unavailable and 
     assert.equal(JSON.stringify(host.requireSession().getViewModel()), beforeInvalid);
     let rejectedSources = 0;
     for (const path of Object.keys(resources.schemas)) {
-      const changed = structuredClone(resources);
+      const changed = JSON.parse(JSON.stringify(resources));
       changed.schemas[path].__controlled_source_mutation__ = true;
       assert.throws(() => createHost(changed), /ERR_PRECOMPILED_SCHEMA_SOURCE_MISMATCH/);
       rejectedSources++;
@@ -138,10 +157,11 @@ test('published Wechat facade boots and validates with Function unavailable and 
     await component.unmount();
     assert.equal(host.hasSession(), false);
     assert.equal(attempts, 0);
-    console.log(JSON.stringify({ functionAttempts: attempts, rejectedSources, time: 'day 1 minute 420', invalidRequestRejected: true }));
+    assert.equal(globalThis.structuredClone, undefined);
+    console.log(JSON.stringify({ functionAttempts: attempts, globalCloneUnchanged: true, rejectedSources, time: 'day 1 minute 420', invalidRequestRejected: true }));
   `], { input: JSON.stringify({ project: prepared.outputDir }), encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, timeout: 30000, windowsHide: true });
   assert.equal(child.status, 0, (child.error?.message ?? '') + child.stderr.slice(0, 2000));
-  assert.deepEqual(JSON.parse(child.stdout), { functionAttempts: 0, rejectedSources: 58, time: 'day 1 minute 420', invalidRequestRejected: true });
+  assert.deepEqual(JSON.parse(child.stdout), { functionAttempts: 0, globalCloneUnchanged: true, rejectedSources: 58, time: 'day 1 minute 420', invalidRequestRejected: true });
 });
 
 test('the actual prepared public bundle starts Stage1A and dispatches advance_time through its existing component', async () => {
@@ -242,6 +262,9 @@ test('source claims are anchored to real Git bytes, current dirty inputs and ins
   const dependency = Object.keys(wrongDependency.dependencyInputs)[0];
   wrongDependency.dependencyInputs[dependency].sha256 = '0'.repeat(64);
   assert.throws(() => assertWechatSourceProvenance({ rootDir: source, manifest: wrongDependency }), /ERR_WECHAT_SOURCE_INPUT_MISMATCH/);
+  const missingCloneInput = structuredClone(prepared.manifest);
+  delete missingCloneInput.inputs['apps/cocos-wechat-probe/runtime/WechatDataClone.ts'];
+  assert.throws(() => assertWechatSourceProvenance({ rootDir: source, manifest: missingCloneInput }), /ERR_WECHAT_SOURCE_INPUTS_INCOMPLETE/);
   const wrongPrecompiledSource = structuredClone(prepared.manifest);
   const precompiledPath = Object.keys(wrongPrecompiledSource.schemaPrecompilation.schemaSources)[0];
   wrongPrecompiledSource.schemaPrecompilation.schemaSources[precompiledPath] = '{}';

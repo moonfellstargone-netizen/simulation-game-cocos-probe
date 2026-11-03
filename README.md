@@ -189,3 +189,11 @@ trace.cocos.cross-step-recovery：五个独立保存点为生长中、加工中�
 ## 触摸与小屏操作准备
 
 trace.cocos.touch-small-screen连接ProbeLayout、真实组件/模板、Node负例与独立浏览器触摸场景。built-web约定800×360、844×390、960×432及844×250→390缩高恢复；原鼠标、经营和五点恢复链保留。完整范围见docs/module-cards/cocos-engine-probe.md和保留的CocosEngineProbe契约，电脑模拟不代表手机或微信通过。
+
+## 微信DTO复制适配
+
+WechatDataClone.ts提供微信目标内的纯DTO复制适配，导出structuredClone供wechat profile的esbuild inject局部绑定runtime中的标准自由标识符。不修改globalThis或Cocos引擎，不在src中新增指向apps的源import，也不改变默认Node/Web路径；它不是通用Web API polyfill。支持数组、普通对象/空原型DTO输入及原始值，保留undefined、数组空位、共享引用/别名、循环和特殊属性键；非DTO对象、函数、Symbol与options（包括transfer）明确DataCloneError拒绝，不用JSON往返静默丢失数据。
+
+tests/cocos-wechat-data-clone.test.ts追加到原test:cocos-wechat-runtime / test.cocos-wechat-runtime实际args/files/covers，验证原生DTO复制对比与拒绝路径；helper和测试同步登记preparation files。原两项微信full/blocker任务保留，不新增任务、CI或算法，M2—M4及Stage1B仍关闭。
+
+详见[微信模块卡](docs/module-cards/cocos-wechat-probe.md)与[API索引](docs/code-index/public-api.md)。

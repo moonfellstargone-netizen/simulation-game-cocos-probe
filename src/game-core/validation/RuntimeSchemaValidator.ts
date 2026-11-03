@@ -91,7 +91,15 @@ export class RuntimeSchemaValidator {
       }
       if (ids.has(schema.$id)) throw new Error('ERR_PRECOMPILED_SCHEMA_ID_DUPLICATE:' + schema.$id);
       ids.add(schema.$id);
-      if (typeof set.schemaSources[path] !== 'string' || set.schemaSources[path] !== JSON.stringify(schema)) {
+      let sourceMatches = false;
+      try {
+        // JSON asset import may reorder object keys; array order and every JSON value must still match.
+        sourceMatches = typeof set.schemaSources[path] === 'string'
+          && this.canonicalJson(JSON.parse(set.schemaSources[path])) === this.canonicalJson(schema);
+      } catch {
+        // Malformed source JSON and non-JSON runtime values cannot bind a compiled validator.
+      }
+      if (!sourceMatches) {
         throw new Error('ERR_PRECOMPILED_SCHEMA_SOURCE_MISMATCH:' + path);
       }
     }
@@ -105,6 +113,40 @@ export class RuntimeSchemaValidator {
         throw new Error('ERR_PRECOMPILED_SCHEMA_VALIDATOR_INVALID:' + id);
       }
       this.validators.set(id, validate);
+    }
+  }
+
+  private canonicalJson(value: unknown, ancestors = new Set<object>()): string {
+    if (value === null || typeof value === 'string' || typeof value === 'boolean') return JSON.stringify(value);
+    if (typeof value === 'number' && Number.isFinite(value)) return JSON.stringify(value);
+    if (typeof value !== 'object' || value === null || ancestors.has(value)) {
+      throw new Error('ERR_PRECOMPILED_SCHEMA_JSON_INVALID');
+    }
+    ancestors.add(value);
+    try {
+      const ownKeys = Reflect.ownKeys(value);
+      if (Array.isArray(value)) {
+        if (ownKeys.length !== value.length + 1) throw new Error('ERR_PRECOMPILED_SCHEMA_JSON_INVALID');
+        const items: string[] = [];
+        for (let index = 0; index < value.length; index++) {
+          const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+          if (!descriptor?.enumerable || !('value' in descriptor)) throw new Error('ERR_PRECOMPILED_SCHEMA_JSON_INVALID');
+          items.push(this.canonicalJson(descriptor.value, ancestors));
+        }
+        return '[' + items.join(',') + ']';
+      }
+      const prototype = Object.getPrototypeOf(value);
+      if ((prototype !== Object.prototype && prototype !== null) || ownKeys.some(key => typeof key !== 'string')) {
+        throw new Error('ERR_PRECOMPILED_SCHEMA_JSON_INVALID');
+      }
+      const properties = (ownKeys as string[]).sort().map(key => {
+        const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
+        if (!descriptor.enumerable || !('value' in descriptor)) throw new Error('ERR_PRECOMPILED_SCHEMA_JSON_INVALID');
+        return JSON.stringify(key) + ':' + this.canonicalJson(descriptor.value, ancestors);
+      });
+      return '{' + properties.join(',') + '}';
+    } finally {
+      ancestors.delete(value);
     }
   }
 

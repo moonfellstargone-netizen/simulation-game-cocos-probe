@@ -36,6 +36,16 @@ test('WeChat M1 trace closes over actual preparation/runtime execution while M2 
   for (const file of ['src/game-core/validation/RuntimeSchemaValidator.ts', 'src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts', 'tools/cocos-wechat-probe/lib/precompiledSchemas.mjs']) assert.ok(entry.sourceRefs.includes(file));
   assert.ok(preparation.files.includes('tools/cocos-wechat-probe/lib/precompiledSchemas.mjs'));
   for (const module of ['game-core', 'cocos-creator-adapter']) assert.ok(entry.moduleRefs.includes(module));
+  const cloneHelper = 'apps/cocos-wechat-probe/runtime/WechatDataClone.ts';
+  const cloneTest = 'tests/cocos-wechat-data-clone.test.ts';
+  const runtime = registry.tests['test.cocos-wechat-runtime'];
+  assert.ok(entry.sourceRefs.includes(cloneHelper));
+  assert.ok(runtime.args.includes(cloneTest), 'runtime task must execute the DTO clone contract');
+  assert.ok(readJson('package.json').scripts['test:cocos-wechat-runtime'].split(/\s+/).includes(cloneTest));
+  for (const file of [cloneHelper, cloneTest]) {
+    assert.ok(runtime.files.includes(file));
+    assert.ok(preparation.files.includes(file));
+  }
   assert.equal(traceabilityMap.entries.find(item => item.id === 'trace.stage1b.wx-storage-port')?.status, 'planned');
   const card = readFileSync(join(root, 'docs/module-cards/cocos-wechat-probe.md'), 'utf8');
   for (const phrase of ['临时InMemorySaveStoragePort', 'M2', 'M3', 'M4', '尚未实现或验收', '不取自SaveFile']) assert.ok(card.includes(phrase), phrase);

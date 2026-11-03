@@ -114,3 +114,9 @@ trace.cocos.wechat-m1新增test.cocos-wechat-preparation与test.cocos-wechat-run
 tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / registry test.stage1a-bootstrap实际args/files/covers，沿用full/blocker，不新增任务或降低门禁。该测试覆盖禁用动态Function后的正式启动/合法动作及坏请求、集合/内容拒绝；微信preparation契约覆盖实际facade、全部Schema、来源与生成物篡改，资源预检标记为node-aot-public-bootstrap-passed。Web旧resourcePreflight和默认动态路径保持。Node不替代新提交的Creator/SDK、微信真实输入/日志/重载、Web回归或审查/CI。
 
 trace.cocos.wechat-m1同时连接核心校验/公共bootstrap、编译器工具与既有bootstrap full/blocker任务；trace.runtime.bootstrap-resources保持现有资源装配权威，planned条目不变。
+
+## 微信DTO复制覆盖
+
+tests/cocos-wechat-data-clone.test.ts追加到原test:cocos-wechat-runtime / test.cocos-wechat-runtime实际args/files/covers，验证原生DTO复制对比与拒绝路径；helper和测试同步登记preparation files。原两项微信full/blocker任务保留，不新增任务、CI或算法，M2—M4及Stage1B仍关闭。
+
+sourceProvenance及prepare真实输入记录helper，.ts架构扫描和旧三层不得反向依赖apps的规则保持；只在微信构建目标注入，不对全局作polyfill。
