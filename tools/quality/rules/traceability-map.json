@@ -1,6 +1,6 @@
 {
   "schemaVersion": "traceability-lite/v1",
-  "projectVersion": "v0.0.2.46",
+  "projectVersion": "v0.0.3.0",
   "currentFullReleaseTraceIds": [
     "trace.stage1a.actionpipeline",
     "trace.stage1a.save-load",
@@ -29,7 +29,8 @@
     "trace.orders.legal-state-deadline",
     "trace.cocos.web-orders-loop",
     "trace.cocos.cross-step-recovery",
-    "trace.cocos.touch-small-screen"
+    "trace.cocos.touch-small-screen",
+    "trace.cocos.wechat-m1"
   ],
   "entries": [
     {
@@ -1041,6 +1042,58 @@
       "gateRefs": [
         "full",
         "release"
+      ]
+    },
+    {
+      "id": "trace.cocos.wechat-m1",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": [
+        "cocos-wechat-probe",
+        "tools",
+        "tests",
+        "game-core",
+        "cocos-creator-adapter"
+      ],
+      "sourceRefs": [
+        "apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts",
+        "tools/cocos-wechat-probe/prepare.mjs",
+        "tools/cocos-wechat-probe/build.mjs",
+        "tools/cocos-wechat-probe/lib/source.mjs",
+        "tools/cocos-probe/lib/prepareProject.mjs",
+        "tools/cocos-wechat-probe/lib/sourceProvenance.mjs",
+        "src/game-core/validation/RuntimeSchemaValidator.ts",
+        "src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts",
+        "tools/cocos-wechat-probe/lib/precompiledSchemas.mjs",
+        "apps/cocos-wechat-probe/runtime/WechatDataClone.ts"
+      ],
+      "testRefs": [
+        "test.cocos-wechat-preparation",
+        "test.cocos-wechat-runtime",
+        "test.architecture-boundary-authority-contracts",
+        "test.stage1a-bootstrap"
+      ],
+      "docRefs": [
+        "docs/module-cards/cocos-wechat-probe.md",
+        "docs/adr/ADR-0005-independent-wechat-m1-outer.md",
+        "docs/CHECK_ARCHITECTURE.md",
+        "docs/maps/cocos-map.md",
+        "docs/maps/runtime-map.md",
+        "docs/maps/quality-map.md",
+        "docs/code-index/public-api.md",
+        "docs/module-cards/game-core.md",
+        "docs/module-cards/cocos-creator-adapter.md",
+        "docs/module_contracts/Stage1ABootstrap.contract.md"
+      ],
+      "gateRefs": [
+        "full",
+        "release"
+      ],
+      "designRefs": [
+        "docs/SOURCE_DESIGN_PACK.md",
+        "design_snapshot/SOURCE_DESIGN_PACK.txt"
       ]
     }
   ]

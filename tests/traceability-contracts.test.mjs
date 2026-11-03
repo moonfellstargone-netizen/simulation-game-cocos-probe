@@ -7,6 +7,50 @@ import { resolveGateTasks } from '../tools/quality/lib/resolveGateTasks.mjs';
 const root = process.cwd();
 const readJson = (rel) => JSON.parse(readFileSync(join(root, rel), 'utf8'));
 
+test('WeChat M1 trace closes over actual preparation/runtime execution while M2 and Stage1B remain unopened', () => {
+  const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
+  const entry = traceabilityMap.entries.find(item => item.id === 'trace.cocos.wechat-m1');
+  assert.equal(entry?.status, 'active');
+  assert.equal(entry.stage, 'Stage 1A');
+  assert.ok(traceabilityMap.currentFullReleaseTraceIds.includes(entry.id));
+  for (const module of ['cocos-wechat-probe', 'tools', 'tests']) assert.ok(entry.moduleRefs.includes(module));
+  for (const [id, file] of [['test.cocos-wechat-preparation', 'tests/cocos-wechat-preparation.test.mjs'], ['test.cocos-wechat-runtime', 'tests/cocos-wechat-runtime.test.ts']]) {
+    assert.ok(entry.testRefs.includes(id));
+    const task = registry.tests[id];
+    assert.equal(task.stability, 'blocker');
+    for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
+    assert.ok(task.args.includes(file), id + ' must execute its test');
+    assert.ok(task.files.includes(file));
+    for (const module of ['cocos-wechat-probe', 'tests']) assert.ok(task.covers.includes(module));
+    for (const gate of ['full', 'release']) assert.ok(resolveGateTasks(gate, gatePolicy, registry).some(item => item.id === id));
+  }
+  const preparation = registry.tests['test.cocos-wechat-preparation'];
+  for (const file of ['tools/cocos-probe/lib/prepareProject.mjs', 'tools/cocos-probe/lib/webProbeSupport.mjs', 'tools/cocos-wechat-probe/prepare.mjs', 'tools/cocos-wechat-probe/build.mjs', 'tools/cocos-wechat-probe/lib/source.mjs', 'tools/cocos-wechat-probe/lib/sourceProvenance.mjs']) assert.ok(preparation.files.includes(file));
+  assert.ok(registry.tests['test.cocos-probe-preparation'].files.includes('tools/cocos-probe/lib/prepareProject.mjs'));
+  const bootstrap = registry.tests['test.stage1a-bootstrap'];
+  const precompiledTest = 'tests/runtime-precompiled-schema.test.ts';
+  assert.ok(entry.testRefs.includes('test.stage1a-bootstrap'));
+  assert.ok(bootstrap.args.includes(precompiledTest), 'bootstrap must actually execute the precompiled schema contract');
+  assert.ok(bootstrap.files.includes(precompiledTest));
+  assert.ok(readJson('package.json').scripts['test:stage1a-bootstrap'].split(/\s+/).includes(precompiledTest));
+  for (const file of ['src/game-core/validation/RuntimeSchemaValidator.ts', 'src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts', 'tools/cocos-wechat-probe/lib/precompiledSchemas.mjs']) assert.ok(entry.sourceRefs.includes(file));
+  assert.ok(preparation.files.includes('tools/cocos-wechat-probe/lib/precompiledSchemas.mjs'));
+  for (const module of ['game-core', 'cocos-creator-adapter']) assert.ok(entry.moduleRefs.includes(module));
+  const cloneHelper = 'apps/cocos-wechat-probe/runtime/WechatDataClone.ts';
+  const cloneTest = 'tests/cocos-wechat-data-clone.test.ts';
+  const runtime = registry.tests['test.cocos-wechat-runtime'];
+  assert.ok(entry.sourceRefs.includes(cloneHelper));
+  assert.ok(runtime.args.includes(cloneTest), 'runtime task must execute the DTO clone contract');
+  assert.ok(readJson('package.json').scripts['test:cocos-wechat-runtime'].split(/\s+/).includes(cloneTest));
+  for (const file of [cloneHelper, cloneTest]) {
+    assert.ok(runtime.files.includes(file));
+    assert.ok(preparation.files.includes(file));
+  }
+  assert.equal(traceabilityMap.entries.find(item => item.id === 'trace.stage1b.wx-storage-port')?.status, 'planned');
+  const card = readFileSync(join(root, 'docs/module-cards/cocos-wechat-probe.md'), 'utf8');
+  for (const phrase of ['临时InMemorySaveStoragePort', 'M2', 'M3', 'M4', '尚未实现或验收', '不取自SaveFile']) assert.ok(card.includes(phrase), phrase);
+});
+
 
 test('touch small-screen trace closes over executed layout and browser assertion contracts', () => {
   const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
