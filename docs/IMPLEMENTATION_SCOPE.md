@@ -1,10 +1,10 @@
-# IMPLEMENTATION_SCOPE — v0.0.2.45
+# IMPLEMENTATION_SCOPE — v0.0.2.46
 
-版本：v0.0.2.45 / Cross-step Save/Load Recovery / 跨步骤存读档恢复版。
+版本：v0.0.2.46 / Touch Interaction & Small-screen Readiness / 触摸交互与小屏操作收口版。
 
 ## 本轮范围
 
-本轮唯一目标是跨步骤手动存读档后的真实续玩：现有九种正式Action经玩家入口自然到达生长中、加工中、可领取、菜品已成、订单完成五个独立保存点，每点在全新会话读取后继续实际操作。加工恢复后领取并再次开工；已完成订单恢复后仍不能重复领奖，并继续创建对象验证既有ID恢复。通过公共bootstrap/Host集成测试和独立浏览器recoveryLoop补齐证据，生产core、Session/Queue、ViewModel、outer组件、SaveFile与正式资源保持。既有五页经营、手动单槽、坏档/存储拒绝、busy/销毁迟到与全部浏览器回归保留；不新增自动保存/自动恢复、多槽、迁移、跨标签仲裁、数量/时间/重复输入/奖励规则、触摸、Stage1B或微信。
+本轮唯一目标是现有Stage1A五页在约定横屏逻辑视口下的电脑触摸与小屏操作准备：built-web覆盖800×360、844×390、960×432，另以844×250→390模拟可视区缩高恢复；compact以实际CSS frame布局，正文至少14CSSpx、按钮和EditBox命中高至少44CSSpx。仅在outer使用纯ProbeLayout、原生ScrollView/Mask、resize与视觉视口同步，选择/数量输入/确认/结果及手动存读档可达，按下或滑动取消不误提交、有效tap只发一次请求，切页重置滚动且resize保留会话和按钮身份。保留原桌面鼠标、全部五页经营、五点手动恢复及失败/销毁保护；core、Session/Queue、SaveFile、正式资源、数量/重复材料/时间/奖励规则与依赖保持。不新增通用UI框架、多点手势、横竖双套设计、自动存档、迁移、多槽、Stage1B或微信；电脑模拟不代表vivo X200s安全区、真实软键盘或微信触摸通过。
 
 工具只读取仓库唯一src/design_snapshot派生的工作副本。prepare继续导出snapshot及全部58项Schema并记录Git来源/输入产物摘要；build记录实际Web产物清单摘要，verify核对构建关联和产物字节后才启动浏览器，拒绝替换或篡改的Web目录。工程、依赖、报告、缓存和构建仍位于仓库外，不形成第二源码权威。
 
@@ -12,7 +12,7 @@
 
 构建网页built-web验收1440×1200、1280×720、960×640、800×600/DPR1，另960×640/DPR2仿真，并在同页按960×640→1440×1200→800×600→960×640执行四次resize点击。编辑器预览editor-preview独立验收1440×1200与960×640/DPR1，同页按960×640→1440×1200→960×640执行三次resize点击。所有约定案例均保持完整canvas/Button可见、scroll稳定、会话身份不变、Button事件恰好一次、推进命令时间+60和Label同步；存读档命令按本地单槽预期检查时间；不降低断言强度。官方Default设备模拟器在800窗口裁剪固定960px内容，该预览场景未承诺支持，不能据其失败推定构建网页800失败。DPR仿真不等于手机、触摸、微信或Windows系统缩放验证。
 
-本轮保留test:cocos-session / registry test.cocos-session、bootstrap、绑定恢复、存储故障和PR CI回归。trace.cocos.cross-step-recovery追踪本版五点续玩；旧trace.cocos.web-orders-loop、trace.orders.legal-state-deadline、trace.cocos.web-cooking-loop、trace.cocos.web-processing-loop、trace.cocos.web-inventory-split、trace.inventory.split-quantity、trace.runtime.id-recovery、trace.processing.required-inputs、trace.cocos.web-inventory-storage和既有本地存档/交互/视口/启动追踪保持。新增行为进入既有真实args/files/covers，不能以文档登记、Node或旧提交结果代替本轮真实Creator和浏览器验收。
+本轮保留test:cocos-session / registry test.cocos-session、bootstrap、绑定恢复、存储故障和PR CI回归。trace.cocos.touch-small-screen追踪约定横屏触摸/小屏操作；旧29条追踪包括trace.cocos.cross-step-recovery、全部五页经营与手动存读档/视口/销毁保持。新布局行为进入既有prepare/lifecycle真实args/files/covers，工具负例沿既有web-verification任务；不能以文档登记、Node或旧提交结果代替本轮真实Creator和浏览器验收。
 
 ## 明确不做
 
@@ -119,3 +119,7 @@ tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，
 ## 五点恢复与继承回归
 
 trace.cocos.cross-step-recovery连接tests/stage1a-bootstrap.test.ts与既有web-verification任务；五点各由自然玩家操作建立，刷新及同context新页手动读取原点后继续，不覆盖原保存点再假称同档恢复。坏JSON/Schema/Audit、存储拒绝、busy/销毁迟到与健康链隔离。完整状态、领域事件、持久对象/历史引用及后续新ID均须关联；既有五页、视口/resize及全部旧回归保持，Node与CI不替代真实Creator/SDK和built/editor。
+
+## 触摸与小屏验收范围
+
+trace.cocos.touch-small-screen仅覆盖本页任务锁中的电脑横屏逻辑视口与模拟缩高恢复，正文至少14CSSpx、按钮/EditBox命中高至少44CSSpx。滑动取消、切页重置、数量输入和tap单次派发需可信原生输入及本次operation/公开世界相互核对。旧鼠标和五点恢复链保留；不从hasTouch、DPR或resize推定手机键盘、安全区及微信通过。

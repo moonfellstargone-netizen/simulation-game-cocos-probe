@@ -7,6 +7,49 @@ import { resolveGateTasks } from '../tools/quality/lib/resolveGateTasks.mjs';
 const root = process.cwd();
 const readJson = (rel) => JSON.parse(readFileSync(join(root, rel), 'utf8'));
 
+
+test('touch small-screen trace closes over executed layout and browser assertion contracts', () => {
+  const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
+  const id = 'trace.cocos.touch-small-screen';
+  const entry = traceabilityMap.entries.find(item => item.id === id);
+  assert.equal(entry?.status, 'active');
+  assert.ok(traceabilityMap.currentFullReleaseTraceIds.includes(id));
+  for (const module of ['cocos-engine-probe', 'tools', 'tests']) assert.ok(entry.moduleRefs.includes(module));
+  const helper = 'apps/cocos-probe/template/assets/scripts/ProbeLayout.ts';
+  const file = 'tests/cocos-web-layout.test.ts';
+  assert.ok(entry.sourceRefs.includes(helper));
+  for (const taskId of ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle', 'test.cocos-web-verification-contracts']) {
+    assert.ok(entry.testRefs.includes(taskId));
+    const task = registry.tests[taskId];
+    assert.equal(task?.stability, 'blocker');
+    for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
+    for (const gate of ['full', 'release']) {
+      assert.ok(entry.gateRefs.includes(gate));
+      assert.ok(resolveGateTasks(gate, gatePolicy, registry).some(item => item.id === taskId));
+    }
+  }
+  for (const taskId of ['test.cocos-probe-preparation', 'test.cocos-engine-probe-lifecycle']) {
+    for (const path of [helper, helper + '.meta', file]) {
+      assert.ok(registry.tests[taskId].files.includes(path), taskId + ' must register ' + path);
+      assert.ok(existsSync(join(root, path)), path + ' must exist');
+    }
+  }
+  const lifecycle = registry.tests['test.cocos-engine-probe-lifecycle'];
+  assert.ok(lifecycle.args.includes(file));
+  assert.ok(lifecycle.files.includes('apps/cocos-probe/template/build-templates/web-desktop/probe-viewport.js'), 'layout test executes the viewport source in a VM');
+  assert.ok(lifecycle.covers.includes('tests') && lifecycle.covers.includes('cocos-engine-probe'));
+  assert.ok(readJson('package.json').scripts['test:cocos-engine-probe-lifecycle'].split(/\s+/).includes(file));
+  const web = registry.tests['test.cocos-web-verification-contracts'];
+  for (const source of ['tools/cocos-probe/verify-web.mjs', 'tools/cocos-probe/lib/webProbeSupport.mjs']) {
+    assert.ok(entry.sourceRefs.includes(source) && web.files.includes(source));
+  }
+  assert.ok(web.args.includes('tests/cocos-web-verification-contracts.test.mjs'));
+  const docs = readFileSync(join(root, 'docs/module-cards/cocos-engine-probe.md'), 'utf8');
+  assert.match(docs, /Node契约不执行真实浏览器/);
+  assert.match(docs, /800×360、844×390、960×432/);
+  assert.match(docs, /电脑hasTouch/);
+});
+
 test('cross-step recovery closes over executed public bootstrap and browser assertion contracts', () => {
   const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
   const id = 'trace.cocos.cross-step-recovery';

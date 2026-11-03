@@ -1232,3 +1232,145 @@ test('cross-step created identities must really survive as saved entities or ret
   const missing=structuredClone(after);missing.orders[0].submitted_object_refs=[];
   assert.throws(()=>processingChecks.assertCrossStepCreatedIds(saved,recoveryStored(missing),[{kind:'DishLot',id:'consumed_dish'}]));
 });
+
+function touchEvidence() {
+  const before=crossStepState(), after=structuredClone(before);
+  after.timeLabel=after.displayedTime='day 1 minute 420';
+  after.operation={...before.operation,sequence:before.operation.sequence+1,name:'menu_confirm',status:'completed'};
+  const valid=farmingClick(before,after);
+  Object.assign(valid,{pointerSource:'cdp-touch',pressed:structuredClone(before),pressEventCount:0,
+    nativeEvents:[{type:'touchstart',isTrusted:true,target:'GameCanvas',x:200,y:120,identifier:0,activeTouches:1},{type:'touchend',isTrusted:true,target:'GameCanvas',x:200,y:120,identifier:0,activeTouches:0}]});
+  valid.layout={viewport:{width:800,height:360},canvas:{left:0,top:0,right:800,bottom:360,width:800,height:360},
+    button:{left:100,top:98,right:300,bottom:142,width:200,height:44},clip:{left:8,top:92,right:792,bottom:256,width:784,height:164},
+    target:{x:200,y:120},fontSizes:[16],overlappingButtons:[],buttonInteractable:true};
+  return valid;
+}
+
+test('native touch taps reject mouse or synthetic origin, missing events, press commits and duplicate admission',()=>{
+  const valid=touchEvidence();assert.doesNotThrow(()=>processingChecks.assertTouchTapObservation(valid,{command:true}));
+  for(const mutate of [
+    x=>x.pointerSource='mouse',x=>x.nativeEvents=[],x=>x.nativeEvents[0].isTrusted=false,x=>x.nativeEvents[1].target='other',
+    x=>x.nativeEvents[1].identifier=1,x=>x.nativeEvents[0].activeTouches=2,x=>x.nativeEvents[1].activeTouches=1,x=>x.nativeEvents[0].x=400,
+    x=>x.nativeEvents[1].type='touchcancel',x=>x.pressEventCount=1,x=>x.pressed.operation.sequence++,x=>x.pressed.orders.money++,
+    x=>x.eventCount=0,x=>x.eventCount=2,x=>x.after.operation.sequence++,x=>x.after.operation.sequence=x.before.operation.sequence,
+    x=>x.scrollAfter.y=10,x=>x.after.errors=['runtime error']
+  ]){const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertTouchTapObservation(bad,{command:true}));}
+});
+
+test('touch geometry requires actual 44 CSS hit targets, readable text, ancestor clipping and no overlap',()=>{
+  const valid=touchEvidence().layout;assert.doesNotThrow(()=>processingChecks.assertTouchSpatialLayout(valid));
+  for(const mutate of [
+    x=>x.button.height=26,x=>x.button.width=20,x=>{x.button.height=43.9;x.button.bottom=x.button.top+43.9;},x=>x.fontSizes=[13.9],x=>x.fontSizes=[10],x=>x.fontSizes=[],x=>x.target.y=280,
+    x=>x.clip.bottom=110,x=>x.canvas.right=900,x=>x.overlappingButtons=['SubmitOrder'],x=>x.button.left=NaN
+  ]){const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertTouchSpatialLayout(bad));}
+});
+
+test('touch local selection and keyboard edits cannot submit or mutate the public business world',()=>{
+  const local=touchEvidence();local.after=structuredClone(local.before);
+  assert.doesNotThrow(()=>processingChecks.assertTouchTapObservation(local));
+  for(const mutate of [x=>x.after.operation.sequence++,x=>x.after.inventory.lotOptions[0].quantity.amount--]){
+    const bad=structuredClone(local);mutate(bad);assert.throws(()=>processingChecks.assertTouchTapObservation(bad));
+  }
+  const edit=structuredClone(local);edit.eventCount=0;edit.text='50';edit.focused={className:'cocosEditBox',value:'50'};edit.editEvents={began:1,changed:2,ended:1};
+  assert.doesNotThrow(()=>processingChecks.assertTouchTapObservation(edit,{input:true}));
+  const open=structuredClone(edit);open.editEvents.ended=0;
+  assert.doesNotThrow(()=>processingChecks.assertTouchTapObservation(open,{input:true,editingOpen:true}));
+  assert.throws(()=>processingChecks.assertTouchTapObservation(open,{input:true}));
+  for(const mutate of [x=>x.editEvents.changed=0,x=>x.editEvents.ended=0,x=>x.focused.value='old',x=>x.after.operation.sequence++,x=>x.after.orders.money++]){
+    const bad=structuredClone(edit);mutate(bad);assert.throws(()=>processingChecks.assertTouchTapObservation(bad,{input:true}));
+  }
+});
+
+test('touch cancellation and real ScrollView motion reject accidental clicks, requests and healthy-world changes',()=>{
+  const valid=touchEvidence();valid.after=structuredClone(valid.before);valid.eventCount=0;valid.gesture='cancel';valid.nativeEvents[1].type='touchcancel';
+  assert.doesNotThrow(()=>processingChecks.assertTouchCancelObservation(valid));
+  for(const mutate of [x=>x.eventCount=1,x=>x.after.operation.sequence++,x=>x.after.orders.money++,x=>x.nativeEvents[1].type='touchend']){
+    const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertTouchCancelObservation(bad));
+  }
+  const drag=structuredClone(valid);drag.gesture='scroll';drag.path={from:{x:200,y:120},to:{x:200,y:80}};
+  drag.nativeEvents[1].type='touchmove';drag.nativeEvents[1].activeTouches=1;drag.nativeEvents[1].y=80;
+  drag.nativeEvents.push({...drag.nativeEvents[0],type:'touchend',activeTouches:0,y:80});drag.offsetBefore={x:0,y:0};drag.offsetAfter={x:0,y:40};
+  assert.doesNotThrow(()=>processingChecks.assertTouchCancelObservation(drag,{scrolled:true}));
+  const stationary=structuredClone(drag);stationary.offsetAfter.y=0;
+  assert.throws(()=>processingChecks.assertTouchCancelObservation(stationary,{scrolled:true}));
+  const stationaryRelease=structuredClone(valid);stationaryRelease.gesture='dragout';stationaryRelease.nativeEvents[1].type='touchend';
+  assert.throws(()=>processingChecks.assertTouchCancelObservation(stationaryRelease));
+  const released=structuredClone(stationaryRelease);released.path={from:{x:200,y:120},to:{x:200,y:80}};
+  released.nativeEvents.splice(1,0,{...released.nativeEvents[0],type:'touchmove',x:200,y:80});released.nativeEvents.at(-1).y=80;
+  assert.doesNotThrow(()=>processingChecks.assertTouchCancelObservation(released));
+  const endedInside=structuredClone(released);endedInside.nativeEvents.at(-1).y=120;endedInside.path.to.y=120;
+  assert.throws(()=>processingChecks.assertTouchCancelObservation(endedInside));
+});
+
+test('late native touch release after disposal cannot create a command or revive the session',()=>{
+  const valid=touchEvidence();valid.after=structuredClone(valid.before);valid.after.phase='closed';valid.after.hasSession=false;valid.eventCount=0;valid.gesture='destroy';
+  assert.doesNotThrow(()=>processingChecks.assertTouchCancelObservation(valid,{destroyed:true}));
+  for(const mutate of [x=>x.after.phase='ready',x=>x.after.hasSession=true,x=>x.eventCount=1,x=>x.after.operation.sequence++]){
+    const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertTouchCancelObservation(bad,{destroyed:true}));
+  }
+});
+
+test('touch resize and viewport contraction require unchanged world, real Canvas size and retained identities',()=>{
+  const before=crossStepState(),after=structuredClone(before);after.layout={mode:'compact'};
+  const valid={before,after,viewport:{width:844,height:390},canvas:{left:0,top:0,width:844,height:390},identityVerified:true};
+  assert.doesNotThrow(()=>processingChecks.assertTouchResizeObservation(valid));
+  for(const mutate of [x=>x.identityVerified=false,x=>x.after.orders.money++,x=>x.after.operation.sequence++,x=>x.after.layout.mode='desktop',x=>x.canvas.width=960,x=>x.canvas.height=250,x=>x.canvas.top=-76,x=>x.after.inventory.selectedLotId='other',x=>x.after.inventory.splitQuantityText='999']){
+    const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertTouchResizeObservation(bad));
+  }
+});
+
+test('focused DOM EditBox overlays must be real and remain inside the input and ScrollView Mask',()=>{
+  const layout=touchEvidence().layout;
+  const valid={active:true,value:'32',input:layout.button,clip:layout.clip,elements:[{active:true,visible:true,styleLeft:'2px',rect:{...layout.button,left:layout.button.left+2,right:layout.button.right+2}}]};
+  assert.doesNotThrow(()=>processingChecks.assertTouchEditDomVisibility(valid,{focused:true,text:'32'}));
+  for(const mutate of [x=>x.active=false,x=>x.value='old',x=>x.elements[0].visible=false,x=>x.elements[0].rect.top=20,x=>x.elements[0].rect.right=799,
+    x=>x.elements[0].styleLeft='0px',x=>x.elements[0].styleLeft='3px',x=>x.elements[0].rect.left=layout.button.left,x=>x.elements[0].rect.left=layout.button.left+3,
+    x=>x.elements[0].rect.width++,x=>x.clip.bottom=130]){
+    const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertTouchEditDomVisibility(bad,{focused:true,text:'32'}));
+  }
+  const blurred=structuredClone(valid);blurred.active=false;blurred.elements[0].active=false;blurred.elements[0].visible=false;
+  assert.doesNotThrow(()=>processingChecks.assertTouchEditDomVisibility(blurred));
+  const orphan=structuredClone(blurred);orphan.elements[0].visible=true;orphan.elements[0].rect.bottom=350;
+  assert.throws(()=>processingChecks.assertTouchEditDomVisibility(orphan));
+});
+
+test('ordinary touch keyboard input rejects hidden-ancestor scrolling even when window scroll stays zero',()=>{
+  const rect={left:0,top:0,width:844,height:390,scrollLeft:0,scrollTop:0};
+  const before={window:{x:0,y:0,width:844,height:390},document:{...rect},body:{...rect},elements:{GameDiv:{...rect},Cocos3dGameContainer:{...rect},GameCanvas:{...rect}}};
+  assert.doesNotThrow(()=>processingChecks.assertTouchDomFrameStable(before,structuredClone(before)));
+  for(const mutate of [x=>x.elements.GameDiv.scrollTop=76,x=>x.elements.GameCanvas.top=-76,x=>x.elements.Cocos3dGameContainer.top=-76,x=>x.body.scrollTop=1,x=>x.window.height=250]){
+    const bad=structuredClone(before);mutate(bad);assert.throws(()=>processingChecks.assertTouchDomFrameStable(before,bad));
+  }
+});
+
+function nativeCancelDiagnosticsEvidence() {
+  const cancelled=touchEvidence();cancelled.caseName='touch-native-cancel';cancelled.gesture='cancel';cancelled.eventCount=0;cancelled.after=structuredClone(cancelled.before);
+  cancelled.nativeEvents[1].type='touchcancel';cancelled.nativeEvents[1].cancelable=false;
+  const command=(before,name,timeLabel,suffix)=>{
+    const observation=touchEvidence(),after=structuredClone(before);
+    after.timeLabel=after.displayedTime=timeLabel;
+    after.operation={sequence:before.operation.sequence+1,name,status:'completed',message:name==='save'?'本地保存成功':name==='load'?'已恢复本地存档':'已推进一小时',errorMessage:null,
+      slotId:name==='menu_confirm'?null:'web_probe',worldMinute:name==='menu_confirm'?null:timeInMinutes(timeLabel)-1440};
+    after.displayedOperation=after.operation.message;
+    Object.assign(observation,{caseName:'touch-test-'+suffix,before:structuredClone(before),pressed:structuredClone(before),after});return observation;
+  };
+  const saved=command(cancelled.after,'save',cancelled.after.timeLabel,'cancel-baseline-save');
+  const advance=command(saved.after,'menu_confirm','day 1 minute 420','cancel-recovery-advance');
+  const loaded=command(advance.after,'load',saved.after.timeLabel,'cancel-recovery-load');
+  return {logs:[{caseName:'touch-native-cancel',type:'error',text:processingChecks.NATIVE_CANCEL_DIAGNOSTIC}],touch:{cancelled,clicks:[saved,advance,loaded]}};
+}
+
+test('only one exact SDK diagnostic in its trusted uncancelable native-cancel case is accepted with healthy touch recovery',()=>{
+  const valid=nativeCancelDiagnosticsEvidence();
+  assert.equal(processingChecks.assertTouchBrowserDiagnostics(valid.logs,valid.touch).length,1);
+  for(const mutate of [
+    x=>x.logs=[],x=>x.logs.push({...x.logs[0]}),x=>x.logs.push({...x.logs[0],caseName:'missing-resource'}),x=>x.logs[0].caseName='ordinary-tap',x=>x.logs[0].text+=' extra',
+    x=>x.logs[0].type='pageerror',x=>x.logs.push({caseName:'ordinary',type:'error',text:'different error'}),
+    x=>x.logs.push({caseName:'ordinary',type:'pageerror',text:'runtime exception'}),x=>x.touch.cancelled.nativeEvents=[],
+    x=>x.touch.cancelled.nativeEvents[1].cancelable=true,x=>x.touch.cancelled.nativeEvents[1].isTrusted=false,
+    x=>x.touch.cancelled.eventCount=1,x=>x.touch.clicks.pop(),x=>x.touch.clicks[1].pointerSource='mouse',
+    x=>x.touch.clicks[2].after.orders.money++,x=>x.touch.clicks[0].before.inventory.lotOptions[0].quantity.amount--
+  ]){const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertTouchBrowserDiagnostics(bad.logs,bad.touch));}
+  const oldMissingResource=structuredClone(valid);oldMissingResource.logs.push({caseName:'missing-resource',type:'error',text:'intentional resource 404'});
+  assert.equal(processingChecks.assertTouchBrowserDiagnostics(oldMissingResource.logs,oldMissingResource.touch).length,1,'existing intentional missing-resource error rule is unchanged');
+});

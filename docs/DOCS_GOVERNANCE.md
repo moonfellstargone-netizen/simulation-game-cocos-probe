@@ -1,4 +1,4 @@
-﻿# DOCS_GOVERNANCE — v0.0.2.45
+﻿# DOCS_GOVERNANCE — v0.0.2.46
 
 文档治理规范。
 
@@ -114,4 +114,8 @@ trace.orders.legal-state-deadline保留既有三处来源与核心/预览/Sessio
 
 ## 跨步骤存读档恢复追踪
 
-新增trace.cocos.cross-step-recovery，保留全部旧28entry和26个current ID；新追踪连接五点公共bootstrap集成与浏览器工具负例，继承Session/save-load/Queue/lifecycle保护，不暗示这些生产来源本版均有修改。复用现有实际args/files/covers与full/blocker；本版改动测试逐文件affected闭合，独立Creator/SDK及built/editor证据不由追踪登记或Node/CI推定。
+既有trace.cocos.cross-step-recovery继续连接五点公共bootstrap集成与浏览器工具负例，继承Session/save-load/Queue/lifecycle保护；它包含在本版保留的全部29条旧entry/27个current ID中，不暗示这些生产来源本版均有修改。复用现有实际args/files/covers与full/blocker；本版改动测试逐文件affected闭合，独立Creator/SDK及built/editor证据不由追踪登记或Node/CI推定。
+
+## 触摸与小屏追踪
+
+trace.cocos.touch-small-screen连接纯布局/原生输入、工具与Node负例，保留全部旧active/planned条目。新增helper/.meta及测试登记prepare/lifecycle，布局测试真实进入lifecycle args/package脚本；实际改动测试逐文件affected闭合，不改算法或策略。地图登记不证明Creator、浏览器或手机通过；真实输入和图检按精确候选独立记录。

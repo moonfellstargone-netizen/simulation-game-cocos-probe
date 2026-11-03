@@ -1,29 +1,29 @@
 {
   "version": {
-    "codePackageVersion": "v0.0.2.45",
-    "npmVersion": "0.0.2-45",
-    "qualityMetadataVersion": "0.0.2.45",
-    "snakeVersion": "v0_0_2_45",
-    "versionName": "Cross-step Save/Load Recovery",
-    "chineseVersionName": "跨步骤存读档恢复版"
+    "codePackageVersion": "v0.0.2.46",
+    "npmVersion": "0.0.2-46",
+    "qualityMetadataVersion": "0.0.2.46",
+    "snakeVersion": "v0_0_2_46",
+    "versionName": "Touch Interaction & Small-screen Readiness",
+    "chineseVersionName": "触摸交互与小屏操作收口版"
   },
   "release": {
-    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_45",
-    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_45.zip"
+    "root": "模拟游戏_Cocos微信试水代码包_v0_0_2_46",
+    "zip": "模拟游戏_Cocos微信试水代码包_v0_0_2_46.zip"
   },
   "design": {
     "designPackVersion": "v1.5.2.2",
     "designPackName": "模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip"
   },
   "previous": {
-    "codePackageVersion": "v0.0.2.44",
-    "npmVersion": "0.0.2-44",
-    "qualityMetadataVersion": "0.0.2.44",
-    "snakeVersion": "v0_0_2_44",
-    "versionName": "Web Tavern Orders & Settlement Feedback",
-    "chineseVersionName": "网页酒馆订单与结算反馈版",
-    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_44",
-    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_44.zip"
+    "codePackageVersion": "v0.0.2.45",
+    "npmVersion": "0.0.2-45",
+    "qualityMetadataVersion": "0.0.2.45",
+    "snakeVersion": "v0_0_2_45",
+    "versionName": "Cross-step Save/Load Recovery",
+    "chineseVersionName": "跨步骤存读档恢复版",
+    "releaseRoot": "模拟游戏_Cocos微信试水代码包_v0_0_2_45",
+    "releaseZip": "模拟游戏_Cocos微信试水代码包_v0_0_2_45.zip"
   },
   "staleMarkers": {
     "forbiddenCurrentMarkers": [
@@ -281,7 +281,18 @@
       "模拟游戏_Cocos微信试水代码包_v0_0_2_44.zip",
       "fixture_baseline_v0_0_2_44",
       "headless_baseline_v0_0_2_44",
-      "cocos_baseline_v0_0_2_44"
+      "cocos_baseline_v0_0_2_44",
+      "v0.0.2.45",
+      "0.0.2-45",
+      "0.0.2.45",
+      "v0_0_2_45",
+      "Cross-step Save/Load Recovery",
+      "跨步骤存读档恢复版",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_45",
+      "模拟游戏_Cocos微信试水代码包_v0_0_2_45.zip",
+      "fixture_baseline_v0_0_2_45",
+      "headless_baseline_v0_0_2_45",
+      "cocos_baseline_v0_0_2_45"
     ],
     "allowedHistoricalScopes": [
       "tools/quality/rules/project-target.json",

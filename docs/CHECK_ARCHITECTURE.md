@@ -1,6 +1,6 @@
-# CHECK_ARCHITECTURE — v0.0.2.45
+# CHECK_ARCHITECTURE — v0.0.2.46
 
-v0.0.2.45 / Cross-step Save/Load Recovery验证生长中、加工中、可领取、菜品已成和订单完成五点新会话读档后实际续玩、完整状态与新ID安全，保留失败加载健康状态及旧预览/回执清除保护。旧视口矩阵、resize、五页经营、存储故障和销毁回归保持；根typecheck和Node不能代替真实Creator SDK、构建与浏览器验收，不修改门禁策略、阈值或正式资源。
+v0.0.2.46 / Touch Interaction & Small-screen Readiness验证约定built-web触摸视口800×360、844×390、960×432及844×250→390缩高恢复；正文14CSSpx、按钮/EditBox命中高44CSSpx，滚动取消与一次tap一次请求需真实事件和本次结果证据。旧鼠标矩阵、经营/五点恢复、存储故障和销毁回归保持；根typecheck和Node不能代替真实Creator SDK、构建与浏览器验收，不修改门禁策略、阈值或正式资源。
 
 ## 1. 本轮检查目标
 
@@ -52,7 +52,7 @@ cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affe
 
 ## 10. 后续路线（不是授权目标）
 
-Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.45 范围。traceability map 中 `planned` 条目**不是**当前实现。
+Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.46 范围。traceability map 中 `planned` 条目**不是**当前实现。
 
 ## 11. 固定检查短语
 
@@ -105,3 +105,7 @@ trace.cocos.web-orders-loop连接SelectableVM、ProbeOrders/Interaction/Lifetime
 ## 跨步骤存读档恢复检查
 
 trace.cocos.cross-step-recovery的新增集成行为由test.stage1a-bootstrap实际运行；工具断言负例由test.cocos-web-verification-contracts实际运行，两项沿用原args/files/covers与full/blocker，不新增task。保留Session/save-load/Queue/lifecycle旧保护；坏档失败核健康完整状态，恢复后实际动作与新ID须有真实结果。最终固定提交仍须q:full、无缓存q:release含build/check、独立Creator/SDK、built/editor新增五点及旧全部回归和精确headCI，不能沿用旧提交数字。
+
+## 触摸与小屏检查
+
+trace.cocos.touch-small-screen复用prepare/lifecycle/web-verification三项full/blocker；ProbeLayout及.meta、布局测试登记files，测试进入实际lifecycle args/package脚本。quality-affected和traceability契约验证单文件执行与追踪闭合，门禁仍47任务/full45/release47；Node契约不执行真实浏览器，最终固定提交另验Creator/SDK、旧built/editor链及新增真实触摸与逐图检查。

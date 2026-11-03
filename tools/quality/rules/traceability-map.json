@@ -1,6 +1,6 @@
 {
   "schemaVersion": "traceability-lite/v1",
-  "projectVersion": "v0.0.2.45",
+  "projectVersion": "v0.0.2.46",
   "currentFullReleaseTraceIds": [
     "trace.stage1a.actionpipeline",
     "trace.stage1a.save-load",
@@ -28,7 +28,8 @@
     "trace.cocos.web-cooking-loop",
     "trace.orders.legal-state-deadline",
     "trace.cocos.web-orders-loop",
-    "trace.cocos.cross-step-recovery"
+    "trace.cocos.cross-step-recovery",
+    "trace.cocos.touch-small-screen"
   ],
   "entries": [
     {
@@ -1001,6 +1002,45 @@
       "designRefs": [
         "docs/SOURCE_DESIGN_PACK.md",
         "design_snapshot/SOURCE_DESIGN_PACK.txt"
+      ]
+    },
+    {
+      "id": "trace.cocos.touch-small-screen",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": [
+        "cocos-engine-probe",
+        "tools",
+        "tests"
+      ],
+      "sourceRefs": [
+        "apps/cocos-probe/template/assets/scripts/ProbeLayout.ts",
+        "apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts",
+        "apps/cocos-probe/template/build-templates/web-desktop/index.ejs",
+        "apps/cocos-probe/template/build-templates/web-desktop/probe-viewport.css",
+        "apps/cocos-probe/template/build-templates/web-desktop/probe-viewport.js",
+        "tools/cocos-probe/verify-web.mjs",
+        "tools/cocos-probe/lib/webProbeSupport.mjs"
+      ],
+      "testRefs": [
+        "test.cocos-probe-preparation",
+        "test.cocos-engine-probe-lifecycle",
+        "test.cocos-web-verification-contracts"
+      ],
+      "docRefs": [
+        "docs/module-cards/cocos-engine-probe.md",
+        "docs/module_contracts/CocosEngineProbe.contract.md",
+        "docs/CHECK_ARCHITECTURE.md",
+        "docs/maps/cocos-map.md",
+        "docs/maps/runtime-map.md",
+        "docs/maps/quality-map.md",
+        "docs/code-index/public-api.md"
+      ],
+      "gateRefs": [
+        "full",
+        "release"
       ]
     }
   ]

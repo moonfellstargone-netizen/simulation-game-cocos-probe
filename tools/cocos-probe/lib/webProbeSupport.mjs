@@ -1170,3 +1170,185 @@ export function crossStepActionObservations(clicks) {
   }
   return actions;
 }
+
+// Dedicated touch evidence never weakens the mouse geometry/scroll assertions above.
+export function assertTouchSpatialLayout(layout) {
+  const { viewport, canvas, button, clip, target, fontSizes, overlappingButtons } = layout;
+  const inside = (a, b) => a.left >= b.left - 1e-4 && a.top >= b.top - 1e-4
+    && a.right <= b.right + 1e-4 && a.bottom <= b.bottom + 1e-4;
+  const screen = { left: 0, top: 0, right: viewport.width, bottom: viewport.height };
+  for (const rectangle of [canvas, button, clip]) {
+    for (const key of ['left','top','right','bottom','width','height']) assert.ok(Number.isFinite(rectangle[key]), 'touch geometry must be finite');
+    assert.ok(rectangle.width > 0 && rectangle.height > 0);
+    assert.ok(Math.abs(rectangle.width-(rectangle.right-rectangle.left)) < 1e-4
+      && Math.abs(rectangle.height-(rectangle.bottom-rectangle.top)) < 1e-4, 'CSS dimensions must match actual edges');
+  }
+  assert.ok(inside(canvas, screen), 'actual touch Canvas must fit the browser viewport');
+  assert.ok(inside(clip, canvas), 'actual ancestor Mask clip must fit the Canvas');
+  assert.ok(inside(button, clip), 'touch target must be completely revealed inside its actual Mask');
+  assert.ok(button.width >= 44-1e-4 && button.height >= 44-1e-4, 'touch hit area must be at least 44 CSS pixels');
+  assert.ok(target.x > button.left && target.x < button.right && target.y > button.top && target.y < button.bottom);
+  assert.ok(Array.isArray(fontSizes) && fontSizes.length > 0 && fontSizes.every(size => Number.isFinite(size) && size >= 14-1e-4), 'visible control text must be at least 14 CSS pixels');
+  assert.deepEqual(overlappingButtons, [], 'another active Button must not cover the physical target');
+}
+
+function assertTrustedTouchPath(observation, finalType) {
+  assert.equal(observation.pointerSource, 'cdp-touch');
+  const events = observation.nativeEvents;
+  assert.ok(Array.isArray(events) && events.length >= 2, 'actual native touch events must be observed');
+  assert.equal(events[0].type, 'touchstart');
+  assert.equal(events.at(-1).type, finalType);
+  assert.equal(events.filter(event => event.type === 'touchstart').length, 1);
+  assert.equal(events.filter(event => event.type === finalType).length, 1);
+  assert.ok(events.every(event => event.isTrusted === true && event.target === 'GameCanvas'), 'touch proof must come from trusted Canvas input');
+  assert.ok(events.every(event => ['touchstart','touchmove','touchend','touchcancel'].includes(event.type)), 'only actual touch event types may prove a gesture');
+  assert.ok(events.every(event => Number.isFinite(event.x) && Number.isFinite(event.y)));
+  assert.ok(Number.isSafeInteger(events[0].identifier) && events.every(event => event.identifier === events[0].identifier), 'a single-finger gesture must retain its native identifier');
+  assert.ok(events.every(event => event.activeTouches === (event.type === 'touchend' || event.type === 'touchcancel' ? 0 : 1)), 'native touch counts must describe one finger and a released final state');
+  const origin = observation.path?.from ?? observation.layout?.target;
+  assert.ok(origin && Math.abs(events[0].x-origin.x)<=1 && Math.abs(events[0].y-origin.y)<=1, 'native touch start must match the actual physical target');
+  const endpoint = observation.path?.to ?? origin;
+  assert.ok(Math.abs(events.at(-1).x-endpoint.x)<=1 && Math.abs(events.at(-1).y-endpoint.y)<=1, 'native touch end must match its physical path');
+  assert.deepEqual(observation.scrollDown, observation.scrollBefore, 'native touch must not scroll the document');
+  assert.deepEqual(observation.scrollAfter, observation.scrollBefore, 'native touch must leave document origin fixed');
+  assert.equal(observation.pressEventCount, 0, 'touch down alone must not click');
+  assert.deepEqual(observation.pressed.operation, observation.before.operation, 'touch down must not submit');
+  assert.deepEqual(crossStepWorld(observation.pressed), crossStepWorld(observation.before), 'touch down must preserve the complete public world');
+}
+
+export function assertTouchTapObservation(observation, { disabled = false, input = false, command = false, editingOpen = false } = {}) {
+  assertTrustedTouchPath(observation, 'touchend');
+  assert.equal(observation.nativeEvents.some(event => event.type === 'touchcancel' || event.type === 'touchmove'), false, 'a tap must not be a cancelled or dragged gesture');
+  assertTouchSpatialLayout(observation.layout);
+  assertInputObservation(observation, disabled || input ? 0 : 1);
+  if (!disabled && !input) {
+    assert.equal(observation.before.busy, false);
+    assert.equal(observation.after.busy, false);
+    assert.equal(observation.after.operation.sequence, observation.before.operation.sequence + (command ? 1 : 0), 'a touch must admit exactly its own command, or none for local selection');
+    if (!command) {
+      assert.deepEqual(observation.after.operation, observation.before.operation);
+      assert.deepEqual(crossStepWorld(observation.after), crossStepWorld(observation.before));
+    }
+  }
+  if (disabled) {
+    assert.equal(observation.layout.buttonInteractable, false);
+    assert.deepEqual(observation.after.operation, observation.before.operation);
+    assert.deepEqual(crossStepWorld(observation.after), crossStepWorld(observation.before));
+  }
+  if (input) {
+    assert.deepEqual(observation.after.operation, observation.before.operation);
+    assert.deepEqual(crossStepWorld(observation.after), crossStepWorld(observation.before));
+    assert.ok(observation.editEvents.began > 0 && observation.editEvents.changed > 0);
+    assert.ok(editingOpen ? observation.editEvents.ended === 0 : observation.editEvents.ended > 0, 'focus/blur evidence must match the actually tested editing phase');
+    assert.equal(observation.focused.className, 'cocosEditBox');
+    assert.equal(observation.focused.value, observation.text);
+  }
+}
+
+export function assertTouchCancelObservation(observation, { scrolled = false, destroyed = false } = {}) {
+  assert.ok(['cancel','dragout','scroll','destroy'].includes(observation.gesture));
+  assertTrustedTouchPath(observation, observation.gesture === 'cancel' ? 'touchcancel' : 'touchend');
+  assert.equal(observation.eventCount, 0, 'cancelled or scrolling touch must never emit Button CLICK');
+  assert.deepEqual(observation.after.operation, observation.before.operation, 'cancelled touch must never submit a UI command');
+  if (observation.gesture === 'dragout') {
+    const rectangle = observation.layout?.button, first = observation.nativeEvents[0], last = observation.nativeEvents.at(-1);
+    assert.ok(rectangle && first.x>rectangle.left && first.x<rectangle.right && first.y>rectangle.top && first.y<rectangle.bottom, 'drag out must start inside the actual original Button');
+    assert.ok(observation.nativeEvents.some(event => event.type === 'touchmove'), 'drag out needs actual native motion');
+    assert.ok(last.x<rectangle.left || last.x>rectangle.right || last.y<rectangle.top || last.y>rectangle.bottom, 'drag out must actually release outside the original Button');
+  }
+  if (destroyed) {
+    assert.equal(observation.after.phase, 'closed');
+    assert.equal(observation.after.hasSession, false);
+  } else {
+    assert.equal(observation.after.phase, 'ready');
+    assert.equal(observation.after.busy, false);
+    assert.deepEqual(crossStepWorld(observation.after), crossStepWorld(observation.before));
+    assert.deepEqual(observation.after.errors, []);
+  }
+  if (scrolled) {
+    assert.ok(observation.nativeEvents.some(event => event.type === 'touchmove'));
+    const first=observation.nativeEvents[0];
+    assert.ok(observation.nativeEvents.some(event => event.type==='touchmove' && Math.hypot(event.x-first.x,event.y-first.y)>1), 'a ScrollView gesture needs actual native displacement');
+    assert.ok(Math.abs(observation.offsetAfter.y - observation.offsetBefore.y) > 1, 'a claimed ScrollView gesture must really move content');
+    if (observation.buttonName) assert.ok(observation.cocosEvents.some(event => event.buttonName === observation.buttonName && event.type === 'cancel'), 'ScrollView drag from a Button must cancel that child in the actual engine');
+  }
+}
+
+export function assertTouchResizeObservation(observation) {
+  assert.equal(observation.identityVerified, true, 'resize must retain observer and Button identities');
+  assert.deepEqual(crossStepWorld(observation.after), crossStepWorld(observation.before), 'resize must preserve the complete business world');
+  assert.deepEqual(observation.after.operation, observation.before.operation);
+  for (const [section,keys] of Object.entries({
+    farming:['selectedFieldId','selectedSeedId','selectedCropId','seedAmount'],
+    inventory:['selectedLotId','selectedTargetId','splitQuantityText'],
+    processing:['selectedMethodId','selectedRequirementIndex','selectedFacilityId','selectedTaskId','inputSelections'],
+    cooking:['selectedRecipeId','selectedRole','selectedTargetId','heatLevel','activeMinutesText','inputSelections'],
+    orders:['selectedOrderId','selectedDishId']
+  })) for (const key of keys) assert.deepEqual(observation.after[section][key],observation.before[section][key],'resize must retain public choice/input '+section+'.'+key);
+  assert.equal(observation.after.phase, 'ready');
+  assert.deepEqual(observation.after.errors, []);
+  assert.equal(observation.after.layout.mode, 'compact');
+  assert.ok(observation.canvas.width > 0 && observation.canvas.height > 0);
+  assert.ok(Math.abs(observation.canvas.left)<=1e-4 && Math.abs(observation.canvas.top)<=1e-4, 'small-screen Canvas must retain the actual frame origin');
+  assert.ok(Math.abs(observation.canvas.width - observation.viewport.width) <= 1
+    && Math.abs(observation.canvas.height - observation.viewport.height) <= 1, 'resize proof needs actual frame-sized Canvas geometry');
+}
+
+export function assertTouchEditDomVisibility(evidence, { focused = false, text } = {}) {
+  assert.ok(Array.isArray(evidence.elements), 'actual DOM EditBox elements must be recorded');
+  if (focused) {
+    assert.equal(evidence.active, true, 'the focused-input scenario must really focus a DOM EditBox');
+    assert.equal(evidence.value, text);
+    assert.ok(evidence.elements.some(element => element.active && element.visible), 'focused DOM editor must really be visible');
+  }
+  for (const element of evidence.elements.filter(item => item.visible)) {
+    const rectangle = element.rect;
+    for (const key of ['left','top','right','bottom','width','height']) assert.ok(Number.isFinite(rectangle[key]));
+    // Creator 3.8.8's HTML EditBox applies fixed LEFT_PADDING=2 via style.left;
+    // setSize still uses the complete root width/height. This is an SDK model, not a tolerance.
+    assert.equal(element.styleLeft,'2px','DOM editor must retain the installed Creator SDK left padding');
+    const expected={...evidence.input,left:evidence.input.left+2,right:evidence.input.right+2};
+    for(const key of ['left','top','right','bottom','width','height']) assert.ok(Math.abs(rectangle[key]-expected[key])<=1e-4,'DOM editor must exactly match the fixed SDK input geometry: '+key);
+    const outer=evidence.clip;
+    assert.ok(rectangle.left >= outer.left-1e-4 && rectangle.top >= outer.top-1e-4
+      && rectangle.right <= outer.right+1e-4 && rectangle.bottom <= outer.bottom+1e-4, 'visible DOM editing overlay must remain inside its actual Mask, clear of fixed controls');
+  }
+}
+
+export function assertTouchDomFrameStable(before, after) {
+  for (const key of ['x','y','width','height']) assert.equal(after.window[key],before.window[key], 'ordinary desktop keyboard editing must not alter the browser viewport');
+  for (const name of ['document','body',...Object.keys(before.elements)]) {
+    const a=name==='document'?before.document:name==='body'?before.body:before.elements[name];
+    const b=name==='document'?after.document:name==='body'?after.body:after.elements[name];
+    for (const key of ['left','top','width','height','scrollLeft','scrollTop']) {
+      assert.ok(Number.isFinite(a[key])&&Number.isFinite(b[key]));
+      assert.ok(Math.abs(a[key]-b[key])<=1e-4, 'ordinary input must not move or scroll actual DOM frame: '+name+'.'+key);
+    }
+  }
+}
+
+export const NATIVE_CANCEL_DIAGNOSTIC = 'Ignored attempt to cancel a touchcancel event with cancelable=false, for example because scrolling is in progress and cannot be interrupted.';
+
+export function assertTouchBrowserDiagnostics(logs, touch) {
+  // Keep the old unexpected-error predicate. Only the deliberately exercised native
+  // cancel has one fixed SDK/Chrome diagnostic, backed by actual healthy recovery.
+  const unexpected=logs.filter(entry=>entry.type==='pageerror'||(entry.type==='error'&&entry.caseName!=='missing-resource'));
+  const expected=logs.filter(entry=>entry.type==='error'&&entry.text===NATIVE_CANCEL_DIAGNOSTIC);
+  assert.equal(expected.length,1,'controlled native cancel must have exactly its one observed SDK diagnostic');
+  assert.equal(expected[0].caseName,'touch-native-cancel','the SDK cancel diagnostic is forbidden in ordinary input or another case');
+  assert.ok(touch?.cancelled);assert.equal(touch.cancelled.caseName,'touch-native-cancel');
+  assertTouchCancelObservation(touch.cancelled);
+  assert.equal(touch.cancelled.nativeEvents.at(-1).cancelable,false,'the diagnostic needs an actual trusted non-cancelable native cancel');
+  const one=suffix=>{const matches=touch.clicks.filter(item=>item.caseName.endsWith(suffix));assert.equal(matches.length,1,'one actual recovery observation '+suffix);return matches[0];};
+  const saved=one('-cancel-baseline-save'),advance=one('-cancel-recovery-advance'),loaded=one('-cancel-recovery-load');
+  for(const observation of [saved,advance,loaded])assertTouchTapObservation(observation,{command:true});
+  assertUiCommandObservation(saved,{name:'save',status:'completed',timeLabel:saved.before.timeLabel});
+  assertClickObservation(advance);assertUiCommandObservation(advance,{name:'menu_confirm',status:'completed',timeLabel:advance.after.timeLabel});
+  assertUiCommandObservation(loaded,{name:'load',status:'completed',timeLabel:saved.after.timeLabel});
+  assert.deepEqual(crossStepWorld(saved.before),crossStepWorld(touch.cancelled.after),'recovery must continue the cancelled gesture\'s healthy world');
+  assert.deepEqual(saved.before.operation,touch.cancelled.after.operation);
+  assert.deepEqual(crossStepWorld(advance.before),crossStepWorld(saved.after));
+  assert.deepEqual(crossStepWorld(loaded.after),crossStepWorld(saved.after),'actual save/load recovery must restore the complete healthy world');
+  assert.deepEqual(unexpected.filter(entry=>!expected.includes(entry)),[],'every other browser error remains unexpected');
+  return expected;
+}

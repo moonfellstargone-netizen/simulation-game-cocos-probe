@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.45
+﻿# Code Index — Public API — v0.0.2.46
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -190,3 +190,11 @@ trace.orders.legal-state-deadline连接三源及核心、preview、Session手动
 ## 跨步骤恢复公共入口
 
 公共bootstrap→Host→既有菜单/Queue→Session save/load接口保持，无新增公开API。trace.cocos.cross-step-recovery以五个独立自然保存点的全新会话读取和真实续玩核既有保证；读取失败保留健康状态，加载清暂态，后续新对象/事件不覆盖存档仍有的ID或历史引用。真实浏览器通过按钮与键盘操作，observer只读；ID无记录历史恢复和请求序号回滚仍不作新承诺。
+
+## 触摸与小屏公开诊断
+
+outer的ProbeLayout.ts导出ProbePanelName、ProbeLayoutRect、ProbeLayoutPlan及createProbeLayout(width, height):ProbeLayoutPlan，只计算frame、viewport、固定区和页面节点几何，不读写Session或派发命令。CocosWebProbe仅增只读布局/滚动观察，resize不重建Host/observer/Button；trace.cocos.touch-small-screen连接纯布局行为与真实输入证据。
+
+tools/cocos-probe/verify-web.mjs另导出工具函数touchLoop，供仓库外开发脚本复用同一原生触摸场景定位问题；它不是玩家API、observer setter或独立验收权威。开发subset结果必须标明来源和范围，不能当最终全回归。正式verifyWebProbe仍无条件执行全部既有鼠标/键盘/经营/恢复链和触摸场景，没有CLI skip选项。
+
+tools/cocos-probe/lib/webProbeSupport.mjs实际导出NATIVE_CANCEL_DIAGNOSTIC和assertTouchBrowserDiagnostics(logs, touch)。它们只核受控touch-native-cancel的精确一次原生诊断、trusted/cancelable=false、取消保护及保存/推进/读取恢复；同全文出现在其他case或伪标missing-resource也拒绝。保留原始console，正常链error及全部pageerror仍为零，不提供一般错误忽略或运行态业务API。

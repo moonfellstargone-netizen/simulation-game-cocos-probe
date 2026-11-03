@@ -37,7 +37,9 @@ cocos:build显式要求--creator、--project、--log-dir；实际Creator3.8.8返
 
 cocos:verify:web的verifyWebProbe(options)要求--project、--browser、--report-dir、--build-record，均为显式绝对路径。复算已构建Web并与记录匹配，缺摘要/篡改/替换必须失败；记录来源提交、dirty、构建关联、实际浏览器和真实点击结果，报告不写入仓库。可选--preview-url限loopback HTTP，预览结果独立标记；构建摘要不证明livepreview页面字节。
 
-不得用observer.advance代替鼠标点击，不捕获错误后仍报告passed；缺引擎、浏览器、来源或产物应明确失败，不静默skip。正常运行控制台和pageerror无错误；缺资源案例允许明确记录预期404，但不能混成正常运行错误。
+不得用observer.advance代替鼠标点击，不捕获错误后仍报告passed；缺引擎、浏览器、来源或产物应明确失败，不静默skip。正常运行控制台和pageerror无错误；缺资源案例允许明确记录预期404，但不能混成正常运行错误。专门原生取消负例的唯一SDK诊断按下述完整证据单列，不能泛化为正常链例外；pageerror在所有场景均必须为零。
+
+受控touch-native-cancel负例仅允许一次精确全文console.error：Ignored attempt to cancel a touchcancel event with cancelable=false, for example because scrolling is in progress and cannot be interrupted. 同次必须有trusted且cancelable=false的真实原生取消、0CLICK/0command、世界保持，以及后续真实保存/推进/读取健康恢复。此为SDK原生回调未检查cancelable时的Chrome诊断，不是JS异常；保留原日志并分类。其他case出现同消息、伪标为missing-resource、次数异常、证据缺失或任何其他error/pageerror均失败，不改SDK、不泛过滤、不把原始日志改写为console零error。
 
 ## 自动门禁与边界
 
@@ -96,3 +98,15 @@ ProbeProcessing只管理公开方法/逐要求批次与数量、兼容设施、�
 ## 网页烹饪公开消费
 
 ProbeCooking只管理公开配方角色与材料/储存选择、数量及操作参数原文和本次反馈；CocosSelectableViewModel补齐既有合并约束、硬边界/偏好与燃料说明。既有cook_dish菜单链执行并重新预览，失败清旧成功，成功以本次created_objects关联真实DishLot；保存/新页面手动读取重建选择，恢复菜品不冒充本次新产物。trace.cocos.web-cooking-loop连接既有full/blocker任务、真实EditBox/点击与独立Creator/SDK及built/editor证据；受控燃料负例不称网页自然耗尽，不改烹饪规则、Session/Queue或正式资源。
+
+## 约定横屏触摸与小屏准备
+
+trace.cocos.touch-small-screen只在既有outer增加ProbeLayout纯几何、原生ScrollView/Mask和resize/视觉视口同步。built-web约定800×360、844×390、960×432及844×250→390模拟缩高；正文14CSSpx、按钮/EditBox命中高44CSSpx。内容可滚动到达，切页重置，resize保留Host/observer/Button身份、无重复CLICK绑定，桌面恢复原几何。
+
+正常输入只用真实Cocos Button/EditBox和可信原生touch/keyboard；observer仅只读几何/滚动。拖动取消不提交，有效tap一次事件/一次本次请求，数量文本沿原解析规则。原built/editor鼠标矩阵、五页经营、五点手动恢复、Storage故障及销毁链保持；Node布局/工具负例与真实Creator/SDK和浏览器分别验收。
+
+compact输入框Tab仅结束当前编辑，下一字段显式触摸/鼠标选择；desktop只有当前页active且enabled的输入参与顺序Tab，隐藏/禁用字段不参与。使用公开tabIndex，在初始创建、控件状态及relayout时同步，避免Web原生焦点跳入隐藏输入引起容器滚动；不调用私有SDK、不伪造resize或放宽实际输入几何断言，也不改数值/玩法规则。
+
+compact relayout捕获公开isFocused字段，缩高/恢复时按当前布局与viewport夹取合法offset，通过公开ScrollView.scrollToOffset揭示完整编辑框并保留原文、选择和对象身份；无焦点仍归顶，切页原有blur保持，非约定极小窗口无法容纳字段才结束编辑。实际HTML输入覆盖层必须留在其Mask内，不能用CC Label几何代替DOM证据；电脑滚动/缩高与editor、真实手机分别按实际验证范围列证。
+
+editor新触摸可使用Creator原生WebpageFullScreen控件，按真实canvas标注，不能篡改预览DOM尺寸冒称适配。电脑hasTouch/DPR/缩高不证明真实手机软键盘、安全区或微信；没有同步Storage异步窗口时不伪造pending，不新增多点手势、通用UI框架或业务规则。

@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.45
+﻿# PROJECT_MAP — v0.0.2.46
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.45：**Cross-step Save/Load Recovery**。沿既有九Action与公共玩家入口，补五独立保存点经新会话手动读取后的真实续玩和ID恢复验证；trace.cocos.cross-step-recovery连接公共bootstrap集成、既有Session/Host/保存读取边界、浏览器工具及负例。旧网页五页和全部追踪保持，生产core、Session/Queue、outer组件与正式资源不改，不扩Stage1B、触摸或微信。
+v0.0.2.46：**Touch Interaction & Small-screen Readiness**。trace.cocos.touch-small-screen连接outer纯ProbeLayout、Cocos原生ScrollView/Mask、视觉视口同步及独立真实触摸验收；现有五页和全部29条旧追踪保留。业务core、Session/Queue、SaveFile与正式资源不改，不扩Stage1B或微信，不从电脑模拟推定手机适配。
 
 ## 3. 权威边界
 
@@ -72,3 +72,7 @@ v0.0.2.45：**Cross-step Save/Load Recovery**。沿既有九Action与公共玩�
 ## 跨步骤恢复导航
 
 trace.cocos.cross-step-recovery连接save-load/app/creator/engine四张模块卡、runtime/cocos地图和公共API索引。tests/stage1a-bootstrap.test.ts核公共Host/Queue五点续玩；既有verify-web/support及web-verification负例连接真实浏览器恢复场景。没有新生产模块或API；Node、Creator/SDK、built/editor和最终提交CI分别记录。
+
+## 触摸与小屏导航
+
+trace.cocos.touch-small-screen连接既有cocos-engine-probe/tools/tests模块，不新增模块或反向依赖。ProbeLayout与原生滚动/resize由engine模块卡及cocos-map导航，Node登记由quality-map导航，公开类型与函数见public-api索引。原29条追踪及全部既有经营/恢复回归保留。

@@ -1,6 +1,6 @@
 import {
-  _decorator, Button, Camera, Canvas, Color, Component, EditBox, Graphics, isValid,
-  JsonAsset, Label, Layers, Node, profiler, resources, ResolutionPolicy, UITransform, view
+  _decorator, Button, Camera, Canvas, Color, Component, director, EditBox, Graphics, isValid,
+  JsonAsset, Label, Layers, Mask, Node, profiler, resources, ResolutionPolicy, screen, ScrollView, UITransform, Vec2, view
 } from 'cc';
 import { createStage1AHost, QinglanUiSceneProbeComponent } from '../generated/probe-runtime.js';
 import { ProbeLifetime, type ProbeCommand, type ProbeMenuSnapshot, type ProbePhase, type ProbeResources } from './ProbeLifetime';
@@ -11,6 +11,7 @@ import { ProbeProcessing } from './ProbeProcessing';
 import { ProbeCooking } from './ProbeCooking';
 import { ProbeOrders } from './ProbeOrders';
 import { BrowserSaveStoragePort, BROWSER_SAVE_SLOT_ID } from './BrowserSaveStoragePort';
+import { createProbeLayout, type ProbeLayoutPlan, type ProbeLayoutRect, type ProbePanelName } from './ProbeLayout';
 
 const { ccclass } = _decorator;
 const ADVANCE_COMMAND = { name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } } as const;
@@ -31,6 +32,21 @@ interface ProbeView {
   readonly processing: { input: EditBox; method: Label; facility: Label; requirement: Label; lot: Label; unit: Label; selection: Label; preview: Label; task: Label; result: Label };
   readonly cooking: { input: EditBox; minutes: EditBox; recipe: Label; role: Label; lot: Label; unit: Label; selection: Label;
     operation: Label; target: Label; fuel: Label; preview: Label; result: Label; dishes: Label };
+  readonly layout: ProbeLayoutView;
+}
+
+interface ProbeLayoutView {
+  status(): {
+    mode: 'desktop' | 'compact';
+    frame: { width: number; height: number };
+    design: { width: number; height: number };
+    viewport: ProbeLayoutRect;
+    contentHeight: number;
+    scrollOffset: { x: number; y: number };
+    maxScrollOffset: { x: number; y: number };
+  };
+  selectPanel(panel: ProbePanelName): void;
+  dispose(): void;
 }
 
 // Display names come from the same prepared formal resources; they never select an action target.
@@ -85,6 +101,7 @@ function processingRejection(code: string): string {
 export class CocosWebProbe extends Component {
   private lifetime: ProbeLifetime | null = null;
   private assetOwner: { asset: JsonAsset | null } | null = null;
+  private layoutCleanup: (() => void) | null = null;
 
   onLoad(): void {
     profiler.hideStats();
@@ -101,6 +118,8 @@ export class CocosWebProbe extends Component {
     let panel: 'farming' | 'inventory' | 'processing' | 'cooking' | 'orders' = 'farming';
     let names: Record<string, string> = {};
     const alive = () => isValid(ui.root, true);
+    const editInputs = [ui.split.input, ui.processing.input, ui.cooking.input, ui.cooking.minutes];
+    const updateTabOrder = () => this.updateEditTabOrder(editInputs, ui.layout.status().mode === 'compact');
     const updateButtons = () => {
       if (!alive()) return;
       const enabled = lifetime.status().phase === 'ready' && !lifetime.isDisposed() && !interaction?.status().busy;
@@ -162,6 +181,7 @@ export class CocosWebProbe extends Component {
       if (ui.cooking.input.enabled !== cookInputEnabled) ui.cooking.input.enabled = cookInputEnabled;
       const minutesEnabled = cookEnabled && recipe !== undefined;
       if (ui.cooking.minutes.enabled !== minutesEnabled) ui.cooking.minutes.enabled = minutesEnabled;
+      updateTabOrder();
     };
     const renderFarming = () => {
       if (!alive()) return;
@@ -465,6 +485,7 @@ export class CocosWebProbe extends Component {
       ui.panels.processing.active = next === 'processing';
       ui.panels.cooking.active = next === 'cooking';
       ui.panels.orders.active = next === 'orders';
+      ui.layout.selectPanel(next);
       ui.title.string = ({ farming: '青岚 · 种植与收获', inventory: '青岚 · 库存与储存', processing: '青岚 · 加工与领取', cooking: '青岚 · 烹饪与菜品', orders: '青岚 · 酒馆订单' })[next];
     };
     localSelection('OpenFarming', () => switchPanel('farming'));
@@ -539,6 +560,7 @@ export class CocosWebProbe extends Component {
         displayedOperation: alive() && isValid(ui.operation, true) ? ui.operation.string : null,
         farming: farming.status(),
         panel,
+        layout: ui.layout.status(),
         inventory: inventory.status(),
         processing: processing.status(),
         cooking: cooking.status(),
@@ -579,6 +601,9 @@ export class CocosWebProbe extends Component {
   }
 
   onDestroy(): void {
+    const layoutCleanup = this.layoutCleanup;
+    this.layoutCleanup = null;
+    layoutCleanup?.();
     const asset = this.assetOwner?.asset ?? null;
     if (this.assetOwner) this.assetOwner.asset = null;
     const closing = this.lifetime?.dispose() ?? Promise.resolve();
@@ -735,7 +760,199 @@ export class CocosWebProbe extends Component {
     const phase = this.makeLabel(canvasNode, 'Status', '准备启动', -225, 16);
     const operation = this.makeLabel(canvasNode, 'Operation', '请选择地块和种子后播种', -260, 18);
     this.makeLabel(canvasNode, 'LocalSaveHint', '本浏览器本地存档，刷新后可手动读取', -299, 15);
-    return { root: this.node, title, time, phase, operation, buttons, controls, farming, inventory, panels, split, processing, cooking, orders };
+    const layout = this.makeLayout(canvasNode, camera, panels);
+    this.layoutCleanup = layout.dispose;
+    return { root: this.node, title, time, phase, operation, buttons, controls, farming, inventory, panels, split, processing, cooking, orders, layout };
+  }
+
+  private makeLayout(canvasNode: Node, camera: Camera, panels: ProbeView['panels']): ProbeLayoutView {
+    const nodes = new Map<string, Node>();
+    const originals: {
+      node: Node; x: number; y: number; z: number; width: number; height: number; anchorX: number; anchorY: number;
+      inputManaged: boolean;
+      label: { fontSize: number; lineHeight: number; wrap: boolean; overflow: Label['overflow'] } | null;
+    }[] = [];
+    const capture = (node: Node, inputManaged = false) => {
+      const transform = node.getComponent(UITransform);
+      const label = node.getComponent(Label);
+      if (transform) originals.push({
+        node, x: node.position.x, y: node.position.y, z: node.position.z,
+        inputManaged,
+        width: transform.width, height: transform.height, anchorX: transform.anchorPoint.x, anchorY: transform.anchorPoint.y,
+        label: label ? { fontSize: label.fontSize, lineHeight: label.lineHeight, wrap: label.enableWrapText, overflow: label.overflow } : null
+      });
+      nodes.set(node.name, node);
+      for (const child of node.children) capture(child, inputManaged || node.getComponent(EditBox) !== null);
+    };
+    capture(canvasNode);
+    const saveHint = nodes.get('LocalSaveHint')!.getComponent(Label)!;
+    const desktopSaveHint = saveHint.string;
+    const viewportNode = new Node('ProbeScrollViewport');
+    viewportNode.layer = Layers.Enum.UI_2D;
+    canvasNode.addChild(viewportNode);
+    const viewportTransform = viewportNode.addComponent(UITransform);
+    const mask = viewportNode.addComponent(Mask);
+    const scroll = viewportNode.addComponent(ScrollView);
+    scroll.horizontal = false;
+    scroll.vertical = true;
+    scroll.inertia = false;
+    scroll.elastic = false;
+    scroll.cancelInnerEvents = true;
+    const content = new Node('ProbeScrollContent');
+    content.layer = Layers.Enum.UI_2D;
+    viewportNode.addChild(content);
+    const contentTransform = content.addComponent(UITransform);
+    for (const panel of Object.values(panels)) panel.setParent(content);
+    scroll.content = content;
+    let panel: ProbePanelName = 'farming';
+    let disposed = false;
+    let applying = false;
+    let plan: ProbeLayoutPlan = createProbeLayout(960, 640);
+    let contentHeight = 640;
+    const restore = () => {
+      for (const original of originals) {
+        // EditBox initializes and maintains its own label geometry after this first capture.
+        // Restoring the construction-time child positions would overwrite that SDK layout.
+        if (!original.inputManaged) {
+          original.node.setPosition(original.x, original.y, original.z);
+          const transform = original.node.getComponent(UITransform)!;
+          transform.setContentSize(original.width, original.height);
+          transform.setAnchorPoint(original.anchorX, original.anchorY);
+        }
+        if (original.label) {
+          const label = original.node.getComponent(Label)!;
+          label.fontSize = original.label.fontSize; label.lineHeight = original.label.lineHeight;
+          label.enableWrapText = original.label.wrap; label.overflow = original.label.overflow;
+        }
+      }
+    };
+    const paintInput = (input: EditBox) => {
+      const transform = input.node.getComponent(UITransform)!;
+      const background = input.node.getChildByName('Background')!;
+      background.getComponent(UITransform)!.setContentSize(transform.width, transform.height);
+      const graphics = background.getComponent(Graphics)!;
+      graphics.clear(); graphics.fillColor = new Color(40, 57, 70, 255);
+      graphics.roundRect(-transform.width / 2, -transform.height / 2, transform.width, transform.height, 6); graphics.fill();
+      for (const label of [input.textLabel, input.placeholderLabel]) if (label && plan.mode === 'compact') {
+        label.node.getComponent(UITransform)!.setContentSize(transform.width - 20, transform.height);
+        label.fontSize = 16; label.lineHeight = 24;
+      }
+    };
+    const applyRect = (name: string, rect: ProbeLayoutRect, fixed: boolean) => {
+      const node = nodes.get(name);
+      if (!node) throw new Error('ERR_PROBE_LAYOUT_NODE_MISSING:' + name);
+      node.setPosition(rect.x + rect.width / 2 - (fixed ? plan.design.width : plan.viewport.width) / 2,
+        (fixed ? plan.design.height / 2 : 0) - rect.y - rect.height / 2, 0);
+      node.getComponent(UITransform)!.setContentSize(rect.width, rect.height);
+      const label = node.getComponent(Label);
+      if (label) {
+        label.fontSize = rect.fontSize ?? 14; label.lineHeight = (rect.fontSize ?? 14) + 4;
+        label.enableWrapText = rect.wrap ?? false; label.overflow = Label.Overflow.CLAMP;
+      }
+      const button = node.getComponent(Button);
+      if (button) {
+        const caption = node.getChildByName('Caption')!.getComponent(Label)!;
+        caption.node.getComponent(UITransform)!.setContentSize(rect.width - 10, rect.height);
+        caption.fontSize = rect.fontSize ?? 16; caption.lineHeight = (rect.fontSize ?? 16) + 4;
+      }
+    };
+    const relayout = () => {
+      if (disposed || applying || !isValid(canvasNode, true)) return;
+      applying = true;
+      try {
+        const editing = [...nodes.values()].map(node => node.getComponent(EditBox)).find(input => input?.isFocused()) ?? null;
+        const pixels = screen.windowSize;
+        const dpr = screen.devicePixelRatio;
+        plan = createProbeLayout(pixels.width / dpr, pixels.height / dpr);
+        scroll.stopAutoScroll();
+        restore();
+        saveHint.string = desktopSaveHint;
+        view.setDesignResolutionSize(plan.design.width, plan.design.height, ResolutionPolicy.SHOW_ALL);
+        canvasNode.getComponent(UITransform)!.setContentSize(plan.design.width, plan.design.height);
+        camera.orthoHeight = plan.design.height / 2;
+        if (plan.mode === 'compact') {
+          saveHint.string = '中间区域可上下滑动；本浏览器本地存档，刷新后可手动读取';
+          const rect = plan.viewport;
+          viewportNode.setPosition(rect.x + rect.width / 2 - plan.design.width / 2,
+            plan.design.height / 2 - rect.y - rect.height / 2, 0);
+          viewportTransform.setContentSize(rect.width, rect.height);
+          contentHeight = Math.max(plan.panels[panel].height, rect.height);
+          contentTransform.setAnchorPoint(.5, 1);
+          contentTransform.setContentSize(rect.width, contentHeight);
+          content.setPosition(0, rect.height / 2, 0);
+          for (const [name, rectangle] of Object.entries(plan.fixed)) applyRect(name, rectangle, true);
+          for (const [name, page] of Object.entries(plan.panels)) {
+            const panelNode = panels[name as ProbePanelName];
+            panelNode.setPosition(0, 0, 0);
+            panelNode.getComponent(UITransform)!.setContentSize(rect.width, page.height);
+            for (const [nodeName, rectangle] of Object.entries(page.nodes)) applyRect(nodeName, rectangle, false);
+          }
+          mask.enabled = true; scroll.enabled = true; scroll.scrollToTop(0);
+          if (editing?.node.activeInHierarchy) {
+            const inputRect = plan.panels[panel].nodes[editing.node.name];
+            if (inputRect && inputRect.height <= rect.height) {
+              const offset = Math.min(Math.max(0, contentHeight - rect.height),
+                Math.max(0, inputRect.y + inputRect.height - rect.height));
+              scroll.scrollToOffset(new Vec2(0, offset), 0);
+            } else {
+              // Unknown windows too small for a complete field are outside the supported contract.
+              editing.blur();
+            }
+          }
+        } else {
+          scroll.enabled = false; mask.enabled = false;
+          viewportNode.setPosition(0, 0, 0); viewportTransform.setContentSize(960, 640);
+          contentHeight = 640; contentTransform.setAnchorPoint(.5, .5);
+          contentTransform.setContentSize(960, 640); content.setPosition(0, 0, 0);
+        }
+        const inputs: EditBox[] = [];
+        for (const node of nodes.values()) {
+          const button = node.getComponent(Button);
+          if (button) this.paintButton(button, button.interactable);
+          const input = node.getComponent(EditBox);
+          if (input) { paintInput(input); inputs.push(input); }
+        }
+        this.updateEditTabOrder(inputs, plan.mode === 'compact');
+      } finally { applying = false; }
+    };
+    let frameCheckPending = false;
+    const reconcileFrame = () => {
+      frameCheckPending = false;
+      if (disposed || !isValid(this, true) || !isValid(canvasNode, true)) return;
+      const pixels = screen.windowSize, dpr = screen.devicePixelRatio;
+      const root = director.root, renderWindow = root?.mainWindow;
+      if (root && renderWindow && (renderWindow.width !== pixels.width || renderWindow.height !== pixels.height)) {
+        root.resize(pixels.width, pixels.height);
+      }
+      if (pixels.width / dpr !== plan.frame.width || pixels.height / dpr !== plan.frame.height) relayout();
+    };
+    const onCanvasResize = () => {
+      relayout();
+      if (disposed || frameCheckPending || !isValid(this, true)) return;
+      // Creator's native device toolbar can finish hiding after its only resize event.
+      // Coalesce one next-frame public-size check; ordinary stable resizes do no extra layout.
+      frameCheckPending = true;
+      this.scheduleOnce(reconcileFrame, 0);
+    };
+    view.on('canvas-resize', onCanvasResize);
+    relayout();
+    return {
+      status: () => {
+        const offset = !disposed && isValid(scroll, true) ? scroll.getScrollOffset() : { x: 0, y: 0 };
+        const max = !disposed && isValid(scroll, true) ? scroll.getMaxScrollOffset() : { x: 0, y: 0 };
+        return { mode: plan.mode, frame: { ...plan.frame }, design: { ...plan.design }, viewport: { ...plan.viewport },
+          contentHeight, scrollOffset: { x: offset.x, y: offset.y }, maxScrollOffset: { x: max.x, y: max.y } };
+      },
+      selectPanel: (next) => { panel = next; relayout(); },
+      dispose: () => {
+        if (!disposed) {
+          disposed = true;
+          view.off('canvas-resize', onCanvasResize);
+          this.unschedule(reconcileFrame);
+          frameCheckPending = false;
+        }
+      }
+    };
   }
 
   private makePanel(parent: Node, name: string): Node {
@@ -744,6 +961,15 @@ export class CocosWebProbe extends Component {
     parent.addChild(panel);
     panel.addComponent(UITransform).setContentSize(960, 640);
     return panel;
+  }
+
+  private updateEditTabOrder(inputs: readonly EditBox[], compact: boolean): void {
+    // Creator's Web Tab traversal retains initialized inputs after their page is hidden.
+    // In compact mode another same-page input can also be outside the Mask: Tab ends editing,
+    // while the player explicitly touches the next field. Desktop keeps visible-page traversal.
+    const available = compact ? [] : inputs.filter(input => input.enabled && input.node.activeInHierarchy);
+    for (const input of inputs) if (!available.includes(input) && input.tabIndex !== -1) input.tabIndex = -1;
+    available.forEach((input, index) => { if (input.tabIndex !== index) input.tabIndex = index; });
   }
 
   private paintButton(button: Button, enabled: boolean): void {
@@ -838,6 +1064,7 @@ export class CocosWebProbe extends Component {
     input.placeholderLabel = placeholder;
     input.inputMode = EditBox.InputMode.SINGLE_LINE;
     input.inputFlag = EditBox.InputFlag.DEFAULT;
+    input.tabIndex = -1;
     input.maxLength = -1;
     input.enabled = false;
     return input;

@@ -1,4 +1,4 @@
-﻿# Cocos Map — v0.0.2.45
+﻿# Cocos Map — v0.0.2.46
 
 ## 系统职责
 
@@ -128,3 +128,7 @@ tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，
 ## 五点手动恢复验证
 
 既有五页Button/EditBox与SaveLocal/LoadLocal保持；verify-web独立recoveryLoop从自然玩家操作建立五保存点，刷新/同context新页后真实手动读取并继续。trace.cocos.cross-step-recovery连接工具负例、公共bootstrap和既有Session/Queue/lifecycle保护；不新增observer业务捷径，真实Creator/SDK与built/editor输入另验，不代表触摸或微信。
+
+## 触摸与小屏交互
+
+CocosWebProbe消费ProbeLayout纯几何，在约定小屏使用原生ScrollView/Mask并订阅/清理resize；模板probe-viewport.js/css同步可视区。点击、滑动取消、滚动后输入与切页通过真实Button/EditBox验证，observer只读布局/滚动。trace.cocos.touch-small-screen保留旧桌面/经营/恢复链，约定尺寸及editor原生WebpageFullScreen验收边界见engine卡/契约。

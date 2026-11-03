@@ -1,4 +1,4 @@
-﻿# Domain Map — v0.0.2.45
+﻿# Domain Map — v0.0.2.46
 
 ## 系统职责
 
@@ -87,3 +87,7 @@ DemandResolver处理available/accepted及提交时截止检查，GameRuntime已�
 ## 网页订单消费既有领域
 
 DemandResolver与现有状态/截止、真实菜品整批消费、奖励和事务规则保持。SelectableVM只读需求/截止/真实结果→ProbeOrders本地选择→既有menu_preview/confirm→ActionPipeline→真实Order完成/菜品移除/经济变化。trace.cocos.web-orders-loop追踪页面消费，trace.orders.legal-state-deadline保留核心保护，不新增领域Action或规则。
+
+## 触摸与小屏归属
+
+ProbeLayout、原生滚动与输入布局属于既有cocos-engine-probe外层，验证工具归tools，行为/工具契约归tests。trace.cocos.touch-small-screen不引入新领域系统，core、Session/Queue、SaveFile及正式业务规则保持；未来微信/Stage1B不是当前实现。

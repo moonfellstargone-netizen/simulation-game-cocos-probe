@@ -1,6 +1,6 @@
-﻿# Cocos app — v0.0.2.45 / Cross-step Save/Load Recovery
+﻿# Cocos app — v0.0.2.46 / Touch Interaction & Small-screen Readiness
 
-Cocos app层说明：本目录保存Session、ViewModel与Action适配代码。v0.0.2.45沿既有公共Host/bootstrap验证五个独立保存点在新会话手动读取后的实际续玩、失败保护及ID恢复，不改变本目录生产API或算法。既有订单需求/截止/实际结果只读投影和全部嵌套副本、StateVM与Session机制保持，不引入cc/wx/fs或UI直写状态。
+Cocos app层说明：本目录保存Session、ViewModel与Action适配代码。v0.0.2.46触摸/小屏调整属于既有outer，本目录生产API和算法保持。既有订单需求/截止/实际结果只读投影、StateVM、Session、手动存读档和跨步骤恢复机制继续沿用，不引入cc/wx/fs或UI直写状态；真实输入与布局证据由outer和独立浏览器验证。
 
 日常代码权威见 GitHub 仓库；项目地图入口见 `docs/PROJECT_MAP.md` 与 `docs/GITHUB_WORKFLOW.md`；追踪矩阵见 `docs/TRACEABILITY_MATRIX.md`。
 

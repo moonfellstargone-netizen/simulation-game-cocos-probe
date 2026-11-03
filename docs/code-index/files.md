@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.2.45
+﻿# Code Index — Files — v0.0.2.46
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -167,3 +167,10 @@ trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport
 - tests/stage1a-bootstrap.test.ts：正式资源公共Host/Queue五独立保存点与读取后真实续玩，沿test.stage1a-bootstrap执行。
 - tools/cocos-probe/verify-web.mjs、tools/cocos-probe/lib/webProbeSupport.mjs：独立浏览器恢复链与完整真值断言；tests/cocos-web-verification-contracts.test.mjs沿既有web-verification任务执行负例。
 - trace.cocos.cross-step-recovery连接上述文件及save-load/app/creator/engine模块卡；生产来源只作继承机制导航，本版不改。
+
+## 触摸与小屏文件
+
+- apps/cocos-probe/template/assets/scripts/ProbeLayout.ts及.meta：无cc纯几何计划，供CocosWebProbe应用。
+- tests/cocos-web-layout.test.ts：实际lifecycle执行的布局/边界与无输入副作用行为。
+- CocosWebProbe.ts、probe-viewport.js/css：原生滚动/触摸呈现、resize与视觉视口同步；verify-web/support与既有verification契约记录实际输入与负例。
+- trace.cocos.touch-small-screen连接上述来源、engine模块卡及真实任务登记。
