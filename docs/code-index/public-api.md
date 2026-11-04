@@ -224,3 +224,9 @@ tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / reg
 WechatDataClone.ts提供微信目标内的纯DTO复制适配，导出structuredClone供wechat profile的esbuild inject局部绑定runtime中的标准自由标识符。不修改globalThis或Cocos引擎，不在src中新增指向apps的源import，也不改变默认Node/Web路径；它不是通用Web API polyfill。支持数组、普通对象/空原型DTO输入及原始值，保留undefined、数组空位、共享引用/别名、循环和特殊属性键；非DTO对象、函数、Symbol与options（包括transfer）明确DataCloneError拒绝，不用JSON往返静默丢失数据。
 
 源位于apps/cocos-wechat-probe/runtime/WechatDataClone.ts，仍由新outer已有module roots和authoritative .ts规则扫描；无cc/wx/fs依赖。helper经prepare实际onLoad进入manifest.inputs，并由sourceProvenance要求存在，源与依赖/生成物字节校验不放宽。微信facade受控预检同时禁用动态Function并移除原生structuredClone，正式启动/动作/坏请求仍须经过公共运行时；这不能替代最终候选的Creator/微信真实输入或手机验收。
+
+## 微信M2外层入口
+
+- `WechatSaveStoragePort`位于`apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts`，提供单逻辑槽存取与外层恢复保护，不是game-core新增平台API。
+- `createWechatPriorSaveValidator`位于`apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts`，通过独立Host校验序列化存档，不提供存储写入。
+- `WechatProbeController`通过既有公开Binding提供手动存读档与前后台输入保护，candidate_id继续来自运行包。

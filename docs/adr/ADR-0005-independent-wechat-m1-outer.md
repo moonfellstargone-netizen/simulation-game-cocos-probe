@@ -14,7 +14,7 @@ M1注入临时InMemorySaveStoragePort只建新局，没有存读档UI，也不�
 
 ## 后果与验收边界
 
-不改变核心业务规则、SaveFile、正式Action/config/Schema/fixture。M2微信存储/生命周期、M3完整经营、M4真机尚未实现或验收；Stage1B planned wx-storage-port不转active。Node准备/受控运行与架构负例进入full/blocker，Creator/SDK、官方工具真实输入/日志/重载、Web回归及最终提交CI分别留证，不互相替代。大版本名称不表示M1或真机已通过。
+不改变核心业务规则、SaveFile、正式Action/config/Schema/fixture。该记录描述M1时点；M2存储/生命周期另见M2说明，M3完整经营及M4真机未完成；Stage1B planned wx-storage-port不转active。Node准备/受控运行与架构负例进入full/blocker，Creator/SDK、官方工具真实输入/日志/重载、Web回归及最终提交CI分别留证，不互相替代。大版本名称不表示M1或真机已通过。
 
 ## 正式Schema构建期预编译
 
@@ -35,3 +35,11 @@ WechatDataClone.ts提供微信目标内的纯DTO复制适配，导出structuredC
 源位于apps/cocos-wechat-probe/runtime/WechatDataClone.ts，仍由新outer已有module roots和authoritative .ts规则扫描；无cc/wx/fs依赖。helper经prepare实际onLoad进入manifest.inputs，并由sourceProvenance要求存在，源与依赖/生成物字节校验不放宽。微信facade受控预检同时禁用动态Function并移除原生structuredClone，正式启动/动作/坏请求仍须经过公共运行时；这不能替代最终候选的Creator/微信真实输入或手机验收。
 
 该目标适配只提供runtime自由标识符的局部实现，保持核心源/默认Web与全局环境边界，不扩大为其他平台API或后续里程碑。
+
+## M2微信存储与生命周期
+
+M2运行时改动集中于独立微信outer，并同步构建来源、测试和文档：手动单逻辑槽经Creator sys.localStorage接入平台存储，保存与读取沿既有Session/SaveManager及校验；前后台事件只限制输入与维护会话，不自动存档或补算时间。旧三层及outer直接wx/fs禁令保持，正式SaveFile和玩法不变。
+
+备份与中断保护须同时考虑失败前后可能发生写入：备份、主档与恢复信息分开；读取、恢复和失败路径以源码及针对性测试为准，不能将异常等同于未落盘。故障保护依赖存储键相互独立和可读回一致的有限模型，真实微信断电、设备故障及底层原子性未证明。备份恢复不等于跨平台导入或自动存档。
+
+tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的args/files，相关源及meta也进入preparation/runtime登记和trace.cocos.wechat-m1。受控Node契约不替代真实Creator、官方微信工具输入/存储/生命周期、最终提交CI或手机验收；具体结果以仓库外证据为准。

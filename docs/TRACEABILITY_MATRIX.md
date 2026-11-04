@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 本轮新增独立微信M1追踪，保留此前30条/28个current，新增后31条/29个current；M2—M4尚未实现或验收。旧Web、业务核心、Session/Queue、SaveFile和正式资源保持；Node与真实平台证据分别记录。完整AST/symbol自动索引、Nightly和wx storage仍不是当前实现。
+- 独立微信追踪trace.cocos.wechat-m1覆盖M1基础及M2独立outer存储适配，保留31条/29个current追踪；M3—M4尚未完成。旧Web、业务核心、Session/Queue、SaveFile和正式资源保持；Node与真实平台证据分别记录。完整AST/symbol自动索引和Nightly仍不是当前实现。
 
 ## 2. 状态语义
 
@@ -326,7 +326,7 @@ sourceRefs为ProbeLayout、CocosWebProbe/ProbeInteraction、Web模板及verify-w
 
 active Stage1A追踪连接cocos-wechat-probe/tools/tests，准备与运行任务实际登记full/blocker，并连接authoritative架构负例。sourceRefs包含独立最小outer、共享prepareProject、微信prepare/build/source/sourceProvenance；docRefs连接module-card、ADR-0005、cocos/runtime/quality地图及公共API索引。
 
-候选身份在生成资源内只读，不从SaveFile取得；新构建新身份/空目录，固定commit与dirty边界、工具/配置及产物摘要范围均包外可追溯。临时内存新局不表示微信持久化，Stage1B wx-storage-port仍planned；M2平台读档隔离、M3全链与M4手机/二维码未实现或验收。Node不证明Creator、微信输入/日志/重载或真机通过。
+候选身份在生成资源内只读，不从SaveFile取得；新构建新身份/空目录，固定commit与dirty边界、工具/配置及产物摘要范围均包外可追溯。M1时临时内存新局不表示微信持久化；M2平台读档与身份隔离的实现及真实工具证据见本节后M2说明与包外记录。Stage1B wx-storage-port仍planned；M3全链与M4手机/二维码未完成。Node不证明Creator、微信输入/日志/重载或真机通过。
 
 ## 微信正式Schema预编译补充覆盖
 
@@ -343,3 +343,13 @@ trace.cocos.wechat-m1的sourceRefs新增WechatDataClone.ts；原test.cocos-wecha
 WechatDataClone.ts提供微信目标内的纯DTO复制适配，导出structuredClone供wechat profile的esbuild inject局部绑定runtime中的标准自由标识符。不修改globalThis或Cocos引擎，不在src中新增指向apps的源import，也不改变默认Node/Web路径；它不是通用Web API polyfill。支持数组、普通对象/空原型DTO输入及原始值，保留undefined、数组空位、共享引用/别名、循环和特殊属性键；非DTO对象、函数、Symbol与options（包括transfer）明确DataCloneError拒绝，不用JSON往返静默丢失数据。
 
 不增加质量门禁任务或开放后续里程碑；Node/原生DTO对比不代表微信UI或通用Web API兼容。
+
+## M2微信存储与生命周期
+
+M2运行时改动集中于独立微信outer，并同步构建来源、测试和文档：手动单逻辑槽经Creator sys.localStorage接入平台存储，保存与读取沿既有Session/SaveManager及校验；前后台事件只限制输入与维护会话，不自动存档或补算时间。旧三层及outer直接wx/fs禁令保持，正式SaveFile和玩法不变。
+
+恢复链区分隔离Session备份校验、port内部二次校验及字节复核、持久提升和Binding读取主槽。准备/提升失败和Session读档校验失败由受控场景核会话保护；Binding的UI补丁可能在Session已提交后失败，不能将所有Binding错误称作原会话未改变。具体测试及平台证据各自留存。
+
+备份与中断保护须同时考虑失败前后可能发生写入：备份、主档与恢复信息分开；读取、恢复和失败路径以源码及针对性测试为准，不能将异常等同于未落盘。故障保护依赖存储键相互独立和可读回一致的有限模型，真实微信断电、设备故障及底层原子性未证明。备份恢复不等于跨平台导入或自动存档。
+
+tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的args/files，相关源及meta也进入preparation/runtime登记和trace.cocos.wechat-m1。受控Node契约不替代真实Creator、官方微信工具输入/存储/生命周期、最终提交CI或手机验收；具体结果以仓库外证据为准。

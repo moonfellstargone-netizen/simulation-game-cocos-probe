@@ -9,12 +9,13 @@ source_of_truth: false
 
 ## 模块职责与读取入口
 
-本轮唯一目标是v0.0.3.0内的M1候选：从固定源码可重复派生最小微信小游戏工程，运行包只读显示candidate_id与短commit，真实Cocos Button通过既有公共Host/Binding/Queue和ActionPipeline推进一小时。独立微信构建与来源记录供官方开发者工具核场景、日志、真实输入、正式结果及重载身份。当前仅M1候选，M2微信存储/生命周期、M3完整经营链和M4手机验收尚未实现或验收；版本名称不代表大版本已完成。
+本轮唯一目标是v0.0.3.0内的M2候选：在M1独立微信outer上接入手动单槽存读档及前后台会话保护。运行身份仍来自当前包的只读candidate_id和短commit；正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；M3完整经营和M4手机验收尚未完成，大版本名称不表示试水已完成。
 
-独立apps/cocos-wechat-probe模块只消费派生公共runtime与正式资源，可使用cc，禁止wx/fs、业务内部、工具和测试依赖；旧三层不得反向依赖它。临时InMemorySaveStoragePort只用于新局，不提供存读档UI、微信持久化、自动保存或前后台恢复。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture；planned wx-storage-port仍不是当前实现。
+独立apps/cocos-wechat-probe模块只消费派生公共runtime与正式资源，可使用cc，禁止直接wx/fs、业务内部、工具和测试依赖；旧三层不得反向依赖它。微信outer通过Creator平台存储外层提供手动单槽存读档及备份恢复，不增加自动保存或离线补时。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture；planned Stage1B wx-storage-port不转active。
 
 - `apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts`：真实cc场景、资源加载、Label/Button与只读观察。
-- `apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts`：无cc的资源/身份校验、公共Host/Binding、busy和销毁迟到保护；只提交既有advance_time。
+- `apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts`：无cc的资源/身份校验、公共Host/Binding、busy与前后台、销毁迟到保护；提交既有advance_time及手动存读档命令，并协调备份恢复和首档撤销。
+- `apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts`：在隔离的公开Host会话中校验现有存档，拒绝写入平台存储，验证结束销毁临时Host；用于备份和恢复前置检查。
 - `tools/cocos-probe/lib/prepareProject.mjs`：固定共享生产者，不开放任意template/runtime入口/BuildId角色。
 - `tools/cocos-wechat-probe/prepare.mjs`：prepareWechatProbe({rootDir?, outputDir, appId})，固定wechat profile。
 - `tools/cocos-wechat-probe/build.mjs`：buildWechatProbe({creator, project, logDir})，独立微信记录；rootDir仅受控fixture入口，CLI不能选择。
@@ -52,4 +53,16 @@ WechatDataClone.ts提供微信目标内的纯DTO复制适配，导出structuredC
 
 源位于apps/cocos-wechat-probe/runtime/WechatDataClone.ts，仍由新outer已有module roots和authoritative .ts规则扫描；无cc/wx/fs依赖。helper经prepare实际onLoad进入manifest.inputs，并由sourceProvenance要求存在，源与依赖/生成物字节校验不放宽。微信facade受控预检同时禁用动态Function并移除原生structuredClone，正式启动/动作/坏请求仍须经过公共运行时；这不能替代最终候选的Creator/微信真实输入或手机验收。
 
-tests/cocos-wechat-data-clone.test.ts追加到原test:cocos-wechat-runtime / test.cocos-wechat-runtime实际args/files/covers，验证原生DTO复制对比与拒绝路径；helper和测试同步登记preparation files。原两项微信full/blocker任务保留，不新增任务、CI或算法，M2—M4及Stage1B仍关闭。
+tests/cocos-wechat-data-clone.test.ts追加到原test:cocos-wechat-runtime / test.cocos-wechat-runtime实际args/files/covers，验证原生DTO复制对比与拒绝路径；helper和测试同步登记preparation files。原两项微信full/blocker任务保留，不新增任务、CI或算法；M2存储及生命周期由独立outer提供，M3—M4及Stage1B未进入。
+
+## M2微信存储与生命周期
+
+M2运行时改动集中于独立微信outer，并同步构建来源、测试和文档：手动单逻辑槽经Creator sys.localStorage接入平台存储，保存与读取沿既有Session/SaveManager及校验；前后台事件只限制输入与维护会话，不自动存档或补算时间。旧三层及outer直接wx/fs禁令保持，正式SaveFile和玩法不变。
+
+备份与中断保护须同时考虑失败前后可能发生写入：备份、主档与事务标记使用独立物理key；旧主档经公开存档校验、备份及回读确认后才更新主档。标记存在时拒绝普通读写；显式备份恢复先经隔离Session校验，port内部再次校验并复核备份与标记字节，再将相同备份写回主档并核实后清标记，随后经Binding由玩家会话读取。标记清理抛错时当前实例锁定结果不确定；若清理先生效又抛错，重启后的提交结果无法仅凭标记判定。首次保存失败无旧档备份：识别到完整首存标记且无备份时，可经界面二次确认撤销未完成首档，保留当前会话；未知或损坏标记、无可用备份等部分状态无法通过此按钮恢复，应保留现场而非假称能恢复旧档。
+
+受控测试中，备份准备/提升失败和Session读档校验失败保留原会话。Binding的UI补丁应用可能在Session提交后失败，这类错误不能一概称为原会话未改变；错误反馈与实际会话结果须分别观察，不因此重发正式操作。
+
+故障保护依赖存储键相互独立和可读回一致的有限模型，真实微信断电、设备故障及底层原子性未证明，不能将异常等同于未落盘，也不能承诺任意中断的原子提交。备份恢复不等于跨平台导入或自动存档。
+
+tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的args/files，相关源及meta也进入preparation/runtime登记和trace.cocos.wechat-m1。受控Node契约不替代真实Creator、官方微信工具输入/存储/生命周期、最终提交CI或手机验收；具体结果以仓库外证据为准。

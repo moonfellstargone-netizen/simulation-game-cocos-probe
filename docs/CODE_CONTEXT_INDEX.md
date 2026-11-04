@@ -190,10 +190,14 @@ tests/cocos-web-orders.test.ts、readiness/menu、prepare与web-verification分�
 
 先读[module-card](module-cards/cocos-wechat-probe.md)与[ADR-0005](adr/ADR-0005-independent-wechat-m1-outer.md)，再读apps/cocos-wechat-probe、tools/cocos-probe/lib/prepareProject.mjs、tools/cocos-wechat-probe/prepare.mjs、build.mjs、lib/source.mjs、lib/sourceProvenance.mjs及tests/cocos-wechat-preparation.test.mjs和tests/cocos-wechat-runtime.test.ts。
 
-本轮唯一目标是v0.0.3.0内的M1候选：从固定源码可重复派生最小微信小游戏工程，运行包只读显示candidate_id与短commit，真实Cocos Button通过既有公共Host/Binding/Queue和ActionPipeline推进一小时。独立微信构建与来源记录供官方开发者工具核场景、日志、真实输入、正式结果及重载身份。当前仅M1候选，M2微信存储/生命周期、M3完整经营链和M4手机验收尚未实现或验收；版本名称不代表大版本已完成。
+本轮唯一目标是v0.0.3.0内的M2候选：在M1独立微信outer上接入手动单槽存读档及前后台会话保护。运行身份仍来自当前包的只读candidate_id和短commit；正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；M3完整经营和M4手机验收尚未完成，大版本名称不表示试水已完成。
 
 test:cocos-wechat-preparation / test.cocos-wechat-preparation实际执行tests/cocos-wechat-preparation.test.mjs；test:cocos-wechat-runtime / test.cocos-wechat-runtime实际执行tests/cocos-wechat-runtime.test.ts，均为full/blocker。trace.cocos.wechat-m1连接新outer、共享生产者、微信构建、候选身份、架构负例和质量登记。Node只能证明受控准备/行为契约；真实Creator3.8.8/SDK、官方微信工具场景/输入/日志/重载、受影响Web回归和最终提交CI各自验收。旧全部追踪、权威架构禁令和Web功能/来源检查保留，不以修改阈值、预期、CI或affected算法通过门禁。
 
 ## 微信Schema预编译入口
 
-先读ADR-0005的正式Schema预编译边界、core/creator/微信模块卡及Stage1ABootstrap契约，再读RuntimeSchemaValidator.ts、Stage1ABootstrap.ts、tools/cocos-wechat-probe/lib/precompiledSchemas.mjs与tests/runtime-precompiled-schema.test.ts。此能力只在显式集合时替代动态编译，不开放Stage1B、平台API、其他AOT或M2—M4。
+先读ADR-0005的正式Schema预编译边界、core/creator/微信模块卡及Stage1ABootstrap契约，再读RuntimeSchemaValidator.ts、Stage1ABootstrap.ts、tools/cocos-wechat-probe/lib/precompiledSchemas.mjs与tests/runtime-precompiled-schema.test.ts。此能力只在显式集合时替代动态编译，不因此开放Stage1B、直接平台API或其他AOT；M2使用独立outer的存储适配。
+
+## 微信M2存储入口
+
+先读微信模块卡和正式保存契约，再读`apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts`、`WechatProbeController.ts`、`CocosWechatProbe.ts`与`tests/cocos-wechat-storage.test.ts`。备份/恢复边界和平台故障模型见模块卡；真实平台验收结果以仓库外报告为准。

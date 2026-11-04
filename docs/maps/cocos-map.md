@@ -135,7 +135,7 @@ CocosWebProbe消费ProbeLayout纯几何，在约定小屏使用原生ScrollView/
 
 ## 独立微信M1
 
-cocos-wechat-probe并列于Web模块，入口为docs/module-cards/cocos-wechat-probe.md与ADR-0005。只读身份与时间、真实推进Button经公共Host/Binding/Queue；临时内存只建新局，不接wx/fs，不提供微信存读档。tools/cocos-probe/lib/prepareProject.mjs共享正式资源与来源生产；tools/cocos-wechat-probe/{prepare,build}.mjs及lib/source.mjs、lib/sourceProvenance.mjs独立核微信配置/产物/真实Git及工具输入。
+cocos-wechat-probe并列于Web模块，入口为docs/module-cards/cocos-wechat-probe.md与ADR-0005。只读身份与时间、真实推进Button经公共Host/Binding/Queue；M1时使用临时内存新局，M2通过Creator平台存储提供手动存读档，不直接接wx/fs。tools/cocos-probe/lib/prepareProject.mjs共享正式资源与来源生产；tools/cocos-wechat-probe/{prepare,build}.mjs及lib/source.mjs、lib/sourceProvenance.mjs独立核微信配置/产物/真实Git及工具输入。
 
 test:cocos-wechat-preparation / test.cocos-wechat-preparation实际执行tests/cocos-wechat-preparation.test.mjs；test:cocos-wechat-runtime / test.cocos-wechat-runtime实际执行tests/cocos-wechat-runtime.test.ts，均为full/blocker。trace.cocos.wechat-m1连接新outer、共享生产者、微信构建、候选身份、架构负例和质量登记。Node只能证明受控准备/行为契约；真实Creator3.8.8/SDK、官方微信工具场景/输入/日志/重载、受影响Web回归和最终提交CI各自验收。旧全部追踪、权威架构禁令和Web功能/来源检查保留，不以修改阈值、预期、CI或affected算法通过门禁。
 
@@ -149,4 +149,12 @@ RuntimeSchemaValidator支持显式PrecompiledSchemaValidatorSet：format为runti
 
 WechatDataClone.ts提供微信目标内的纯DTO复制适配，导出structuredClone供wechat profile的esbuild inject局部绑定runtime中的标准自由标识符。不修改globalThis或Cocos引擎，不在src中新增指向apps的源import，也不改变默认Node/Web路径；它不是通用Web API polyfill。支持数组、普通对象/空原型DTO输入及原始值，保留undefined、数组空位、共享引用/别名、循环和特殊属性键；非DTO对象、函数、Symbol与options（包括transfer）明确DataCloneError拒绝，不用JSON往返静默丢失数据。
 
-tests/cocos-wechat-data-clone.test.ts追加到原test:cocos-wechat-runtime / test.cocos-wechat-runtime实际args/files/covers，验证原生DTO复制对比与拒绝路径；helper和测试同步登记preparation files。原两项微信full/blocker任务保留，不新增任务、CI或算法，M2—M4及Stage1B仍关闭。
+tests/cocos-wechat-data-clone.test.ts追加到原test:cocos-wechat-runtime / test.cocos-wechat-runtime实际args/files/covers，验证原生DTO复制对比与拒绝路径；helper和测试同步登记preparation files。原两项微信full/blocker任务保留，不新增任务、CI或算法；M2存储及生命周期由独立outer提供，M3—M4及Stage1B未进入。
+
+## M2微信存储与生命周期
+
+M2运行时改动集中于独立微信outer，并同步构建来源、测试和文档：手动单逻辑槽经Creator sys.localStorage接入平台存储，保存与读取沿既有Session/SaveManager及校验；前后台事件只限制输入与维护会话，不自动存档或补算时间。旧三层及outer直接wx/fs禁令保持，正式SaveFile和玩法不变。
+
+备份与中断保护须同时考虑失败前后可能发生写入：备份、主档与恢复信息分开；读取、恢复和失败路径以源码及针对性测试为准，不能将异常等同于未落盘。故障保护依赖存储键相互独立和可读回一致的有限模型，真实微信断电、设备故障及底层原子性未证明。备份恢复不等于跨平台导入或自动存档。
+
+tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的args/files，相关源及meta也进入preparation/runtime登记和trace.cocos.wechat-m1。受控Node契约不替代真实Creator、官方微信工具输入/存储/生命周期、最终提交CI或手机验收；具体结果以仓库外证据为准。

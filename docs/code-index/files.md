@@ -202,3 +202,9 @@ trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport
 
 - `apps/cocos-wechat-probe/runtime/WechatDataClone.ts`：bundle局部标准自由标识符适配，属于cocos-wechat-probe。
 - `tests/cocos-wechat-data-clone.test.ts`：DTO原生对比、别名/循环/空位/特殊键与不支持输入拒绝，由原test.cocos-wechat-runtime实际执行。
+
+## 微信M2存储入口
+
+- `apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts`及同名meta：微信outer的单槽字符串存储、备份及恢复保护。
+- `apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts`及同名meta：隔离Host校验旧档与备份，避免改变玩家会话。
+- `tests/cocos-wechat-storage.test.ts`：存储适配和故障保护契约，由test.cocos-wechat-runtime执行。

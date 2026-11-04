@@ -1,3 +1,5 @@
+import { WECHAT_BACKUP_SLOT_ID, WECHAT_SAVE_SLOT_ID } from './WechatSaveStoragePort';
+
 export interface WechatResources {
   readonly snapshot: unknown;
   readonly schemas: Record<string, unknown>;
@@ -22,15 +24,25 @@ export interface WechatHost {
 export interface WechatCommandResult {
   readonly command_result: {
     readonly status: string;
-    readonly snapshot?: { readonly menu?: { readonly last_action_result?: { readonly success: boolean } | null } };
+    readonly error_message?: string | null;
+    readonly snapshot?: {
+      readonly menu?: { readonly last_action_result?: { readonly success: boolean } | null };
+      readonly save_load?: {
+        readonly last_save_result?: { readonly slot_id: string } | null;
+        readonly last_load_result?: { readonly slot_id: string } | null;
+      };
+    };
   };
 }
 
+export type WechatCommand =
+  | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'advance_time'; readonly minutes: 60 } }
+  | { readonly name: 'save'; readonly selection: { readonly slot_id: string } }
+  | { readonly name: 'load'; readonly selection: { readonly slot_id: string } };
+
 export interface WechatBinding {
   mount(): Promise<WechatCommandResult>;
-  execute(command: { readonly name: 'menu_confirm'; readonly selection: {
-    readonly action_type: 'advance_time'; readonly minutes: 60;
-  } }): Promise<WechatCommandResult>;
+  execute(command: WechatCommand): Promise<WechatCommandResult>;
   unmount(): Promise<unknown>;
 }
 
@@ -40,6 +52,7 @@ export interface WechatProbeSnapshot {
   readonly has_session: boolean;
   readonly time_label: string | null;
   readonly busy: boolean;
+  readonly visible: boolean;
   readonly accepted_commands: number;
   readonly completed_commands: number;
   readonly last_error: string | null;
@@ -71,6 +84,7 @@ export class WechatProbeController {
   private closing: Promise<void> | null = null;
   private disposed = false;
   private busy = false;
+  private visible = true;
   private accepted = 0;
   private completed = 0;
   private error: string | null = null;
@@ -79,6 +93,9 @@ export class WechatProbeController {
     load: () => Promise<{ resources: WechatResources; identity: unknown }>;
     createHost: (resources: WechatResources) => WechatHost;
     createBinding: (host: WechatHost) => WechatBinding;
+    prepareBackupRecovery?: () => Promise<void>;
+    recoverValidatedBackup?: () => Promise<void>;
+    cancelFirstFailedSave?: () => Promise<void>;
     onChange?: (snapshot: WechatProbeSnapshot) => void;
   }) {}
 
@@ -86,7 +103,7 @@ export class WechatProbeController {
     const hasSession = this.host?.hasSession() ?? false;
     return Object.freeze({ phase: this.phase, identity: this.identity, has_session: hasSession,
       time_label: hasSession ? this.host!.requireSession().getViewModel().time_label : null,
-      busy: this.busy, accepted_commands: this.accepted, completed_commands: this.completed,
+      busy: this.busy, visible: this.visible, accepted_commands: this.accepted, completed_commands: this.completed,
       last_error: this.error });
   }
 
@@ -98,22 +115,94 @@ export class WechatProbeController {
   }
 
   async advance(): Promise<WechatProbeSnapshot> {
+    return this.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+  }
+
+  async save(): Promise<WechatProbeSnapshot> {
+    return this.execute({ name: 'save', selection: { slot_id: WECHAT_SAVE_SLOT_ID } });
+  }
+
+  async load(): Promise<WechatProbeSnapshot> {
+    return this.execute({ name: 'load', selection: { slot_id: WECHAT_SAVE_SLOT_ID } });
+  }
+
+  async loadBackup(): Promise<WechatProbeSnapshot> {
+    if (!this.options.prepareBackupRecovery || !this.options.recoverValidatedBackup) {
+      throw new Error('ERR_WECHAT_BACKUP_RECOVERY_UNAVAILABLE');
+    }
+    return this.execute({ name: 'load', selection: { slot_id: WECHAT_BACKUP_SLOT_ID } });
+  }
+
+  async cancelFirstFailedSave(): Promise<WechatProbeSnapshot> {
+    if (!this.options.cancelFirstFailedSave) throw new Error('ERR_WECHAT_FIRST_CANCEL_UNAVAILABLE');
     if (this.disposed || this.phase !== 'ready' || this.binding === null) throw new Error('ERR_WECHAT_PROBE_NOT_READY');
+    if (!this.visible) throw new Error('ERR_WECHAT_PROBE_HIDDEN');
     if (this.busy) throw new Error('ERR_WECHAT_PROBE_BUSY');
     this.busy = true;
     this.accepted++;
     this.error = null;
     this.notify();
     try {
-      const result = await this.binding.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
-      if (!this.disposed && (result.command_result.status !== 'completed'
-          || result.command_result.snapshot?.menu?.last_action_result?.success !== true)) {
-        throw new Error('ERR_WECHAT_PROBE_ACTION_FAILED');
-      }
+      if (this.disposed) return this.snapshot();
+      await this.options.cancelFirstFailedSave();
       if (!this.disposed) this.completed++;
     } catch (error) {
       if (!this.disposed) this.error = error instanceof Error ? error.message : String(error);
       throw error;
+    } finally {
+      if (!this.disposed) { this.busy = false; this.notify(); }
+    }
+    return this.snapshot();
+  }
+
+  setVisible(visible: boolean): void {
+    if (this.disposed || this.visible === visible) return;
+    this.visible = visible;
+    this.notify();
+  }
+
+  private async execute(command: WechatCommand): Promise<WechatProbeSnapshot> {
+    if (this.disposed || this.phase !== 'ready' || this.binding === null) throw new Error('ERR_WECHAT_PROBE_NOT_READY');
+    if (!this.visible) throw new Error('ERR_WECHAT_PROBE_HIDDEN');
+    if (this.busy) throw new Error('ERR_WECHAT_PROBE_BUSY');
+    this.busy = true;
+    this.accepted++;
+    this.error = null;
+    this.notify();
+    const backupRecovery = command.name === 'load' && command.selection.slot_id === WECHAT_BACKUP_SLOT_ID;
+    let recovered = false;
+    try {
+      if (backupRecovery) {
+        await this.options.prepareBackupRecovery!();
+        if (this.disposed) return this.snapshot();
+        try {
+          await this.options.recoverValidatedBackup!();
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error);
+          throw new Error(`ERR_WECHAT_BACKUP_RECOVERY_INCOMPLETE:${reason}`);
+        }
+        recovered = true;
+        if (this.disposed) return this.snapshot();
+      }
+      const actualCommand: WechatCommand = backupRecovery
+        ? { name: 'load', selection: { slot_id: WECHAT_SAVE_SLOT_ID } } : command;
+      const result = await this.binding.execute(actualCommand);
+      const current = result.command_result;
+      const success = actualCommand.name === 'menu_confirm'
+        ? current.snapshot?.menu?.last_action_result?.success === true
+        : actualCommand.name === 'save'
+          ? current.snapshot?.save_load?.last_save_result?.slot_id === actualCommand.selection.slot_id
+          : current.snapshot?.save_load?.last_load_result?.slot_id === actualCommand.selection.slot_id;
+      if (!this.disposed && (current.status !== 'completed' || !success)) {
+        throw new Error(current.error_message ?? (actualCommand.name === 'menu_confirm'
+          ? 'ERR_WECHAT_PROBE_ACTION_FAILED' : 'ERR_WECHAT_PROBE_STORAGE_FAILED'));
+      }
+      if (!this.disposed) this.completed++;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      const result = recovered ? new Error(`ERR_WECHAT_BACKUP_RESTORED_RESULT_UNCERTAIN:${reason}`) : error;
+      if (!this.disposed) this.error = result instanceof Error ? result.message : String(result);
+      throw result;
     } finally {
       if (!this.disposed) { this.busy = false; this.notify(); }
     }

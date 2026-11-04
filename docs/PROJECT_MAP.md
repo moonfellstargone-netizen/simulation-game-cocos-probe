@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.3.0：**WeChat Stage1A Pilot**。本轮唯一目标是v0.0.3.0内的M1候选：从固定源码可重复派生最小微信小游戏工程，运行包只读显示candidate_id与短commit，真实Cocos Button通过既有公共Host/Binding/Queue和ActionPipeline推进一小时。独立微信构建与来源记录供官方开发者工具核场景、日志、真实输入、正式结果及重载身份。当前仅M1候选，M2微信存储/生命周期、M3完整经营链和M4手机验收尚未实现或验收；版本名称不代表大版本已完成。现有Web全部追踪和经营/恢复/触摸支持保留。
+v0.0.3.0：**WeChat Stage1A Pilot**。本轮唯一目标是v0.0.3.0内的M2候选：在M1独立微信outer上接入手动单槽存读档及前后台会话保护。运行身份仍来自当前包的只读candidate_id和短commit；正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；M3完整经营和M4手机验收尚未完成，大版本名称不表示试水已完成。现有Web全部追踪和经营/恢复/触摸支持保留。
 
 ## 3. 权威边界
 
@@ -25,7 +25,7 @@ v0.0.3.0：**WeChat Stage1A Pilot**。本轮唯一目标是v0.0.3.0内的M1候�
 | `src/game-core/` | 核心逻辑，ActionPipeline 唯一正式状态入口 |
 | `src/cocos-app/` | Cocos 应用适配，Session / ViewModel |
 | `src/cocos-creator-adapter/` | engine-neutral 探针，非真实 Cocos 工程 |
-| `apps/cocos-wechat-probe/` | 独立微信M1最小outer，候选身份与正式推进 |
+| `apps/cocos-wechat-probe/` | 独立微信outer，候选身份、正式推进与M2手动存读档 |
 | `tools/cocos-wechat-probe/` | 微信派生准备、来源核验与独立构建，归属tools |
 | `apps/cocos-probe/` | 真实Creator Web外层源模板，独立模块 |
 | `tools/cocos-probe/` | 仓库外工程准备与真实构建入口 |
@@ -81,4 +81,4 @@ trace.cocos.touch-small-screen连接既有cocos-engine-probe/tools/tests模块�
 
 ## 微信M1追踪与边界
 
-trace.cocos.wechat-m1连接cocos-wechat-probe模块卡、ADR-0005、cocos/runtime/quality地图与files/public-api索引。新增preparation/runtime任务为full/blocker，旧模块与全部追踪保持。微信存储和生命周期为M2，完整经营与手机为M3/M4；这些尚未实现或验收，不激活Stage1B planned条目。
+trace.cocos.wechat-m1连接cocos-wechat-probe模块卡、ADR-0005、cocos/runtime/quality地图与files/public-api索引。新增preparation/runtime任务为full/blocker，旧模块与全部追踪保持。M2增加微信存储和生命周期外层；完整经营与手机为M3/M4，尚未完成，不激活Stage1B planned条目。

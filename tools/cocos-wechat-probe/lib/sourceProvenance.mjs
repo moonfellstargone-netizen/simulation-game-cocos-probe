@@ -24,6 +24,8 @@ const REQUIRED_SOURCE_INPUTS = [
   'apps/cocos-wechat-probe/template/assets/Probe.scene.meta',
   'apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts',
   'apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts',
+  'apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts',
+  'apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts',
   'apps/cocos-wechat-probe/runtime/WechatDataClone.ts',
   'src/cocos-creator-adapter/index.ts', 'src/game-core/index.ts'
 ];

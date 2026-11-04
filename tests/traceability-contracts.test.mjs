@@ -7,7 +7,7 @@ import { resolveGateTasks } from '../tools/quality/lib/resolveGateTasks.mjs';
 const root = process.cwd();
 const readJson = (rel) => JSON.parse(readFileSync(join(root, rel), 'utf8'));
 
-test('WeChat M1 trace closes over actual preparation/runtime execution while M2 and Stage1B remain unopened', () => {
+test('WeChat M1 and M2 trace closes over executed preparation, runtime and storage contracts without opening Stage1B', () => {
   const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
   const entry = traceabilityMap.entries.find(item => item.id === 'trace.cocos.wechat-m1');
   assert.equal(entry?.status, 'active');
@@ -46,9 +46,28 @@ test('WeChat M1 trace closes over actual preparation/runtime execution while M2 
     assert.ok(runtime.files.includes(file));
     assert.ok(preparation.files.includes(file));
   }
+  const storageSource = 'apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts';
+  const storageTest = 'tests/cocos-wechat-storage.test.ts';
+  assert.ok(entry.sourceRefs.includes(storageSource), 'M2 storage source must be traced');
+  assert.ok(runtime.args.includes(storageTest), 'runtime task must execute M2 storage and failure contracts');
+  assert.ok(readJson('package.json').scripts['test:cocos-wechat-runtime'].split(/\s+/).includes(storageTest));
+  for (const file of [storageSource, storageSource + '.meta', storageTest]) {
+    assert.ok(existsSync(join(root, file)), file + ' must exist');
+    assert.ok(runtime.files.includes(file), 'runtime must register ' + file);
+    assert.ok(preparation.files.includes(file), 'preparation must register ' + file);
+  }
+  for (const module of ['cocos-wechat-probe', 'cocos-creator-adapter', 'cocos-app', 'game-core', 'tests']) {
+    assert.ok(runtime.covers.includes(module), 'M2 affected coverage must include ' + module);
+  }
+  const storageContracts = readFileSync(join(root, storageTest), 'utf8');
+  for (const behavior of ['backup partial-write', 'main partial-write', 'interrupted first save', 'marker cleanup failures', 'corrupt backup']) {
+    assert.ok(storageContracts.includes(behavior), 'missing executable M2 negative case: ' + behavior);
+  }
   assert.equal(traceabilityMap.entries.find(item => item.id === 'trace.stage1b.wx-storage-port')?.status, 'planned');
   const card = readFileSync(join(root, 'docs/module-cards/cocos-wechat-probe.md'), 'utf8');
-  for (const phrase of ['临时InMemorySaveStoragePort', 'M2', 'M3', 'M4', '尚未实现或验收', '不取自SaveFile']) assert.ok(card.includes(phrase), phrase);
+  for (const phrase of ['M2候选', 'M3', 'M4', '不取自SaveFile', '禁止直接wx/fs', '真实微信断电']) assert.ok(card.includes(phrase), phrase);
+  const historicalM1 = readFileSync(join(root, 'docs/adr/ADR-0005-independent-wechat-m1-outer.md'), 'utf8');
+  assert.ok(historicalM1.includes('M1注入临时InMemorySaveStoragePort'), 'M1 historical design must remain explicit');
 });
 
 

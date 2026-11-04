@@ -143,7 +143,7 @@ tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，
 
 ## 微信M1装配
 
-新apps/cocos-wechat-probe外层通过createStage1AHost、QinglanUiSceneProbeComponent公共runtime装配临时新局；WechatProbeController只提交既有advance_time并维护本次操作、busy及销毁迟到保护。candidate-identity生成资源与SaveFile隔离，重载核运行身份不代表恢复进度；M2—M4尚未实现或验收。trace.cocos.wechat-m1连接preparation/runtime测试及独立平台证据，核心入口与事务不变。
+apps/cocos-wechat-probe外层通过createStage1AHost、QinglanUiSceneProbeComponent公共runtime装配会话；WechatProbeController提交既有advance_time与手动存读档命令并维护busy、前后台及销毁保护。candidate-identity生成资源与SaveFile隔离，真实微信读档及前后台结果须独立验收；M3—M4尚未完成。trace.cocos.wechat-m1连接preparation/runtime测试及独立平台证据，核心入口与事务不变。
 
 ## 微信显式Schema预编译装配
 
@@ -156,3 +156,13 @@ RuntimeSchemaValidator支持显式PrecompiledSchemaValidatorSet：format为runti
 WechatDataClone.ts提供微信目标内的纯DTO复制适配，导出structuredClone供wechat profile的esbuild inject局部绑定runtime中的标准自由标识符。不修改globalThis或Cocos引擎，不在src中新增指向apps的源import，也不改变默认Node/Web路径；它不是通用Web API polyfill。支持数组、普通对象/空原型DTO输入及原始值，保留undefined、数组空位、共享引用/别名、循环和特殊属性键；非DTO对象、函数、Symbol与options（包括transfer）明确DataCloneError拒绝，不用JSON往返静默丢失数据。
 
 源位于apps/cocos-wechat-probe/runtime/WechatDataClone.ts，仍由新outer已有module roots和authoritative .ts规则扫描；无cc/wx/fs依赖。helper经prepare实际onLoad进入manifest.inputs，并由sourceProvenance要求存在，源与依赖/生成物字节校验不放宽。微信facade受控预检同时禁用动态Function并移除原生structuredClone，正式启动/动作/坏请求仍须经过公共运行时；这不能替代最终候选的Creator/微信真实输入或手机验收。
+
+## M2微信存储与生命周期
+
+M2运行时改动集中于独立微信outer，并同步构建来源、测试和文档：手动单逻辑槽经Creator sys.localStorage接入平台存储，保存与读取沿既有Session/SaveManager及校验；前后台事件只限制输入与维护会话，不自动存档或补算时间。旧三层及outer直接wx/fs禁令保持，正式SaveFile和玩法不变。
+
+备份恢复先以隔离Session校验，port内部再次校验并复核标记与备份字节，持久提升后再经Binding读取主槽。准备/提升失败和Session读档校验失败的受控场景保留原会话；Binding的UI补丁可能在Session提交后失败，不能将此类错误一概表述为原会话未改变。
+
+备份与中断保护须同时考虑失败前后可能发生写入：备份、主档与恢复信息分开；读取、恢复和失败路径以源码及针对性测试为准，不能将异常等同于未落盘。故障保护依赖存储键相互独立和可读回一致的有限模型，真实微信断电、设备故障及底层原子性未证明。备份恢复不等于跨平台导入或自动存档。
+
+tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的args/files，相关源及meta也进入preparation/runtime登记和trace.cocos.wechat-m1。受控Node契约不替代真实Creator、官方微信工具输入/存储/生命周期、最终提交CI或手机验收；具体结果以仓库外证据为准。
