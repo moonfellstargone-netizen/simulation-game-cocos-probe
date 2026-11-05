@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { build } from 'esbuild';
 import { WechatProbeController, readCandidateIdentity, type CandidateIdentity,
   type WechatProbeSnapshot, type WechatResources } from '../apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController';
 import { createStage1AHost, QinglanUiSceneProbeComponent, type CocosSessionHost } from '../src/cocos-creator-adapter';
 import { InMemorySaveStoragePort, type RuntimeConfigSnapshot, type SaveStoragePort } from '../src/game-core';
-import { WECHAT_BACKUP_SLOT_ID, WECHAT_SAVE_SLOT_ID } from '../apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort';
+import { WECHAT_BACKUP_SLOT_ID, WECHAT_SAVE_SLOT_ID, WECHAT_SAVE_BACKUP_KEY, WECHAT_SAVE_STORAGE_KEY,
+  WechatSaveStoragePort } from '../apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort';
 import { deriveBuildId } from '../tools/quality/lib/versionSurface.mjs';
 
 const target = JSON.parse(readFileSync('tools/quality/rules/project-target.json', 'utf8'));
@@ -30,6 +32,7 @@ function harness(options: { identity?: CandidateIdentity; storage?: SaveStorageP
   prepareBackupRecovery?: () => Promise<void>;
   recoverValidatedBackup?: () => Promise<void>;
   cancelFirstFailedSave?: () => Promise<void>;
+  onChange?: (snapshot: WechatProbeSnapshot) => void;
   patch?: () => void | Promise<void> } = {}) {
   let host: CocosSessionHost | null = null;
   let binding: QinglanUiSceneProbeComponent | null = null;
@@ -51,7 +54,7 @@ function harness(options: { identity?: CandidateIdentity; storage?: SaveStorageP
     prepareBackupRecovery: options.prepareBackupRecovery,
     recoverValidatedBackup: options.recoverValidatedBackup,
     cancelFirstFailedSave: options.cancelFirstFailedSave,
-    onChange: state => states.push(state)
+    onChange: state => { states.push(state); options.onChange?.(state); }
   });
   return { controller, states, host: () => host!, binding: () => binding!, factories: () => factories };
 }
@@ -284,6 +287,126 @@ test('M2 empty, invalid, read and write failures preserve session and allow heal
   assert.equal(p.controller.snapshot().time_label, 'day 1 minute 420');
   assert.equal(p.controller.snapshot().last_error, null);
   await p.controller.dispose();
+});
+
+test('WeChat outer shows the empty primary slot as guidance but preserves real failures and command semantics', async () => {
+  const bundled = await build({
+    entryPoints: ['apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts'],
+    bundle: true, write: false, platform: 'node', format: 'esm',
+    tsconfigRaw: { compilerOptions: { experimentalDecorators: true } },
+    plugins: [{ name: 'cocos-test-ports', setup(builder) {
+      builder.onResolve({ filter: /^cc$/ }, () => ({ path: 'cc', namespace: 'test-ports' }));
+      builder.onResolve({ filter: /generated\/probe-runtime\.js$/ }, () => ({ path: 'runtime', namespace: 'test-ports' }));
+      builder.onLoad({ filter: /.*/, namespace: 'test-ports' }, args => ({ contents: args.path === 'cc'
+        ? `export class Component { constructor() { this.node = {}; } }
+           export const _decorator = { ccclass: () => value => value };
+           export const isValid = () => true;
+           export const Button = {}, Camera = {}, Canvas = {}, Color = {}, Game = {}, game = {}, Graphics = {}, JsonAsset = {}, Label = {}, Layers = {}, Node = {}, resources = {}, ResolutionPolicy = {}, screen = {}, sys = {}, UITransform = {}, view = {};`
+        : 'export const createStage1AHost = () => {}; export class QinglanUiSceneProbeComponent {}', loader: 'js' }));
+    } }]
+  });
+  const { CocosWechatProbe } = await import('data:text/javascript;base64,' + Buffer.from(bundled.outputFiles[0]!.text).toString('base64'));
+  const probe = new CocosWechatProbe();
+  probe.labels = Object.fromEntries(['candidate', 'commit', 'time', 'status', 'result', 'hint'].map(name => [name, { string: '' }]));
+  const values = new Map<string, string>([[WECHAT_SAVE_BACKUP_KEY, 'preserve-existing-backup']]);
+  let readError: string | null = null;
+  let writeError: string | null = null;
+  const platform = {
+    get length() { if (readError) throw new Error(readError); return values.size; },
+    key(index: number) { return Array.from(values.keys())[index] ?? null; },
+    getItem(key: string) { return values.get(key) ?? null; },
+    setItem(key: string, value: string) { if (writeError) throw new Error(writeError); values.set(key, value); },
+    removeItem(key: string) { values.delete(key); }
+  };
+  const actualStorage = new WechatSaveStoragePort(() => platform, async () => {});
+  let delayedRead: Promise<void> | null = null;
+  const storage: SaveStoragePort = {
+    read: async slot => { if (delayedRead) await delayedRead; return actualStorage.read(slot); },
+    write: (slot, value) => actualStorage.write(slot, value)
+  };
+  let onFinished: ((snapshot: WechatProbeSnapshot) => void) | null = null;
+  const p = harness({ storage, onChange: state => { probe.render(state); onFinished?.(state); } });
+  probe.controller = p.controller;
+  await p.controller.start();
+  await p.controller.advance();
+  const click = async (action: () => void) => {
+    const accepted = p.controller.snapshot().accepted_commands + 1;
+    const finished = new Promise<void>(resolve => {
+      onFinished = state => { if (!state.busy && state.accepted_commands >= accepted) resolve(); };
+    });
+    action();
+    await finished;
+    onFinished = null;
+    await new Promise(resolve => setImmediate(resolve));
+  };
+  const infos: unknown[][] = [];
+  const errors: unknown[][] = [];
+  const oldInfo = console.info;
+  const oldError = console.error;
+  console.info = (...args: unknown[]) => { infos.push(args); };
+  console.error = (...args: unknown[]) => { errors.push(args); };
+  try {
+    const completed = p.controller.snapshot().completed_commands;
+    await click(() => probe.onRead());
+    assert.equal(probe.labels.status.string, '未找到主存档；无备份时可先保存');
+    assert.equal(p.controller.snapshot().time_label, 'day 1 minute 420');
+    assert.equal(p.controller.snapshot().completed_commands, completed);
+    assert.equal(p.controller.snapshot().last_error, 'ERR_SAVE_SLOT_NOT_FOUND:wechat_probe');
+    assert.ok(infos.some(args => args[0] === '[wechat-m2] empty-save-slot'));
+    assert.equal(errors.length, 0);
+
+    await click(() => probe.onSave());
+    assert.equal(p.controller.snapshot().last_error, 'ERR_WECHAT_SAVE_BACKUP_CONFLICT');
+    assert.equal(values.get(WECHAT_SAVE_BACKUP_KEY), 'preserve-existing-backup');
+    assert.equal(values.has(WECHAT_SAVE_STORAGE_KEY), false);
+    values.delete(WECHAT_SAVE_BACKUP_KEY);
+
+    for (const message of ['ERR_WECHAT_STORAGE_UNAVAILABLE', 'ERR_SAVE_LOAD_REJECTED',
+      'ERR_WECHAT_BACKUP_RESTORED_RESULT_UNCERTAIN:ERR_SAVE_SLOT_NOT_FOUND:wechat_probe',
+      'ERR_SAVE_SLOT_NOT_FOUND:other_slot', 'ERR_SAVE_SLOT_NOT_FOUND:wechat_probe']) {
+      readError = message;
+      await click(() => probe.onRead());
+      assert.notEqual(probe.labels.status.string, '未找到主存档；无备份时可先保存', message);
+      assert.equal(errors.at(-1)?.[0], '[wechat-m2] load-failed', message);
+      if (message === 'ERR_SAVE_SLOT_NOT_FOUND:wechat_probe') {
+        assert.equal(p.controller.snapshot().last_error, 'ERR_WECHAT_STORAGE_READ_FAILED');
+      }
+    }
+    readError = null;
+    values.set(WECHAT_SAVE_STORAGE_KEY, '{broken');
+    await click(() => probe.onRead());
+    assert.notEqual(probe.labels.status.string, '未找到主存档；无备份时可先保存');
+    assert.equal(values.get(WECHAT_SAVE_STORAGE_KEY), '{broken');
+    values.delete(WECHAT_SAVE_STORAGE_KEY);
+    writeError = 'ERR_SAVE_SLOT_NOT_FOUND:wechat_probe';
+    await click(() => probe.onSave());
+    assert.equal(probe.labels.status.string, '操作失败，请查看日志', 'other operations do not present a read-specific hint');
+    assert.equal(errors.at(-1)?.[0], '[wechat-m2] save-failed');
+    writeError = null;
+    await click(() => probe.onSave());
+    assert.equal(probe.labels.status.string, '状态: ready');
+    assert.equal(p.controller.snapshot().completed_commands, completed + 1);
+
+    values.delete(WECHAT_SAVE_STORAGE_KEY);
+    const readGate = deferred<void>();
+    delayedRead = readGate.promise;
+    const reading = click(() => probe.onRead());
+    assert.equal(p.controller.snapshot().busy, true);
+    probe.onSave();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(errors.at(-1)?.[0], '[wechat-m2] save-failed');
+    assert.match(String(errors.at(-1)?.[1]), /ERR_WECHAT_PROBE_BUSY/);
+    readGate.resolve();
+    await reading;
+    delayedRead = null;
+    assert.equal(p.controller.snapshot().last_error, 'ERR_SAVE_SLOT_NOT_FOUND:wechat_probe');
+    assert.equal(probe.labels.status.string, '未找到主存档；无备份时可先保存');
+    assert.equal(infos.at(-1)?.[0], '[wechat-m2] empty-save-slot');
+  } finally {
+    console.info = oldInfo;
+    console.error = oldError;
+    await p.controller.dispose();
+  }
 });
 
 test('M2 background blocks new commands, allows in-flight completion and foreground does not auto-save or advance', async () => {

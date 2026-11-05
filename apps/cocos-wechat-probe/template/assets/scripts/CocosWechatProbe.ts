@@ -2,7 +2,7 @@ import { _decorator, Button, Camera, Canvas, Color, Component, Game, game, Graph
   JsonAsset, Label, Layers, Node, resources, ResolutionPolicy, screen, sys, UITransform, view } from 'cc';
 import { createStage1AHost, QinglanUiSceneProbeComponent } from '../generated/probe-runtime.js';
 import { WechatProbeController, type WechatProbeSnapshot, type WechatResources } from './WechatProbeController';
-import { WECHAT_BACKUP_SLOT_ID, WechatSaveStoragePort } from './WechatSaveStoragePort';
+import { WECHAT_BACKUP_SLOT_ID, WECHAT_SAVE_SLOT_ID, WechatSaveStoragePort } from './WechatSaveStoragePort';
 import { createWechatPriorSaveValidator } from './WechatPriorSaveValidator';
 
 const { ccclass } = _decorator;
@@ -17,6 +17,7 @@ export class CocosWechatProbe extends Component {
   private backupButton: Button | null = null;
   private cancelFirstButton: Button | null = null;
   private confirmCancelFirst = false;
+  private lastCommandWasRead = false;
   private clickCount = 0;
 
   onLoad(): void {
@@ -83,15 +84,25 @@ export class CocosWechatProbe extends Component {
 
   private onAdvance(): void {
     this.resetCancelConfirmation();
+    this.setCommandReadContext(false);
     this.clickCount++;
     console.info('[wechat-m1] button-click', JSON.stringify({ click_count: this.clickCount, candidate_id: this.controller?.snapshot().identity?.candidate_id }));
     void this.controller?.advance().catch(error => console.error('[wechat-m1] action-failed', String(error)));
   }
 
-  private onSave(): void { this.resetCancelConfirmation(); void this.controller?.save().catch(error => console.error('[wechat-m2] save-failed', String(error))); }
-  private onRead(): void { this.resetCancelConfirmation(); void this.controller?.load().catch(error => console.error('[wechat-m2] load-failed', String(error))); }
-  private onReadBackup(): void { this.resetCancelConfirmation(); void this.controller?.loadBackup().catch(error => console.error('[wechat-m2] backup-load-failed', String(error))); }
+  private onSave(): void { this.resetCancelConfirmation(); this.setCommandReadContext(false); void this.controller?.save().catch(error => console.error('[wechat-m2] save-failed', String(error))); }
+  private onRead(): void {
+    this.resetCancelConfirmation();
+    this.setCommandReadContext(true);
+    void this.controller?.load().catch(error => {
+      if (error instanceof Error && error.message === `ERR_SAVE_SLOT_NOT_FOUND:${WECHAT_SAVE_SLOT_ID}`) {
+        console.info('[wechat-m2] empty-save-slot', WECHAT_SAVE_SLOT_ID);
+      } else console.error('[wechat-m2] load-failed', String(error));
+    });
+  }
+  private onReadBackup(): void { this.resetCancelConfirmation(); this.setCommandReadContext(false); void this.controller?.loadBackup().catch(error => console.error('[wechat-m2] backup-load-failed', String(error))); }
   private onCancelFirst(): void {
+    this.setCommandReadContext(false);
     if (!this.confirmCancelFirst) {
       this.confirmCancelFirst = true;
       this.labels.hint.string = '再点一次：撤销未完成首档，保留当前游戏';
@@ -104,6 +115,10 @@ export class CocosWechatProbe extends Component {
     this.confirmCancelFirst = false;
     if (this.labels.hint) this.labels.hint.string = '手动保存与读取；可选择恢复失败存档';
   }
+  private setCommandReadContext(isRead: boolean): void {
+    const state = this.controller?.snapshot();
+    if (state?.phase === 'ready' && !state.busy && state.visible) this.lastCommandWasRead = isRead;
+  }
   private onHide(): void { this.resetCancelConfirmation(); this.controller?.setVisible(false); }
   private onShow(): void { this.controller?.setVisible(true); }
 
@@ -113,7 +128,10 @@ export class CocosWechatProbe extends Component {
     this.labels.candidate.string = identity ? `candidate_id: ${identity.candidate_id}` : 'candidate_id: 加载中';
     this.labels.commit.string = identity ? `${identity.version}  commit: ${identity.short_commit}` : '读取运行包身份';
     this.labels.time.string = state.time_label ?? '等待正式资源启动';
-    this.labels.status.string = state.last_error ? this.errorText(state.last_error) : `状态: ${state.phase}${state.busy ? ' · 执行中' : ''}${state.visible ? '' : ' · 后台'}`;
+    this.labels.status.string = state.last_error
+      ? this.lastCommandWasRead && state.last_error === `ERR_SAVE_SLOT_NOT_FOUND:${WECHAT_SAVE_SLOT_ID}`
+        ? '未找到主存档；无备份时可先保存' : this.errorText(state.last_error)
+      : `状态: ${state.phase}${state.busy ? ' · 执行中' : ''}${state.visible ? '' : ' · 后台'}`;
     this.labels.result.string = `推进按钮 ${this.clickCount} · 已完成命令 ${state.completed_commands}`;
     for (const button of [this.button, this.saveButton, this.loadButton, this.backupButton, this.cancelFirstButton]) {
       if (button && isValid(button, true)) button.interactable = state.phase === 'ready' && !state.busy && state.visible;

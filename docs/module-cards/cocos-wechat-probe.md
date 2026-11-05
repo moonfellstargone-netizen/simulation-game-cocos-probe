@@ -14,6 +14,7 @@ source_of_truth: false
 独立apps/cocos-wechat-probe模块只消费派生公共runtime与正式资源，可使用cc，禁止直接wx/fs、业务内部、工具和测试依赖；旧三层不得反向依赖它。微信outer通过Creator平台存储外层提供手动单槽存读档及备份恢复，不增加自动保存或离线补时。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture；planned Stage1B wx-storage-port不转active。
 
 - `apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts`：真实cc场景、资源加载、Label/Button与只读观察。
+- 主存档读取返回空槽时，微信界面提示“未找到主存档；无备份时可先保存”，不将空槽记为命令成功；单独存在备份时仍保留备份保护。只有精确的主槽空档错误按提示记录，读取/坏档/备份恢复等失败仍按错误处理。微信storage读取遇到平台异常伪装成同一个空槽错误时改报存储读取失败，防止误认空档。
 - `apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts`：无cc的资源/身份校验、公共Host/Binding、busy与前后台、销毁迟到保护；提交既有advance_time及手动存读档命令，并协调备份恢复和首档撤销。
 - `apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts`：在隔离的公开Host会话中校验现有存档，拒绝写入平台存储，验证结束销毁临时Host；用于备份和恢复前置检查。
 - `tools/cocos-probe/lib/prepareProject.mjs`：固定共享生产者，不开放任意template/runtime入口/BuildId角色。

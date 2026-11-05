@@ -35,9 +35,16 @@ export class WechatSaveStoragePort {
       return backup;
     }
     this.assertSlot(slotId);
-    const storage = this.storage();
-    this.assertNoPendingRecovery(storage);
-    return this.readFrom(storage, WECHAT_SAVE_STORAGE_KEY);
+    try {
+      const storage = this.storage();
+      this.assertNoPendingRecovery(storage);
+      return this.readFrom(storage, WECHAT_SAVE_STORAGE_KEY);
+    } catch (error) {
+      // A platform failure must not impersonate the Session's null-slot error.
+      const message = error instanceof Error ? error.message : String(error);
+      if (message === `ERR_SAVE_SLOT_NOT_FOUND:${WECHAT_SAVE_SLOT_ID}`) throw new Error('ERR_WECHAT_STORAGE_READ_FAILED');
+      throw error;
+    }
   }
 
   async readBackup(slotId: string): Promise<string | null> {
