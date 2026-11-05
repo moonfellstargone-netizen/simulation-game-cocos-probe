@@ -3,7 +3,7 @@ import { lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { assertWechatAppId } from '../../cocos-probe/lib/prepareProject.mjs';
 import { capturePreparedSurface, checkPreparedSurfaceAfterBuild } from '../../cocos-probe/lib/webProbeSupport.mjs';
-import { assertWechatSourceProvenance } from './sourceProvenance.mjs';
+import { assertWechatEngineAfterBuild, assertWechatSourceProvenance } from './sourceProvenance.mjs';
 
 export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 export const within = (parent, child) => {
@@ -38,7 +38,7 @@ export function readWechatPreparedProject({ rootDir, project }) {
   const config = JSON.parse(readFileSync(join(projectDir, 'wechat-build-options.json'), 'utf8'));
   const scene = JSON.parse(readFileSync(join(projectDir, 'assets/Probe.scene.meta'), 'utf8'));
   if (config.platform !== 'wechatgame' || config.outputName !== 'wechatgame' || config.taskName !== 'wechatgame'
-      || config.buildPath !== 'project://build' || config.debug !== true || config.startScene !== scene.uuid
+      || config.buildPath !== 'project://build' || config.debug !== false || config.startScene !== scene.uuid
       || !/^[a-f\d-]{36}$/i.test(scene.uuid) || config.packages?.wechatgame?.appid !== manifest.appId
       || config.packages?.wechatgame?.orientation !== 'landscape' || config.packages?.wechatgame?.separateEngine !== false) {
     throw new Error('ERR_WECHAT_BUILD_CONFIG_MISMATCH');
@@ -95,6 +95,7 @@ export function readWechatProbeSource({ rootDir, project, buildRecord }) {
   if (JSON.stringify(record.sourceVerification) !== JSON.stringify(sourceVerification)) throw new Error('ERR_WECHAT_SOURCE_VERIFICATION_MISMATCH');
   const preparedSurfaceAfter = capturePreparedSurface(projectDir, manifest);
   const creatorNormalizations = checkPreparedSurfaceAfterBuild(manifest, preparedSurfaceAfter);
+  assertWechatEngineAfterBuild({ rootDir, manifest, projectDir });
   if (JSON.stringify(record.preparedSurfaceAfter) !== JSON.stringify(preparedSurfaceAfter)
       || JSON.stringify(record.creatorNormalizations) !== JSON.stringify(creatorNormalizations)) {
     throw new Error('ERR_WECHAT_PREPARED_OUTPUT_CHANGED');

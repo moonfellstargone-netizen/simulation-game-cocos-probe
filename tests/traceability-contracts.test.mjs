@@ -39,6 +39,15 @@ test('WeChat M1 and M2 trace closes over executed preparation, runtime and stora
   const cloneHelper = 'apps/cocos-wechat-probe/runtime/WechatDataClone.ts';
   const cloneTest = 'tests/cocos-wechat-data-clone.test.ts';
   const runtime = registry.tests['test.cocos-wechat-runtime'];
+  const optimizationTest = 'tests/cocos-wechat-schema-optimization.test.mjs';
+  assert.ok(existsSync(join(root, optimizationTest)));
+  assert.ok(runtime.args.includes(optimizationTest), 'runtime must execute the Schema optimization contract');
+  assert.ok(readJson('package.json').scripts['test:cocos-wechat-runtime'].split(/\s+/).includes(optimizationTest));
+  assert.ok(runtime.covers.includes('tools'));
+  for (const file of [optimizationTest, 'tools/cocos-wechat-probe/lib/precompiledSchemas.mjs', 'tools/cocos-wechat-probe/lib/sourceProvenance.mjs', 'tools/cocos-wechat-probe/prepare.mjs']) {
+    assert.ok(runtime.files.includes(file), 'runtime must register ' + file);
+    assert.ok(preparation.files.includes(file), 'preparation must register ' + file);
+  }
   assert.ok(entry.sourceRefs.includes(cloneHelper));
   assert.ok(runtime.args.includes(cloneTest), 'runtime task must execute the DTO clone contract');
   assert.ok(readJson('package.json').scripts['test:cocos-wechat-runtime'].split(/\s+/).includes(cloneTest));

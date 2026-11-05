@@ -8,8 +8,8 @@ import { tmpdir } from 'node:os';
 import { prepareWechatProbe } from '../tools/cocos-wechat-probe/prepare.mjs';
 import { buildWechatProbe } from '../tools/cocos-wechat-probe/build.mjs';
 import { readWechatPreparedProject, readWechatProbeSource, wechatTreeDigest } from '../tools/cocos-wechat-probe/lib/source.mjs';
-import { assertWechatSourceProvenance, WECHAT_BUILD_TOOL_FILES } from '../tools/cocos-wechat-probe/lib/sourceProvenance.mjs';
-import { capturePreparedSurface } from '../tools/cocos-probe/lib/webProbeSupport.mjs';
+import { assertWechatEngineAfterBuild, assertWechatSourceProvenance, WECHAT_BUILD_TOOL_FILES } from '../tools/cocos-wechat-probe/lib/sourceProvenance.mjs';
+import { capturePreparedSurface, checkPreparedSurfaceAfterBuild } from '../tools/cocos-probe/lib/webProbeSupport.mjs';
 
 const root = process.cwd();
 const appId = 'wx0000000000000001'; // Contract fixture only; never used for a real platform build.
@@ -70,8 +70,21 @@ test('fixed Wechat preparation records exact public inputs and distinct same-com
   const config = json(join(prepared.outputDir, 'wechat-build-options.json'));
   assert.equal(config.packages.wechatgame.appid, appId);
   assert.equal(config.platform, 'wechatgame');
+  assert.equal(config.debug, false, 'WeChat candidates use the compact Creator build');
   assert.equal(config.startScene, json(join(prepared.outputDir, 'assets/Probe.scene.meta')).uuid);
   assert.equal(json(join(prepared.outputDir, 'settings/v2/packages/project.json')).script.loose, false);
+  const engine = json(join(prepared.outputDir, 'settings/v2/packages/engine.json')).modules.configs.defaultConfig;
+  assert.deepEqual([...engine.includeModules].sort(),
+    ['2d', 'graphics', 'affine-transform', 'animation', 'base', 'gfx-webgl', 'gfx-webgl2', 'tween', 'ui', 'custom-pipeline'].sort());
+  for (const name of ['base', '2d', 'ui', 'graphics', 'animation', 'tween', 'gfx-webgl', 'gfx-webgl2']) {
+    assert.equal(engine.cache[name]._value, true, 'retained WeChat engine feature: ' + name);
+  }
+  for (const name of ['spine', 'dragon-bones', 'physics-2d', 'physics-2d-box2d', 'physics-2d-builtin',
+    'particle-2d', 'tiled-map', 'video', 'webview', 'audio', 'profiler', 'rich-text', 'mask', 'intersection-2d']) {
+    assert.equal(engine.cache[name]._value, false, 'excluded WeChat engine feature: ' + name);
+  }
+  assert.ok(manifest.inputs['apps/cocos-wechat-probe/template/settings/v2/packages/engine.json']);
+  assert.ok(manifest.outputs['settings/v2/packages/engine.json']);
   for (const name of ['tools/cocos-probe/lib/prepareProject.mjs', 'tools/cocos-wechat-probe/prepare.mjs']) assert.ok(manifest.inputs[name]);
   for (const [path, item] of Object.entries(manifest.inputs)) {
     const bytes = readFileSync(join(source, path));
@@ -103,6 +116,90 @@ test('fixed Wechat preparation records exact public inputs and distinct same-com
   assert.equal(precompile.generatedModuleSha256, sha256(readFileSync(join(prepared.outputDir, 'wechat-precompiled-validators.mjs'))));
   assert.equal(manifest.runtimeEntrySha256, sha256(readFileSync(join(prepared.outputDir, 'wechat-runtime-entry.mjs'))));
   assert.equal(readWechatPreparedProject({ rootDir: source, project: prepared.outputDir }).identity.candidate_id, identity.candidate_id);
+});
+
+test('WeChat build source rejects a debug candidate even if its output record is rewritten', () => {
+  const configPath = join(prepared.outputDir, 'wechat-build-options.json');
+  const manifestPath = join(prepared.outputDir, 'probe-source-manifest.json');
+  const originalConfig = readFileSync(configPath);
+  const originalManifest = readFileSync(manifestPath);
+  try {
+    const config = JSON.parse(originalConfig);
+    config.debug = true;
+    const changed = Buffer.from(JSON.stringify(config));
+    writeFileSync(configPath, changed);
+    const manifest = JSON.parse(originalManifest);
+    manifest.outputs['wechat-build-options.json'] = { bytes: changed.length, sha256: sha256(changed) };
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+    assert.throws(() => readWechatPreparedProject({ rootDir: source, project: prepared.outputDir }),
+      /ERR_WECHAT_BUILD_CONFIG_MISMATCH/);
+  } finally {
+    writeFileSync(configPath, originalConfig);
+    writeFileSync(manifestPath, originalManifest);
+  }
+  assert.equal(readWechatPreparedProject({ rootDir: source, project: prepared.outputDir }).identity.candidate_id,
+    prepared.manifest.candidateIdentity.candidate_id);
+});
+
+test('engine output is bound to its fixed Git template even when output and manifest are forged together', () => {
+  const enginePath = join(prepared.outputDir, 'settings/v2/packages/engine.json');
+  const manifestPath = join(prepared.outputDir, 'probe-source-manifest.json');
+  const engineBytes = readFileSync(enginePath);
+  const manifestBytes = readFileSync(manifestPath);
+  try {
+    const engine = JSON.parse(engineBytes);
+    engine.modules.configs.defaultConfig.cache.tween._value = false;
+    const changed = Buffer.from(JSON.stringify(engine));
+    const manifest = JSON.parse(manifestBytes);
+    manifest.outputs['settings/v2/packages/engine.json'] = { bytes: changed.length, sha256: sha256(changed) };
+    writeFileSync(enginePath, changed);
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+    assert.throws(() => readWechatPreparedProject({ rootDir: source, project: prepared.outputDir }), /ERR_WECHAT_ENGINE_SOURCE_MISMATCH/);
+    delete manifest.inputs['apps/cocos-wechat-probe/template/settings/v2/packages/engine.json'];
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+    assert.throws(() => readWechatPreparedProject({ rootDir: source, project: prepared.outputDir }), /ERR_WECHAT_SOURCE_INPUTS_INCOMPLETE/);
+    manifest.inputs['apps/cocos-wechat-probe/template/settings/v2/packages/engine.json'] = JSON.parse(manifestBytes).inputs['apps/cocos-wechat-probe/template/settings/v2/packages/engine.json'];
+    delete manifest.outputs['settings/v2/packages/engine.json'];
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+    assert.throws(() => readWechatPreparedProject({ rootDir: source, project: prepared.outputDir }), /ERR_WECHAT_ENGINE_SOURCE_MISMATCH/);
+  } finally {
+    writeFileSync(enginePath, engineBytes);
+    writeFileSync(manifestPath, manifestBytes);
+  }
+});
+
+test('WeChat Creator normalization preserves every existing engine setting', () => {
+  const enginePath = join(prepared.outputDir, 'settings/v2/packages/engine.json');
+  const original = readFileSync(enginePath);
+  const engine = JSON.parse(original);
+  const config = engine.modules.configs.defaultConfig;
+  const cache = config.cache;
+  engine.__version__ = '1.0.12';
+  config.includeModules.sort();
+  Object.assign(cache, {
+    'custom-pipeline': { _value: true }, 'custom-pipeline-post-process': { _value: false },
+    'gfx-webgpu': { _value: false }, 'legacy-pipeline': { _value: false }, 'meshopt': { _value: false },
+    'physics-2d-box2d-jsb': { _value: false }, 'physics-2d-box2d-wasm': { _value: false, _flags: { LOAD_BOX2D_MANUALLY: false } },
+    'procedural-animation': { _value: false }, 'sorting-2d': { _value: false },
+    'spine-3.8': { _value: cache.spine._value, _flags: { LOAD_SPINE_MANUALLY: false } },
+    'spine-4.2': { _value: false, _flags: { LOAD_SPINE_MANUALLY: false } },
+    'ui-skew': { _value: false }, 'vendor-google': { _value: false }
+  });
+  cache['physics-ammo']._flags = { LOAD_BULLET_MANUALLY: false };
+  cache['physics-physx']._flags = { LOAD_PHYSX_MANUALLY: false };
+  cache['render-pipeline']._value = true;
+  const options = { rootDir: source, manifest: prepared.manifest, projectDir: prepared.outputDir };
+  try {
+    writeFileSync(enginePath, JSON.stringify(engine));
+    assertWechatEngineAfterBuild(options);
+    cache.tween._value = false;
+    writeFileSync(enginePath, JSON.stringify(engine));
+    assert.throws(() => assertWechatEngineAfterBuild(options), /ERR_WECHAT_ENGINE_NORMALIZATION_MISMATCH/);
+    cache.tween._value = true;
+    cache['gfx-webgpu']._value = true;
+    writeFileSync(enginePath, JSON.stringify(engine));
+    assert.throws(() => assertWechatEngineAfterBuild(options), /ERR_WECHAT_ENGINE_NORMALIZATION_MISMATCH/);
+  } finally { writeFileSync(enginePath, original); }
 });
 
 test('a clean alternate source cannot claim a different compiler helper that the tool did not execute', async () => {
@@ -370,6 +467,22 @@ test('official-tool source checks reject cross-target records, changed prepared 
     writeFileSync(runtime, '// replaced public runtime');
     assert.throws(() => readWechatProbeSource(options), /ERR_WEB_PROBE_PREPARED_OUTPUT_CHANGED/);
   } finally { writeFileSync(runtime, original); }
+  const enginePath = join(prepared.outputDir, 'settings/v2/packages/engine.json');
+  const originalEngine = readFileSync(enginePath);
+  try {
+    const alteredEngine = JSON.parse(originalEngine);
+    alteredEngine.modules.configs.defaultConfig.cache.tween._value = false;
+    writeFileSync(enginePath, JSON.stringify(alteredEngine));
+    const forgedSurface = capturePreparedSurface(prepared.outputDir, manifest);
+    const forgedRecord = { ...record, preparedSurfaceAfter: forgedSurface,
+      creatorNormalizations: checkPreparedSurfaceAfterBuild(manifest, forgedSurface) };
+    writeFileSync(recordPath, JSON.stringify(forgedRecord));
+    assert.throws(() => readWechatProbeSource(options), /ERR_WECHAT_ENGINE_NORMALIZATION_MISMATCH/,
+      'rewriting a post-build record cannot authorize a changed engine feature');
+  } finally {
+    writeFileSync(enginePath, originalEngine);
+    writeFileSync(recordPath, JSON.stringify(record));
+  }
   writeFileSync(join(game, '__proto__'), 'candidate B\n');
   assert.throws(() => readWechatProbeSource(options), /ERR_WECHAT_BUILD_CONTENT_CHANGED/);
   writeFileSync(join(game, '__proto__'), 'candidate A\n');

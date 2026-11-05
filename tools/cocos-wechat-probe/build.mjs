@@ -4,7 +4,7 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { capturePreparedSurface, checkPreparedSurfaceAfterBuild } from '../cocos-probe/lib/webProbeSupport.mjs';
 import { readWechatPreparedProject, sha256, wechatTreeDigest, within } from './lib/source.mjs';
-import { assertWechatSourceProvenance, WECHAT_BUILD_TOOL_FILES } from './lib/sourceProvenance.mjs';
+import { assertWechatEngineAfterBuild, assertWechatSourceProvenance, WECHAT_BUILD_TOOL_FILES } from './lib/sourceProvenance.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -82,6 +82,7 @@ export async function buildWechatProbe({ creator, project, logDir, rootDir = ROO
     try {
       preparedSurfaceAfter = capturePreparedSurface(projectDir, manifest);
       creatorNormalizations = checkPreparedSurfaceAfterBuild(manifest, preparedSurfaceAfter);
+      assertWechatEngineAfterBuild({ rootDir: root, manifest, projectDir });
       gameBuild = wechatTreeDigest(join(projectDir, 'build/wechatgame'), manifest.appId);
     } catch (error) { executionError = error instanceof Error ? error.message : String(error); }
   }

@@ -322,7 +322,7 @@ export async function prepareProbeProject({ rootDir = PROJECT_ROOT, outputDir, p
     files.set('assets/resources/candidate-identity.json', asJson(candidateIdentity));
     files.set('wechat-build-options.json', asJson({
       platform: 'wechatgame', taskName: 'wechatgame', outputName: 'wechatgame', buildPath: 'project://build',
-      debug: true, startScene: scene.uuid, scenes: [{ url: 'db://assets/Probe.scene', uuid: scene.uuid }],
+      debug: false, startScene: scene.uuid, scenes: [{ url: 'db://assets/Probe.scene', uuid: scene.uuid }],
       packages: { wechatgame: { appid: appId, orientation: 'landscape', separateEngine: false, buildOpenDataContextTemplate: false } }
     }));
   }

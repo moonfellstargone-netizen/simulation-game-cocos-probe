@@ -21,7 +21,7 @@ function compilerDependencyPaths() {
 
 /** The returned code is authentic Ajv standalone output with safe ESM export names. */
 export function compileWechatSchemas(schemas) {
-  const ajv = new Ajv2020({ strict: false, allErrors: true, allowUnionTypes: true, code: { source: true, esm: true } });
+  const ajv = new Ajv2020({ strict: false, allErrors: true, allowUnionTypes: true, loopRequired: 1, code: { source: true, esm: true } });
   const sources = [];
   const exports = [];
   const ids = new Set();
@@ -45,6 +45,6 @@ export function compileWechatSchemas(schemas) {
     + 'validators:Object.freeze(Object.fromEntries([' + validatorEntries + ']))\n});\n';
   return { moduleCode, schemaSources, exportMap, schemaIds: [...ids],
     compiler: { name: 'ajv', version: require('ajv/package.json').version, mode: 'standalone-esm',
-      options: { strict: false, allErrors: true, allowUnionTypes: true, code: { source: true, esm: true } } },
+      options: { strict: false, allErrors: true, allowUnionTypes: true, loopRequired: 1, code: { source: true, esm: true } } },
     compilerDependencyPaths: compilerDependencyPaths() };
 }

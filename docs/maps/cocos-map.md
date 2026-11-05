@@ -158,3 +158,7 @@ M2运行时改动集中于独立微信outer，并同步构建来源、测试和�
 备份与中断保护须同时考虑失败前后可能发生写入：备份、主档与恢复信息分开；读取、恢复和失败路径以源码及针对性测试为准，不能将异常等同于未落盘。故障保护依赖存储键相互独立和可读回一致的有限模型，真实微信断电、设备故障及底层原子性未证明。备份恢复不等于跨平台导入或自动存档。
 
 tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的args/files，相关源及meta也进入preparation/runtime登记和trace.cocos.wechat-m1。受控Node契约不替代真实Creator、官方微信工具输入/存储/生命周期、最终提交CI或手机验收；具体结果以仓库外证据为准。
+
+## M2微信包体修复
+
+微信构建profile固定debug=false，来源检查拒绝其他值；微信engine模板去除M2未用功能，保留2D、UI、Graphics、Animation和Tween及配置的WebGL后端。微信Schema预编译增加loopRequired=1，inlineRefs保持默认；Node/Web默认路径和M1历史事实不变。实际包大小和运行情况以真实构建验证为准。

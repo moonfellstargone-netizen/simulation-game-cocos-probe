@@ -1358,7 +1358,8 @@
         "apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts.meta",
         "apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts",
         "apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts.meta",
-        "tests/cocos-wechat-storage.test.ts"
+        "tests/cocos-wechat-storage.test.ts",
+        "tests/cocos-wechat-schema-optimization.test.mjs"
       ],
       "group": "cocos-adapter"
     },
@@ -1370,11 +1371,13 @@
         "--test",
         "tests/cocos-wechat-runtime.test.ts",
         "tests/cocos-wechat-data-clone.test.ts",
-        "tests/cocos-wechat-storage.test.ts"
+        "tests/cocos-wechat-storage.test.ts",
+        "tests/cocos-wechat-schema-optimization.test.mjs"
       ],
       "covers": [
         "cocos-wechat-probe",
         "tests",
+        "tools",
         "cocos-creator-adapter",
         "cocos-app",
         "game-core"
@@ -1408,7 +1411,11 @@
         "apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts.meta",
         "apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts",
         "apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts.meta",
-        "tests/cocos-wechat-storage.test.ts"
+        "tests/cocos-wechat-storage.test.ts",
+        "tests/cocos-wechat-schema-optimization.test.mjs",
+        "tools/cocos-wechat-probe/lib/precompiledSchemas.mjs",
+        "tools/cocos-wechat-probe/lib/sourceProvenance.mjs",
+        "tools/cocos-wechat-probe/prepare.mjs"
       ],
       "group": "cocos-adapter"
     }

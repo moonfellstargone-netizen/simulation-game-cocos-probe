@@ -3,11 +3,14 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 import { deriveBuildId } from '../../quality/lib/versionSurface.mjs';
 
 const TOOL_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const inside = (root, path) => path === root || path.startsWith(root + sep);
+const ENGINE_SOURCE = 'apps/cocos-wechat-probe/template/settings/v2/packages/engine.json';
+const ENGINE_OUTPUT = 'settings/v2/packages/engine.json';
 export const WECHAT_BUILD_TOOL_FILES = Object.freeze([
   'tools/cocos-wechat-probe/build.mjs', 'tools/cocos-wechat-probe/lib/source.mjs',
   'tools/cocos-wechat-probe/lib/sourceProvenance.mjs', 'tools/cocos-probe/lib/prepareProject.mjs',
@@ -20,6 +23,7 @@ const REQUIRED_SOURCE_INPUTS = [
   'tools/quality/rules/project-target.json', 'package-lock.json',
   'design_snapshot/generated/stage_1A_runtime_snapshot.json',
   'apps/cocos-wechat-probe/template/package.json',
+  ENGINE_SOURCE,
   'apps/cocos-wechat-probe/template/assets/Probe.scene',
   'apps/cocos-wechat-probe/template/assets/Probe.scene.meta',
   'apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts',
@@ -104,6 +108,11 @@ export function assertWechatSourceProvenance({ rootDir, manifest, toolInputs, to
   } else {
     source = readGitInputs(root, manifest.sourceCommit, manifest.inputs);
   }
+  const engineBytes = source.get(ENGINE_SOURCE);
+  if (manifest.outputs?.[ENGINE_OUTPUT]?.sha256 !== sha256(engineBytes)
+      || manifest.outputs?.[ENGINE_OUTPUT]?.bytes !== engineBytes.length) {
+    throw new Error('ERR_WECHAT_ENGINE_SOURCE_MISMATCH');
+  }
   const target = JSON.parse(source.get('tools/quality/rules/project-target.json'));
   const snapshot = JSON.parse(source.get('design_snapshot/generated/stage_1A_runtime_snapshot.json'));
   if (manifest.version !== target.version?.codePackageVersion
@@ -122,7 +131,7 @@ export function assertWechatSourceProvenance({ rootDir, manifest, toolInputs, to
       || !precompiled.exportMap || Object.keys(precompiled.exportMap).some(name => !/^schema_\d{3}$/.test(name))
       || JSON.stringify(Object.values(precompiled.exportMap).sort()) !== JSON.stringify(schemaIds)
       || precompiled.compiler?.name !== 'ajv' || precompiled.compiler?.mode !== 'standalone-esm'
-      || JSON.stringify(precompiled.compiler?.options) !== JSON.stringify({ strict: false, allErrors: true, allowUnionTypes: true, code: { source: true, esm: true } })
+      || JSON.stringify(precompiled.compiler?.options) !== JSON.stringify({ strict: false, allErrors: true, allowUnionTypes: true, loopRequired: 1, code: { source: true, esm: true } })
       || precompiled.generatedModuleSha256 !== manifest.outputs?.['wechat-precompiled-validators.mjs']?.sha256
       || manifest.runtimeEntrySha256 !== manifest.outputs?.['wechat-runtime-entry.mjs']?.sha256) {
     throw new Error('ERR_WECHAT_SCHEMA_PRECOMPILE_SOURCE_MISMATCH');
@@ -151,4 +160,41 @@ export function assertWechatSourceProvenance({ rootDir, manifest, toolInputs, to
   return { status: manifest.sourceDirty ? 'working-tree-verified-unfixed' : 'fixed-git-inputs-verified',
     sourceCommit: manifest.sourceCommit, inputCount: Object.keys(manifest.inputs).length,
     dependencyInputCount: Object.keys(manifest.dependencyInputs).length, dependencies: 'actual-tool-installation-verified' };
+}
+
+/** Permit only the Creator 3.8.8 profile migration observed in the real lite02 build. */
+export function assertWechatEngineAfterBuild({ rootDir, manifest, projectDir }) {
+  const root = realpathSync(rootDir);
+  const records = { [ENGINE_SOURCE]: manifest.inputs[ENGINE_SOURCE] };
+  const source = manifest.sourceDirty ? readDiskInputs(root, records) : readGitInputs(root, manifest.sourceCommit, records);
+  const expected = JSON.parse(source.get(ENGINE_SOURCE));
+  const actual = JSON.parse(readFileSync(join(projectDir, ENGINE_OUTPUT)));
+  if (isDeepStrictEqual(actual, expected)) return;
+  if (manifest.creatorVersion !== '3.8.8' || expected.__version__ !== '1.0.11') {
+    throw new Error('ERR_WECHAT_ENGINE_NORMALIZATION_MISMATCH');
+  }
+  const config = expected.modules.configs.defaultConfig;
+  const cache = config.cache;
+  const additions = {
+    'custom-pipeline': { _value: true }, 'custom-pipeline-post-process': { _value: false },
+    'gfx-webgpu': { _value: false }, 'legacy-pipeline': { _value: false }, 'meshopt': { _value: false },
+    'physics-2d-box2d-jsb': { _value: false },
+    'physics-2d-box2d-wasm': { _value: false, _flags: { LOAD_BOX2D_MANUALLY: false } },
+    'procedural-animation': { _value: false }, 'sorting-2d': { _value: false },
+    'spine-3.8': { _value: cache.spine._value, _flags: { LOAD_SPINE_MANUALLY: false } },
+    'spine-4.2': { _value: false, _flags: { LOAD_SPINE_MANUALLY: false } },
+    'ui-skew': { _value: false }, 'vendor-google': { _value: false }
+  };
+  if (Object.keys(additions).some(key => Object.hasOwn(cache, key))
+      || Object.hasOwn(cache['physics-ammo'], '_flags') || Object.hasOwn(cache['physics-physx'], '_flags')
+      || Object.hasOwn(cache['render-pipeline'], '_value')) {
+    throw new Error('ERR_WECHAT_ENGINE_NORMALIZATION_MISMATCH');
+  }
+  Object.assign(cache, additions);
+  cache['physics-ammo']._flags = { LOAD_BULLET_MANUALLY: false };
+  cache['physics-physx']._flags = { LOAD_PHYSX_MANUALLY: false };
+  cache['render-pipeline']._value = true;
+  config.includeModules.sort();
+  expected.__version__ = '1.0.12';
+  if (!isDeepStrictEqual(actual, expected)) throw new Error('ERR_WECHAT_ENGINE_NORMALIZATION_MISMATCH');
 }

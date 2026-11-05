@@ -332,7 +332,9 @@ active Stage1A追踪连接cocos-wechat-probe/tools/tests，准备与运行任务
 
 trace.cocos.wechat-m1扩展sourceRefs至RuntimeSchemaValidator、Stage1ABootstrap和precompiledSchemas编译器，testRefs包含原test.stage1a-bootstrap。新增runtime-precompiled-schema测试进入该任务实际args/files；moduleRefs包含game-core和creator-adapter。
 
-正式Schema构建期预编译仅用于微信M1的动态编译兼容：微信prepare使用当前锁定Ajv standalone，沿既有strict=false、allErrors=true、allowUnionTypes=true校验选项编译全部58项正式Schema，并生成安全ESM导出及明确ID映射。不改正式Schema或业务校验语义，不新增依赖，不猴补Function/eval或使用恒true替代校验器；其他AOT仍不在当前范围。
+正式Schema构建期预编译最初用于微信M1的动态编译兼容：微信prepare使用当前锁定Ajv standalone，沿既有strict=false、allErrors=true、allowUnionTypes=true校验选项编译全部58项正式Schema，并生成安全ESM导出及明确ID映射。不改正式Schema或业务校验语义，不新增依赖，不猴补Function/eval或使用恒true替代校验器；其他AOT仍不在当前范围。
+
+M2包体修复在微信预编译增加loopRequired=1并保留inlineRefs默认值；M1历史生成未使用该参数。tests/cocos-wechat-schema-optimization.test.mjs由现有test.cocos-wechat-runtime实际执行并登记full/blocker，比较58项Schema的动态与standalone校验结果及完整errors，并校验来源拒绝路径；微信debug=false与engine模板精简由preparation契约覆盖。受控测试不代表真实构建或设备验收。
 
 tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / registry test.stage1a-bootstrap实际args/files/covers，沿用full/blocker，不新增任务或降低门禁。该测试覆盖禁用动态Function后的正式启动/合法动作及坏请求、集合/内容拒绝；微信preparation契约覆盖实际facade、全部Schema、来源与生成物篡改，资源预检标记为node-aot-public-bootstrap-passed。Web旧resourcePreflight和默认动态路径保持。Node不替代新提交的Creator/SDK、微信真实输入/日志/重载、Web回归或审查/CI。
 
