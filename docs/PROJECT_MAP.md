@@ -1,4 +1,4 @@
-﻿# PROJECT_MAP — v0.0.2.46
+﻿# PROJECT_MAP — v0.0.3.0
 
 项目分级地图导航入口。
 
@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.46：**Touch Interaction & Small-screen Readiness**。trace.cocos.touch-small-screen连接outer纯ProbeLayout、Cocos原生ScrollView/Mask、视觉视口同步及独立真实触摸验收；现有五页和全部29条旧追踪保留。业务core、Session/Queue、SaveFile与正式资源不改，不扩Stage1B或微信，不从电脑模拟推定手机适配。
+v0.0.3.0：**WeChat Stage1A Pilot**。本轮唯一目标是v0.0.3.0内的M2候选：在M1独立微信outer上接入手动单槽存读档及前后台会话保护。运行身份仍来自当前包的只读candidate_id和短commit；正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；M3完整经营和M4手机验收尚未完成，大版本名称不表示试水已完成。现有Web全部追踪和经营/恢复/触摸支持保留。
 
 ## 3. 权威边界
 
@@ -25,6 +25,8 @@ v0.0.2.46：**Touch Interaction & Small-screen Readiness**。trace.cocos.touch-s
 | `src/game-core/` | 核心逻辑，ActionPipeline 唯一正式状态入口 |
 | `src/cocos-app/` | Cocos 应用适配，Session / ViewModel |
 | `src/cocos-creator-adapter/` | engine-neutral 探针，非真实 Cocos 工程 |
+| `apps/cocos-wechat-probe/` | 独立微信outer，候选身份、正式推进与M2手动存读档 |
+| `tools/cocos-wechat-probe/` | 微信派生准备、来源核验与独立构建，归属tools |
 | `apps/cocos-probe/` | 真实Creator Web外层源模板，独立模块 |
 | `tools/cocos-probe/` | 仓库外工程准备与真实构建入口 |
 | `tools/quality/` | 质量门禁与 affected 策略 |
@@ -76,3 +78,7 @@ trace.cocos.cross-step-recovery连接save-load/app/creator/engine四张模块卡
 ## 触摸与小屏导航
 
 trace.cocos.touch-small-screen连接既有cocos-engine-probe/tools/tests模块，不新增模块或反向依赖。ProbeLayout与原生滚动/resize由engine模块卡及cocos-map导航，Node登记由quality-map导航，公开类型与函数见public-api索引。原29条追踪及全部既有经营/恢复回归保留。
+
+## 微信M1追踪与边界
+
+trace.cocos.wechat-m1连接cocos-wechat-probe模块卡、ADR-0005、cocos/runtime/quality地图与files/public-api索引。新增preparation/runtime任务为full/blocker，旧模块与全部追踪保持。M2增加微信存储和生命周期外层；完整经营与手机为M3/M4，尚未完成，不激活Stage1B planned条目。

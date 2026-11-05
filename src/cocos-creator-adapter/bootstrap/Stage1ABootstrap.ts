@@ -2,6 +2,7 @@ import {
   ConfigRepository,
   RuntimeContractValidator,
   RuntimeSchemaValidator,
+  type PrecompiledSchemaValidatorSet,
   type RuntimeConfigSnapshot,
   type SaveStoragePort
 } from '../../game-core';
@@ -13,13 +14,14 @@ export interface Stage1ABootstrapResources {
   storage: SaveStoragePort;
   buildId: string;
   nowIso8601: string;
+  precompiledValidators?: PrecompiledSchemaValidatorSet;
 }
 
 // The returned host already owns a validated session; do not call Probe.onLoad on it.
 export function createStage1AHost(input: Stage1ABootstrapResources): CocosSessionHost {
   assertInput(input);
   const schemaIds = assertSchemaResources(input.snapshot.schema_paths, input.schemas);
-  const schemas = RuntimeSchemaValidator.fromSnapshotSchemas(input.schemas);
+  const schemas = RuntimeSchemaValidator.fromSnapshotSchemas(input.schemas, input.precompiledValidators);
   schemas.assertSchemasAvailable(schemaIds);
   const contracts = new RuntimeContractValidator(schemas);
   contracts.assertReady();

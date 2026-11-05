@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.2.46
+﻿# Code Index — Public API — v0.0.3.0
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -36,10 +36,10 @@
 
 已有启动装配与资源就绪能力继续作为公共边界。
 
-- `Stage1ABootstrapResources`：外部已解析的`snapshot`、`schemas`、`storage`及明确的`buildId`、`nowIso8601`。
+- `Stage1ABootstrapResources`：外部已解析的`snapshot`、`schemas`、`storage`及明确的`buildId`、`nowIso8601`，以及可选`precompiledValidators`。
 - `createStage1AHost(input): CocosSessionHost`（`src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts`）：资源与契约就绪、新局校验成功后才返回已创建Session的Host；失败抛错，不进行存储读写或正式Action。
 - 导出：bootstrap子目录及`src/cocos-creator-adapter/index.ts`。
-- `RuntimeSchemaValidator.assertSchemasAvailable(ids)`：真实编译指定Schema及引用闭包。
+- `RuntimeSchemaValidator.assertSchemasAvailable(ids)`：默认真实编译指定Schema及引用闭包；显式预编译模式确认已绑定的同步校验函数可用，不回退动态编译。
 - `RuntimeContractValidator.assertReady()`：由既有契约校验器集中维护的必需Schema映射检查操作契约就绪。
 - 成功Host通过`requireSession()`或现有UI Shell/Queue使用，以`destroySession()`结束；不得再调用Probe.onLoad创建同一会话。
 - 追踪：`trace.runtime.bootstrap-resources`；本地`test:stage1a-bootstrap` / registry `test.stage1a-bootstrap`。
@@ -198,3 +198,35 @@ outer的ProbeLayout.ts导出ProbePanelName、ProbeLayoutRect、ProbeLayoutPlan�
 tools/cocos-probe/verify-web.mjs另导出工具函数touchLoop，供仓库外开发脚本复用同一原生触摸场景定位问题；它不是玩家API、observer setter或独立验收权威。开发subset结果必须标明来源和范围，不能当最终全回归。正式verifyWebProbe仍无条件执行全部既有鼠标/键盘/经营/恢复链和触摸场景，没有CLI skip选项。
 
 tools/cocos-probe/lib/webProbeSupport.mjs实际导出NATIVE_CANCEL_DIAGNOSTIC和assertTouchBrowserDiagnostics(logs, touch)。它们只核受控touch-native-cancel的精确一次原生诊断、trusted/cancelable=false、取消保护及保存/推进/读取恢复；同全文出现在其他case或伪标missing-resource也拒绝。保留原始console，正常链error及全部pageerror仍为零，不提供一般错误忽略或运行态业务API。
+
+## 微信M1外层与工具入口
+
+- WechatProbeController/readCandidateIdentity属于apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts，身份只读，不是核心新API。
+- prepareWechatProbe({rootDir?, outputDir, appId})位于tools/cocos-wechat-probe/prepare.mjs；CLI为cocos:prepare:wechat -- --output ABS_EMPTY_DIRECTORY --app-id PROJECT_APP_ID。
+- buildWechatProbe({creator, project, logDir})位于tools/cocos-wechat-probe/build.mjs；CLI为cocos:build:wechat，rootDir仅受控fixture可传，不是CLI参数。
+- tools/cocos-probe/lib/prepareProject.mjs固定内部web/wechat profile，旧Web wrapper签名、角色、manifest和CLI兼容；不公开自选runtime/template/role扩展口。
+- candidate-identity.json由prepare生成，schema为wechat-candidate/v1，记录candidate_id、source_commit、short_commit、version和build_id；与SaveFile隔离。最终产物摘要及范围仅在包外。
+
+test:cocos-wechat-preparation / test.cocos-wechat-preparation实际执行tests/cocos-wechat-preparation.test.mjs；test:cocos-wechat-runtime / test.cocos-wechat-runtime实际执行tests/cocos-wechat-runtime.test.ts，均为full/blocker。trace.cocos.wechat-m1连接新outer、共享生产者、微信构建、候选身份、架构负例和质量登记。Node只能证明受控准备/行为契约；真实Creator3.8.8/SDK、官方微信工具场景/输入/日志/重载、受影响Web回归和最终提交CI各自验收。旧全部追踪、权威架构禁令和Web功能/来源检查保留，不以修改阈值、预期、CI或affected算法通过门禁。
+
+## 显式预编译Schema接口
+
+RuntimeSchemaValidator支持显式PrecompiledSchemaValidatorSet：format为runtime-precompiled-schemas/v1，schemaSources在源侧按完整资源路径保留JSON.stringify(schema)原JSON绑定，validators按正式$id记录ValidateFunction。运行期将源JSON解析后与实际Schema作完整JSON语义规范化比较，仅允许Creator的对象键重排；字段集合、数组次序和全部嵌套值必须一致，不忽略未知字段、数组或数值变化，坏JSON和非JSON内容拒绝。原始Schema、预编译生成物和工具/产物的字节SHA来源仍严格，不因运行期对象键规范化而放宽。Stage1ABootstrapResources的可选precompiledValidators字段透明转交该集合。显式提供集合时不创建Ajv、不回退动态编译；完整路径/ID/内容不匹配、重复或无$id、无效/异步函数及非布尔结果均拒绝。未提供时Node/Web维持原Ajv路径。核心仍不接cc/wx/fs、工具或资源读取。
+
+微信compileWechatSchemas位于tools/cocos-wechat-probe/lib/precompiledSchemas.mjs，在唯一prepare生产链冻结outputs前生成wechat-precompiled-validators.mjs、wechat-schema-precompile.json及wechat-runtime-entry.mjs。前两者记录安全schema_NNN导出/ID映射、完整Schema内容、编译器版本与选项、实际CommonJS编译器依赖闭包及生成摘要；Node编译器依赖通过Ajv入口的require.cache闭包记录，不能冒称由esbuild运行bundle的metafile捕获。facade显式注入precompiledValidators后再打包到assets/generated/probe-runtime.js，Cocos不直接导入额外standalone文件。核心的绑定检查不以自声明元数据证明函数可信；真实Ajv生成代码及工具/源/依赖字节由prepare和构建来源记录约束。
+
+tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / registry test.stage1a-bootstrap实际args/files/covers，沿用full/blocker，不新增任务或降低门禁。该测试覆盖禁用动态Function后的正式启动/合法动作及坏请求、集合/内容拒绝；微信preparation契约覆盖实际facade、全部Schema、来源与生成物篡改，资源预检标记为node-aot-public-bootstrap-passed。Web旧resourcePreflight和默认动态路径保持。Node不替代新提交的Creator/SDK、微信真实输入/日志/重载、Web回归或审查/CI。
+
+## 微信目标DTO复制辅助
+
+`structuredClone<T>(value: T, options?: unknown): T`位于apps/cocos-wechat-probe/runtime/WechatDataClone.ts，供固定wechat profile的esbuild inject使用，不是game-core新API。
+
+WechatDataClone.ts提供微信目标内的纯DTO复制适配，导出structuredClone供wechat profile的esbuild inject局部绑定runtime中的标准自由标识符。不修改globalThis或Cocos引擎，不在src中新增指向apps的源import，也不改变默认Node/Web路径；它不是通用Web API polyfill。支持数组、普通对象/空原型DTO输入及原始值，保留undefined、数组空位、共享引用/别名、循环和特殊属性键；非DTO对象、函数、Symbol与options（包括transfer）明确DataCloneError拒绝，不用JSON往返静默丢失数据。
+
+源位于apps/cocos-wechat-probe/runtime/WechatDataClone.ts，仍由新outer已有module roots和authoritative .ts规则扫描；无cc/wx/fs依赖。helper经prepare实际onLoad进入manifest.inputs，并由sourceProvenance要求存在，源与依赖/生成物字节校验不放宽。微信facade受控预检同时禁用动态Function并移除原生structuredClone，正式启动/动作/坏请求仍须经过公共运行时；这不能替代最终候选的Creator/微信真实输入或手机验收。
+
+## 微信M2外层入口
+
+- `WechatSaveStoragePort`位于`apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts`，提供单逻辑槽存取与外层恢复保护，不是game-core新增平台API。
+- `createWechatPriorSaveValidator`位于`apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts`，通过独立Host校验序列化存档，不提供存储写入。
+- `WechatProbeController`通过既有公开Binding提供手动存读档与前后台输入保护，candidate_id继续来自运行包。

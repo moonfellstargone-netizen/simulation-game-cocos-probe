@@ -1,6 +1,6 @@
 {
-  "version": "v0.0.2.46",
-  "description": "Architecture boundaries retain all engine-neutral restrictions and add an authoritative outer Creator module boundary for the Web probe.",
+  "version": "v0.0.3.0",
+  "description": "Retain all engine-neutral and Web restrictions; register the independent WeChat M1 outer with public runtime only and no wx/fs.",
   "ruleTypes": [
     "importBoundaries",
     "tokenBoundaries",
@@ -24,7 +24,8 @@
           "wx",
           "node:fs",
           "fs",
-          "apps/cocos-probe/"
+          "apps/cocos-probe/",
+          "apps/cocos-wechat-probe/"
         ],
         "severity": "error",
         "description": "game-core 必须独立于 Cocos、微信、Node 文件系统、表现层和平台层。",
@@ -43,7 +44,8 @@
           "src/game-core/dev-api",
           "src/game-core/testing-api",
           "tools/",
-          "apps/cocos-probe/"
+          "apps/cocos-probe/",
+          "apps/cocos-wechat-probe/"
         ],
         "severity": "error",
         "description": "cocos-app 不得依赖 game-core dev/testing API 或工具层。",
@@ -65,7 +67,8 @@
           "fs",
           "src/game-core/dev-api",
           "src/game-core/testing-api",
-          "apps/cocos-probe/"
+          "apps/cocos-probe/",
+          "apps/cocos-wechat-probe/"
         ],
         "severity": "error",
         "description": "cocos-creator-adapter 当前仍是 TypeScript probe，不得直接接入真实 cc、wx、fs、dev-api 或 testing-api。",
@@ -93,6 +96,31 @@
         ],
         "severity": "error",
         "description": "真实cc仅属于outer；通过派生公共runtime访问会话，不导入核心内部、测试、工具、wx或fs。浏览器Storage只由outer Port适配，不进入旧三层。",
+        "mode": "authoritative"
+      },
+      {
+        "id": "cocos-wechat-probe-public-runtime-only",
+        "owner": "cocos-wechat-probe",
+        "roots": [
+          "apps/cocos-wechat-probe/**"
+        ],
+        "includeExtensions": [
+          ".ts",
+          ".js"
+        ],
+        "forbiddenImports": [
+          "wx",
+          "fs",
+          "node:fs",
+          "tests/",
+          "tools/",
+          "src/game-core/",
+          "src/cocos-app/",
+          "src/cocos-creator-adapter/",
+          "apps/cocos-probe/"
+        ],
+        "severity": "error",
+        "description": "微信M1真实cc只属于独立outer；仅使用派生公共runtime，不直接接wx/fs、业务内部、测试、工具或Web外层。",
         "mode": "authoritative"
       }
     ],
@@ -258,6 +286,36 @@
         },
         "severity": "error",
         "description": "真实Creator外层也不得通过wx全局接入微信平台API。",
+        "mode": "authoritative",
+        "includeFiles": [
+          "**/*.ts",
+          "**/*.js"
+        ],
+        "excludeFiles": [
+          "**/*.d.ts"
+        ]
+      },
+      {
+        "id": "cocos-wechat-probe-no-wx-global",
+        "owner": "cocos-wechat-probe",
+        "roots": [
+          "apps/cocos-wechat-probe/**"
+        ],
+        "includeExtensions": [
+          ".ts",
+          ".js"
+        ],
+        "forbiddenTokens": [
+          "wx"
+        ],
+        "allowedPhrases": [],
+        "ignore": {
+          "lineComments": true,
+          "blockComments": true,
+          "stringLiterals": true
+        },
+        "severity": "error",
+        "description": "M1不接微信存储或生命周期API，禁止直接wx全局；Creator平台适配不进入源模板。",
         "mode": "authoritative",
         "includeFiles": [
           "**/*.ts",
