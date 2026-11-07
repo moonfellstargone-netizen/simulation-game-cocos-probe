@@ -356,7 +356,7 @@ export class WechatProbeController {
             ? current.snapshot?.menu?.last_action_result?.success === true
             : actualCommand.name === 'save'
               ? current.snapshot?.save_load?.last_save_result?.slot_id === actualCommand.selection.slot_id
-              : current.snapshot?.save_load?.last_load_result?.slot_id === actualCommand.selection.slot_id;
+              : actualCommand.name === 'load' && current.snapshot?.save_load?.last_load_result?.slot_id === actualCommand.selection.slot_id;
         if (!this.disposed && (current.status !== 'completed' || !success)) {
           throw new Error(current.error_message ?? (actualCommand.name === 'menu_confirm'
             ? 'ERR_WECHAT_PROBE_ACTION_FAILED' : actualCommand.name === 'menu_preview'
