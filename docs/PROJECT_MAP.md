@@ -8,7 +8,7 @@
 
 ## 2. 当前阶段
 
-v0.0.3.0：**WeChat Stage1A Pilot**。本轮唯一目标是v0.0.3.0内的M2候选：在M1独立微信outer上接入手动单槽存读档及前后台会话保护。运行身份仍来自当前包的只读candidate_id和短commit；正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；M3完整经营和M4手机验收尚未完成，大版本名称不表示试水已完成。现有Web全部追踪和经营/恢复/触摸支持保留。
+v0.0.3.0：**WeChat Stage1A Pilot**。本轮唯一目标是v0.0.3.0内的M3种植与库存首包：基于M2候选，在微信outer接入地块和种子选择、播种、收获、库存浏览及整批转移；保留手动存读档和前后台保护。运行身份仍来自当前包的只读candidate_id和短commit；正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；M3完整经营和M4手机验收尚未完成，大版本名称不表示试水已完成。现有Web全部追踪和经营/恢复/触摸支持保留。
 
 ## 3. 权威边界
 

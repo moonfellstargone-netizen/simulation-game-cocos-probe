@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 独立微信追踪trace.cocos.wechat-m1覆盖M1基础及M2独立outer存储适配，保留31条/29个current追踪；M3—M4尚未完成。旧Web、业务核心、Session/Queue、SaveFile和正式资源保持；Node与真实平台证据分别记录。完整AST/symbol自动索引和Nightly仍不是当前实现。
+- 独立微信追踪trace.cocos.wechat-m1覆盖M1基础、M2独立outer存储适配及M3种植/库存首包，保留31条/29个current追踪；完整M3和M4尚未完成。旧Web、业务核心、Session/Queue、SaveFile和正式资源保持；Node与真实平台证据分别记录。完整AST/symbol自动索引和Nightly仍不是当前实现。
 
 ## 2. 状态语义
 
@@ -355,3 +355,9 @@ M2运行时改动集中于独立微信outer，并同步构建来源、测试和�
 备份与中断保护须同时考虑失败前后可能发生写入：备份、主档与恢复信息分开；读取、恢复和失败路径以源码及针对性测试为准，不能将异常等同于未落盘。故障保护依赖存储键相互独立和可读回一致的有限模型，真实微信断电、设备故障及底层原子性未证明。备份恢复不等于跨平台导入或自动存档。
 
 tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的args/files，相关源及meta也进入preparation/runtime登记和trace.cocos.wechat-m1。受控Node契约不替代真实Creator、官方微信工具输入/存储/生命周期、最终提交CI或手机验收；具体结果以仓库外证据为准。
+
+## M3种植与库存首包追踪
+
+trace.cocos.wechat-m1继续指向既有微信outer、控制器、test.cocos-wechat-runtime及test.cocos-wechat-preparation。种植和库存入口复用公开菜单与既有正式Action，存读档、候选身份、busy和前后台边界沿用M2；核心和正式设定不因界面接入改变。微信运行任务应实际执行新增场景测试，并保留既有Web经营与存储回归。
+
+tests/cocos-wechat-m3-ui.test.ts经既有test.cocos-wechat-runtime的args/files实际执行，使用受控cc和平台存储、真实outer/controller/Session/Binding/ActionPipeline，测试播种、时间推进、收获、库存浏览、整批转移、busy/后台及读档后失效选择重建。拆分、加工、烹饪和订单的微信界面仍为后续M3范围。Node受控测试、真实Creator构建、微信工具输入、Web回归、对应提交CI和手机验证分别留证，不以任务登记或旧提交结果替代实际执行。

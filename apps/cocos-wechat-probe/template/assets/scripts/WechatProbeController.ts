@@ -21,6 +21,47 @@ export interface WechatHost {
   requireSession(): { getViewModel(): { readonly time_label: string } };
 }
 
+export interface WechatQuantity { readonly amount: number; readonly unit: string }
+export interface WechatFieldOption { readonly id: string; readonly definition_id: string; readonly enabled: boolean; readonly occupied_tiles: number; readonly active_crop_count: number }
+export interface WechatMaterialOption {
+  readonly id: string; readonly enabled: boolean; readonly base_id: string; readonly current_form: string;
+  readonly quantity: WechatQuantity;
+  readonly storage_ref: { readonly location_id: string; readonly storage_type: string; readonly container_id: string };
+}
+export interface WechatCropOption { readonly id: string; readonly enabled: boolean; readonly crop_base_id: string; readonly field_plot_id: string }
+export interface WechatStorageOption {
+  readonly id: string; readonly enabled: boolean; readonly location_id: string; readonly storage_type: string;
+  readonly capacity: WechatQuantity; readonly used_capacity: number; readonly supported_forms: readonly string[];
+}
+export interface WechatMenuSnapshot {
+  readonly view_model: { readonly time_label: string } | null;
+  readonly selectable_view_model: {
+    readonly field_options: readonly WechatFieldOption[];
+    readonly seed_lot_options: readonly WechatMaterialOption[];
+    readonly harvestable_crop_options: readonly WechatCropOption[];
+    readonly splittable_lot_options: readonly WechatMaterialOption[];
+    readonly storage_target_options: readonly WechatStorageOption[];
+  } | null;
+}
+
+// Copy only the public fields needed by this screen. No platform clone API or SaveFile is used.
+function copyMenu(value: WechatMenuSnapshot): WechatMenuSnapshot {
+  const s = value.selectable_view_model;
+  const material = (item: WechatMaterialOption): WechatMaterialOption => ({ id: item.id, enabled: item.enabled,
+    base_id: item.base_id, current_form: item.current_form, quantity: { amount: item.quantity.amount, unit: item.quantity.unit },
+    storage_ref: { location_id: item.storage_ref.location_id, storage_type: item.storage_ref.storage_type, container_id: item.storage_ref.container_id } });
+  return { view_model: value.view_model ? { time_label: value.view_model.time_label } : null,
+    selectable_view_model: s ? {
+      field_options: s.field_options.map(item => ({ id: item.id, definition_id: item.definition_id, enabled: item.enabled, occupied_tiles: item.occupied_tiles, active_crop_count: item.active_crop_count })),
+      seed_lot_options: s.seed_lot_options.map(material),
+      harvestable_crop_options: s.harvestable_crop_options.map(item => ({ id: item.id, enabled: item.enabled, crop_base_id: item.crop_base_id, field_plot_id: item.field_plot_id })),
+      splittable_lot_options: s.splittable_lot_options.map(material),
+      storage_target_options: s.storage_target_options.map(item => ({ id: item.id, enabled: item.enabled, location_id: item.location_id,
+        storage_type: item.storage_type, capacity: { amount: item.capacity.amount, unit: item.capacity.unit }, used_capacity: item.used_capacity,
+        supported_forms: [...item.supported_forms] }))
+    } : null };
+}
+
 export interface WechatCommandResult {
   readonly command_result: {
     readonly status: string;
@@ -36,7 +77,10 @@ export interface WechatCommandResult {
 }
 
 export type WechatCommand =
-  | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'advance_time'; readonly minutes: 60 } }
+  | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'advance_time'; readonly minutes: 60 | 1440 } }
+  | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'plant_crop'; readonly field_option_id: string; readonly seed_lot_option_id: string; readonly seed_quantity: WechatQuantity } }
+  | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'harvest_crop'; readonly crop_option_id: string } }
+  | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'store_item'; readonly source_lot_option_id: string; readonly target_storage_option_id: string } }
   | { readonly name: 'save'; readonly selection: { readonly slot_id: string } }
   | { readonly name: 'load'; readonly selection: { readonly slot_id: string } };
 
@@ -56,6 +100,7 @@ export interface WechatProbeSnapshot {
   readonly accepted_commands: number;
   readonly completed_commands: number;
   readonly last_error: string | null;
+  readonly menu: WechatMenuSnapshot | null;
 }
 
 export function readCandidateIdentity(value: unknown): Readonly<CandidateIdentity> {
@@ -88,6 +133,7 @@ export class WechatProbeController {
   private accepted = 0;
   private completed = 0;
   private error: string | null = null;
+  private menu: WechatMenuSnapshot | null = null;
 
   constructor(private readonly options: {
     load: () => Promise<{ resources: WechatResources; identity: unknown }>;
@@ -104,7 +150,14 @@ export class WechatProbeController {
     return Object.freeze({ phase: this.phase, identity: this.identity, has_session: hasSession,
       time_label: hasSession ? this.host!.requireSession().getViewModel().time_label : null,
       busy: this.busy, visible: this.visible, accepted_commands: this.accepted, completed_commands: this.completed,
-      last_error: this.error });
+      last_error: this.error, menu: this.menu ? copyMenu(this.menu) : null });
+  }
+
+  acceptMenuPatch(value: unknown): void {
+    if (this.disposed) return;
+    if (!value || typeof value !== 'object') throw new Error('ERR_WECHAT_MENU_PATCH_INVALID');
+    this.menu = copyMenu(value as WechatMenuSnapshot);
+    this.notify();
   }
 
   start(): Promise<void> {
@@ -116,6 +169,23 @@ export class WechatProbeController {
 
   async advance(): Promise<WechatProbeSnapshot> {
     return this.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+  }
+
+  async advanceDay(): Promise<WechatProbeSnapshot> {
+    return this.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 1440 } });
+  }
+
+  async plant(fieldId: string, seedId: string, quantity: WechatQuantity): Promise<WechatProbeSnapshot> {
+    return this.execute({ name: 'menu_confirm', selection: { action_type: 'plant_crop', field_option_id: fieldId,
+      seed_lot_option_id: seedId, seed_quantity: { amount: quantity.amount, unit: quantity.unit } } });
+  }
+
+  async harvest(cropId: string): Promise<WechatProbeSnapshot> {
+    return this.execute({ name: 'menu_confirm', selection: { action_type: 'harvest_crop', crop_option_id: cropId } });
+  }
+
+  async move(lotId: string, targetId: string): Promise<WechatProbeSnapshot> {
+    return this.execute({ name: 'menu_confirm', selection: { action_type: 'store_item', source_lot_option_id: lotId, target_storage_option_id: targetId } });
   }
 
   async save(): Promise<WechatProbeSnapshot> {
@@ -212,6 +282,7 @@ export class WechatProbeController {
   dispose(): Promise<void> {
     if (this.closing !== null) return this.closing;
     this.disposed = true;
+    this.menu = null;
     this.phase = 'closed';
     this.busy = false;
     const binding = this.binding;

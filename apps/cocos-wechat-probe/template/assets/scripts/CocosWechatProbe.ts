@@ -6,6 +6,28 @@ import { WECHAT_BACKUP_SLOT_ID, WECHAT_SAVE_SLOT_ID, WechatSaveStoragePort } fro
 import { createWechatPriorSaveValidator } from './WechatPriorSaveValidator';
 
 const { ccclass } = _decorator;
+const UNITS: Record<string, string> = { count: '粒', g: '克', ml: '毫升', bundle: '捆', serving: '份' };
+const STORAGE: Record<string, string> = { room_temp: '常温储存', cellar: '菜窖' };
+const FORMS: Record<string, string> = { fresh: '鲜材', cut: '切好', cured: '腌腊', pickled: '腌菜' };
+
+// Display names come from the formal resource snapshot, never from SaveFile.
+function presentationNames(resources: WechatResources): Record<string, string> {
+  const docs = (resources.snapshot as { loaded_documents?: Record<string, unknown> }).loaded_documents ?? {};
+  const text = docs['configs/text/zh_cn.yaml'] as Record<string, unknown> | undefined;
+  const names: Record<string, string> = {};
+  for (const value of Object.values(docs)) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+    const doc = value as { id?: unknown; display_name_key?: unknown; forms?: Record<string, { display_name_key?: string }>; field_plot_definitions?: Record<string, { display_name_key?: string }> };
+    if (typeof doc.id === 'string' && typeof doc.display_name_key === 'string' && typeof text?.[doc.display_name_key] === 'string') names[doc.id] = text[doc.display_name_key] as string;
+    for (const [id, field] of Object.entries(doc.field_plot_definitions ?? {})) {
+      if (field.display_name_key && typeof text?.[field.display_name_key] === 'string') names[id] = text[field.display_name_key] as string;
+    }
+    if (typeof doc.id === 'string') for (const [form, definition] of Object.entries(doc.forms ?? {})) {
+      if (definition.display_name_key && typeof text?.[definition.display_name_key] === 'string') names[`${doc.id}:${form}`] = text[definition.display_name_key] as string;
+    }
+  }
+  return names;
+}
 
 @ccclass('CocosWechatProbe')
 export class CocosWechatProbe extends Component {
@@ -19,6 +41,18 @@ export class CocosWechatProbe extends Component {
   private confirmCancelFirst = false;
   private lastCommandWasRead = false;
   private clickCount = 0;
+  private names: Record<string, string> = {};
+  private page: 'farm' | 'stock' = 'farm';
+  private farmNode: Node | null = null;
+  private stockNode: Node | null = null;
+  private menuButtons: Record<string, Button> = {};
+  private menuHandlers: Record<string, () => void> = {};
+  private fieldId: string | null = null;
+  private seedId: string | null = null;
+  private cropId: string | null = null;
+  private lotId: string | null = null;
+  private targetId: string | null = null;
+  private seedAmount = 1;
 
   onLoad(): void {
     this.createView();
@@ -27,6 +61,7 @@ export class CocosWechatProbe extends Component {
     this.controller = new WechatProbeController({
       load: async () => {
         const [loadedResources, identity] = await Promise.all([this.loadJson('probe-resources'), this.loadJson('candidate-identity')]);
+        this.names = presentationNames(loadedResources as WechatResources);
         return { resources: loadedResources as WechatResources, identity };
       },
       createHost: input => {
@@ -40,7 +75,9 @@ export class CocosWechatProbe extends Component {
         }, validateSaved);
         return createStage1AHost({ ...input, storage, nowIso8601: new Date().toISOString() });
       },
-      createBinding: host => new QinglanUiSceneProbeComponent(host, { applyNodeBindingPatch: () => {} }),
+      createBinding: host => new QinglanUiSceneProbeComponent(host, { applyNodeBindingPatch: patch => {
+        if (patch.section === 'menu') this.controller?.acceptMenuPatch(patch.payload);
+      } }),
       prepareBackupRecovery: async () => {
         if (!storage || !validateSaved) throw new Error('ERR_WECHAT_STORAGE_UNAVAILABLE');
         await storage.assertBackupRecoveryAvailable();
@@ -64,6 +101,11 @@ export class CocosWechatProbe extends Component {
     this.loadButton!.node.on(Button.EventType.CLICK, this.onRead, this);
     this.backupButton!.node.on(Button.EventType.CLICK, this.onReadBackup, this);
     this.cancelFirstButton!.node.on(Button.EventType.CLICK, this.onCancelFirst, this);
+    for (const [name, button] of Object.entries(this.menuButtons)) {
+      const handler = this.menuHandler(name);
+      this.menuHandlers[name] = handler;
+      button.node.on(Button.EventType.CLICK, handler, this);
+    }
     game.on(Game.EVENT_HIDE, this.onHide, this);
     game.on(Game.EVENT_SHOW, this.onShow, this);
     console.info('[wechat-m1] viewport', JSON.stringify({ visible: view.getVisibleSize(), window: screen.windowSize,
@@ -77,6 +119,7 @@ export class CocosWechatProbe extends Component {
     if (this.loadButton && isValid(this.loadButton.node, true)) this.loadButton.node.off(Button.EventType.CLICK, this.onRead, this);
     if (this.backupButton && isValid(this.backupButton.node, true)) this.backupButton.node.off(Button.EventType.CLICK, this.onReadBackup, this);
     if (this.cancelFirstButton && isValid(this.cancelFirstButton.node, true)) this.cancelFirstButton.node.off(Button.EventType.CLICK, this.onCancelFirst, this);
+    for (const [name, button] of Object.entries(this.menuButtons)) if (isValid(button.node, true)) button.node.off(Button.EventType.CLICK, this.menuHandlers[name], this);
     game.off(Game.EVENT_HIDE, this.onHide, this);
     game.off(Game.EVENT_SHOW, this.onShow, this);
     void this.controller?.dispose().catch(error => console.error('[wechat-m1] close-failed', String(error)));
@@ -122,6 +165,86 @@ export class CocosWechatProbe extends Component {
   private onHide(): void { this.resetCancelConfirmation(); this.controller?.setVisible(false); }
   private onShow(): void { this.controller?.setVisible(true); }
 
+  private menuHandler(name: string): () => void {
+    return () => {
+      const state = this.controller?.snapshot();
+      if (!state || state.phase !== 'ready' || state.busy || !state.visible) return;
+      this.resetCancelConfirmation();
+      const options = state.menu?.selectable_view_model;
+      if (name === 'PageFarm') this.page = 'farm';
+      else if (name === 'PageStock') this.page = 'stock';
+      else if (name === 'FarmField') this.fieldId = this.next(options?.field_options.filter(x => x.enabled) ?? [], this.fieldId);
+      else if (name === 'FarmSeed') { this.seedId = this.next(options?.seed_lot_options.filter(x => x.enabled) ?? [], this.seedId); this.seedAmount = 1; }
+      else if (name === 'FarmCrop') this.cropId = this.next(options?.harvestable_crop_options.filter(x => x.enabled) ?? [], this.cropId);
+      else if (name === 'FarmMinus' && this.seedId !== null) this.seedAmount = Math.max(1, this.seedAmount - 1);
+      else if (name === 'FarmPlus' && this.seedId !== null && Number.isSafeInteger(this.seedAmount + 1)) this.seedAmount++;
+      else if (name === 'StockLot') this.lotId = this.next(options?.splittable_lot_options ?? [], this.lotId);
+      else if (name === 'StockTarget') this.targetId = this.next(options?.storage_target_options ?? [], this.targetId);
+      else {
+        const seed = options?.seed_lot_options.find(x => x.id === this.seedId && x.enabled);
+        const field = options?.field_options.find(x => x.id === this.fieldId && x.enabled);
+        const crop = options?.harvestable_crop_options.find(x => x.id === this.cropId && x.enabled);
+        const lot = options?.splittable_lot_options.find(x => x.id === this.lotId && x.enabled);
+        const target = options?.storage_target_options.find(x => x.id === this.targetId && x.enabled);
+        let action: Promise<WechatProbeSnapshot> | null = null;
+        let done = '';
+        if (name === 'AdvanceDay') { action = this.controller!.advanceDay(); done = '已推进一天'; }
+        else if (name === 'FarmPlant' && field && seed) { action = this.controller!.plant(field.id, seed.id, { amount: this.seedAmount, unit: seed.quantity.unit }); done = '播种完成'; }
+        else if (name === 'FarmHarvest' && crop) { action = this.controller!.harvest(crop.id); done = '收获完成'; }
+        else if (name === 'StockMove' && lot && target && target.id !== lot.storage_ref.container_id) { action = this.controller!.move(lot.id, target.id); done = '转移完成'; }
+        if (action) {
+          this.lastCommandWasRead = false;
+          void action.then(() => { if (isValid(this.node, true) && this.controller?.snapshot().phase === 'ready') this.labels.hint.string = done; })
+            .catch(error => { if (isValid(this.node, true)) this.labels.hint.string = '操作未完成，请核对选择'; console.error('[wechat-m3] action-failed', String(error)); });
+        }
+      }
+      this.renderMenu(this.controller!.snapshot());
+    };
+  }
+
+  private next(options: readonly { readonly id: string }[], selected: string | null): string | null {
+    if (!options.length) return null;
+    return options[(options.findIndex(item => item.id === selected) + 1) % options.length].id;
+  }
+
+  private renderMenu(state: WechatProbeSnapshot): void {
+    if (!this.farmNode || !this.stockNode) return;
+    const options = state.menu?.selectable_view_model;
+    const fields = options?.field_options ?? [];
+    const seeds = options?.seed_lot_options ?? [];
+    const crops = options?.harvestable_crop_options ?? [];
+    const lots = options?.splittable_lot_options ?? [];
+    const targets = options?.storage_target_options ?? [];
+    if (!fields.some(x => x.id === this.fieldId && x.enabled)) this.fieldId = null;
+    if (!seeds.some(x => x.id === this.seedId && x.enabled)) { this.seedId = null; this.seedAmount = 1; }
+    if (!crops.some(x => x.id === this.cropId && x.enabled)) this.cropId = null;
+    if (!lots.some(x => x.id === this.lotId)) this.lotId = null;
+    if (!targets.some(x => x.id === this.targetId)) this.targetId = null;
+    const field = fields.find(x => x.id === this.fieldId);
+    const seed = seeds.find(x => x.id === this.seedId);
+    const crop = crops.find(x => x.id === this.cropId);
+    const lot = lots.find(x => x.id === this.lotId);
+    const target = targets.find(x => x.id === this.targetId);
+    const unit = (value: string) => UNITS[value] ?? value;
+    const place = (value: string) => STORAGE[value] ?? value;
+    this.farmNode.active = this.page === 'farm';
+    this.stockNode.active = this.page === 'stock';
+    this.labels.farmField.string = field ? `地块${fields.findIndex(x => x.id === field.id) + 1}/${fields.length}：${this.names[field.definition_id] ?? '已选地块'} · 可用${fields.filter(x => x.enabled).length}` : `地块：请选择（可用${fields.filter(x => x.enabled).length}/${fields.length}）`;
+    this.labels.farmSeed.string = seed ? `种子${seeds.findIndex(x => x.id === seed.id) + 1}/${seeds.length}：${this.names[seed.base_id] ?? '种子批次'} · 现有${seed.quantity.amount}${unit(seed.quantity.unit)} · 播种${this.seedAmount}${unit(seed.quantity.unit)}` : '种子：请选择种子批次';
+    this.labels.farmCrop.string = crop ? `作物${crops.findIndex(x => x.id === crop.id) + 1}/${crops.length}：${this.names[crop.crop_base_id] ?? '已选作物'} · 可收获${crops.filter(x => x.enabled).length}株` : `作物：可收获${crops.filter(x => x.enabled).length}株`;
+    this.labels.stockLot.string = lot ? `批次${lots.findIndex(x => x.id === lot.id) + 1}/${lots.length}：${this.names[lot.base_id] ?? '材料'} ${lot.quantity.amount}${unit(lot.quantity.unit)} · ${place(lot.storage_ref.storage_type)}${lot.enabled ? '' : ' · 不可用'}` : `库存：${lots.length}批，请选择材料`;
+    this.labels.stockTarget.string = target ? `目标${targets.findIndex(x => x.id === target.id) + 1}/${targets.length}：${place(target.storage_type)} · 已用${target.used_capacity}/${target.capacity.amount}${unit(target.capacity.unit)}${target.enabled ? '' : ' · 不可用'}` : `目标：${targets.length}处，请选择储存位置`;
+    this.labels.stockHelp.string = lot ? `形态：${this.names[`${lot.base_id}:${lot.current_form}`] ?? FORMS[lot.current_form] ?? lot.current_form} · 目标支持：${target?.supported_forms.map(form => FORMS[form] ?? form).join('/') || '未列出'} · 整批转移` : '选择材料批次与目标后可整批转移';
+    const enabled = state.phase === 'ready' && state.visible && !state.busy;
+    const set = (name: string, value: boolean) => { const button = this.menuButtons[name]; if (button && isValid(button.node, true)) button.interactable = enabled && value; };
+    set('PageFarm', true); set('PageStock', true); set('AdvanceDay', true);
+    set('FarmField', fields.some(x => x.enabled)); set('FarmSeed', seeds.some(x => x.enabled)); set('FarmCrop', crops.some(x => x.enabled));
+    set('FarmMinus', !!seed && this.seedAmount > 1); set('FarmPlus', !!seed && Number.isSafeInteger(this.seedAmount + 1));
+    set('FarmPlant', !!field && !!seed); set('FarmHarvest', !!crop);
+    set('StockLot', lots.length > 0); set('StockTarget', targets.length > 0);
+    set('StockMove', !!lot?.enabled && !!target?.enabled && target.id !== lot.storage_ref.container_id);
+  }
+
   private render(state: WechatProbeSnapshot): void {
     if (!isValid(this.node, true)) return;
     const identity = state.identity;
@@ -136,7 +259,9 @@ export class CocosWechatProbe extends Component {
     for (const button of [this.button, this.saveButton, this.loadButton, this.backupButton, this.cancelFirstButton]) {
       if (button && isValid(button, true)) button.interactable = state.phase === 'ready' && !state.busy && state.visible;
     }
-    console.info('[wechat-m1] state', JSON.stringify({ ...state, click_count: this.clickCount }));
+    this.renderMenu(state);
+    const { menu: _menu, ...diagnostics } = state;
+    console.info('[wechat-m1] state', JSON.stringify({ ...diagnostics, click_count: this.clickCount }));
   }
 
   private loadJson(name: string): Promise<unknown> {
@@ -180,30 +305,57 @@ export class CocosWechatProbe extends Component {
     camera.clearColor = new Color(22, 31, 42, 255);
     canvas.cameraComponent = camera;
     canvas.alignCanvasWithScreen = true;
-    this.label(root, 'title', '青岚 · 微信运行试水', 205, 30);
-    this.labels.commit = this.label(root, 'commit', '读取运行包身份', 146, 23);
-    this.labels.candidate = this.label(root, 'candidate', 'candidate_id: 加载中', 102, 22);
-    this.labels.time = this.label(root, 'time', '等待正式资源启动', 28, 30);
-    this.labels.status = this.label(root, 'status', '状态: idle', -27, 21);
-    const buttonNode = new Node('AdvanceOneHour');
-    buttonNode.layer = Layers.Enum.UI_2D;
-    root.addChild(buttonNode);
-    buttonNode.setPosition(0, -82, 0);
-    buttonNode.addComponent(UITransform).setContentSize(360, 72);
-    const graphics = buttonNode.addComponent(Graphics);
-    graphics.fillColor = new Color(62, 118, 125, 255);
-    graphics.roundRect(-180, -36, 360, 72, 10);
-    graphics.fill();
-    this.button = buttonNode.addComponent(Button);
-    this.button.transition = Button.Transition.NONE;
-    this.button.interactable = false;
-    this.label(buttonNode, 'caption', '推进一小时', 0, 26).node.getComponent(UITransform)!.setContentSize(350, 70);
-    this.saveButton = this.smallButton(root, 'Save', '保存', -300, -150);
-    this.loadButton = this.smallButton(root, 'Load', '读取', -100, -150);
-    this.backupButton = this.smallButton(root, 'LoadBackup', '恢复备份', 100, -150);
-    this.cancelFirstButton = this.smallButton(root, 'CancelFirstSave', '撤销首档', 300, -150);
-    this.labels.result = this.label(root, 'result', '推进按钮 0 · 已完成命令 0', -205, 20);
-    this.labels.hint = this.label(root, 'hint', '手动保存与读取；可选择恢复失败存档', -245, 18);
+    this.label(root, 'title', '青岚 · 种植与库存', 242, 23);
+    this.labels.commit = this.label(root, 'commit', '读取运行包身份', 211, 16);
+    this.labels.candidate = this.label(root, 'candidate', 'candidate_id: 加载中', 187, 16);
+    this.labels.time = this.label(root, 'time', '等待正式资源启动', 158, 22);
+    this.labels.status = this.label(root, 'status', '状态: idle', 128, 18);
+    this.menuButtons.PageFarm = this.smallButton(root, 'PageFarm', '种植', -330, 80);
+    this.menuButtons.PageStock = this.smallButton(root, 'PageStock', '库存', -110, 80);
+    this.button = this.smallButton(root, 'AdvanceOneHour', '推进一小时', 110, 80);
+    this.menuButtons.AdvanceDay = this.smallButton(root, 'AdvanceDay', '推进一天', 330, 80);
+
+    this.farmNode = new Node('FarmingPage');
+    this.farmNode.layer = Layers.Enum.UI_2D;
+    root.addChild(this.farmNode);
+    this.farmNode.addComponent(UITransform).setContentSize(960, 540);
+    this.menuButtons.FarmField = this.smallButton(this.farmNode, 'FarmField', '选择地块', -350, 25);
+    this.menuButtons.FarmSeed = this.smallButton(this.farmNode, 'FarmSeed', '选择种子', -350, -30);
+    this.menuButtons.FarmCrop = this.smallButton(this.farmNode, 'FarmCrop', '选择作物', -350, -85);
+    this.labels.farmField = this.menuLabel(this.farmNode, 'farmField', 80, 25);
+    this.labels.farmSeed = this.menuLabel(this.farmNode, 'farmSeed', 80, -30);
+    this.labels.farmCrop = this.menuLabel(this.farmNode, 'farmCrop', 80, -85);
+    this.menuButtons.FarmMinus = this.smallButton(this.farmNode, 'FarmMinus', '种子 −1', -330, -140);
+    this.menuButtons.FarmPlus = this.smallButton(this.farmNode, 'FarmPlus', '种子 +1', -110, -140);
+    this.menuButtons.FarmPlant = this.smallButton(this.farmNode, 'FarmPlant', '播种', 110, -140);
+    this.menuButtons.FarmHarvest = this.smallButton(this.farmNode, 'FarmHarvest', '收获', 330, -140);
+
+    this.stockNode = new Node('InventoryPage');
+    this.stockNode.layer = Layers.Enum.UI_2D;
+    root.addChild(this.stockNode);
+    this.stockNode.addComponent(UITransform).setContentSize(960, 540);
+    this.menuButtons.StockLot = this.smallButton(this.stockNode, 'StockLot', '选择材料', -350, 25);
+    this.menuButtons.StockTarget = this.smallButton(this.stockNode, 'StockTarget', '选择目标', -350, -30);
+    this.labels.stockLot = this.menuLabel(this.stockNode, 'stockLot', 80, 25);
+    this.labels.stockTarget = this.menuLabel(this.stockNode, 'stockTarget', 80, -30);
+    this.labels.stockHelp = this.menuLabel(this.stockNode, 'stockHelp', 80, -85);
+    this.menuButtons.StockMove = this.smallButton(this.stockNode, 'StockMove', '整批转移', 110, -140);
+
+    this.saveButton = this.smallButton(root, 'Save', '保存', -330, -200);
+    this.loadButton = this.smallButton(root, 'Load', '读取', -110, -200);
+    this.backupButton = this.smallButton(root, 'LoadBackup', '恢复备份', 110, -200);
+    this.cancelFirstButton = this.smallButton(root, 'CancelFirstSave', '撤销首档', 330, -200);
+    this.labels.result = this.label(root, 'result', '推进按钮 0 · 已完成命令 0', -237, 14);
+    this.labels.result.node.getComponent(UITransform)!.setContentSize(900, 18);
+    this.labels.hint = this.label(root, 'hint', '手动保存与读取；可选择恢复失败存档', -257, 15);
+    this.labels.hint.node.getComponent(UITransform)!.setContentSize(900, 18);
+  }
+
+  private menuLabel(parent: Node, name: string, x: number, y: number): Label {
+    const value = this.label(parent, name, '', y, 18);
+    value.node.setPosition(x, y, 0);
+    value.node.getComponent(UITransform)!.setContentSize(620, 40);
+    return value;
   }
 
   private smallButton(parent: Node, name: string, caption: string, x: number, y: number): Button {

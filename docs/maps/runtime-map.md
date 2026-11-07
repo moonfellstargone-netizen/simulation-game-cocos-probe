@@ -143,7 +143,7 @@ tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，
 
 ## 微信M1装配
 
-apps/cocos-wechat-probe外层通过createStage1AHost、QinglanUiSceneProbeComponent公共runtime装配会话；WechatProbeController提交既有advance_time与手动存读档命令并维护busy、前后台及销毁保护。candidate-identity生成资源与SaveFile隔离，真实微信读档及前后台结果须独立验收；M3—M4尚未完成。trace.cocos.wechat-m1连接preparation/runtime测试及独立平台证据，核心入口与事务不变。
+apps/cocos-wechat-probe外层通过createStage1AHost、QinglanUiSceneProbeComponent公共runtime装配会话；WechatProbeController经公开菜单提交播种、推进、收获、整批转移和手动存读档命令，并维护busy、前后台及销毁保护。candidate-identity生成资源与SaveFile隔离，真实微信读档及前后台结果须独立验收；完整M3和M4尚未完成。trace.cocos.wechat-m1连接preparation/runtime测试及独立平台证据，核心入口与事务不变。
 
 ## 微信显式Schema预编译装配
 

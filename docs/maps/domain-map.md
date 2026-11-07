@@ -94,4 +94,4 @@ ProbeLayout、原生滚动与输入布局属于既有cocos-engine-probe外层，
 
 ## 微信M1表现边界
 
-cocos-wechat-probe仅消费现有Stage1A公共运行时；唯一正式演示动作是advance_time，不新增领域模型或业务规则。候选身份属于包来源信息，不是SaveFile字段；M2存储/生命周期属于平台外层，不增加领域模型；M3/M4不在本轮实现。
+cocos-wechat-probe仅消费现有Stage1A公共运行时；M3首包通过现有plant_crop、advance_time、harvest_crop及store_item正式Action接入种植和库存，不新增领域模型或业务规则。候选身份属于包来源信息，不是SaveFile字段；M2存储/生命周期属于平台外层，不增加领域模型；完整M3及M4尚未完成。

@@ -39,6 +39,11 @@ test('WeChat M1 and M2 trace closes over executed preparation, runtime and stora
   const cloneHelper = 'apps/cocos-wechat-probe/runtime/WechatDataClone.ts';
   const cloneTest = 'tests/cocos-wechat-data-clone.test.ts';
   const runtime = registry.tests['test.cocos-wechat-runtime'];
+  const m3UiTest = 'tests/cocos-wechat-m3-ui.test.ts';
+  assert.ok(existsSync(join(root, m3UiTest)), 'M3 outer interaction test must exist');
+  assert.ok(runtime.args.includes(m3UiTest), 'runtime must execute M3 outer interactions');
+  assert.ok(runtime.files.includes(m3UiTest), 'runtime must register M3 outer interactions');
+  assert.ok(readJson('package.json').scripts['test:cocos-wechat-runtime'].split(/\s+/).includes(m3UiTest));
   const optimizationTest = 'tests/cocos-wechat-schema-optimization.test.mjs';
   assert.ok(existsSync(join(root, optimizationTest)));
   assert.ok(runtime.args.includes(optimizationTest), 'runtime must execute the Schema optimization contract');

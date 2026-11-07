@@ -33,6 +33,7 @@ function harness(options: { identity?: CandidateIdentity; storage?: SaveStorageP
   recoverValidatedBackup?: () => Promise<void>;
   cancelFirstFailedSave?: () => Promise<void>;
   onChange?: (snapshot: WechatProbeSnapshot) => void;
+  receiveMenu?: boolean;
   patch?: () => void | Promise<void> } = {}) {
   let host: CocosSessionHost | null = null;
   let binding: QinglanUiSceneProbeComponent | null = null;
@@ -48,7 +49,10 @@ function harness(options: { identity?: CandidateIdentity; storage?: SaveStorageP
       return host;
     },
     createBinding: currentHost => {
-      binding = new QinglanUiSceneProbeComponent(currentHost as CocosSessionHost, { applyNodeBindingPatch: options.patch ?? (() => {}) });
+      binding = new QinglanUiSceneProbeComponent(currentHost as CocosSessionHost, { applyNodeBindingPatch: patch => {
+        if (options.receiveMenu && patch.section === 'menu') controller.acceptMenuPatch(patch.payload);
+        return options.patch?.();
+      } });
       return binding;
     },
     prepareBackupRecovery: options.prepareBackupRecovery,
@@ -58,6 +62,91 @@ function harness(options: { identity?: CandidateIdentity; storage?: SaveStorageP
   });
   return { controller, states, host: () => host!, binding: () => binding!, factories: () => factories };
 }
+
+test('M3 public menu drives planting and storage through the real binding; restored session replaces observations', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const p = harness({ storage, receiveMenu: true });
+  await p.controller.start();
+  try {
+    const initial = p.controller.snapshot();
+    const fields = initial.menu!.selectable_view_model!.field_options;
+    const seeds = initial.menu!.selectable_view_model!.seed_lot_options;
+    const field = fields.find(item => item.enabled)!;
+    const seed = seeds.find(item => item.enabled)!;
+    assert.ok(field && seed);
+    // The exposed menu is detached from internal state, even without a platform clone API.
+    const cleanMenu = p.controller.snapshot().menu;
+    Reflect.set(field, 'enabled', false);
+    assert.equal(p.controller.snapshot().menu!.selectable_view_model!.field_options.find(item => item.id === field.id)!.enabled, true);
+    const nativeClone = globalThis.structuredClone;
+    try {
+      Reflect.set(globalThis, 'structuredClone', undefined);
+      p.controller.acceptMenuPatch(cleanMenu);
+      assert.equal(p.controller.snapshot().menu!.selectable_view_model!.field_options.find(item => item.id === field.id)!.enabled, true);
+    } finally { Reflect.set(globalThis, 'structuredClone', nativeClone); }
+    await assert.rejects(p.controller.plant('missing-field', seed.id, { amount: 1, unit: seed.quantity.unit }));
+    assert.equal(p.controller.snapshot().time_label, initial.time_label);
+    await p.controller.plant(field.id, seed.id, { amount: 1, unit: seed.quantity.unit });
+    const planted = p.controller.snapshot();
+    assert.equal(planted.menu!.selectable_view_model!.field_options.find(item => item.id === field.id)!.enabled, false);
+    assert.equal(planted.menu!.selectable_view_model!.seed_lot_options.find(item => item.id === seed.id)!.quantity.amount, seed.quantity.amount - 1);
+    await p.controller.save();
+    await p.controller.advance();
+    await p.controller.load();
+    assert.equal(p.controller.snapshot().time_label, planted.time_label);
+    assert.deepEqual(p.controller.snapshot().menu!.selectable_view_model, planted.menu!.selectable_view_model);
+    assert.equal(p.controller.snapshot().identity!.candidate_id, initial.identity!.candidate_id);
+    const menu = p.controller.snapshot().menu!.selectable_view_model!;
+    const pair = menu.splittable_lot_options.flatMap(lot => menu.storage_target_options.map(target => ({ lot, target })))
+      .find(({ lot, target }) => lot.enabled && target.enabled && lot.storage_ref.container_id !== target.id && target.supported_forms.includes(lot.current_form));
+    assert.ok(pair, 'public menu provides a transferable lot and distinct storage target');
+    await p.controller.move(pair.lot.id, pair.target.id);
+    assert.equal(p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(item => item.id === pair.lot.id)!.storage_ref.container_id, pair.target.id);
+    p.controller.setVisible(false);
+    await assert.rejects(p.controller.move(pair.lot.id, pair.target.id), /HIDDEN/);
+    p.controller.setVisible(true);
+    for (let day = 0; day < 10 && !p.controller.snapshot().menu!.selectable_view_model!.harvestable_crop_options.some(item => item.enabled); day++) {
+      await p.controller.advanceDay();
+    }
+    const crop = p.controller.snapshot().menu!.selectable_view_model!.harvestable_crop_options.find(item => item.enabled && item.field_plot_id === field.id);
+    assert.ok(crop, 'formal time progression creates a public harvest option');
+    await p.controller.harvest(crop.id);
+    const harvested = p.controller.snapshot();
+    assert.equal(harvested.menu!.selectable_view_model!.field_options.find(item => item.id === field.id)!.enabled, true);
+    assert.ok(!harvested.menu!.selectable_view_model!.harvestable_crop_options.some(item => item.id === crop.id));
+    const beforeStale = harvested.menu!.selectable_view_model;
+    await assert.rejects(p.controller.harvest(crop.id));
+    assert.deepEqual(p.controller.snapshot().menu!.selectable_view_model, beforeStale);
+    await p.controller.advance();
+    assert.equal(p.controller.snapshot().last_error, null);
+  } finally {
+    await p.controller.dispose();
+  }
+  assert.equal(p.controller.snapshot().menu, null);
+});
+
+test('M3 planting keeps its busy and background guards during a delayed real binding update', async () => {
+  const gate = deferred<void>();
+  const entered = deferred<void>();
+  let hold = false;
+  const p = harness({ receiveMenu: true, patch: () => { if (hold) { entered.resolve(); return gate.promise; } } });
+  await p.controller.start();
+  const menu = p.controller.snapshot().menu!.selectable_view_model!;
+  const field = menu.field_options.find(item => item.enabled)!;
+  const seed = menu.seed_lot_options.find(item => item.enabled)!;
+  hold = true;
+  const planting = p.controller.plant(field.id, seed.id, { amount: 1, unit: seed.quantity.unit });
+  await entered.promise;
+  await assert.rejects(p.controller.plant(field.id, seed.id, { amount: 1, unit: seed.quantity.unit }), /BUSY/);
+  p.controller.setVisible(false);
+  await assert.rejects(p.controller.harvest('no-crop'), /HIDDEN/);
+  gate.resolve();
+  await planting;
+  const state = p.controller.snapshot();
+  assert.equal(state.completed_commands, 1);
+  assert.equal(state.menu!.selectable_view_model!.seed_lot_options.find(item => item.id === seed.id)!.quantity.amount, seed.quantity.amount - 1);
+  await p.controller.dispose();
+});
 
 test('M1 public formal resources start once and one command advances one hour through the binding queue', async () => {
   const gate = deferred<{ resources: WechatResources; identity: unknown }>();

@@ -117,7 +117,7 @@ trace.cocos.wechat-m1同时连接核心校验/公共bootstrap、编译器工具�
 
 ## 微信DTO复制覆盖
 
-tests/cocos-wechat-data-clone.test.ts追加到原test:cocos-wechat-runtime / test.cocos-wechat-runtime实际args/files/covers，验证原生DTO复制对比与拒绝路径；helper和测试同步登记preparation files。原两项微信full/blocker任务保留，不新增任务、CI或算法；M2存储及生命周期由独立outer提供，M3—M4及Stage1B未进入。
+tests/cocos-wechat-data-clone.test.ts追加到原test:cocos-wechat-runtime / test.cocos-wechat-runtime实际args/files/covers，验证原生DTO复制对比与拒绝路径；helper和测试同步登记preparation files。原两项微信full/blocker任务保留，不新增任务、CI或算法；M2存储及生命周期由独立outer提供。当前M3种植与库存首包继续沿用既有门禁；完整M3、M4和Stage1B尚未完成。
 
 sourceProvenance及prepare真实输入记录helper，.ts架构扫描和旧三层不得反向依赖apps的规则保持；只在微信构建目标注入，不对全局作polyfill。
 
