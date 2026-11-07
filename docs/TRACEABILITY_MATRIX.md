@@ -376,3 +376,7 @@ M3微信库存拆分支持可选预览；玩家可直接确认当前批次和数
 trace.processing.required-inputs继续连接ProcessingSystem和现有test.stage1a-contract、test.action-preview、test.cocos-session及test.cocos-menu；test.cocos-ui-command-queue和test.cocos-scene-binding登记共享队列路径；trace.cocos.wechat-m1连接既有微信preparation/runtime，tests/cocos-wechat-runtime.test.ts和tests/cocos-wechat-m3-ui.test.ts覆盖实际outer与队列。具体通过状态以固定提交的实际测试和平台证据为准，不由登记推断。
 
 独立开工/领取计划复用正式规则及StorageReconciler计算；序列输入沿原顺序，不定义重复lot新语义。menu_confirm_processing_direct不调用preview，预览仅供可选查看；确认依据本次只读校验与正式结果。缺料、容量、异常回执和既有存读/生命周期分别验证；Web原菜单行为不改。
+
+## 微信加工分步界面与只读核对追踪
+
+tests/cocos-wechat-m3-ui.test.ts和tests/cocos-wechat-runtime.test.ts沿既有test.cocos-wechat-runtime实际运行：方法/要求/批次/设施/汇总/任务分步、分页及节点交互，明确拒绝保留草稿、开工异常隔离草稿并先只读核对再由玩家重选、领取不确定锁及refreshProcessingView的只读核对、后台/缺失/失败/状态矛盾回执和手动恢复。Queue refresh只读取当前Session公开投影，不读写存档或自动重试；锁在当前界面实例内，不推断跨重启保护。设计视口几何、受控Host行为、实际Creator/微信和手机输入分别留证，不互相替代。

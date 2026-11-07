@@ -217,3 +217,7 @@ trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport
 ## M3微信加工入口
 
 核心src/game-core/processing/ProcessingSystem.ts、src/game-core/inventory/InventorySystem.ts和src/game-core/storage/StorageReconciler.ts；公共会话src/cocos-app/runtime/CocosAppRuntimeSession.ts；共享菜单与队列src/cocos-creator-adapter/menu/MinimalMenuInteractionController.ts、src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts；微信outer apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts和WechatProbeController.ts。
+
+## 加工分步与核对入口
+
+分步页面、分页与当前界面任务锁在apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts；refreshProcessingView在同目录WechatProbeController.ts并复用现有Queue refresh；tests/cocos-wechat-m3-ui.test.ts和tests/cocos-wechat-runtime.test.ts验证各自边界。

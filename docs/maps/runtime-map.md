@@ -174,3 +174,7 @@ M3微信库存拆分支持可选预览；玩家可直接确认当前批次和数
 ## M3微信加工
 
 公开方法、批次、设施与任务→微信outer选择→可选menu_preview或menu_confirm_processing_direct→Session独立校验→正式ActionPipeline；推进及领取仍为现有正式Action。提交后异常或无法验证结果提示核实，不自动重试。原Web菜单路径保持。
+
+## 加工只读核对路径
+
+WechatProbeController.refreshProcessingView→既有Queue refresh→当前Session公开菜单投影；该路径不读写存档、不提交正式Action，不自动领取。UI实例锁定疑似重复领取，失败、缺任务、后台或过期回执不能解除；开工不确定须先只读刷新并查看当前任务/库存，再由玩家重新选材；领取只在任务状态与可领取列表一致时解除锁，依最新任务状态开放手动操作。

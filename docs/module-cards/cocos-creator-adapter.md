@@ -126,3 +126,7 @@ tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / reg
 ## 微信加工直接确认
 
 menu_confirm_processing_direct限定start_processing和collect_processing_result，构建当前正式参数并独立校验，再经Session正式分发。前置validation失败与dispatch后的不确定结果区分，原menu_confirm和Web路径保持。
+
+## 微信加工只读核对
+
+微信outer复用既有Queue refresh刷新当前Session菜单投影；这不发正式Action、不读写存档，不更改Web原有菜单路径。结果有效性和领取不确定锁由微信outer验证。

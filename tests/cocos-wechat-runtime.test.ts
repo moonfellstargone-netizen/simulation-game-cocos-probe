@@ -107,6 +107,10 @@ test('M3 processing validates without preview, then starts, restores and collect
     assert.equal(started.processing_result!.actionType, 'start_processing');
     assert.ok(started.menu!.selectable_view_model!.processing_task_options.some(task => task.id === taskId && task.status === 'active'));
     const afterStart = await capture();
+    const refreshed = await p.controller.refreshProcessingView();
+    assert.ok(refreshed.menu!.selectable_view_model!.processing_task_options.some(task => task.id === taskId));
+    assert.deepEqual(await capture(), afterStart, 'refresh only reads the current session');
+    assert.equal(commands.at(-1), 'refresh');
     replay = true;
     await assert.rejects(p.controller.confirmProcessing(selection), /ERR_WECHAT_PROCESSING_RESULT_UNCERTAIN/);
     assert.deepEqual(await capture(), afterStart, 'replayed receipt cannot create or pretend to create a task');
@@ -122,6 +126,47 @@ test('M3 processing validates without preview, then starts, restores and collect
     assert.ok(collected.processing_result!.lotId);
     assert.equal(collected.menu!.selectable_view_model!.processing_task_options.find(task => task.id === taskId)!.status, 'completed');
     assert.equal(commands.filter(name => name === 'menu_preview').length, 0);
+  } finally { await p.controller.dispose(); }
+});
+
+test('M3 processing refresh rejects an invalid or backgrounded receipt without replacing the menu', async () => {
+  for (const mode of ['invalid', 'missing-lots', 'missing-methods', 'hidden'] as const) {
+    const gate = deferred<void>(); const entered = deferred<void>();
+    const p = harness({ receiveMenu: true, intercept: async (command, execute) => {
+      const result = await execute();
+      if (command.name !== 'refresh') return result;
+      if (mode === 'hidden') { entered.resolve(); await gate.promise; return result; }
+      if (mode === 'missing-lots' || mode === 'missing-methods') {
+        const altered = structuredClone(result);
+        Reflect.deleteProperty(altered.command_result.snapshot!.menu!.selectable_view_model!, mode === 'missing-lots' ? 'processable_lot_options' : 'processing_method_options');
+        return altered;
+      }
+      return { command_result: { ...result.command_result, snapshot: { ...result.command_result.snapshot,
+        lifecycle: { has_session: false } } } };
+    } });
+    await p.controller.start();
+    try {
+      const before = p.controller.snapshot().menu;
+      const pending = p.controller.refreshProcessingView();
+      if (mode === 'hidden') { await entered.promise; p.controller.setVisible(false); gate.resolve(); }
+      await assert.rejects(pending, /ERR_WECHAT_REFRESH_FAILED/);
+      assert.deepEqual(p.controller.snapshot().menu, before);
+    } finally { await p.controller.dispose(); }
+  }
+});
+
+test('M3 processing refresh accepts its own changed menu patch without dispatching a second action', async () => {
+  const commands: string[] = [];
+  const p = harness({ receiveMenu: true, intercept: async (command, execute) => { commands.push(command.name); return execute(); } });
+  await p.controller.start();
+  try {
+    const before = p.controller.snapshot().time_label;
+    const action = p.host().requireSession().dispatch('advance_time', { minutes: 60 });
+    assert.equal(action.success, true);
+    const updated = await p.controller.refreshProcessingView();
+    assert.notEqual(updated.time_label, before);
+    assert.equal(updated.menu!.view_model!.time_label, updated.time_label);
+    assert.deepEqual(commands, ['refresh']);
   } finally { await p.controller.dispose(); }
 });
 

@@ -111,7 +111,10 @@ export interface WechatCommandResult {
     readonly status: string;
     readonly error_message?: string | null;
     readonly snapshot?: {
+      readonly lifecycle?: { readonly has_session: boolean };
       readonly menu?: {
+        readonly view_model?: WechatMenuSnapshot['view_model'];
+        readonly selectable_view_model?: WechatMenuSnapshot['selectable_view_model'];
         readonly last_preview_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
         readonly last_split_validation_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
         readonly last_processing_validation_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
@@ -133,7 +136,8 @@ export type WechatCommand =
   | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'harvest_crop'; readonly crop_option_id: string } }
   | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'store_item'; readonly source_lot_option_id: string; readonly target_storage_option_id: string } }
   | { readonly name: 'save'; readonly selection: { readonly slot_id: string } }
-  | { readonly name: 'load'; readonly selection: { readonly slot_id: string } };
+  | { readonly name: 'load'; readonly selection: { readonly slot_id: string } }
+  | { readonly name: 'refresh' };
 
 export interface WechatBinding {
   mount(): Promise<WechatCommandResult>;
@@ -201,7 +205,7 @@ export class WechatProbeController {
   private processingGeneration = 0;
   private processingPreview: WechatProcessingPreview | null = null;
   private processingResult: WechatProcessingResult | null = null;
-  private processingCommandInFlight: 'preview' | 'confirm' | null = null;
+  private processingCommandInFlight: 'preview' | 'confirm' | 'refresh' | null = null;
 
   constructor(private readonly options: {
     load: () => Promise<{ resources: WechatResources; identity: unknown }>;
@@ -234,7 +238,7 @@ export class WechatProbeController {
     if (this.splitCommandInFlight !== 'confirm' && JSON.stringify(this.menu) !== JSON.stringify(next)) {
       this.invalidateSplitPreview();
     }
-    if (this.processingCommandInFlight !== 'confirm' && JSON.stringify(this.menu) !== JSON.stringify(next)) {
+    if (this.processingCommandInFlight !== 'confirm' && this.processingCommandInFlight !== 'refresh' && JSON.stringify(this.menu) !== JSON.stringify(next)) {
       this.invalidateProcessingPreview();
     }
     this.menu = next;
@@ -305,6 +309,10 @@ export class WechatProbeController {
     return this.execute({ name: 'menu_confirm_processing_direct', selection: this.copyProcessingSelection(selection) });
   }
 
+  async refreshProcessingView(): Promise<WechatProbeSnapshot> {
+    return this.execute({ name: 'refresh' });
+  }
+
   private copyProcessingSelection(selection: WechatProcessingSelection): WechatProcessingSelection {
     if (selection.action_type === 'collect_processing_result') return { action_type: selection.action_type, task_option_id: selection.task_option_id };
     return { action_type: selection.action_type, method_id: selection.method_id, facility_option_id: selection.facility_option_id,
@@ -371,7 +379,7 @@ export class WechatProbeController {
     const processingGeneration = this.processingGeneration;
     this.splitCommandInFlight = (command.name === 'menu_preview' || command.name === 'menu_confirm_split_direct') && command.selection.action_type === 'split_lot'
       ? (command.name === 'menu_preview' ? 'preview' : 'confirm') : null;
-    this.processingCommandInFlight = (command.name === 'menu_preview' || command.name === 'menu_confirm_processing_direct')
+    this.processingCommandInFlight = command.name === 'refresh' ? 'refresh' : (command.name === 'menu_preview' || command.name === 'menu_confirm_processing_direct')
       && (command.selection.action_type === 'start_processing' || command.selection.action_type === 'collect_processing_result')
       ? (command.name === 'menu_preview' ? 'preview' : 'confirm') : null;
     this.accepted++;
@@ -412,6 +420,17 @@ export class WechatProbeController {
       const preview = current.snapshot?.menu?.last_preview_result;
       const previewValid = actualCommand.name === 'menu_preview' && preview?.action_type === actualCommand.selection.action_type && typeof preview.success === 'boolean'
         && typeof preview.status_code === 'string' && preview.status_code.length > 0;
+      if (actualCommand.name === 'refresh' && !this.disposed) {
+        const refreshed = current.snapshot?.menu;
+        const selectable = refreshed?.selectable_view_model;
+        if (current.status !== 'completed' || current.command_name !== 'refresh' || current.snapshot?.lifecycle?.has_session !== true
+            || !selectable || !Array.isArray(selectable.processing_task_options) || !Array.isArray(selectable.collectable_task_options)
+            || !Array.isArray(selectable.processable_lot_options) || !Array.isArray(selectable.splittable_lot_options)
+            || !Array.isArray(selectable.processing_method_options) || !Array.isArray(selectable.processing_facility_options)
+            || processingGeneration !== this.processingGeneration || !this.visible) throw new Error('ERR_WECHAT_REFRESH_FAILED');
+        this.menu = copyMenu({ view_model: refreshed.view_model ?? null, selectable_view_model: selectable });
+        this.completed++;
+      }
       if (!this.disposed && actualCommand.name === 'menu_confirm_split_direct') {
         // A failed shell command can occur after dispatch; it does not prove rollback.
         const validation = current.snapshot?.menu?.last_split_validation_result;
@@ -496,7 +515,7 @@ export class WechatProbeController {
         this.completed++;
         if (processingGeneration === this.processingGeneration && this.visible) this.processingResult = { actionType: selection.action_type, taskId, lotId };
       }
-      if (actualCommand.name !== 'menu_confirm_split_direct' && actualCommand.name !== 'menu_confirm_processing_direct') {
+      if (actualCommand.name !== 'menu_confirm_split_direct' && actualCommand.name !== 'menu_confirm_processing_direct' && actualCommand.name !== 'refresh') {
         const success = actualCommand.name === 'menu_preview'
           ? previewValid && current.command_name === actualCommand.name
           : actualCommand.name === 'menu_confirm'

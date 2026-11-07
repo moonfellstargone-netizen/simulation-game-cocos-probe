@@ -44,17 +44,26 @@ export class CocosWechatProbe extends Component {
   private lastCommandWasRead = false;
   private clickCount = 0;
   private names: Record<string, string> = {};
-  private page: 'farm' | 'stock' | 'split' | 'processing' | 'processingTasks' = 'farm';
+  private page: 'farm' | 'stock' | 'split' | 'processing' | 'processingMethods' | 'processingMaterials' | 'processingLots' | 'processingQuantity' | 'processingFacilities' | 'processingSummary' | 'processingReview' | 'processingTasks' | 'processingTaskDetail' | 'processingInfo' = 'farm';
   private processingNode: Node | null = null;
-  private processingTasksNode: Node | null = null;
   private processingInput: EditBox | null = null;
   private processingMethodId: string | null = null;
   private processingRequirement = 0;
-  private processingSlot = 0;
   private processingFacilityId: string | null = null;
   private processingTaskId: string | null = null;
   private processingInputs: Record<string, { lotId: string; amount: string }> = {};
   private processingHintGeneration = 0;
+  private processingActionsPending = 0;
+  private processingActionInterrupted = false;
+  private processingStartLocked = false;
+  private processingReviewRequired = false;
+  private processingCollectLocks = new Set<string>();
+  private processingPages: Record<string, Node> = {};
+  private processingBaseNodes: Node[] = [];
+  private processingReturnPage: typeof this.page = 'processing';
+  private processingPageIndexes: Record<string, number> = {};
+  private processingEditingKey: string | null = null;
+  private processingPendingLotId: string | null = null;
   private farmNode: Node | null = null;
   private stockNode: Node | null = null;
   private splitNode: Node | null = null;
@@ -197,8 +206,6 @@ export class CocosWechatProbe extends Component {
     this.processingHintGeneration++;
     const state = this.controller?.snapshot();
     if (!state || state.phase !== 'ready' || state.busy || !state.visible) { this.syncProcessingInput(); return; }
-    const item = this.processingInputs[this.processingKey()];
-    if (item && this.processingInput) item.amount = this.processingInput.string;
     this.controller?.invalidateProcessingPreview();
     if (state && isValid(this.node, true)) this.renderMenu(state);
   }
@@ -208,58 +215,32 @@ export class CocosWechatProbe extends Component {
     const state = this.controller?.snapshot();
     if (state && isValid(this.node, true)) this.renderMenu(state);
   }
-  private onHide(): void { this.finishSplitEditing(); this.resetCancelConfirmation(); this.invalidateSplit(); this.controller?.setVisible(false); }
-  private onShow(): void { this.controller?.setVisible(true); }
+  private onHide(): void {
+    if (this.processingActionsPending > 0) this.processingActionInterrupted = true;
+    this.finishSplitEditing(); this.resetCancelConfirmation(); this.invalidateSplit(); this.controller?.setVisible(false);
+  }
+  private onShow(): void {
+    this.controller?.setVisible(true);
+    if (this.processingActionInterrupted) {
+      this.processingActionInterrupted = false;
+      this.labels.hint.string = '后台操作结果请查看任务和库存核实';
+    }
+  }
 
   private menuHandler(name: string): () => void {
     return () => {
       const beforeEditing = this.controller?.snapshot();
       if (!beforeEditing || beforeEditing.phase !== 'ready' || beforeEditing.busy || !beforeEditing.visible) return;
+      if (this.menuButtons[name]?.node.activeInHierarchy === false) return;
       this.finishSplitEditing();
       const state = this.controller?.snapshot();
       if (!state || state.phase !== 'ready' || state.busy || !state.visible) return;
-      this.resetCancelConfirmation();
+      if (name !== 'ProcessingCancel') this.resetCancelConfirmation();
       if (name !== 'SplitConfirm') this.invalidateSplit();
       const options = state.menu?.selectable_view_model;
+      if (this.handleProcessing(name, state)) { this.renderMenu(this.controller!.snapshot()); return; }
       if (name === 'PageFarm') this.page = 'farm';
       else if (name === 'PageStock') this.page = 'stock';
-      else if (name === 'PageProcessing') this.page = 'processing';
-      else if (name === 'ProcessingTasks') this.page = 'processingTasks';
-      else if (name === 'ProcessingBack') this.page = 'processing';
-      else if (name === 'ProcessingMethod') {
-        this.processingMethodId = this.next(options?.processing_method_options ?? [], this.processingMethodId);
-        this.processingRequirement = 0; this.processingSlot = 0; this.processingInputs = {}; this.processingFacilityId = null; this.syncProcessingInput();
-      } else if (name === 'ProcessingRequirement') {
-        const method = options?.processing_method_options.find(x => x.id === this.processingMethodId);
-        if (method?.input_requirements.length) this.processingRequirement = (this.processingRequirement + 1) % method.input_requirements.length;
-        this.processingSlot = 0;
-        this.syncProcessingInput();
-      } else if (name === 'ProcessingSlot') {
-        const slots = Object.keys(this.processingInputs).filter(key => key.startsWith(`${this.processingRequirement}:`)).length;
-        this.processingSlot = (this.processingSlot + 1) % (slots + 1);
-        this.syncProcessingInput();
-      } else if (name === 'ProcessingLot') {
-        const requirement = options?.processing_method_options.find(x => x.id === this.processingMethodId)?.input_requirements[this.processingRequirement];
-        const candidates = (options?.processable_lot_options ?? []).filter(x => x.enabled && requirement?.lot_ids.includes(x.id));
-        const key = this.processingKey();
-        const previous = this.processingInputs[key]?.lotId ?? null;
-        const index = candidates.findIndex(x => x.id === previous);
-        const id = index === candidates.length - 1 && previous !== null ? null : this.next(candidates, previous);
-        if (id) this.processingInputs[key] = { lotId: id, amount: '' };
-        else {
-          delete this.processingInputs[key];
-          let slot = this.processingSlot + 1;
-          while (this.processingInputs[`${this.processingRequirement}:${slot}`]) {
-            this.processingInputs[`${this.processingRequirement}:${slot - 1}`] = this.processingInputs[`${this.processingRequirement}:${slot}`];
-            delete this.processingInputs[`${this.processingRequirement}:${slot}`];
-            slot++;
-          }
-        }
-        this.syncProcessingInput();
-      } else if (name === 'ProcessingFacility') {
-        const method = options?.processing_method_options.find(x => x.id === this.processingMethodId);
-        this.processingFacilityId = this.next((options?.processing_facility_options ?? []).filter(x => x.enabled && method?.compatible_facility_ids.includes(x.id)), this.processingFacilityId);
-      } else if (name === 'ProcessingTask') this.processingTaskId = this.next(options?.processing_task_options ?? [], this.processingTaskId);
       else if (name === 'StockSplit') this.page = 'split';
       else if (name === 'SplitBack') this.page = 'stock';
       else if (name === 'FarmField') this.fieldId = this.next(options?.field_options.filter(x => x.enabled) ?? [], this.fieldId);
@@ -277,33 +258,7 @@ export class CocosWechatProbe extends Component {
         const target = options?.storage_target_options.find(x => x.id === this.targetId && x.enabled);
         let action: Promise<WechatProbeSnapshot> | null = null;
         let done = '';
-        if (name === 'ProcessingPreview' || name === 'ProcessingStart') {
-          const selection = this.processingSelection();
-          if (!selection) this.labels.hint.string = '请选择方法、设施并填写有效材料数量';
-          else {
-            this.lastCommandWasRead = false;
-            const generation = this.processingHintGeneration;
-            const command = name === 'ProcessingPreview' ? this.controller!.previewProcessing(selection) : this.controller!.confirmProcessing(selection);
-            void command.then(result => {
-              if (!this.canShowProcessingHint(generation, 'processing')) return;
-              const preview = result.processing_preview;
-              if (name === 'ProcessingPreview') {
-                if (!preview || preview.actionType !== 'start_processing') return;
-                this.labels.hint.string = preview.success ? '预览通过，尚未开工' : `预览未通过：${this.processingError(preview.statusCode)}`;
-              } else if (result.processing_result?.actionType === 'start_processing' && result.processing_result.taskId) this.labels.hint.string = '加工已开工';
-            }).catch(error => { if (this.canShowProcessingHint(generation, 'processing')) this.labels.hint.string = this.processingError(String(error)); console.error('[wechat-m3] processing-failed', String(error)); });
-          }
-        } else if (name === 'ProcessingCollect' && this.processingTaskId) {
-          this.lastCommandWasRead = false;
-          const taskId = this.processingTaskId;
-          const generation = this.processingHintGeneration;
-          void this.controller!.confirmProcessing({ action_type: 'collect_processing_result', task_option_id: taskId })
-            .then(result => {
-              if (this.canShowProcessingHint(generation, 'processingTasks') && result.processing_result?.actionType === 'collect_processing_result'
-                  && result.processing_result.taskId === taskId && result.processing_result.lotId) this.labels.hint.string = '加工产物已领取';
-            })
-            .catch(error => { if (this.canShowProcessingHint(generation, 'processingTasks')) this.labels.hint.string = this.processingError(String(error)); console.error('[wechat-m3] processing-collect-failed', String(error)); });
-        } else if (name === 'SplitPreview' && lot) {
+        if (name === 'SplitPreview' && lot) {
           this.lastCommandWasRead = false;
           const amount = this.splitAmount();
           if (amount === null) this.labels.hint.string = '请输入大于零的有效数量';
@@ -337,18 +292,285 @@ export class CocosWechatProbe extends Component {
     };
   }
 
-  private canShowProcessingHint(generation: number, page: 'processing' | 'processingTasks'): boolean {
+  private processingItems(): Array<[string, { lotId: string; amount: string }]> {
+    return Object.entries(this.processingInputs).filter(([key]) => Number(key.split(':')[0]) === this.processingRequirement);
+  }
+  private processingOffset(key: string, count: number, size: number): number {
+    const max = Math.max(0, Math.ceil(count / size) - 1);
+    this.processingPageIndexes[key] = Math.min(Math.max(0, this.processingPageIndexes[key] ?? 0), max);
+    return this.processingPageIndexes[key] * size;
+  }
+  private changeProcessingPage(key: string, delta: number): void {
+    this.processingPageIndexes[key] = Math.max(0, (this.processingPageIndexes[key] ?? 0) + delta);
+  }
+  private handleProcessing(name: string, state: WechatProbeSnapshot): boolean {
+    const options = state.menu?.selectable_view_model;
+    const methods = options?.processing_method_options ?? [];
+    const method = methods.find(item => item.id === this.processingMethodId);
+    const requirement = method?.input_requirements[this.processingRequirement];
+    const lots = (options?.processable_lot_options ?? []).filter(item => item.enabled && requirement?.lot_ids.includes(item.id));
+    const facilities = (options?.processing_facility_options ?? []).filter(item => method?.compatible_facility_ids.includes(item.id));
+    const tasks = options?.processing_task_options ?? [];
+    const itemIndex = (prefix: string): number | null => name.startsWith(prefix) && /^\d+$/.test(name.slice(prefix.length)) ? Number(name.slice(prefix.length)) : null;
+    const navigate = (key: string, prefix: string): boolean => {
+      if (name === prefix + 'Prev') { this.changeProcessingPage(key, -1); return true; }
+      if (name === prefix + 'Next') { this.changeProcessingPage(key, 1); return true; }
+      return false;
+    };
+    if (name === 'PageProcessing') { this.page = 'processing'; return true; }
+    if (!name.startsWith('Processing')) return false;
+    if (name === 'ProcessingExit') { this.page = 'farm'; return true; }
+    if (name === 'ProcessingInfo') {
+      if (this.page !== 'processingInfo') this.processingReturnPage = this.page;
+      this.page = 'processingInfo'; return true;
+    }
+    if (name === 'ProcessingInfoBack') { this.page = this.processingReturnPage; return true; }
+    if (name === 'ProcessingSave') { this.onSave(); return true; }
+    if (name === 'ProcessingLoad') { this.onRead(); return true; }
+    if (name === 'ProcessingBackup') { this.onReadBackup(); return true; }
+    if (name === 'ProcessingCancel') { this.onCancelFirst(); return true; }
+    if (name === 'ProcessingAdvanceHour') { this.onAdvance(); return true; }
+    if (name === 'ProcessingAdvanceDay') { void this.controller!.advanceDay().catch(error => console.error('[wechat-m3] advance-failed', String(error))); return true; }
+    if (name === 'ProcessingChooseMethod') { this.page = 'processingMethods'; return true; }
+    if (name === 'ProcessingMethodsBack') { this.page = 'processing'; return true; }
+    if (navigate('methods', 'ProcessingMethods')) return true;
+    const selectedMethod = itemIndex('ProcessingMethod');
+    if (selectedMethod !== null) {
+      const chosen = methods[this.processingOffset('methods', methods.length, 3) + selectedMethod];
+      if (chosen?.enabled) {
+        if (chosen.id !== this.processingMethodId) {
+          const changed = this.processingMethodId !== null;
+          this.clearProcessingSelection(); this.processingMethodId = chosen.id;
+          if (changed) this.labels.hint.string = '已切换方法，之前的材料和设施选择已清除';
+        }
+        this.page = 'processing';
+      }
+      return true;
+    }
+    if (navigate('requirements', 'ProcessingRequirements')) return true;
+    const selectedRequirement = itemIndex('ProcessingRequirement');
+    if (selectedRequirement !== null) {
+      if (this.processingReviewRequired) { this.labels.hint.string = '请先重新核对任务和库存'; return true; }
+      const index = this.processingOffset('requirements', method?.input_requirements.length ?? 0, 2) + selectedRequirement;
+      if (method?.input_requirements[index]) { this.processingRequirement = index; this.processingPageIndexes.materials = 0; this.page = 'processingMaterials'; }
+      return true;
+    }
+    if (name === 'ProcessingChooseFacility') { this.page = 'processingFacilities'; return true; }
+    if (name === 'ProcessingSummary') { this.page = 'processingSummary'; return true; }
+    if (name === 'ProcessingTasks') { this.page = 'processingTasks'; return true; }
+    if (name === 'ProcessingMaterialsBack') { this.page = 'processing'; return true; }
+    if (name === 'ProcessingAddLot') {
+      if (this.processingReviewRequired) { this.labels.hint.string = '请先重新核对任务和库存'; return true; }
+      this.processingPageIndexes.lots = 0; this.page = 'processingLots'; return true;
+    }
+    if (navigate('materials', 'ProcessingMaterials')) return true;
+    const edit = itemIndex('ProcessingEdit');
+    const remove = itemIndex('ProcessingRemove');
+    if (edit !== null || remove !== null) {
+      if (this.processingReviewRequired) { this.labels.hint.string = '请先重新核对任务和库存'; return true; }
+      const items = this.processingItems();
+      const item = items[this.processingOffset('materials', items.length, 2) + (edit ?? remove!)];
+      if (item && remove !== null) delete this.processingInputs[item[0]];
+      else if (item) {
+        this.processingEditingKey = item[0]; this.processingPendingLotId = item[1].lotId;
+        if (this.processingInput) this.processingInput.string = item[1].amount;
+        this.page = 'processingQuantity';
+      }
+      return true;
+    }
+    if (name === 'ProcessingLotsBack') { this.page = 'processingMaterials'; return true; }
+    if (navigate('lots', 'ProcessingLots')) return true;
+    const lotIndex = itemIndex('ProcessingLot');
+    if (lotIndex !== null) {
+      const lot = lots[this.processingOffset('lots', lots.length, 3) + lotIndex];
+      if (lot) {
+        this.processingPendingLotId = lot.id; this.processingEditingKey = null;
+        if (this.processingInput) this.processingInput.string = '';
+        this.page = 'processingQuantity';
+      }
+      return true;
+    }
+    if (name === 'ProcessingQuantityBack') { this.page = this.processingEditingKey ? 'processingMaterials' : 'processingLots'; return true; }
+    if (name === 'ProcessingQuantitySave') {
+      if (this.processingReviewRequired) { this.labels.hint.string = '请先重新核对任务和库存'; return true; }
+      const text = this.processingInput?.string.trim() ?? '';
+      const amount = Number(text);
+      if (!/^[+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(text) || !Number.isFinite(amount) || amount <= 0) {
+        this.labels.hint.string = '请输入大于零的有效数量'; return true;
+      }
+      if (!lots.some(item => item.id === this.processingPendingLotId)) { this.labels.hint.string = '材料已变化，请重新选择'; return true; }
+      let key = this.processingEditingKey;
+      if (!key) { let slot = 0; while (this.processingInputs[`${this.processingRequirement}:${slot}`]) slot++; key = `${this.processingRequirement}:${slot}`; }
+      this.processingInputs[key] = { lotId: this.processingPendingLotId!, amount: text };
+      this.processingEditingKey = null; this.processingPendingLotId = null; this.page = 'processingMaterials';
+      return true;
+    }
+    if (name === 'ProcessingFacilitiesBack') { this.page = 'processing'; return true; }
+    if (navigate('facilities', 'ProcessingFacilities')) return true;
+    const facilityIndex = itemIndex('ProcessingFacility');
+    if (facilityIndex !== null) {
+      const facility = facilities[this.processingOffset('facilities', facilities.length, 3) + facilityIndex];
+      if (facility?.enabled) { this.processingFacilityId = facility.id; this.page = 'processing'; }
+      return true;
+    }
+    if (name === 'ProcessingSummaryBack') { this.page = 'processing'; return true; }
+    if ((name === 'ProcessingStartRefresh' || name === 'ProcessingSummaryRefresh') && this.processingReviewRequired) {
+      const page = this.page; const generation = this.processingHintGeneration;
+      if (page !== 'processing' && page !== 'processingSummary') return true;
+      void this.controller!.refreshProcessingView().then(result => {
+        if (!this.canShowProcessingHint(generation, page)) return;
+        const fresh = result.menu?.selectable_view_model;
+        if (!fresh || !Array.isArray(fresh.processing_task_options) || !Array.isArray(fresh.collectable_task_options)
+            || !Array.isArray(fresh.processable_lot_options) || !Array.isArray(fresh.splittable_lot_options)) {
+          this.labels.hint.string = '核对未完成，请再次核对'; return;
+        }
+        this.processingInputs = {};
+        this.processingEditingKey = null;
+        this.processingPendingLotId = null;
+        this.syncProcessingInput();
+        this.processingReviewRequired = false;
+        this.page = 'processingReview';
+        this.renderMenu(this.controller!.snapshot());
+        this.labels.hint.string = '请查看任务和库存，再重新选择材料';
+      }).catch(error => {
+        if (this.canShowProcessingHint(generation, page)) this.labels.hint.string = '核对未完成，请再次核对';
+        console.error('[wechat-m3] processing-review-failed', String(error));
+      });
+      return true;
+    }
+    if (name === 'ProcessingReviewTasks') { this.page = 'processingTasks'; return true; }
+    if (name === 'ProcessingReviewStock') { this.page = 'stock'; return true; }
+    if (name === 'ProcessingReviewBack') { this.page = 'processing'; return true; }
+    if (navigate('summary', 'ProcessingSummary')) return true;
+    if (name === 'ProcessingSummaryPreview' || name === 'ProcessingSummaryStart') {
+      if (name === 'ProcessingSummaryStart' && this.processingStartLocked) {
+        this.labels.hint.string = '上次开工仍在处理，请查看任务和库存核实'; return true;
+      }
+      if (name === 'ProcessingSummaryStart' && this.processingReviewRequired) {
+        this.labels.hint.string = '请先核实任务和库存，再重新选择材料'; return true;
+      }
+      const selection = this.processingSelection();
+      if (!selection) { this.labels.hint.string = '请选择方法、设施并填写有效材料数量'; return true; }
+      const generation = this.processingHintGeneration;
+      const previewing = name === 'ProcessingSummaryPreview';
+      const submitted = Object.entries(this.processingInputs).map(([key, input]) => [key, { ...input }] as const);
+      const submittedMethodId = this.processingMethodId;
+      this.lastCommandWasRead = false;
+      if (!previewing) { this.processingActionsPending++; this.processingStartLocked = true; }
+      const command = previewing ? this.controller!.previewProcessing(selection) : this.controller!.confirmProcessing(selection);
+      void command.then(result => {
+        if (previewing) {
+          if (!this.canShowProcessingHint(generation, 'processingSummary')) return;
+          const preview = result.processing_preview;
+          if (preview?.actionType === 'start_processing') this.labels.hint.string = preview.success ? '预览通过，尚未开工' : `预览未通过：${this.processingError(preview.statusCode)}`;
+        } else {
+          this.clearSubmittedProcessingInputs(submittedMethodId, submitted);
+          if (this.canShowProcessingHint(generation, 'processingSummary') && result.processing_result?.actionType === 'start_processing' && result.processing_result.taskId) {
+            this.processingReviewRequired = false;
+            this.processingTaskId = result.processing_result.taskId;
+            this.page = 'processingTaskDetail';
+            this.renderMenu(this.controller!.snapshot());
+            this.labels.hint.string = '加工已开工，可查看任务';
+          } else this.processingReviewRequired = true;
+        }
+      }).catch(error => {
+        const reason = error instanceof Error ? error.message : String(error);
+        if (!previewing && !reason.startsWith('ERR_WECHAT_PROBE_ACTION_FAILED:')) {
+          this.clearSubmittedProcessingInputs(submittedMethodId, submitted);
+          this.processingReviewRequired = true;
+        }
+        if (this.canShowProcessingHint(generation, 'processingSummary')) this.labels.hint.string = this.processingError(reason);
+        console.error('[wechat-m3] processing-failed', reason);
+      }).finally(() => {
+        if (!previewing) {
+          this.processingActionsPending--; this.processingStartLocked = false;
+          if (isValid(this.node, true) && this.controller?.snapshot().phase === 'ready') this.renderMenu(this.controller.snapshot());
+        }
+      });
+      return true;
+    }
+    if (name === 'ProcessingTasksBack') { this.page = 'processing'; return true; }
+    if (navigate('tasks', 'ProcessingTasks')) return true;
+    const taskIndex = itemIndex('ProcessingTask');
+    if (taskIndex !== null) {
+      const task = tasks[this.processingOffset('tasks', tasks.length, 3) + taskIndex];
+      if (task) { this.processingTaskId = task.id; this.page = 'processingTaskDetail'; }
+      return true;
+    }
+    if (name === 'ProcessingTaskDetailBack') { this.page = 'processingTasks'; return true; }
+    if (name === 'ProcessingTaskDetailRefresh' && this.processingTaskId && this.processingCollectLocks.has(this.processingTaskId)) {
+      const taskId = this.processingTaskId; const generation = this.processingHintGeneration;
+      void this.controller!.refreshProcessingView().then(result => {
+        if (!this.canShowProcessingHint(generation, 'processingTaskDetail')) return;
+        const outcome = this.processingCollectState(result.menu?.selectable_view_model ?? null, taskId);
+        if (outcome === 'invalid') { this.labels.hint.string = '任务状态待核实，暂不能领取'; return; }
+        this.processingCollectLocks.delete(taskId);
+        this.labels.hint.string = '已重新核对任务，请查看当前状态';
+        this.renderMenu(this.controller!.snapshot());
+      }).catch(error => {
+        if (this.canShowProcessingHint(generation, 'processingTaskDetail')) this.labels.hint.string = '重新核对未完成，领取仍待核实';
+        console.error('[wechat-m3] processing-refresh-failed', String(error));
+      });
+      return true;
+    }
+    if (name === 'ProcessingTaskDetailCollect' && this.processingTaskId) {
+      const taskId = this.processingTaskId; const generation = this.processingHintGeneration;
+      if (this.processingCollectLocks.has(taskId)) { this.labels.hint.string = '领取结果待核实，请查看任务和库存'; return true; }
+      if (this.processingCollectState(options ?? null, taskId) !== 'ready') { this.labels.hint.string = '任务当前不可领取，请重新核对'; return true; }
+      this.lastCommandWasRead = false;
+      this.processingCollectLocks.add(taskId);
+      this.processingActionsPending++;
+      void this.controller!.confirmProcessing({ action_type: 'collect_processing_result', task_option_id: taskId }).then(result => {
+        if (this.canShowProcessingHint(generation, 'processingTaskDetail') && result.processing_result?.actionType === 'collect_processing_result'
+            && result.processing_result.taskId === taskId && result.processing_result.lotId) {
+          this.processingCollectLocks.delete(taskId);
+          this.labels.hint.string = '加工产物已领取';
+        }
+      }).catch(error => {
+        const reason = error instanceof Error ? error.message : String(error);
+        if (reason.startsWith('ERR_WECHAT_PROBE_ACTION_FAILED:')) this.processingCollectLocks.delete(taskId);
+        if (this.canShowProcessingHint(generation, 'processingTaskDetail')) this.labels.hint.string = this.processingError(reason);
+        console.error('[wechat-m3] processing-collect-failed', reason);
+      }).finally(() => {
+        this.processingActionsPending--;
+        if (isValid(this.node, true) && this.controller?.snapshot().phase === 'ready') this.renderMenu(this.controller.snapshot());
+      });
+      return true;
+    }
+    return true;
+  }
+  private clearSubmittedProcessingInputs(methodId: string | null, submitted: ReadonlyArray<readonly [string, { readonly lotId: string; readonly amount: string }]>): void {
+    if (methodId !== this.processingMethodId) return;
+    for (const [key, old] of submitted) {
+      const current = this.processingInputs[key];
+      if (current?.lotId === old.lotId) delete this.processingInputs[key];
+    }
+  }
+  private processingCollectState(options: NonNullable<WechatProbeSnapshot['menu']>['selectable_view_model'], taskId: string): 'ready' | 'not_ready' | 'invalid' {
+    if (!options || !Array.isArray(options.processing_task_options) || !Array.isArray(options.collectable_task_options)) return 'invalid';
+    const matchingTasks = options.processing_task_options.filter(item => item.id === taskId);
+    const matchingChoices = options.collectable_task_options.filter(item => item.id === taskId);
+    if (matchingTasks.length !== 1 || matchingChoices.length > 1) return 'invalid';
+    const task = matchingTasks[0];
+    if (task.status === 'ready_to_collect') {
+      return task.enabled && matchingChoices.length === 1 && matchingChoices[0].enabled ? 'ready' : 'invalid';
+    }
+    if (['active', 'paused', 'completed', 'cancelled', 'failed'].includes(task.status)
+        && !task.enabled && !matchingChoices.some(item => item.enabled)) return 'not_ready';
+    return 'invalid';
+  }
+  private canShowProcessingHint(generation: number, page: 'processing' | 'processingTasks' | 'processingSummary' | 'processingTaskDetail'): boolean {
     const current = this.controller?.snapshot();
     return isValid(this.node, true) && generation === this.processingHintGeneration && this.page === page
       && current?.phase === 'ready' && current.visible;
   }
   private clearProcessingSelection(): void {
-    this.processingMethodId = null; this.processingRequirement = 0; this.processingSlot = 0; this.processingFacilityId = null;
+    this.processingMethodId = null; this.processingRequirement = 0; this.processingFacilityId = null;
+    this.processingEditingKey = null; this.processingPendingLotId = null; this.processingPageIndexes = {};
     this.processingTaskId = null; this.processingInputs = {}; this.syncProcessingInput();
   }
-  private processingKey(): string { return `${this.processingRequirement}:${this.processingSlot}`; }
   private syncProcessingInput(): void {
-    if (this.processingInput) this.processingInput.string = this.processingInputs[this.processingKey()]?.amount ?? '';
+    if (this.processingInput) this.processingInput.string = (this.processingEditingKey ? this.processingInputs[this.processingEditingKey]?.amount : undefined) ?? '';
   }
   private processingSelection(): { action_type: 'start_processing'; method_id: string; input_lots: Array<{ lot_option_id: string; quantity: { amount: number; unit: string } }>; facility_option_id: string } | null {
     const options = this.controller?.snapshot().menu?.selectable_view_model;
@@ -421,11 +643,13 @@ export class CocosWechatProbe extends Component {
     const target = targets.find(x => x.id === this.targetId);
     const unit = (value: string) => UNITS[value] ?? value;
     const place = (value: string) => STORAGE[value] ?? value;
+    const inProcessing = this.page.startsWith('processing');
+    for (const node of this.processingBaseNodes) node.active = !inProcessing;
     this.farmNode.active = this.page === 'farm';
     this.stockNode.active = this.page === 'stock';
     this.splitNode.active = this.page === 'split';
-    if (this.processingNode) this.processingNode.active = this.page === 'processing';
-    if (this.processingTasksNode) this.processingTasksNode.active = this.page === 'processingTasks';
+    if (this.processingNode) this.processingNode.active = inProcessing;
+    for (const [page, node] of Object.entries(this.processingPages)) node.active = this.page === page;
     this.labels.farmField.string = field ? `地块${fields.findIndex(x => x.id === field.id) + 1}/${fields.length}：${this.names[field.definition_id] ?? '已选地块'} · 可用${fields.filter(x => x.enabled).length}` : `地块：请选择（可用${fields.filter(x => x.enabled).length}/${fields.length}）`;
     this.labels.farmSeed.string = seed ? `种子${seeds.findIndex(x => x.id === seed.id) + 1}/${seeds.length}：${this.names[seed.base_id] ?? '种子批次'} · 现有${seed.quantity.amount}${unit(seed.quantity.unit)} · 播种${this.seedAmount}${unit(seed.quantity.unit)}` : '种子：请选择种子批次';
     this.labels.farmCrop.string = crop ? `作物${crops.findIndex(x => x.id === crop.id) + 1}/${crops.length}：${this.names[crop.crop_base_id] ?? '已选作物'} · 可收获${crops.filter(x => x.enabled).length}株` : `作物：可收获${crops.filter(x => x.enabled).length}株`;
@@ -442,7 +666,7 @@ export class CocosWechatProbe extends Component {
     const enabled = state.phase === 'ready' && state.visible && !state.busy;
     this.splitInput.enabled = enabled && this.page === 'split' && !!lot?.enabled;
     const set = (name: string, value: boolean) => { const button = this.menuButtons[name]; if (button && isValid(button.node, true)) button.interactable = enabled && value; };
-    set('PageFarm', true); set('PageStock', true); set('AdvanceDay', true);
+    set('PageFarm', true); set('PageStock', true); set('PageProcessing', true); set('AdvanceDay', true);
     set('FarmField', fields.some(x => x.enabled)); set('FarmSeed', seeds.some(x => x.enabled)); set('FarmCrop', crops.some(x => x.enabled));
     set('FarmMinus', !!seed && this.seedAmount > 1); set('FarmPlus', !!seed && Number.isSafeInteger(this.seedAmount + 1));
     set('FarmPlant', !!field && !!seed); set('FarmHarvest', !!crop);
@@ -450,40 +674,157 @@ export class CocosWechatProbe extends Component {
     set('StockMove', !!lot?.enabled && !!target?.enabled && target.id !== lot.storage_ref.container_id);
     set('StockSplit', !!lot?.enabled); set('SplitBack', true); set('SplitPreview', !!lot?.enabled);
     set('SplitConfirm', !!lot?.enabled);
-    if (this.processingNode && this.processingTasksNode && this.processingInput) this.renderProcessing(state, enabled, set);
+    if (this.processingNode && this.processingInput && inProcessing) this.renderProcessingSteps(state, enabled, set);
   }
 
-  private renderProcessing(state: WechatProbeSnapshot, enabled: boolean, set: (name: string, value: boolean) => void): void {
+  private renderProcessingSteps(state: WechatProbeSnapshot, enabled: boolean, set: (name: string, value: boolean) => void): void {
     const options = state.menu?.selectable_view_model;
     const methods = options?.processing_method_options ?? [];
-    const method = methods.find(x => x.id === this.processingMethodId);
+    let method = methods.find(item => item.id === this.processingMethodId);
     if (!method && this.processingMethodId) this.clearProcessingSelection();
+    if (!this.processingMethodId && methods.length === 1 && methods[0].enabled) {
+      this.processingMethodId = methods[0].id; method = methods[0];
+    }
+    const allLots = options?.processable_lot_options ?? [];
     const requirement = method?.input_requirements[this.processingRequirement];
-    const entry = this.processingInputs[this.processingKey()];
-    const lot = options?.processable_lot_options.find(x => x.id === entry?.lotId && x.enabled && requirement?.lot_ids.includes(x.id));
-    const facilities = options?.processing_facility_options ?? [];
-    const facility = facilities.find(x => x.id === this.processingFacilityId && x.enabled && method?.compatible_facility_ids.includes(x.id));
+    const lots = allLots.filter(item => item.enabled && requirement?.lot_ids.includes(item.id));
+    const facilities = (options?.processing_facility_options ?? []).filter(item => method?.compatible_facility_ids.includes(item.id));
+    const facility = facilities.find(item => item.id === this.processingFacilityId && item.enabled);
     if (!facility) this.processingFacilityId = null;
     const tasks = options?.processing_task_options ?? [];
-    const task = tasks.find(x => x.id === this.processingTaskId);
-    if (!task) this.processingTaskId = null;
+    const task = tasks.find(item => item.id === this.processingTaskId);
+    if (!task && this.processingTaskId && !this.processingCollectLocks.has(this.processingTaskId)) this.processingTaskId = null;
     const unit = (value: string) => UNITS[value] ?? value;
-    this.labels.processingMethod.string = method ? `方法：${this.names[method.id] ?? method.id} · 加工${method.process_duration_minutes}分${method.tool_requirements.length ? ` · 工具：${method.tool_requirements.map(id => this.names[id] ?? PROCESSING_NAMES[id] ?? id).join('/')}` : ''}` : '方法：请选择';
-    const c = requirement?.constraints;
-    const criteria = c ? [c.base_id && (this.names[c.base_id] ?? c.base_id), c.category && (this.names[c.category] ?? PROCESSING_NAMES[c.category] ?? c.category), c.allowed_base_ids.map(id => this.names[id] ?? id).join('/'), c.allowed_forms.map(form => FORMS[form] ?? form).join('/'), c.min_freshness === null ? '' : `新鲜度≥${c.min_freshness}`].filter(Boolean).join(' · ') : '';
-    this.labels.processingRequirement.string = requirement ? `要求${this.processingRequirement + 1}/${method!.input_requirements.length}：${criteria || '材料'}${requirement.min_quantity ? ` · 至少${requirement.min_quantity.amount}${unit(requirement.min_quantity.unit)}` : ''}` : '要求：请选择加工方法';
-    this.labels.processingLot.string = lot ? `项${this.processingSlot + 1}：${this.names[lot.base_id] ?? lot.base_id} ${lot.quantity.amount}${unit(lot.quantity.unit)} · ${FORMS[lot.current_form] ?? lot.current_form}` : `项${this.processingSlot + 1}：可选${requirement?.lot_ids.length ?? 0}批`;
-    this.labels.processingFacility.string = facility ? `设施：${this.names[facility.definition_id] ?? PROCESSING_NAMES[facility.definition_id] ?? facility.definition_id}` : '设施：请选择匹配设施';
+    const named = (value: string) => this.names[value] ?? PROCESSING_NAMES[value] ?? value;
+    const lotText = (id: string) => {
+      const lot = allLots.find(item => item.id === id);
+      return lot ? `${named(lot.base_id)} · ${FORMS[lot.current_form] ?? lot.current_form} · 现有${lot.quantity.amount}${unit(lot.quantity.unit)} · ${STORAGE[lot.storage_ref.storage_type] ?? lot.storage_ref.storage_type} · 第${allLots.findIndex(item => item.id === id) + 1}批${lot.enabled ? '' : ' · 不可用'}` : '原材料已变化，请重新选择';
+    };
+    const requirementText = (index: number) => {
+      const req = method?.input_requirements[index];
+      if (!req) return '';
+      const c = req.constraints;
+      const parts = [c.base_id && named(c.base_id), c.category && named(c.category),
+        c.allowed_base_ids.map(named).join('/'), c.allowed_forms.map(form => FORMS[form] ?? form).join('/'),
+        c.min_freshness === null ? '' : `新鲜度≥${c.min_freshness}`].filter(Boolean);
+      return `要求${index + 1}：${parts.join(' · ') || '材料'}${req.min_quantity ? ` · 至少${req.min_quantity.amount}${unit(req.min_quantity.unit)}` : ''}`;
+    };
+    const pages = (key: string, count: number, size: number, prefix: string) => {
+      const offset = this.processingOffset(key, count, size);
+      set(prefix + 'Prev', offset > 0); set(prefix + 'Next', offset + size < count);
+      return offset;
+    };
+    const row = (key: string, index: number, value: string) => { this.labels[`${key}Row${index}`].string = value; };
+    this.labels.processingHeader.string = `加工 · ${this.processingPageTitle()} · ${state.time_label ?? '等待启动'}`;
+    this.labels.processingStatus.string = state.last_error
+      ? this.lastCommandWasRead && state.last_error === `ERR_SAVE_SLOT_NOT_FOUND:${WECHAT_SAVE_SLOT_ID}`
+        ? '未找到主存档；无备份时可先保存' : this.errorText(state.last_error)
+      : state.busy ? '正在处理，请稍候' : !state.visible ? '已切到后台'
+        : this.processingReviewRequired ? '请先重新核对任务和库存'
+          : this.processingCollectLocks.size ? '领取结果待核实，请选择任务并重新核对' : '';
+    this.labels.processingOverviewMethod.string = method ? `方法：${named(method.id)} · 加工${method.process_duration_minutes}分钟${method.tool_requirements.length ? ` · 工具：${method.tool_requirements.map(named).join('/')}` : ''}` : '方法：尚未选择';
+    this.labels.processingOverviewFacility.string = facility ? `设施：${named(facility.definition_id)} · 第${facilities.findIndex(item => item.id === facility.id) + 1}处` : '设施：尚未选择';
+    const reqOffset = pages('requirements', method?.input_requirements.length ?? 0, 2, 'ProcessingRequirements');
+    for (let i = 0; i < 2; i++) {
+      const index = reqOffset + i; const req = method?.input_requirements[index];
+      const selected = Object.entries(this.processingInputs).filter(([key]) => Number(key.split(':')[0]) === index);
+      const invalid = selected.some(([, input]) => !allLots.some(lot => lot.id === input.lotId && lot.enabled && req?.lot_ids.includes(lot.id)));
+      const selectedLot = selected.length === 1 ? allLots.find(lot => lot.id === selected[0][1].lotId) : undefined;
+      const selectedText = selected.length === 1 ? `已选${selected[0][1].amount}${selectedLot ? unit(selectedLot.quantity.unit) : ''}` : `已选${selected.length}项`;
+      row('processingOverview', i, req ? `${requirementText(index)} · ${selected.length ? `${selectedText}${invalid ? ' · 材料已变化' : ''}` : '未选择'}` : '');
+      set('ProcessingRequirement' + i, !!req && !this.processingReviewRequired);
+    }
+    const methodOffset = pages('methods', methods.length, 3, 'ProcessingMethods');
+    for (let i = 0; i < 3; i++) {
+      const item = methods[methodOffset + i];
+      row('processingMethods', i, item ? `${named(item.id)} · 加工${item.process_duration_minutes}分钟${item.enabled ? '' : ' · 不可用'}` : '');
+      set('ProcessingMethod' + i, !!item?.enabled);
+    }
+    this.labels.processingMaterialsTitle.string = requirement ? requirementText(this.processingRequirement) : '请选择材料要求';
+    const inputs = this.processingItems();
+    const inputOffset = pages('materials', inputs.length, 2, 'ProcessingMaterials');
+    for (let i = 0; i < 2; i++) {
+      const item = inputs[inputOffset + i];
+      const lot = item && allLots.find(x => x.id === item[1].lotId);
+      row('processingMaterials', i, item ? `${lotText(item[1].lotId)} · 使用${item[1].amount}${lot ? unit(lot.quantity.unit) : ''}` : i === 0 ? '尚未选择材料' : '');
+      set('ProcessingEdit' + i, !!item && !this.processingReviewRequired);
+      set('ProcessingRemove' + i, !!item && !this.processingReviewRequired);
+    }
+    const lotOffset = pages('lots', lots.length, 3, 'ProcessingLots');
+    for (let i = 0; i < 3; i++) {
+      const item = lots[lotOffset + i];
+      row('processingLots', i, item ? lotText(item.id) : i === 0 ? '暂无符合此要求的材料' : '');
+      set('ProcessingLot' + i, !!item);
+    }
+    const pending = allLots.find(item => item.id === this.processingPendingLotId);
+    this.labels.processingQuantityTitle.string = pending ? lotText(pending.id) : '材料已变化，请返回重新选择';
+    this.labels.processingQuantityUnit.string = pending ? `请输入数量，单位：${unit(pending.quantity.unit)}` : '无法填写数量';
+    this.processingInput!.enabled = enabled && this.page === 'processingQuantity' && !!pending && lots.some(item => item.id === pending.id);
+    const facilityOffset = pages('facilities', facilities.length, 3, 'ProcessingFacilities');
+    for (let i = 0; i < 3; i++) {
+      const item = facilities[facilityOffset + i];
+      row('processingFacilities', i, item ? `第${facilityOffset + i + 1}处 · ${named(item.definition_id)}${item.enabled ? '' : ' · 不可用'}` : i === 0 ? '暂无匹配设施' : '');
+      set('ProcessingFacility' + i, !!item?.enabled);
+    }
+    this.labels.processingSummaryTitle.string = `方法：${method ? named(method.id) : '未选择'} · 设施：${facility ? `${named(facility.definition_id)} · 第${facilities.findIndex(item => item.id === facility.id) + 1}处` : '未选择'}`;
+    const summary: Array<[string, { lotId: string; amount: string } | null]> = [];
+    (method?.input_requirements ?? []).forEach((_, index) => {
+      const selected = Object.entries(this.processingInputs).filter(([key]) => Number(key.split(':')[0]) === index);
+      if (selected.length) summary.push(...selected); else summary.push([`${index}:missing`, null]);
+    });
+    const summaryOffset = pages('summary', summary.length, 2, 'ProcessingSummary');
+    for (let i = 0; i < 2; i++) {
+      const item = summary[summaryOffset + i]; const lot = item?.[1] && allLots.find(x => x.id === item[1]!.lotId);
+      const req = item && method?.input_requirements[Number(item[0].split(':')[0])];
+      const invalid = item?.[1] && (!lot?.enabled || !req?.lot_ids.includes(item[1].lotId));
+      row('processingSummary', i, item ? item[1] ? `要求${Number(item[0].split(':')[0]) + 1} · ${lotText(item[1].lotId)} · 使用${item[1].amount}${lot ? unit(lot.quantity.unit) : ''}${invalid ? ' · 请重新选择' : ''}` : `要求${Number(item[0].split(':')[0]) + 1} · 未选择材料` : i === 0 ? '请选择加工方法' : '');
+    }
     const statuses: Record<string, string> = { active: '进行中', in_progress: '进行中', ready_to_collect: '可领取', completed: '已领取' };
-    this.labels.processingTask.string = task ? `任务${tasks.findIndex(x => x.id === task.id) + 1}/${tasks.length}：${this.names[task.method_id] ?? task.method_id} · ${statuses[task.status] ?? task.status}` : `任务：${tasks.length}项，请选择`;
-    const out = task?.expected_output;
-    this.labels.processingOutput.string = task ? `预计完成 ${this.processingTimeLabel(task.expected_finish_minute)} · 预计产物${out?.base_id ? (this.names[out.base_id] ?? out.base_id) : '未列出'}${out?.quantity ? ` ${out.quantity.amount}${unit(out.quantity.unit)}` : ''}` : '可推进时间，再选择已完成任务领取';
-    this.processingInput!.enabled = enabled && this.page === 'processing' && !!lot;
-    set('PageProcessing', true); set('ProcessingMethod', methods.length > 0); set('ProcessingRequirement', !!method?.input_requirements.length);
-    set('ProcessingLot', !!requirement?.lot_ids.length); set('ProcessingSlot', !!requirement); set('ProcessingTasks', true); set('ProcessingBack', true);
-    set('ProcessingFacility', facilities.some(x => x.enabled && !!method?.compatible_facility_ids.includes(x.id)));
-    set('ProcessingTask', tasks.length > 0); set('ProcessingPreview', !!method && !!facility); set('ProcessingStart', !!method && !!facility);
-    set('ProcessingCollect', !!task && !!options?.collectable_task_options.some(x => x.id === task.id && x.enabled));
+    const taskOffset = pages('tasks', tasks.length, 3, 'ProcessingTasks');
+    for (let i = 0; i < 3; i++) {
+      const item = tasks[taskOffset + i];
+      row('processingTasks', i, item ? `任务${taskOffset + i + 1} · ${named(item.method_id)} · ${statuses[item.status] ?? item.status} · 预计${this.processingTimeLabel(item.expected_finish_minute)}` : i === 0 ? '暂无加工任务' : '');
+      set('ProcessingTask' + i, !!item);
+    }
+    this.labels.processingTaskDetailTitle.string = task ? `任务${tasks.findIndex(item => item.id === task.id) + 1} · ${named(task.method_id)} · ${statuses[task.status] ?? task.status}` : this.processingTaskId ? '任务暂未显示，请重新核对' : '请返回选择任务';
+    this.labels.processingTaskDetailTime.string = task ? `预计完成：${this.processingTimeLabel(task.expected_finish_minute)}` : '';
+    const output = task?.expected_output;
+    this.labels.processingTaskDetailOutput.string = task ? `预计产物：${output?.base_id ? named(output.base_id) : '未列出'}${output?.quantity ? ` ${output.quantity.amount}${unit(output.quantity.unit)}` : ''}${this.processingCollectLocks.has(task.id) ? ' · 待核实，请重新核对' : ''}` : '';
+    this.labels.processingInfoIdentity.string = state.identity ? `${state.identity.version} · ${state.identity.short_commit}\n${state.identity.candidate_id}` : '正在读取候选身份';
+    this.labels.processingReviewTitle.string = `当前任务 ${tasks.length} 项 · 库存 ${options?.splittable_lot_options.length ?? 0} 批`;
+    this.labels.processingReviewHelp.string = '请先查看任务与库存，核实后重新选择材料';
+    const pagination: Record<string, [string, number, number, number]> = {
+      processing: ['requirements', method?.input_requirements.length ?? 0, 2, -95], processingMethods: ['methods', methods.length, 3, -75],
+      processingMaterials: ['materials', inputs.length, 2, -50], processingLots: ['lots', lots.length, 3, -75],
+      processingFacilities: ['facilities', facilities.length, 3, -75], processingSummary: ['summary', summary.length, 2, -50],
+      processingTasks: ['tasks', tasks.length, 3, -75]
+    };
+    const pageInfo = pagination[this.page];
+    this.labels.processingPagination.node.active = !!pageInfo;
+    if (pageInfo) {
+      const [key, count, size, y] = pageInfo;
+      this.labels.processingPagination.string = `第${(this.processingPageIndexes[key] ?? 0) + 1}/${Math.max(1, Math.ceil(count / size))}页`;
+      this.labels.processingPagination.node.setPosition(330, y, 0);
+    }
+    for (const name of ['ProcessingExit', 'ProcessingInfo', 'ProcessingInfoBack', 'ProcessingMethodsBack', 'ProcessingMaterialsBack', 'ProcessingLotsBack',
+      'ProcessingQuantityBack', 'ProcessingFacilitiesBack', 'ProcessingSummaryBack', 'ProcessingTasksBack', 'ProcessingTaskDetailBack',
+      'ProcessingSave', 'ProcessingLoad', 'ProcessingBackup', 'ProcessingCancel', 'ProcessingAdvanceHour', 'ProcessingAdvanceDay']) set(name, true);
+    set('ProcessingChooseMethod', true); set('ProcessingChooseFacility', !!method); set('ProcessingSummary', true);
+    set('ProcessingTasks', true); set('ProcessingAddLot', !!requirement && !this.processingReviewRequired);
+    set('ProcessingQuantitySave', !!pending && !this.processingReviewRequired);
+    set('ProcessingSummaryPreview', !!method && !!facility);
+    set('ProcessingSummaryStart', !!method && !!facility && !this.processingStartLocked && !this.processingReviewRequired);
+    set('ProcessingStartRefresh', this.processingReviewRequired);
+    set('ProcessingSummaryRefresh', this.processingReviewRequired);
+    set('ProcessingReviewTasks', true); set('ProcessingReviewStock', true); set('ProcessingReviewBack', true);
+    set('ProcessingTaskDetailCollect', !!task && !this.processingCollectLocks.has(task.id) && this.processingCollectState(options ?? null, task.id) === 'ready');
+    set('ProcessingTaskDetailRefresh', !!this.processingTaskId && this.processingCollectLocks.has(this.processingTaskId));
+  }
+  private processingPageTitle(): string {
+    const titles: Record<string, string> = { processing: '准备加工', processingMethods: '选择方法', processingMaterials: '材料要求',
+      processingLots: '选择材料批次', processingQuantity: '填写数量', processingFacilities: '选择设施',
+      processingSummary: '核对并开工', processingReview: '查看核对结果', processingTasks: '加工任务', processingTaskDetail: '任务详情', processingInfo: '信息与存档' };
+    return titles[this.page] ?? '加工';
   }
 
   private render(state: WechatProbeSnapshot): void {
@@ -598,33 +939,6 @@ export class CocosWechatProbe extends Component {
     this.menuButtons.SplitPreview = this.smallButton(this.splitNode, 'SplitPreview', '预览拆分', -110, -140);
     this.menuButtons.SplitConfirm = this.smallButton(this.splitNode, 'SplitConfirm', '确认拆分', 110, -140);
 
-    this.processingNode = new Node('ProcessingPage');
-    this.processingNode.layer = Layers.Enum.UI_2D; root.addChild(this.processingNode);
-    this.processingNode.addComponent(UITransform).setContentSize(960, 540);
-    this.menuButtons.ProcessingMethod = this.smallButton(this.processingNode, 'ProcessingMethod', '选择方法', -350, 25);
-    this.labels.processingMethod = this.menuLabel(this.processingNode, 'processingMethod', 80, 25);
-    this.menuButtons.ProcessingRequirement = this.smallButton(this.processingNode, 'ProcessingRequirement', '选择要求', -350, -30);
-    this.labels.processingRequirement = this.menuLabel(this.processingNode, 'processingRequirement', 80, -30);
-    this.menuButtons.ProcessingLot = this.smallButton(this.processingNode, 'ProcessingLot', '换材料/清除', -350, -85);
-    this.labels.processingLot = this.menuLabel(this.processingNode, 'processingLot', -65, -85);
-    this.labels.processingLot.node.getComponent(UITransform)!.setContentSize(350, 40);
-    this.processingInput = this.quantityInput(this.processingNode, 320, -85, '输入材料数量');
-    this.menuButtons.ProcessingTasks = this.smallButton(this.processingNode, 'ProcessingTasks', '设施与任务', -330, -140);
-    this.menuButtons.ProcessingPreview = this.smallButton(this.processingNode, 'ProcessingPreview', '预览加工', -110, -140);
-    this.menuButtons.ProcessingStart = this.smallButton(this.processingNode, 'ProcessingStart', '确认开工', 110, -140);
-    this.menuButtons.ProcessingSlot = this.smallButton(this.processingNode, 'ProcessingSlot', '下一材料项', 330, -140);
-
-    this.processingTasksNode = new Node('ProcessingTasksPage');
-    this.processingTasksNode.layer = Layers.Enum.UI_2D; root.addChild(this.processingTasksNode);
-    this.processingTasksNode.addComponent(UITransform).setContentSize(960, 540);
-    this.menuButtons.ProcessingFacility = this.smallButton(this.processingTasksNode, 'ProcessingFacility', '选择设施', -350, 25);
-    this.labels.processingFacility = this.menuLabel(this.processingTasksNode, 'processingFacility', 80, 25);
-    this.menuButtons.ProcessingTask = this.smallButton(this.processingTasksNode, 'ProcessingTask', '选择任务', -350, -30);
-    this.labels.processingTask = this.menuLabel(this.processingTasksNode, 'processingTask', 80, -30);
-    this.labels.processingOutput = this.menuLabel(this.processingTasksNode, 'processingOutput', 0, -85);
-    this.menuButtons.ProcessingBack = this.smallButton(this.processingTasksNode, 'ProcessingBack', '返回加工', -330, -140);
-    this.menuButtons.ProcessingCollect = this.smallButton(this.processingTasksNode, 'ProcessingCollect', '领取产物', 110, -140);
-
     this.saveButton = this.smallButton(root, 'Save', '保存', -330, -197);
     this.loadButton = this.smallButton(root, 'Load', '读取', -110, -197);
     this.backupButton = this.smallButton(root, 'LoadBackup', '恢复备份', 110, -197);
@@ -635,6 +949,123 @@ export class CocosWechatProbe extends Component {
     this.labels.hint = this.label(root, 'hint', '手动保存与读取；可选择恢复失败存档', -237, 15);
     this.labels.hint.node.setPosition(150, -237, 0);
     this.labels.hint.node.getComponent(UITransform)!.setContentSize(600, 22);
+    this.createProcessingView(root);
+  }
+
+  private createProcessingView(root: Node): void {
+    this.processingBaseNodes = root.children.filter(node => node !== this.labels.hint.node);
+    const shell = new Node('ProcessingSteps');
+    shell.layer = Layers.Enum.UI_2D; root.addChild(shell);
+    shell.addComponent(UITransform).setContentSize(960, 540);
+    this.processingNode = shell;
+    const addButton = (parent: Node, name: string, caption: string, x: number, y: number) => {
+      this.menuButtons[name] = this.smallButton(parent, name, caption, x, y);
+    };
+    addButton(shell, 'ProcessingExit', '返回游戏', -370, 222);
+    addButton(shell, 'ProcessingInfo', '信息与存档', 370, 222);
+    this.labels.processingHeader = this.menuLabel(shell, 'processingHeader', 0, 222);
+    this.labels.processingHeader.node.getComponent(UITransform)!.setContentSize(500, 42);
+    this.labels.processingStatus = this.menuLabel(shell, 'processingStatus', 0, 182);
+    this.labels.processingPagination = this.menuLabel(shell, 'processingPagination', 330, -95);
+    this.labels.processingPagination.node.getComponent(UITransform)!.setContentSize(180, 40);
+    const page = (name: string) => {
+      const node = new Node(name); node.layer = Layers.Enum.UI_2D; shell.addChild(node);
+      node.addComponent(UITransform).setContentSize(960, 540); this.processingPages[name] = node; return node;
+    };
+    const line = (parent: Node, key: string, x: number, y: number, width = 620) => {
+      const label = this.menuLabel(parent, key, x, y); label.node.getComponent(UITransform)!.setContentSize(width, 46);
+      label.enableWrapText = true;
+      label.lineHeight = 20;
+      this.labels[key] = label;
+    };
+    const list = (parent: Node, key: string, prefix: string) => {
+      for (let i = 0; i < 3; i++) {
+        const y = 125 - i * 60;
+        addButton(parent, prefix + i, '选择', -350, y);
+        line(parent, key + 'Row' + i, 70, y, 650);
+      }
+    };
+    const pageArrows = (parent: Node, prefix: string, y: number) => {
+      addButton(parent, prefix + 'Prev', '上一页', -110, y);
+      addButton(parent, prefix + 'Next', '下一页', 110, y);
+    };
+    const overview = page('processing');
+    addButton(overview, 'ProcessingChooseMethod', '选择方法', -350, 135);
+    line(overview, 'processingOverviewMethod', 70, 135, 650);
+    for (let i = 0; i < 2; i++) {
+      const y = 75 - i * 55;
+      addButton(overview, 'ProcessingRequirement' + i, '选择材料', -350, y);
+      line(overview, 'processingOverviewRow' + i, 70, y, 650);
+    }
+    addButton(overview, 'ProcessingChooseFacility', '选择设施', -350, -35);
+    line(overview, 'processingOverviewFacility', 70, -35, 650);
+    pageArrows(overview, 'ProcessingRequirements', -95);
+    addButton(overview, 'ProcessingSummary', '核对并开工', -110, -160);
+    addButton(overview, 'ProcessingTasks', '查看任务', 110, -160);
+    addButton(overview, 'ProcessingStartRefresh', '重新核对', 330, -160);
+    const methodPage = page('processingMethods');
+    list(methodPage, 'processingMethods', 'ProcessingMethod');
+    pageArrows(methodPage, 'ProcessingMethods', -75);
+    addButton(methodPage, 'ProcessingMethodsBack', '返回', -330, -160);
+    const materialPage = page('processingMaterials');
+    line(materialPage, 'processingMaterialsTitle', 0, 145, 850);
+    for (let i = 0; i < 2; i++) {
+      const y = 80 - i * 60;
+      line(materialPage, 'processingMaterialsRow' + i, -165, y, 430);
+      addButton(materialPage, 'ProcessingEdit' + i, '修改数量', 145, y);
+      addButton(materialPage, 'ProcessingRemove' + i, '移除', 350, y);
+    }
+    pageArrows(materialPage, 'ProcessingMaterials', -50);
+    addButton(materialPage, 'ProcessingMaterialsBack', '返回要求', -330, -160);
+    addButton(materialPage, 'ProcessingAddLot', '添加材料批次', -110, -160);
+    const lotsPage = page('processingLots');
+    list(lotsPage, 'processingLots', 'ProcessingLot');
+    pageArrows(lotsPage, 'ProcessingLots', -75);
+    addButton(lotsPage, 'ProcessingLotsBack', '返回', -330, -160);
+    const quantityPage = page('processingQuantity');
+    line(quantityPage, 'processingQuantityTitle', 0, 135, 850);
+    line(quantityPage, 'processingQuantityUnit', 0, 75, 850);
+    this.processingInput = this.quantityInput(quantityPage, 0, 10, '输入材料数量');
+    addButton(quantityPage, 'ProcessingQuantityBack', '返回', -330, -160);
+    addButton(quantityPage, 'ProcessingQuantitySave', '保存选择', 110, -160);
+    const facilityPage = page('processingFacilities');
+    list(facilityPage, 'processingFacilities', 'ProcessingFacility');
+    pageArrows(facilityPage, 'ProcessingFacilities', -75);
+    addButton(facilityPage, 'ProcessingFacilitiesBack', '返回', -330, -160);
+    const summaryPage = page('processingSummary');
+    line(summaryPage, 'processingSummaryTitle', 0, 145, 850);
+    for (let i = 0; i < 2; i++) line(summaryPage, 'processingSummaryRow' + i, 0, 80 - i * 60, 850);
+    pageArrows(summaryPage, 'ProcessingSummary', -50);
+    addButton(summaryPage, 'ProcessingSummaryBack', '返回修改', -330, -160);
+    addButton(summaryPage, 'ProcessingSummaryPreview', '可选预览', -110, -160);
+    addButton(summaryPage, 'ProcessingSummaryStart', '确认开工', 110, -160);
+    addButton(summaryPage, 'ProcessingSummaryRefresh', '重新核对', 330, -160);
+    const reviewPage = page('processingReview');
+    line(reviewPage, 'processingReviewTitle', 0, 135, 850);
+    line(reviewPage, 'processingReviewHelp', 0, 75, 850);
+    addButton(reviewPage, 'ProcessingReviewBack', '返回加工', -330, -160);
+    addButton(reviewPage, 'ProcessingReviewTasks', '查看任务', -110, -160);
+    addButton(reviewPage, 'ProcessingReviewStock', '查看库存', 110, -160);
+    const taskPage = page('processingTasks');
+    list(taskPage, 'processingTasks', 'ProcessingTask');
+    pageArrows(taskPage, 'ProcessingTasks', -75);
+    addButton(taskPage, 'ProcessingTasksBack', '返回', -330, -160);
+    addButton(taskPage, 'ProcessingAdvanceHour', '推进一小时', -110, -160);
+    addButton(taskPage, 'ProcessingAdvanceDay', '推进一天', 110, -160);
+    const detailPage = page('processingTaskDetail');
+    line(detailPage, 'processingTaskDetailTitle', 0, 135, 850);
+    line(detailPage, 'processingTaskDetailTime', 0, 75, 850);
+    line(detailPage, 'processingTaskDetailOutput', 0, 15, 850);
+    addButton(detailPage, 'ProcessingTaskDetailBack', '返回任务', -330, -160);
+    addButton(detailPage, 'ProcessingTaskDetailCollect', '领取产物', 110, -160);
+    addButton(detailPage, 'ProcessingTaskDetailRefresh', '重新核对', 330, -160);
+    const infoPage = page('processingInfo');
+    line(infoPage, 'processingInfoIdentity', 0, 115, 850);
+    addButton(infoPage, 'ProcessingSave', '保存', -330, 15);
+    addButton(infoPage, 'ProcessingLoad', '读取', -110, 15);
+    addButton(infoPage, 'ProcessingBackup', '恢复备份', 110, 15);
+    addButton(infoPage, 'ProcessingCancel', '撤销首档', 330, 15);
+    addButton(infoPage, 'ProcessingInfoBack', '返回', -330, -160);
   }
 
   private quantityInput(parent: Node, x: number, y: number, placeholderText = '输入拆分数量'): EditBox {

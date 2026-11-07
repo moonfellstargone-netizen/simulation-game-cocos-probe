@@ -159,3 +159,9 @@ tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的arg
 微信outer消费现有公开方法、输入要求、批次、设施和任务投影；玩家可直接开工和领取，预览可选。menu_confirm_processing_direct先对当前选择做只读正式校验，再经Session/ActionPipeline分发start_processing或collect_processing_result；不能将预计产物当作实际领取。任务推进仍使用advance_time，工具和方法时间仅作配置说明，不新增工具消耗、扣时、重复输入、Stage1B或其他正式玩法。
 
 ProcessingSystem与正式动作共用独立开工和领取计划；InventorySystem按既有顺序计算逐项消耗，StorageReconciler复用同一占用计算检查投影容量，在任务及产物ID分配前拒绝无效操作。会话/选择变化清旧预览，业务拒绝与提交后结果不确定分别呈现，不自动重发。老Web交互仍沿原菜单路径。trace.processing.required-inputs与trace.cocos.wechat-m1分别连接核心和微信相关既有测试，Creator、微信、手机及Web各自按固定提交留证。
+
+## 微信加工分步界面与结果核对
+
+加工总览显示方法、各项要求和设施状态；分步列表或分页完成选材、数量编辑、设施选择、汇总、任务查看及领取，选择与删除分开，预计产物和实际结果分开。完整要求与已选项目可逐页访问，空档、错误、后台及安全区实际表现须在相应平台独立验证。
+
+开工在途禁止重复提交；确定前置拒绝保留草稿供修正，已提交或不能确认时隔离本次提交材料并锁定开工；须只读刷新当前会话、查看任务和库存，之后由玩家重新选择材料。领取不确定时当前界面实例锁定任务并提供“重新核对”：WechatProbeController.refreshProcessingView仅经既有Queue refresh刷新当前会话的公开列表，不读写存档、不分发正式Action、不自动领取。刷新失败、结果缺失、后台或过期回执保持锁；领取只有任务状态与可领取列表相互一致时才能解除锁，确认ready后等待玩家手动领取，已完成不能重复领取。锁不是跨重启持久保证。
