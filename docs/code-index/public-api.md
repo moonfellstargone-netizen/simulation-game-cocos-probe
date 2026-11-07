@@ -229,4 +229,4 @@ WechatDataClone.ts提供微信目标内的纯DTO复制适配，导出structuredC
 
 - `WechatSaveStoragePort`位于`apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts`，提供单逻辑槽存取与外层恢复保护，不是game-core新增平台API。
 - `createWechatPriorSaveValidator`位于`apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts`，通过独立Host校验序列化存档，不提供存储写入。
-- `WechatProbeController`通过既有公开Binding提供手动存读档与前后台输入保护，candidate_id继续来自运行包。
+- `WechatProbeController`通过既有公开Binding提供拆分预览确认、手动存读档与前后台输入保护，candidate_id继续来自运行包。

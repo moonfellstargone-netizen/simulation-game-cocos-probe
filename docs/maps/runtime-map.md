@@ -143,7 +143,7 @@ tests/cocos-web-orders.test.ts实际进入既有lifecycle的args/files/covers，
 
 ## 微信M1装配
 
-apps/cocos-wechat-probe外层通过createStage1AHost、QinglanUiSceneProbeComponent公共runtime装配会话；WechatProbeController经公开菜单提交播种、推进、收获、整批转移和手动存读档命令，并维护busy、前后台及销毁保护。candidate-identity生成资源与SaveFile隔离，真实微信读档及前后台结果须独立验收；完整M3和M4尚未完成。trace.cocos.wechat-m1连接preparation/runtime测试及独立平台证据，核心入口与事务不变。
+apps/cocos-wechat-probe外层通过createStage1AHost、QinglanUiSceneProbeComponent公共runtime装配会话；WechatProbeController经公开菜单提交播种、推进、收获、整批转移、拆分预览确认和手动存读档命令，并维护busy、前后台及销毁保护。candidate-identity生成资源与SaveFile隔离，真实微信读档及前后台结果须独立验收；完整M3和M4尚未完成。trace.cocos.wechat-m1连接preparation/runtime测试及独立平台证据，核心入口与事务不变。
 
 ## 微信显式Schema预编译装配
 
@@ -166,3 +166,7 @@ M2运行时改动集中于独立微信outer，并同步构建来源、测试和�
 备份与中断保护须同时考虑失败前后可能发生写入：备份、主档与恢复信息分开；读取、恢复和失败路径以源码及针对性测试为准，不能将异常等同于未落盘。故障保护依赖存储键相互独立和可读回一致的有限模型，真实微信断电、设备故障及底层原子性未证明。备份恢复不等于跨平台导入或自动存档。
 
 tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的args/files，相关源及meta也进入preparation/runtime登记和trace.cocos.wechat-m1。受控Node契约不替代真实Creator、官方微信工具输入/存储/生命周期、最终提交CI或手机验收；具体结果以仓库外证据为准。
+
+## M3微信库存拆分
+
+M3微信库存拆分复用公开菜单的split_lot预览与确认，数量和单位以正式规则为准；切换材料、数量或会话等情况应使旧预览失效。失败保护、实际分出批次及来源追踪由控制器和现有正式动作共同保障，不修改SaveFile、正式Schema、配置或玩法规则。M2存读档与M3种植库存能力继续保留；PR25、PR26、PR27的依赖须随候选核对。本包不包含M3完整经营、M4或Stage1B。

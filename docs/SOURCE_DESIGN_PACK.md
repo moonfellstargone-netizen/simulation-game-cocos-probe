@@ -6,7 +6,7 @@
 
 项目地图与 GitHub 工作流继续规定分层读取、版本传播、测试和交付方法，不新增玩法规则。
 
-v0.0.3.0复用正式Stage1A全部九种Action和既有运行时；本轮为M3种植与库存首包，独立微信outer经公共Host/Binding/Queue接入播种、时间推进、收获和整批存储，并保留M2手动保存、读取和只读候选身份。真实微信平台和手机验收分别留证；M3完整经营和M4尚未完成。trace.cocos.wechat-m1连接最小平台源与受控测试，旧Web及五点恢复/触摸追踪保持；core、Session/Queue、SaveFile、正式Schema/config/fixture/expected及业务规则不变，电脑工具结果不作为手机证据。
+v0.0.3.0复用正式Stage1A全部九种Action和既有运行时；本轮为M3库存拆分包，独立微信outer经公共Host/Binding/Queue接入播种、时间推进、收获、整批存储和正式拆分预览确认，并保留M2手动保存、读取和只读候选身份。真实微信平台和手机验收分别留证；M3完整经营和M4尚未完成。trace.cocos.wechat-m1连接最小平台源与受控测试，旧Web及五点恢复/触摸追踪保持；core、Session/Queue、SaveFile、正式Schema/config/fixture/expected及业务规则不变，电脑工具结果不作为手机证据。
 
 code package version: `v0.0.3.0`
 

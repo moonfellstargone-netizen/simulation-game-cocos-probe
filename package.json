@@ -2,7 +2,7 @@
   "name": "qinglan-cocos-prototype-codepack",
   "version": "0.0.3-0",
   "private": true,
-  "description": "模拟游戏 Cocos 微信试水代码包 v0.0.3.0：WeChat Stage1A Pilot / 微信真机Stage1A试水版。当前为M3微信种植与库存首包候选，M3完整经营与M4未完成。",
+  "description": "模拟游戏 Cocos 微信试水代码包 v0.0.3.0：WeChat Stage1A Pilot / 微信真机Stage1A试水版。当前为M3微信库存拆分包候选，M3完整经营与M4未完成。",
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",

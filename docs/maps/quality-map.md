@@ -117,7 +117,7 @@ trace.cocos.wechat-m1同时连接核心校验/公共bootstrap、编译器工具�
 
 ## 微信DTO复制覆盖
 
-tests/cocos-wechat-data-clone.test.ts追加到原test:cocos-wechat-runtime / test.cocos-wechat-runtime实际args/files/covers，验证原生DTO复制对比与拒绝路径；helper和测试同步登记preparation files。原两项微信full/blocker任务保留，不新增任务、CI或算法；M2存储及生命周期由独立outer提供。当前M3种植与库存首包继续沿用既有门禁；完整M3、M4和Stage1B尚未完成。
+tests/cocos-wechat-data-clone.test.ts追加到原test:cocos-wechat-runtime / test.cocos-wechat-runtime实际args/files/covers，验证原生DTO复制对比与拒绝路径；helper和测试同步登记preparation files。原两项微信full/blocker任务保留，不新增任务、CI或算法；M2存储及生命周期由独立outer提供。M3种植与库存首包及后续拆分包继续沿用既有门禁；完整M3、M4和Stage1B尚未完成。
 
 sourceProvenance及prepare真实输入记录helper，.ts架构扫描和旧三层不得反向依赖apps的规则保持；只在微信构建目标注入，不对全局作polyfill。
 
@@ -134,3 +134,7 @@ tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的arg
 ## 微信M2包体修复覆盖
 
 tests/cocos-wechat-schema-optimization.test.mjs纳入既有test:cocos-wechat-runtime及test.cocos-wechat-runtime实际args、files和covers，相关编译与来源文件登记受影响范围，保留full/blocker和原测试。测试以受控样本比较58项Schema在动态、默认standalone与loopRequired=1生成器下的结果及完整errors，并覆盖来源参数拒绝。preparation继续覆盖debug=false和微信engine模板；这些Node测试不替代真实Creator、微信工具或设备验收。
+
+## M3微信库存拆分
+
+微信运行回归继续沿用test.cocos-wechat-runtime和test.cocos-wechat-preparation的full/blocker，拆分场景覆盖正式预览、确认、拒绝及旧预览失效；保留M2存储和M3种植库存回归。受控测试、Creator构建、微信工具输入、浏览器回归和对应提交CI分别验收，不以历史结果代替。

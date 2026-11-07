@@ -1,4 +1,4 @@
-import { _decorator, Button, Camera, Canvas, Color, Component, Game, game, Graphics, isValid,
+import { _decorator, Button, Camera, Canvas, Color, Component, EditBox, Game, game, Graphics, isValid,
   JsonAsset, Label, Layers, Node, resources, ResolutionPolicy, screen, sys, UITransform, view } from 'cc';
 import { createStage1AHost, QinglanUiSceneProbeComponent } from '../generated/probe-runtime.js';
 import { WechatProbeController, type WechatProbeSnapshot, type WechatResources } from './WechatProbeController';
@@ -42,9 +42,11 @@ export class CocosWechatProbe extends Component {
   private lastCommandWasRead = false;
   private clickCount = 0;
   private names: Record<string, string> = {};
-  private page: 'farm' | 'stock' = 'farm';
+  private page: 'farm' | 'stock' | 'split' = 'farm';
   private farmNode: Node | null = null;
   private stockNode: Node | null = null;
+  private splitNode: Node | null = null;
+  private splitInput: EditBox | null = null;
   private menuButtons: Record<string, Button> = {};
   private menuHandlers: Record<string, () => void> = {};
   private fieldId: string | null = null;
@@ -101,6 +103,7 @@ export class CocosWechatProbe extends Component {
     this.loadButton!.node.on(Button.EventType.CLICK, this.onRead, this);
     this.backupButton!.node.on(Button.EventType.CLICK, this.onReadBackup, this);
     this.cancelFirstButton!.node.on(Button.EventType.CLICK, this.onCancelFirst, this);
+    this.splitInput!.node.on(EditBox.EventType.TEXT_CHANGED, this.onSplitTextChanged, this);
     for (const [name, button] of Object.entries(this.menuButtons)) {
       const handler = this.menuHandler(name);
       this.menuHandlers[name] = handler;
@@ -119,23 +122,29 @@ export class CocosWechatProbe extends Component {
     if (this.loadButton && isValid(this.loadButton.node, true)) this.loadButton.node.off(Button.EventType.CLICK, this.onRead, this);
     if (this.backupButton && isValid(this.backupButton.node, true)) this.backupButton.node.off(Button.EventType.CLICK, this.onReadBackup, this);
     if (this.cancelFirstButton && isValid(this.cancelFirstButton.node, true)) this.cancelFirstButton.node.off(Button.EventType.CLICK, this.onCancelFirst, this);
+    if (this.splitInput && isValid(this.splitInput.node, true)) this.splitInput.node.off(EditBox.EventType.TEXT_CHANGED, this.onSplitTextChanged, this);
     for (const [name, button] of Object.entries(this.menuButtons)) if (isValid(button.node, true)) button.node.off(Button.EventType.CLICK, this.menuHandlers[name], this);
     game.off(Game.EVENT_HIDE, this.onHide, this);
     game.off(Game.EVENT_SHOW, this.onShow, this);
+    this.controller?.invalidateSplitPreview();
     void this.controller?.dispose().catch(error => console.error('[wechat-m1] close-failed', String(error)));
   }
 
   private onAdvance(): void {
+    this.finishSplitEditing();
     this.resetCancelConfirmation();
+    this.invalidateSplit();
     this.setCommandReadContext(false);
     this.clickCount++;
     console.info('[wechat-m1] button-click', JSON.stringify({ click_count: this.clickCount, candidate_id: this.controller?.snapshot().identity?.candidate_id }));
     void this.controller?.advance().catch(error => console.error('[wechat-m1] action-failed', String(error)));
   }
 
-  private onSave(): void { this.resetCancelConfirmation(); this.setCommandReadContext(false); void this.controller?.save().catch(error => console.error('[wechat-m2] save-failed', String(error))); }
+  private onSave(): void { this.finishSplitEditing(); this.resetCancelConfirmation(); this.invalidateSplit(); this.setCommandReadContext(false); void this.controller?.save().catch(error => console.error('[wechat-m2] save-failed', String(error))); }
   private onRead(): void {
+    this.finishSplitEditing();
     this.resetCancelConfirmation();
+    this.invalidateSplit();
     this.setCommandReadContext(true);
     void this.controller?.load().catch(error => {
       if (error instanceof Error && error.message === `ERR_SAVE_SLOT_NOT_FOUND:${WECHAT_SAVE_SLOT_ID}`) {
@@ -143,8 +152,10 @@ export class CocosWechatProbe extends Component {
       } else console.error('[wechat-m2] load-failed', String(error));
     });
   }
-  private onReadBackup(): void { this.resetCancelConfirmation(); this.setCommandReadContext(false); void this.controller?.loadBackup().catch(error => console.error('[wechat-m2] backup-load-failed', String(error))); }
+  private onReadBackup(): void { this.finishSplitEditing(); this.resetCancelConfirmation(); this.invalidateSplit(); this.setCommandReadContext(false); void this.controller?.loadBackup().catch(error => console.error('[wechat-m2] backup-load-failed', String(error))); }
   private onCancelFirst(): void {
+    this.finishSplitEditing();
+    this.invalidateSplit();
     this.setCommandReadContext(false);
     if (!this.confirmCancelFirst) {
       this.confirmCancelFirst = true;
@@ -162,23 +173,35 @@ export class CocosWechatProbe extends Component {
     const state = this.controller?.snapshot();
     if (state?.phase === 'ready' && !state.busy && state.visible) this.lastCommandWasRead = isRead;
   }
-  private onHide(): void { this.resetCancelConfirmation(); this.controller?.setVisible(false); }
+  private invalidateSplit(): void { this.controller?.invalidateSplitPreview(); }
+  private finishSplitEditing(): void { if (this.splitInput?.isFocused()) this.splitInput.blur(); }
+  private onSplitTextChanged(): void {
+    this.resetCancelConfirmation();
+    this.invalidateSplit();
+    const state = this.controller?.snapshot();
+    if (state && isValid(this.node, true)) this.renderMenu(state);
+  }
+  private onHide(): void { this.finishSplitEditing(); this.resetCancelConfirmation(); this.invalidateSplit(); this.controller?.setVisible(false); }
   private onShow(): void { this.controller?.setVisible(true); }
 
   private menuHandler(name: string): () => void {
     return () => {
       const state = this.controller?.snapshot();
       if (!state || state.phase !== 'ready' || state.busy || !state.visible) return;
+      this.finishSplitEditing();
       this.resetCancelConfirmation();
+      if (name !== 'SplitConfirm') this.invalidateSplit();
       const options = state.menu?.selectable_view_model;
       if (name === 'PageFarm') this.page = 'farm';
       else if (name === 'PageStock') this.page = 'stock';
+      else if (name === 'StockSplit') this.page = 'split';
+      else if (name === 'SplitBack') this.page = 'stock';
       else if (name === 'FarmField') this.fieldId = this.next(options?.field_options.filter(x => x.enabled) ?? [], this.fieldId);
       else if (name === 'FarmSeed') { this.seedId = this.next(options?.seed_lot_options.filter(x => x.enabled) ?? [], this.seedId); this.seedAmount = 1; }
       else if (name === 'FarmCrop') this.cropId = this.next(options?.harvestable_crop_options.filter(x => x.enabled) ?? [], this.cropId);
       else if (name === 'FarmMinus' && this.seedId !== null) this.seedAmount = Math.max(1, this.seedAmount - 1);
       else if (name === 'FarmPlus' && this.seedId !== null && Number.isSafeInteger(this.seedAmount + 1)) this.seedAmount++;
-      else if (name === 'StockLot') this.lotId = this.next(options?.splittable_lot_options ?? [], this.lotId);
+      else if (name === 'StockLot') { this.lotId = this.next(options?.splittable_lot_options ?? [], this.lotId); if (this.splitInput) this.splitInput.string = ''; }
       else if (name === 'StockTarget') this.targetId = this.next(options?.storage_target_options ?? [], this.targetId);
       else {
         const seed = options?.seed_lot_options.find(x => x.id === this.seedId && x.enabled);
@@ -188,6 +211,25 @@ export class CocosWechatProbe extends Component {
         const target = options?.storage_target_options.find(x => x.id === this.targetId && x.enabled);
         let action: Promise<WechatProbeSnapshot> | null = null;
         let done = '';
+        if (name === 'SplitPreview' && lot) {
+          this.lastCommandWasRead = false;
+          const amount = this.splitAmount();
+          if (amount === null) this.labels.hint.string = '请输入大于零的有效数量';
+          else void this.controller!.previewSplit(lot.id, { amount, unit: lot.quantity.unit })
+            .catch(error => { if (isValid(this.node, true)) this.labels.hint.string = '预览未完成，请重试'; console.error('[wechat-m3] split-preview-failed', String(error)); });
+        } else if (name === 'SplitConfirm' && lot) {
+          this.lastCommandWasRead = false;
+          const amount = this.splitAmount();
+          const preview = state.split_preview;
+          if (amount !== null && preview?.success && preview.sourceLotId === lot.id
+              && preview.quantity.amount === amount && preview.quantity.unit === lot.quantity.unit) {
+            void this.controller!.confirmSplit().catch(error => {
+              if (isValid(this.node, true)) this.labels.hint.string = String(error).includes('ERR_WECHAT_SPLIT_RESULT_UNCERTAIN')
+                ? '拆分结果待确认，请查看库存核实' : '拆分未完成，请查看状态';
+              console.error('[wechat-m3] split-confirm-failed', String(error));
+            });
+          }
+        }
         if (name === 'AdvanceDay') { action = this.controller!.advanceDay(); done = '已推进一天'; }
         else if (name === 'FarmPlant' && field && seed) { action = this.controller!.plant(field.id, seed.id, { amount: this.seedAmount, unit: seed.quantity.unit }); done = '播种完成'; }
         else if (name === 'FarmHarvest' && crop) { action = this.controller!.harvest(crop.id); done = '收获完成'; }
@@ -202,13 +244,29 @@ export class CocosWechatProbe extends Component {
     };
   }
 
+  private splitAmount(): number | null {
+    const text = this.splitInput?.string.trim() ?? '';
+    if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(text)) return null;
+    const value = Number(text);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
+
+  private splitRejection(code: string): string {
+    if (code === 'ERR_NOT_ENOUGH_RESOURCE') return '数量超过当前库存';
+    if (code === 'ERR_SPLIT_QUANTITY_INVALID') return '数量不符合单位要求';
+    if (code === 'ERR_SPLIT_QUANTITY_NOT_REPRESENTABLE') return '请调整拆分数量';
+    if (code.startsWith('ERR_STORAGE_CAPACITY_OVERFLOW')) return '当前储存空间不足';
+    if (code.startsWith('ERR_MENU_OPTION_')) return '请重新选择批次';
+    return '请调整选择或数量';
+  }
+
   private next(options: readonly { readonly id: string }[], selected: string | null): string | null {
     if (!options.length) return null;
     return options[(options.findIndex(item => item.id === selected) + 1) % options.length].id;
   }
 
   private renderMenu(state: WechatProbeSnapshot): void {
-    if (!this.farmNode || !this.stockNode) return;
+    if (!this.farmNode || !this.stockNode || !this.splitNode || !this.splitInput) return;
     const options = state.menu?.selectable_view_model;
     const fields = options?.field_options ?? [];
     const seeds = options?.seed_lot_options ?? [];
@@ -229,13 +287,22 @@ export class CocosWechatProbe extends Component {
     const place = (value: string) => STORAGE[value] ?? value;
     this.farmNode.active = this.page === 'farm';
     this.stockNode.active = this.page === 'stock';
+    this.splitNode.active = this.page === 'split';
     this.labels.farmField.string = field ? `地块${fields.findIndex(x => x.id === field.id) + 1}/${fields.length}：${this.names[field.definition_id] ?? '已选地块'} · 可用${fields.filter(x => x.enabled).length}` : `地块：请选择（可用${fields.filter(x => x.enabled).length}/${fields.length}）`;
     this.labels.farmSeed.string = seed ? `种子${seeds.findIndex(x => x.id === seed.id) + 1}/${seeds.length}：${this.names[seed.base_id] ?? '种子批次'} · 现有${seed.quantity.amount}${unit(seed.quantity.unit)} · 播种${this.seedAmount}${unit(seed.quantity.unit)}` : '种子：请选择种子批次';
     this.labels.farmCrop.string = crop ? `作物${crops.findIndex(x => x.id === crop.id) + 1}/${crops.length}：${this.names[crop.crop_base_id] ?? '已选作物'} · 可收获${crops.filter(x => x.enabled).length}株` : `作物：可收获${crops.filter(x => x.enabled).length}株`;
     this.labels.stockLot.string = lot ? `批次${lots.findIndex(x => x.id === lot.id) + 1}/${lots.length}：${this.names[lot.base_id] ?? '材料'} ${lot.quantity.amount}${unit(lot.quantity.unit)} · ${place(lot.storage_ref.storage_type)}${lot.enabled ? '' : ' · 不可用'}` : `库存：${lots.length}批，请选择材料`;
     this.labels.stockTarget.string = target ? `目标${targets.findIndex(x => x.id === target.id) + 1}/${targets.length}：${place(target.storage_type)} · 已用${target.used_capacity}/${target.capacity.amount}${unit(target.capacity.unit)}${target.enabled ? '' : ' · 不可用'}` : `目标：${targets.length}处，请选择储存位置`;
     this.labels.stockHelp.string = lot ? `形态：${this.names[`${lot.base_id}:${lot.current_form}`] ?? FORMS[lot.current_form] ?? lot.current_form} · 目标支持：${target?.supported_forms.map(form => FORMS[form] ?? form).join('/') || '未列出'} · 整批转移` : '选择材料批次与目标后可整批转移';
+    this.labels.splitLot.string = lot ? `拆分：${this.names[lot.base_id] ?? '材料'} · 当前${lot.quantity.amount}${unit(lot.quantity.unit)}` : '请返回库存选择材料批次';
+    this.labels.splitUnit.string = lot ? `数量单位：${unit(lot.quantity.unit)}` : '数量单位：—';
+    const preview = state.split_preview;
+    const result = state.split_result;
+    const resultIndex = result ? lots.findIndex(x => x.id === result.newLotId) : -1;
+    this.labels.splitPreview.string = result ? `${resultIndex < 0 ? '新增批次' : `新增第${resultIndex + 1}批`}：${result.quantity.amount}${unit(result.quantity.unit)} · ${result.remainingQuantity ? `来源剩余${result.remainingQuantity.amount}${unit(result.remainingQuantity.unit)}` : '来源已全部拆出'}`
+      : preview ? preview.success ? '校验通过，尚未执行' : `校验未通过：${this.splitRejection(preview.statusCode)}` : '填写数量后先预览，再确认';
     const enabled = state.phase === 'ready' && state.visible && !state.busy;
+    this.splitInput.enabled = enabled && this.page === 'split' && !!lot?.enabled;
     const set = (name: string, value: boolean) => { const button = this.menuButtons[name]; if (button && isValid(button.node, true)) button.interactable = enabled && value; };
     set('PageFarm', true); set('PageStock', true); set('AdvanceDay', true);
     set('FarmField', fields.some(x => x.enabled)); set('FarmSeed', seeds.some(x => x.enabled)); set('FarmCrop', crops.some(x => x.enabled));
@@ -243,6 +310,10 @@ export class CocosWechatProbe extends Component {
     set('FarmPlant', !!field && !!seed); set('FarmHarvest', !!crop);
     set('StockLot', lots.length > 0); set('StockTarget', targets.length > 0);
     set('StockMove', !!lot?.enabled && !!target?.enabled && target.id !== lot.storage_ref.container_id);
+    set('StockSplit', !!lot?.enabled); set('SplitBack', true); set('SplitPreview', !!lot?.enabled);
+    const amount = this.splitAmount();
+    set('SplitConfirm', !!lot?.enabled && amount !== null && !!preview?.success && preview.sourceLotId === lot.id
+      && preview.quantity.amount === amount && preview.quantity.unit === lot.quantity.unit);
   }
 
   private render(state: WechatProbeSnapshot): void {
@@ -273,6 +344,7 @@ export class CocosWechatProbe extends Component {
   }
 
   private errorText(error: string): string {
+    if (error.includes('ERR_WECHAT_SPLIT_RESULT_UNCERTAIN')) return '拆分结果待确认，请查看库存核实';
     if (error.includes('ERR_WECHAT_BACKUP_RECOVERY_INCOMPLETE')) return '存储恢复未完成，当前游戏未变';
     if (error.includes('ERR_WECHAT_BACKUP_RESTORED_RESULT_UNCERTAIN')) return '存储已恢复，读取或显示未完成，请检查游戏';
     if (error.includes('ERR_WECHAT_SAVE_RECOVERY_REQUIRED')) return '存档待恢复，请恢复备份或撤销首档';
@@ -340,6 +412,19 @@ export class CocosWechatProbe extends Component {
     this.labels.stockTarget = this.menuLabel(this.stockNode, 'stockTarget', 80, -30);
     this.labels.stockHelp = this.menuLabel(this.stockNode, 'stockHelp', 80, -85);
     this.menuButtons.StockMove = this.smallButton(this.stockNode, 'StockMove', '整批转移', 110, -140);
+    this.menuButtons.StockSplit = this.smallButton(this.stockNode, 'StockSplit', '拆分批次', 330, -140);
+
+    this.splitNode = new Node('SplitPage');
+    this.splitNode.layer = Layers.Enum.UI_2D;
+    root.addChild(this.splitNode);
+    this.splitNode.addComponent(UITransform).setContentSize(960, 540);
+    this.labels.splitLot = this.menuLabel(this.splitNode, 'splitLot', 0, 25);
+    this.splitInput = this.quantityInput(this.splitNode, -300, -30);
+    this.labels.splitUnit = this.menuLabel(this.splitNode, 'splitUnit', 140, -30);
+    this.labels.splitPreview = this.menuLabel(this.splitNode, 'splitPreview', 0, -85);
+    this.menuButtons.SplitBack = this.smallButton(this.splitNode, 'SplitBack', '返回库存', -330, -140);
+    this.menuButtons.SplitPreview = this.smallButton(this.splitNode, 'SplitPreview', '预览拆分', -110, -140);
+    this.menuButtons.SplitConfirm = this.smallButton(this.splitNode, 'SplitConfirm', '确认拆分', 110, -140);
 
     this.saveButton = this.smallButton(root, 'Save', '保存', -330, -197);
     this.loadButton = this.smallButton(root, 'Load', '读取', -110, -197);
@@ -351,6 +436,39 @@ export class CocosWechatProbe extends Component {
     this.labels.hint = this.label(root, 'hint', '手动保存与读取；可选择恢复失败存档', -237, 15);
     this.labels.hint.node.setPosition(150, -237, 0);
     this.labels.hint.node.getComponent(UITransform)!.setContentSize(600, 22);
+  }
+
+  private quantityInput(parent: Node, x: number, y: number): EditBox {
+    const node = new Node('SplitQuantity');
+    node.layer = Layers.Enum.UI_2D;
+    parent.addChild(node);
+    node.setPosition(x, y, 0);
+    node.addComponent(UITransform).setContentSize(240, 48);
+    const background = new Node('Background');
+    background.layer = Layers.Enum.UI_2D;
+    node.addChild(background);
+    background.addComponent(UITransform).setContentSize(240, 48);
+    const graphics = background.addComponent(Graphics);
+    graphics.fillColor = new Color(40, 57, 70, 255);
+    graphics.roundRect(-120, -24, 240, 48, 6);
+    graphics.fill();
+    const text = this.label(node, 'Text', '', 0, 20);
+    const placeholder = this.label(node, 'Placeholder', '输入拆分数量', 0, 18);
+    for (const label of [text, placeholder]) {
+      label.node.getComponent(UITransform)!.setContentSize(220, 48);
+      label.node.getComponent(UITransform)!.setAnchorPoint(0, 1);
+      label.horizontalAlign = Label.HorizontalAlign.LEFT;
+    }
+    placeholder.color = new Color(151, 164, 170, 255);
+    const input = node.addComponent(EditBox);
+    input.textLabel = text;
+    input.placeholderLabel = placeholder;
+    input.inputMode = EditBox.InputMode.SINGLE_LINE;
+    input.inputFlag = EditBox.InputFlag.DEFAULT;
+    input.tabIndex = -1;
+    input.maxLength = -1;
+    input.enabled = false;
+    return input;
   }
 
   private menuLabel(parent: Node, name: string, x: number, y: number): Label {

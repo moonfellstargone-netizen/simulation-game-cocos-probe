@@ -20,15 +20,16 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
       builder.onLoad({ filter: /.*/, namespace: 'test-port' }, args => ({ contents: args.path === 'cc'
         ? `export class Component { constructor() { this.node = {}; } }
            export const _decorator = { ccclass: () => value => value }; export const isValid = () => true;
-           export const Button = {}, Camera = {}, Canvas = {}, Color = {}, Game = {}, game = {}, Graphics = {}, JsonAsset = {}, Label = {}, Layers = {}, Node = {}, resources = {}, ResolutionPolicy = {}, screen = {}, sys = {}, UITransform = {}, view = {};`
+           export const Button = {}, Camera = {}, Canvas = {}, Color = {}, EditBox = {}, Game = {}, game = {}, Graphics = {}, JsonAsset = {}, Label = {}, Layers = {}, Node = {}, resources = {}, ResolutionPolicy = {}, screen = {}, sys = {}, UITransform = {}, view = {};`
         : 'export const createStage1AHost = () => {}; export class QinglanUiSceneProbeComponent {}', loader: 'js' }));
     } }]
   });
   const { CocosWechatProbe } = await import('data:text/javascript;base64,' + Buffer.from(bundled.outputFiles[0]!.text).toString('base64'));
   const probe = new CocosWechatProbe();
-  probe.labels = Object.fromEntries(['candidate', 'commit', 'time', 'status', 'result', 'hint', 'farmField', 'farmSeed', 'farmCrop', 'stockLot', 'stockTarget', 'stockHelp'].map(name => [name, { string: '' }]));
-  probe.farmNode = { active: true }; probe.stockNode = { active: false };
-  const names = ['PageFarm', 'PageStock', 'AdvanceDay', 'FarmField', 'FarmSeed', 'FarmCrop', 'FarmMinus', 'FarmPlus', 'FarmPlant', 'FarmHarvest', 'StockLot', 'StockTarget', 'StockMove'];
+  probe.labels = Object.fromEntries(['candidate', 'commit', 'time', 'status', 'result', 'hint', 'farmField', 'farmSeed', 'farmCrop', 'stockLot', 'stockTarget', 'stockHelp', 'splitLot', 'splitUnit', 'splitPreview'].map(name => [name, { string: '' }]));
+  probe.farmNode = { active: true }; probe.stockNode = { active: false }; probe.splitNode = { active: false };
+  probe.splitInput = { string: '', enabled: false, focused: false, isFocused() { return this.focused; }, blur() { this.focused = false; } };
+  const names = ['PageFarm', 'PageStock', 'AdvanceDay', 'FarmField', 'FarmSeed', 'FarmCrop', 'FarmMinus', 'FarmPlus', 'FarmPlant', 'FarmHarvest', 'StockLot', 'StockTarget', 'StockMove', 'StockSplit', 'SplitBack', 'SplitPreview', 'SplitConfirm'];
   probe.menuButtons = Object.fromEntries(names.map(name => [name, { node: {}, interactable: false }]));
   const snapshot = JSON.parse(readFileSync('design_snapshot/generated/stage_1A_runtime_snapshot.json', 'utf8')) as RuntimeConfigSnapshot;
   const schemas = Object.fromEntries(snapshot.schema_paths.map(path => [path, JSON.parse(readFileSync(`design_snapshot/${path}`, 'utf8'))]));
@@ -38,14 +39,15 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
   const values = new Map<string, string>();
   const platform = { get length() { return values.size; }, key(i: number) { return Array.from(values.keys())[i] ?? null; }, getItem(k: string) { return values.get(k) ?? null; }, setItem(k: string, v: string) { values.set(k, v); }, removeItem(k: string) { values.delete(k); } };
   const storage = new WechatSaveStoragePort(() => platform, async () => {});
-  let hold = false; let unblock!: () => void;
+  let hold = false; let failSplitPatch = false; let unblock!: () => void;
   let cancellations = 0;
-  const gate = new Promise<void>(resolve => { unblock = resolve; });
+  let gate = new Promise<void>(resolve => { unblock = resolve; });
   const controller = new WechatProbeController({
     load: async () => ({ resources: { snapshot, schemas, buildId }, identity }),
     createHost: input => createStage1AHost({ snapshot: input.snapshot as RuntimeConfigSnapshot, schemas: input.schemas, buildId, storage, nowIso8601: '2026-11-03T00:00:00.000Z' }),
     createBinding: host => new QinglanUiSceneProbeComponent(host as CocosSessionHost, { applyNodeBindingPatch: async patch => {
       if (hold) await gate;
+      if (patch.section === 'menu' && failSplitPatch) { failSplitPatch = false; throw new Error('injected scene update failure after action'); }
       if (patch.section === 'menu') controller.acceptMenuPatch(patch.payload);
     } }),
     cancelFirstFailedSave: async () => { cancellations++; },
@@ -124,7 +126,91 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     assert.equal(moved.storage_ref.container_id, pair.target.id);
     assert.deepEqual(moved.quantity, pair.lot.quantity);
     assert.equal(probe.lotId, pair.lot.id);
+    // The input helper models an actual EditBox text-changed event; formal results
+    // still come from the real Host/Binding/ActionPipeline.
+    const enter = (value: string) => { probe.splitInput.string = value; probe.splitInput.focused = true; probe.onSplitTextChanged(); };
+    const preview = async () => { click('SplitPreview'); await waitForIdle(); };
+    const selectLot = (id: string) => {
+      const count = controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.length;
+      for (let i = 0; probe.lotId !== id && i <= count; i++) click('StockLot');
+      assert.equal(probe.lotId, id);
+    };
+    click('StockSplit');
+    assert.equal(probe.page, 'split');
+    for (const invalid of ['', '0', '-1', 'NaN', '1e309', '2tail', '0x10']) {
+      enter(invalid);
+      const accepted = controller.snapshot().accepted_commands;
+      click('SplitConfirm');
+      assert.equal(controller.snapshot().accepted_commands, accepted, 'invalid input cannot confirm');
+      assert.equal(probe.menuButtons.SplitConfirm.interactable, false);
+    }
+    enter('300'); await preview();
+    assert.equal(probe.splitInput.focused, false, 'preview closes the active edit box');
+    assert.equal(controller.snapshot().split_preview?.success, true);
+    assert.equal(probe.menuButtons.SplitConfirm.interactable, true);
+    enter('301');
+    assert.equal(controller.snapshot().split_preview, null, 'typing invalidates the previous receipt');
+    assert.equal(probe.menuButtons.SplitConfirm.interactable, false);
+    enter('300'); await preview();
+    click('SplitBack');
+    assert.equal(controller.snapshot().split_preview, null, 'leaving the page invalidates the receipt');
+    click('StockSplit'); await preview();
+    probe.onHide();
+    assert.equal(controller.snapshot().split_preview, null, 'background invalidates the receipt');
+    probe.onShow();
+    assert.equal(probe.menuButtons.SplitConfirm.interactable, false);
+    await preview();
+    gate = new Promise<void>(resolve => { unblock = resolve; });
+    hold = true; click('SplitPreview');
+    assert.equal(controller.snapshot().busy, true);
+    probe.onHide(); hold = false; unblock(); await waitForIdle(); probe.onShow();
+    assert.equal(controller.snapshot().split_preview, null, 'a preview completed after hiding must not revive');
+    assert.equal(probe.menuButtons.SplitConfirm.interactable, false);
+    click('SplitBack'); click('StockLot');
+    assert.notEqual(probe.lotId, pair.lot.id);
+    assert.equal(controller.snapshot().split_preview, null, 'changing lot invalidates the receipt');
+    assert.equal(probe.splitInput.string, '', 'changing lot clears its previous quantity');
+    selectLot(seedId); click('StockSplit');
+    const seedBeforeReject = controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(x => x.id === seedId)!.quantity.amount;
+    enter('0.5'); await preview();
+    assert.equal(controller.snapshot().split_preview?.success, false, 'fractional count is rejected by formal preview');
+    assert.equal(controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(x => x.id === seedId)!.quantity.amount, seedBeforeReject);
+    assert.equal(probe.menuButtons.SplitConfirm.interactable, false);
+    enter(String(seedBeforeReject + 1)); await preview();
+    assert.equal(controller.snapshot().split_preview?.success, false, 'quantity exceeding available stock is rejected');
+    assert.equal(controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(x => x.id === seedId)!.quantity.amount, seedBeforeReject);
+    click('SplitBack'); selectLot(pair.lot.id); click('StockSplit');
+    const beforeFraction = controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(x => x.id === pair.lot.id)!.quantity.amount;
+    enter('0.5'); await preview();
+    assert.equal(controller.snapshot().split_preview?.success, true, 'fractional grams use formal preview');
+    click('SplitConfirm'); await waitForIdle();
+    const first = controller.snapshot().split_result;
+    assert.ok(first, 'formal confirmation returns the new lot');
+    assert.equal(first.quantity.amount, 0.5);
+    assert.equal(first.remainingQuantity?.amount, beforeFraction - 0.5);
+    assert.equal(first.sourceLotId, pair.lot.id);
+    assert.equal(probe.menuButtons.SplitConfirm.interactable, false, 'a receipt cannot be reused');
+    enter(String(first.remainingQuantity!.amount)); await preview();
+    assert.equal(controller.snapshot().split_preview?.success, true, 'full quantity is legal');
+    click('SplitConfirm'); await waitForIdle();
+    const full = controller.snapshot().split_result;
+    assert.ok(full);
+    assert.equal(full.remainingQuantity, null, 'full split removes the exhausted source');
+    assert.equal(full.quantity.amount, beforeFraction - 0.5);
+    assert.equal(probe.lotId, null, 'removed source selection is cleared');
+    click('SplitBack'); selectLot(first.newLotId); click('StockSplit');
+    enter('0.5'); await preview();
+    assert.equal(controller.snapshot().split_preview?.success, true);
+    failSplitPatch = true;
+    const oldError = console.error; console.error = () => {};
+    try { click('SplitConfirm'); await waitForIdle(); } finally { console.error = oldError; }
+    assert.match(controller.snapshot().last_error ?? '', /ERR_WECHAT_SPLIT_RESULT_UNCERTAIN/);
+    assert.match(probe.labels.status.string, /待确认/, 'uncertain action result remains explicit in the status area');
+    assert.match(probe.labels.status.string, /库存/, 'status tells the player to check the inventory');
+    assert.doesNotMatch(probe.labels.status.string, /操作失败|拆分失败/, 'uncertain result must not be presented as a definite failure');
     await controller.load();
+    assert.equal(controller.snapshot().split_preview, null, 'reading clears the preview receipt');
+    assert.equal(probe.menuButtons.SplitConfirm.interactable, false);
     assert.equal(probe.lotId, null, 'reading the earlier save clears a now-absent selected lot');
     assert.equal(controller.snapshot().identity!.candidate_id, identity.candidate_id);
     assert.equal(controller.snapshot().menu!.selectable_view_model!.field_options.find(x => x.id === fieldId)!.enabled, false);
@@ -139,14 +225,15 @@ test('M3 bottom hint geometry fits the design viewport, avoids controls, and ret
       builder.onResolve({ filter: /^cc$/ }, () => ({ path: 'cc', namespace: 'test-layout' }));
       builder.onResolve({ filter: /generated\/probe-runtime\.js$/ }, () => ({ path: 'runtime', namespace: 'test-layout' }));
       builder.onLoad({ filter: /.*/, namespace: 'test-layout' }, args => ({ contents: args.path === 'cc'
-        ? `export class Node { constructor(name) { this.name=name; this.children=[]; this.components=[]; this.position={x:0,y:0,z:0}; } addChild(node) { this.children.push(node); node.parent=this; } addComponent(Type) { const c=new Type(); c.node=this; this.components.push(c); return c; } getComponent(Type) { return this.components.find(c => c instanceof Type) ?? null; } setPosition(x,y,z) { this.position={x,y,z}; } }
+        ? `export class Node { constructor(name) { this.name=name; this.children=[]; this.components=[]; this.position={x:0,y:0,z:0}; } addChild(node) { this.children.push(node); node.parent=this; } addComponent(Type) { const c=new Type(); c.node=this; this.components.push(c); return c; } getComponent(Type) { return this.components.find(c => c instanceof Type) ?? null; } setPosition(x,y,z) { this.position={x,y,z}; } on(event,fn,ctx) { (this.listeners ??= new Map()).set(event,{fn,ctx}); } off(event,fn,ctx) { const e=this.listeners?.get(event); if(e?.fn===fn && e?.ctx===ctx) this.listeners.delete(event); } emit(event) { const e=this.listeners?.get(event); if(e) e.fn.call(e.ctx); } }
            export class Component { constructor() { this.node = new Node('root'); } }
-           export class UITransform { setContentSize(width,height) { this.width=width; this.height=height; } }
-           export class Canvas {} export class Label {} export class Color { constructor(...v) { this.values=v; } }
-           export class Button { static Transition={NONE:0}; } export class Graphics { roundRect() {} fill() {} }
+           export class UITransform { setContentSize(width,height) { this.width=width; this.height=height; } setAnchorPoint() {} }
+           export class Canvas {} export class Label { static HorizontalAlign={LEFT:0}; } export class Color { constructor(...v) { this.values=v; } }
+           export class EditBox { static InputMode={SINGLE_LINE:0}; static InputFlag={DEFAULT:0}; static EventType={TEXT_CHANGED:'text-changed'}; isFocused() { return false; } blur() {} }
+           export class Button { static Transition={NONE:0}; static EventType={CLICK:'click'}; } export class Graphics { roundRect() {} fill() {} }
            export class Camera { static ProjectionType={ORTHO:0}; static ClearFlag={SOLID_COLOR:0}; }
-           export const _decorator={ccclass:()=>v=>v}, isValid=()=>true, Layers={Enum:{UI_2D:1}}, view={setDesignResolutionSize() {}}, ResolutionPolicy={SHOW_ALL:0};
-           export const Game={}, game={}, JsonAsset={}, resources={}, screen={}, sys={};`
+           export const _decorator={ccclass:()=>v=>v}, isValid=()=>true, Layers={Enum:{UI_2D:1}}, view={setDesignResolutionSize() {}, getVisibleSize() { return {width:960,height:540}; }}, ResolutionPolicy={SHOW_ALL:0};
+           export const Game={EVENT_HIDE:'hide',EVENT_SHOW:'show'}, game={on(){},off(){}}, JsonAsset={}, resources={}, screen={windowSize:{width:960,height:540},devicePixelRatio:1}, sys={};`
         : 'export const createStage1AHost = () => {}; export class QinglanUiSceneProbeComponent {}', loader: 'js' }));
     } }]
   });
@@ -161,6 +248,15 @@ test('M3 bottom hint geometry fits the design viewport, avoids controls, and ret
   };
   const hint = rect(probe.labels.hint.node);
   const result = rect(probe.labels.result.node);
+  const quantityInput = rect(probe.splitInput.node);
+  const quantityUnit = rect(probe.labels.splitUnit.node);
+  for (const [name, item] of [['split input', quantityInput], ['split unit', quantityUnit]] as const) {
+    assert.ok(item.left >= -480 && item.right <= 480 && item.bottom >= -270 && item.top <= 270,
+      `${name} stays within the design viewport`);
+  }
+  assert.ok(quantityInput.right <= quantityUnit.left || quantityUnit.right <= quantityInput.left
+    || quantityInput.top <= quantityUnit.bottom || quantityUnit.top <= quantityInput.bottom,
+    'split quantity input and unit label do not overlap');
   assert.ok(hint.bottom >= -250, 'hint needs at least 20 logical pixels above design viewport bottom');
   assert.ok(hint.left >= -480 && hint.right <= 480, 'hint stays within design viewport width');
   assert.ok(result.left >= -480 && result.right <= 480, 'result stays within design viewport width');
@@ -172,7 +268,7 @@ test('M3 bottom hint geometry fits the design viewport, avoids controls, and ret
       `hint must not overlap ${button.node.name}`);
     assert.ok(result.top <= control.bottom || control.top <= result.bottom || result.right <= control.left || control.right <= result.left,
       `result must not overlap ${button.node.name}`);
-    for (const name of ['FarmMinus', 'FarmPlus', 'FarmPlant', 'FarmHarvest', 'StockMove']) {
+    for (const name of ['FarmMinus', 'FarmPlus', 'FarmPlant', 'FarmHarvest', 'StockMove', 'StockSplit', 'SplitBack', 'SplitPreview', 'SplitConfirm']) {
       const action = rect(probe.menuButtons[name].node);
       assert.ok(control.top <= action.bottom || action.top <= control.bottom || control.right <= action.left || action.right <= control.left,
         `${button.node.name} must not overlap ${name}`);
@@ -181,4 +277,20 @@ test('M3 bottom hint geometry fits the design viewport, avoids controls, and ret
   assert.ok(probe.labels.hint.lineHeight <= hint.top - hint.bottom, 'hint line fits in its label height');
   probe.onCancelFirst();
   assert.equal(probe.labels.hint.string, '再点一次：撤销未完成首档，保留当前游戏');
+  // Check production onLoad registers and onDestroy removes the actual text-change callback.
+  let changes = 0;
+  const textChanged = probe.onSplitTextChanged.bind(probe);
+  probe.onSplitTextChanged = () => { changes++; textChanged(); };
+  probe.loadJson = () => new Promise(() => {});
+  const oldInfo = console.info; console.info = () => {};
+  try {
+    probe.onLoad();
+    const inputNode = probe.splitInput.node;
+    probe.splitInput.string = '0.5';
+    inputNode.emit('text-changed');
+    assert.equal(changes, 1, 'registered EditBox event reaches the production callback');
+    probe.onDestroy();
+    inputNode.emit('text-changed');
+    assert.equal(changes, 1, 'destroy removes the text-change callback');
+  } finally { console.info = oldInfo; }
 });

@@ -190,7 +190,7 @@ tests/cocos-web-orders.test.ts、readiness/menu、prepare与web-verification分�
 
 先读[module-card](module-cards/cocos-wechat-probe.md)与[ADR-0005](adr/ADR-0005-independent-wechat-m1-outer.md)，再读apps/cocos-wechat-probe、tools/cocos-probe/lib/prepareProject.mjs、tools/cocos-wechat-probe/prepare.mjs、build.mjs、lib/source.mjs、lib/sourceProvenance.mjs及tests/cocos-wechat-preparation.test.mjs和tests/cocos-wechat-runtime.test.ts。
 
-本轮唯一目标是v0.0.3.0内的M3种植与库存首包：基于M2候选，在微信outer接入地块和种子选择、播种、收获、库存浏览及整批转移；保留手动存读档和前后台保护。运行身份仍来自当前包的只读candidate_id和短commit；正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；M3完整经营和M4手机验收尚未完成，大版本名称不表示试水已完成。
+本轮唯一目标是v0.0.3.0的M3微信库存拆分包：在M2及M3种植与库存首包基础上，通过正式预览与确认接入库存拆分，并保留播种、收获、整批转移、手动存读档和前后台保护。候选依赖PR25、PR26和PR27的既有变更；运行身份仍来自当前包的只读candidate_id和短commit，正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；本包不代表M3完整经营或M4手机验收完成。
 
 test:cocos-wechat-preparation / test.cocos-wechat-preparation实际执行tests/cocos-wechat-preparation.test.mjs；test:cocos-wechat-runtime / test.cocos-wechat-runtime实际执行tests/cocos-wechat-runtime.test.ts，均为full/blocker。trace.cocos.wechat-m1连接新outer、共享生产者、微信构建、候选身份、架构负例和质量登记。Node只能证明受控准备/行为契约；真实Creator3.8.8/SDK、官方微信工具场景/输入/日志/重载、受影响Web回归和最终提交CI各自验收。旧全部追踪、权威架构禁令和Web功能/来源检查保留，不以修改阈值、预期、CI或affected算法通过门禁。
 

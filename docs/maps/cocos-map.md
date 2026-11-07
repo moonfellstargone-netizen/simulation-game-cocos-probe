@@ -149,7 +149,7 @@ RuntimeSchemaValidator支持显式PrecompiledSchemaValidatorSet：format为runti
 
 WechatDataClone.ts提供微信目标内的纯DTO复制适配，导出structuredClone供wechat profile的esbuild inject局部绑定runtime中的标准自由标识符。不修改globalThis或Cocos引擎，不在src中新增指向apps的源import，也不改变默认Node/Web路径；它不是通用Web API polyfill。支持数组、普通对象/空原型DTO输入及原始值，保留undefined、数组空位、共享引用/别名、循环和特殊属性键；非DTO对象、函数、Symbol与options（包括transfer）明确DataCloneError拒绝，不用JSON往返静默丢失数据。
 
-tests/cocos-wechat-data-clone.test.ts追加到原test:cocos-wechat-runtime / test.cocos-wechat-runtime实际args/files/covers，验证原生DTO复制对比与拒绝路径；helper和测试同步登记preparation files。原两项微信full/blocker任务保留，不新增任务、CI或算法；M2存储及生命周期由独立outer提供。当前M3种植与库存首包继续沿用既有门禁；完整M3、M4和Stage1B尚未完成。
+tests/cocos-wechat-data-clone.test.ts追加到原test:cocos-wechat-runtime / test.cocos-wechat-runtime实际args/files/covers，验证原生DTO复制对比与拒绝路径；helper和测试同步登记preparation files。原两项微信full/blocker任务保留，不新增任务、CI或算法；M2存储及生命周期由独立outer提供。M3种植与库存首包及后续拆分包继续沿用既有门禁；完整M3、M4和Stage1B尚未完成。
 
 ## M2微信存储与生命周期
 
@@ -162,3 +162,7 @@ tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的arg
 ## M2微信包体修复
 
 微信构建profile固定debug=false，来源检查拒绝其他值；微信engine模板去除M2未用功能，保留2D、UI、Graphics、Animation和Tween及配置的WebGL后端。微信Schema预编译增加loopRequired=1，inlineRefs保持默认；Node/Web默认路径和M1历史事实不变。实际包大小和运行情况以真实构建验证为准。
+
+## M3微信库存拆分
+
+M3微信库存拆分复用公开菜单的split_lot预览与确认，数量和单位以正式规则为准；切换材料、数量或会话等情况应使旧预览失效。失败保护、实际分出批次及来源追踪由控制器和现有正式动作共同保障，不修改SaveFile、正式Schema、配置或玩法规则。M2存读档与M3种植库存能力继续保留；PR25、PR26、PR27的依赖须随候选核对。本包不包含M3完整经营、M4或Stage1B。

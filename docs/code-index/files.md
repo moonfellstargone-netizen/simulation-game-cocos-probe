@@ -188,7 +188,7 @@ trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport
 | `tools/cocos-wechat-probe/lib/sourceProvenance.mjs` | tools | 真实Git/依赖/工具字节 | test:cocos-wechat-preparation |
 | `tests/cocos-wechat-preparation.test.mjs` | tests | 来源、配置、身份与篡改负例 | full/blocker |
 | `tests/cocos-wechat-runtime.test.ts` | tests | 正式运行/失败/身份隔离 | full/blocker |
-| `tests/cocos-wechat-m3-ui.test.ts` | tests | 微信种植与库存真实outer联动 | full/blocker |
+| `tests/cocos-wechat-m3-ui.test.ts` | tests | 微信种植、库存与拆分真实outer联动 | full/blocker |
 | `docs/module-cards/cocos-wechat-probe.md` | docs | 新模块入口 | 治理/追踪契约 |
 | `docs/adr/ADR-0005-independent-wechat-m1-outer.md` | docs | 最小平台边界决策 | 治理/追踪契约 |
 

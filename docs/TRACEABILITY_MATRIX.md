@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 独立微信追踪trace.cocos.wechat-m1覆盖M1基础、M2独立outer存储适配及M3种植/库存首包，保留31条/29个current追踪；完整M3和M4尚未完成。旧Web、业务核心、Session/Queue、SaveFile和正式资源保持；Node与真实平台证据分别记录。完整AST/symbol自动索引和Nightly仍不是当前实现。
+- 独立微信追踪trace.cocos.wechat-m1覆盖M1基础、M2独立outer存储适配、M3种植/库存首包与库存拆分包，保留31条/29个current追踪；完整M3和M4尚未完成。旧Web、业务核心、Session/Queue、SaveFile和正式资源保持；Node与真实平台证据分别记录。完整AST/symbol自动索引和Nightly仍不是当前实现。
 
 ## 2. 状态语义
 
@@ -360,4 +360,10 @@ tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的arg
 
 trace.cocos.wechat-m1继续指向既有微信outer、控制器、test.cocos-wechat-runtime及test.cocos-wechat-preparation。种植和库存入口复用公开菜单与既有正式Action，存读档、候选身份、busy和前后台边界沿用M2；核心和正式设定不因界面接入改变。微信运行任务应实际执行新增场景测试，并保留既有Web经营与存储回归。
 
-tests/cocos-wechat-m3-ui.test.ts经既有test.cocos-wechat-runtime的args/files实际执行，使用受控cc和平台存储、真实outer/controller/Session/Binding/ActionPipeline，测试播种、时间推进、收获、库存浏览、整批转移、busy/后台及读档后失效选择重建。拆分、加工、烹饪和订单的微信界面仍为后续M3范围。Node受控测试、真实Creator构建、微信工具输入、Web回归、对应提交CI和手机验证分别留证，不以任务登记或旧提交结果替代实际执行。
+tests/cocos-wechat-m3-ui.test.ts经既有test.cocos-wechat-runtime的args/files实际执行，使用受控cc和平台存储、真实outer/controller/Session/Binding/ActionPipeline，测试播种、时间推进、收获、库存浏览、整批转移、busy/后台及读档后失效选择重建。当时拆分、加工、烹饪和订单的微信界面仍为后续M3范围。Node受控测试、真实Creator构建、微信工具输入、Web回归、对应提交CI和手机验证分别留证，不以任务登记或旧提交结果替代实际执行。
+
+## M3微信库存拆分包追踪
+
+trace.cocos.wechat-m1继续关联微信outer、控制器及现有preparation/runtime质量任务。tests/cocos-wechat-runtime.test.ts和tests/cocos-wechat-m3-ui.test.ts覆盖控制器与真实outer的拆分链，沿用既有full/blocker，不新增正式规则或降低门禁。具体通过情况以本轮实际测试与对应提交的证据为准。
+
+M3微信库存拆分复用公开菜单的split_lot预览与确认，数量和单位以正式规则为准；切换材料、数量或会话等情况应使旧预览失效。失败保护、实际分出批次及来源追踪由控制器和现有正式动作共同保障，不修改SaveFile、正式Schema、配置或玩法规则。M2存读档与M3种植库存能力继续保留；PR25、PR26、PR27的依赖须随候选核对。本包不包含M3完整经营、M4或Stage1B。
