@@ -121,6 +121,52 @@ test('split quantities reject invalid or unrepresentable changes before allocati
   assert.equal(healthy.domain_events[0]?.event_id, 'evt_000001');
 });
 
+test('independent split validation is read-only and shares formal quantity, unit, reservation and footprint rules', () => {
+  const { runtime, state } = buildRuntime();
+  const original = cloneForCompare(state);
+  for (const [source, amount, unit, code] of [
+    ['salt_initial_001', 201, 'g', 'ERR_NOT_ENOUGH_RESOURCE'],
+    ['salt_initial_001', 1, 'ml', 'ERR_QUANTITY_UNIT_MISMATCH'],
+    ['seed_cabbage_initial_001', 0.5, 'count', 'ERR_SPLIT_QUANTITY_INVALID'],
+    ['salt_initial_001', Number.MIN_VALUE, 'g', 'ERR_SPLIT_QUANTITY_NOT_REPRESENTABLE']
+  ] as const) {
+    assert.throws(() => runtime.inventory.assertCanSplit(state.save_file, source, { amount, unit }), new RegExp(code));
+    assert.deepEqual(state, original);
+  }
+  assert.doesNotThrow(() => runtime.inventory.assertCanSplit(state.save_file, 'salt_initial_001', { amount: 0.25, unit: 'g' }));
+  assert.doesNotThrow(() => runtime.inventory.assertCanSplit(state.save_file, 'salt_initial_001', { amount: 200, unit: 'g' }));
+  assert.deepEqual(state, original);
+  const reservationId = injectTestReservation(state, 'salt_initial_001', 1, 'validation');
+  const reserved = cloneForCompare(state);
+  assert.throws(() => runtime.inventory.assertCanSplit(state.save_file, 'salt_initial_001', { amount: 1, unit: 'g' }), /ERR_ALREADY_RESERVED/);
+  assert.deepEqual(state, reserved);
+  releaseTestReservation(state, reservationId);
+  const result = dispatch(runtime, state, 'split_lot', { source_lot_id: 'salt_initial_001', quantity: { amount: 0.25, unit: 'g' } }, 'independent_split_recovery');
+  assert.equal(result.success, true);
+  assert.equal(result.created_objects[0]?.object_id, 'lot_split_000001');
+  assert.equal(result.domain_events[0]?.event_id, 'evt_000001');
+});
+
+test('independent capacity validation rejects a partial split without consuming IDs but allows a full split at capacity', () => {
+  const { runtime, state } = buildRuntime();
+  const source = runtime.inventory.findMaterialLot(state.save_file, 'salt_initial_001');
+  const container = state.save_file.storage_containers.find(item => item.container_id === source.storage_ref.container_id)!;
+  container.capacity.amount = container.used_capacity;
+  const before = cloneForCompare(state);
+  assert.throws(() => runtime.inventory.assertCanSplit(state.save_file, source.lot_id, { amount: 1, unit: 'g' }), /ERR_STORAGE_CAPACITY_OVERFLOW/);
+  assert.deepEqual(state, before);
+  const failed = dispatch(runtime, state, 'split_lot', { source_lot_id: source.lot_id, quantity: { amount: 1, unit: 'g' } }, 'full_room_failure');
+  assert.equal(failed.status_code, 'ERR_STORAGE_CAPACITY_OVERFLOW');
+  assert.deepEqual(state, before);
+  assert.doesNotThrow(() => runtime.inventory.assertCanSplit(state.save_file, source.lot_id, { ...source.quantity }));
+  assert.deepEqual(state, before);
+  const full = dispatch(runtime, state, 'split_lot', { source_lot_id: source.lot_id, quantity: { ...source.quantity } }, 'full_room_full_split');
+  assert.equal(full.success, true);
+  assert.equal(full.created_objects[0]?.object_id, 'lot_split_000001');
+  assert.equal(full.domain_events[0]?.event_id, 'evt_000001');
+  new StorageAudit().assertReconciled(state.save_file);
+});
+
 test('full splits remove the empty source while preserving inherited data, lineage and reconciled capacity', () => {
   for (const id of ['salt_initial_001', 'seed_cabbage_initial_001']) {
     const { runtime, state, contracts } = buildRuntime();

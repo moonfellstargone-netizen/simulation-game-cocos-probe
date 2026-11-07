@@ -19,6 +19,7 @@
 ## Session / ViewModel / Port
 
 - `CocosAppRuntimeSession`（`src/cocos-app/runtime/CocosAppRuntimeSession.ts`）
+  - `validateSplit(sourceLotId, quantity)` — 独立只读验证正式拆分约束；拒绝抛现有错误，不分配ID或执行动作。
   - `dispatch(actionType, parameters)`
   - `preview(actionType, parameters)`
   - `save(slotId)` / `load(slotId)`
@@ -230,3 +231,9 @@ WechatDataClone.ts提供微信目标内的纯DTO复制适配，导出structuredC
 - `WechatSaveStoragePort`位于`apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts`，提供单逻辑槽存取与外层恢复保护，不是game-core新增平台API。
 - `createWechatPriorSaveValidator`位于`apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts`，通过独立Host校验序列化存档，不提供存储写入。
 - `WechatProbeController`通过既有公开Binding提供拆分预览确认、手动存读档与前后台输入保护，candidate_id继续来自运行包。
+
+## 拆分独立校验与直接确认
+
+- `InventorySystem.assertCanSplit(save, sourceLotId, quantity)`：只读执行正式拆分的数量、来源、预留、占用及容量校验；正式拆分复用同一规则。
+- `menu_confirm_split_direct`：共享Queue经Binding提交拆分前先验证，`last_split_validation_result`区分分发前拒绝；通过后返回实际`last_action_result`。分发后失败或结果无法核实不代表未提交。
+- `menu_confirm`与Web现有先预览交互保持；微信外层可单独预览或直接确认。

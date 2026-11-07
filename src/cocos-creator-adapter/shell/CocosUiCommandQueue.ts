@@ -9,6 +9,7 @@ export type CocosUiShellCommandName =
   | 'refresh'
   | 'menu_preview'
   | 'menu_confirm'
+  | 'menu_confirm_split_direct'
   | 'save'
   | 'load';
 
@@ -18,6 +19,7 @@ export type CocosUiShellCommand =
   | { name: 'refresh' }
   | { name: 'menu_preview'; selection: MenuActionSelection }
   | { name: 'menu_confirm'; selection: MenuActionSelection }
+  | { name: 'menu_confirm_split_direct'; selection: Extract<MenuActionSelection, { action_type: 'split_lot' }> }
   | { name: 'save'; selection: SaveSlotSelection }
   | { name: 'load'; selection: SaveSlotSelection };
 
@@ -104,6 +106,8 @@ export class CocosUiShellCommandQueue {
         return this.controller.previewMenu(command.selection);
       case 'menu_confirm':
         return this.controller.confirmMenu(command.selection);
+      case 'menu_confirm_split_direct':
+        return this.controller.confirmSplitDirect(command.selection);
       case 'save':
         return await this.controller.save(command.selection);
       case 'load':
@@ -120,6 +124,7 @@ function firstCommandErrorMessage(commandName: CocosUiShellCommandName, snapshot
   switch (commandName) {
     case 'menu_preview':
     case 'menu_confirm':
+    case 'menu_confirm_split_direct':
       return snapshot.menu.errors[0]?.message ?? null;
     case 'save':
     case 'load':

@@ -225,6 +225,9 @@ test('split capacity overflow restores the entire public session and moving a ba
   assert.deepEqual(session.getViewModel(), beforeView);
   assert.deepEqual(session.getSelectableViewModel(), beforeSelectable);
   assert.equal(await captureSerializedSession(session, storage, 'split_capacity_after_failure'), before);
+  const failedAgain = session.dispatch('split_lot', parameters);
+  assert.equal(failedAgain.status_code, 'ERR_STORAGE_CAPACITY_OVERFLOW');
+  assert.equal(await captureSerializedSession(session, storage, 'split_capacity_after_second_failure'), before);
   const movable = full.splittable_lot_options.find((lot) => lot.storage_ref.container_id === room.id
     && full.storage_target_options.some((target) => target.id !== room.id && target.enabled && target.supported_forms.includes(lot.current_form)))!;
   assert.ok(movable);
@@ -235,6 +238,8 @@ test('split capacity overflow restores the entire public session and moving a ba
   assert.equal(session.preview('split_lot', parameters).success, true);
   const recovered = session.dispatch('split_lot', parameters);
   assert.equal(recovered.success, true);
+  assert.equal(recovered.created_objects[0]!.object_id, `lot_split_${String(availableSlots + 1).padStart(6, '0')}`,
+    'capacity refusals must not allocate IDs even without a preceding preview');
   const created = session.getSelectableViewModel().splittable_lot_options.find((lot) => lot.id === recovered.created_objects[0]!.object_id)!;
   assert.deepEqual(created.quantity, parameters.quantity);
   await session.save('split_capacity_recovered');

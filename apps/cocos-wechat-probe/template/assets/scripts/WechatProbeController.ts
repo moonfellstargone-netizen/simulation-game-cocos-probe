@@ -70,7 +70,8 @@ export interface WechatCommandResult {
     readonly snapshot?: {
       readonly menu?: {
         readonly last_preview_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
-        readonly last_action_result?: { readonly success: boolean; readonly status_code?: string; readonly created_objects?: readonly { readonly object_type: string; readonly object_id: string }[] } | null;
+        readonly last_split_validation_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
+        readonly last_action_result?: { readonly success: boolean; readonly status_code?: string; readonly created_objects?: readonly { readonly object_type: string; readonly object_id: string }[]; readonly updated_objects?: readonly { readonly object_type: string; readonly object_id: string }[] } | null;
       };
       readonly save_load?: {
         readonly last_save_result?: { readonly slot_id: string } | null;
@@ -81,7 +82,7 @@ export interface WechatCommandResult {
 }
 
 export type WechatCommand =
-  | { readonly name: 'menu_preview' | 'menu_confirm'; readonly selection: { readonly action_type: 'split_lot'; readonly source_lot_option_id: string; readonly quantity: WechatQuantity } }
+  | { readonly name: 'menu_preview' | 'menu_confirm_split_direct'; readonly selection: { readonly action_type: 'split_lot'; readonly source_lot_option_id: string; readonly quantity: WechatQuantity } }
   | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'advance_time'; readonly minutes: 60 | 1440 } }
   | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'plant_crop'; readonly field_option_id: string; readonly seed_lot_option_id: string; readonly seed_quantity: WechatQuantity } }
   | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'harvest_crop'; readonly crop_option_id: string } }
@@ -222,11 +223,13 @@ export class WechatProbeController {
       quantity: { amount: quantity.amount, unit: quantity.unit } } });
   }
 
-  async confirmSplit(): Promise<WechatProbeSnapshot> {
-    const preview = this.splitPreview;
-    if (!preview?.success) throw new Error('ERR_WECHAT_SPLIT_PREVIEW_REQUIRED');
-    return this.execute({ name: 'menu_confirm', selection: { action_type: 'split_lot', source_lot_option_id: preview.sourceLotId,
-      quantity: { ...preview.quantity } } });
+  async confirmSplit(lotId: string, quantity: WechatQuantity): Promise<WechatProbeSnapshot> {
+    const lot = this.menu?.selectable_view_model?.splittable_lot_options.find(item => item.id === lotId && item.enabled);
+    if (!lot || !quantity || !Number.isFinite(quantity.amount) || quantity.amount <= 0 || quantity.unit !== lot.quantity.unit) {
+      throw new Error('ERR_WECHAT_SPLIT_INPUT_INVALID');
+    }
+    return this.execute({ name: 'menu_confirm_split_direct', selection: { action_type: 'split_lot', source_lot_option_id: lotId,
+      quantity: { amount: quantity.amount, unit: quantity.unit } } });
   }
 
   async save(): Promise<WechatProbeSnapshot> {
@@ -278,10 +281,12 @@ export class WechatProbeController {
     if (this.disposed || this.phase !== 'ready' || this.binding === null) throw new Error('ERR_WECHAT_PROBE_NOT_READY');
     if (!this.visible) throw new Error('ERR_WECHAT_PROBE_HIDDEN');
     if (this.busy) throw new Error('ERR_WECHAT_PROBE_BUSY');
+    const splitBefore = command.name === 'menu_confirm_split_direct'
+      ? this.menu?.selectable_view_model?.splittable_lot_options ?? [] : [];
     this.busy = true;
     this.invalidateSplitPreview();
     const splitGeneration = this.splitGeneration;
-    this.splitCommandInFlight = (command.name === 'menu_preview' || command.name === 'menu_confirm') && command.selection.action_type === 'split_lot'
+    this.splitCommandInFlight = (command.name === 'menu_preview' || command.name === 'menu_confirm_split_direct') && command.selection.action_type === 'split_lot'
       ? (command.name === 'menu_preview' ? 'preview' : 'confirm') : null;
     this.accepted++;
     this.error = null;
@@ -307,7 +312,7 @@ export class WechatProbeController {
       try {
         result = await this.binding.execute(actualCommand);
       } catch (error) {
-        if (actualCommand.name === 'menu_confirm' && actualCommand.selection.action_type === 'split_lot') {
+        if (actualCommand.name === 'menu_confirm_split_direct') {
           const reason = error instanceof Error ? error.message : String(error);
           throw new Error(`ERR_WECHAT_SPLIT_RESULT_UNCERTAIN:${reason}`);
         }
@@ -317,30 +322,39 @@ export class WechatProbeController {
       const preview = current.snapshot?.menu?.last_preview_result;
       const previewValid = preview?.action_type === 'split_lot' && typeof preview.success === 'boolean'
         && typeof preview.status_code === 'string' && preview.status_code.length > 0;
-      if (!this.disposed && actualCommand.name === 'menu_confirm' && actualCommand.selection.action_type === 'split_lot') {
+      if (!this.disposed && actualCommand.name === 'menu_confirm_split_direct') {
         // A failed shell command can occur after dispatch; it does not prove rollback.
-        if (current.status !== 'completed' || current.command_name !== actualCommand.name || !previewValid) {
+        const validation = current.snapshot?.menu?.last_split_validation_result;
+        const validationValid = validation?.action_type === 'split_lot' && typeof validation.success === 'boolean'
+          && typeof validation.status_code === 'string' && validation.status_code.length > 0;
+        if (current.status !== 'completed' || current.command_name !== actualCommand.name || !validationValid) {
           throw new Error(`ERR_WECHAT_SPLIT_RESULT_UNCERTAIN${current.error_message ? `:${current.error_message}` : ''}`);
         }
         const action = current.snapshot?.menu?.last_action_result;
-        if (!preview!.success) {
-          // Confirm clears old results before previewing; a fresh refusal has no ActionResult.
+        if (!validation!.success) {
+          // A definite rejection must come from the pre-dispatch validator, with no action result.
           if (action !== null) throw new Error('ERR_WECHAT_SPLIT_RESULT_UNCERTAIN');
-          throw new Error(`ERR_WECHAT_PROBE_ACTION_FAILED:${preview!.status_code}`);
+          throw new Error(`ERR_WECHAT_PROBE_ACTION_FAILED:${validation!.status_code}`);
         }
         if (action?.success === false) {
-          if (!action.status_code || !Array.isArray(action.created_objects) || action.created_objects.length !== 0) {
-            throw new Error('ERR_WECHAT_SPLIT_RESULT_UNCERTAIN');
-          }
-          throw new Error(`ERR_WECHAT_PROBE_ACTION_FAILED:${action.status_code}`);
+          // Post-dispatch checks can fail even after the transaction committed.
+          throw new Error('ERR_WECHAT_SPLIT_RESULT_UNCERTAIN');
         }
         const selection = actualCommand.selection;
         const ids = action?.created_objects?.filter(item => item.object_type === 'MaterialLot') ?? [];
         const lots = this.menu?.selectable_view_model?.splittable_lot_options ?? [];
         const created = ids.length === 1 ? lots.find(item => item.id === ids[0].object_id) : undefined;
         const source = lots.find(item => item.id === selection.source_lot_option_id);
+        const oldSource = splitBefore.find(item => item.id === selection.source_lot_option_id);
+        const sourceUpdated = action?.updated_objects?.filter(item => item.object_type === 'MaterialLot'
+          && item.object_id === selection.source_lot_option_id) ?? [];
+        const remaining = oldSource ? oldSource.quantity.amount - selection.quantity.amount : NaN;
         if (action?.success !== true || !created || created.id === selection.source_lot_option_id
-            || created.quantity.amount !== selection.quantity.amount || created.quantity.unit !== selection.quantity.unit) {
+            || !oldSource || splitBefore.some(item => item.id === created.id) || sourceUpdated.length !== 1
+            || created.quantity.amount !== selection.quantity.amount || created.quantity.unit !== selection.quantity.unit
+            || created.base_id !== oldSource.base_id || created.current_form !== oldSource.current_form
+            || created.storage_ref.container_id !== oldSource.storage_ref.container_id
+            || (remaining === 0 ? !!source : !source || source.quantity.amount !== remaining || source.quantity.unit !== oldSource.quantity.unit)) {
           throw new Error('ERR_WECHAT_SPLIT_RESULT_UNCERTAIN');
         }
         this.completed++;
@@ -349,7 +363,7 @@ export class WechatProbeController {
             quantity: { ...created.quantity }, remainingQuantity: source ? { ...source.quantity } : null };
         }
       }
-      if (!(actualCommand.name === 'menu_confirm' && actualCommand.selection.action_type === 'split_lot')) {
+      if (actualCommand.name !== 'menu_confirm_split_direct') {
         const success = actualCommand.name === 'menu_preview'
           ? previewValid && current.command_name === actualCommand.name
           : actualCommand.name === 'menu_confirm'

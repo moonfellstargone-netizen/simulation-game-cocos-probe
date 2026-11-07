@@ -138,3 +138,6 @@ tests/cocos-wechat-schema-optimization.test.mjs纳入既有test:cocos-wechat-run
 ## M3微信库存拆分
 
 微信运行回归继续沿用test.cocos-wechat-runtime和test.cocos-wechat-preparation的full/blocker，拆分场景覆盖正式预览、确认、拒绝及旧预览失效；保留M2存储和M3种植库存回归。受控测试、Creator构建、微信工具输入、浏览器回归和对应提交CI分别验收，不以历史结果代替。
+
+
+拆分独立校验覆盖现有test.stage1a-contract、test.cocos-session、test.cocos-ui-command-queue、test.cocos-scene-binding-application及test.cocos-wechat-runtime的正式执行、拒绝和回执行为；保留full/blocker与既有Web、其他仓储动作回归。实际结果以本轮执行及对应提交为准。

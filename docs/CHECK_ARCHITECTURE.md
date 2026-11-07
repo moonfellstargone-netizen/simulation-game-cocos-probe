@@ -1,6 +1,6 @@
 # CHECK_ARCHITECTURE — v0.0.3.0
 
-v0.0.3.0 / WeChat Stage1A Pilot。本轮唯一目标是v0.0.3.0的M3微信库存拆分包：在M2及M3种植与库存首包基础上，通过正式预览与确认接入库存拆分，并保留播种、收获、整批转移、手动存读档和前后台保护。候选依赖PR25、PR26和PR27的既有变更；运行身份仍来自当前包的只读candidate_id和短commit，正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；本包不代表M3完整经营或M4手机验收完成。
+v0.0.3.0 / WeChat Stage1A Pilot。本轮唯一目标是v0.0.3.0的M3微信库存拆分包：在M2及M3种植与库存首包基础上，接入可选预览与独立校验的库存拆分确认，并保留播种、收获、整批转移、手动存读档和前后台保护。候选依赖PR25、PR26和PR27的既有变更；运行身份仍来自当前包的只读candidate_id和短commit，正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；本包不代表M3完整经营或M4手机验收完成。
 
 ## 1. 既有Web检查目标（保留）
 

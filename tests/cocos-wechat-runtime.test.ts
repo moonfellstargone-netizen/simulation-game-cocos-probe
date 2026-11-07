@@ -67,74 +67,46 @@ function harness(options: { identity?: CandidateIdentity; storage?: SaveStorageP
   return { controller, states, host: () => host!, binding: () => binding!, factories: () => factories };
 }
 
-test('M3 split preview and confirmation use real public pipeline, including refusals and full split', async () => {
+test('M3 direct split validates independently, preserves state on rejection and supports optional preview and full split', async () => {
   const storage = new InMemorySaveStoragePort();
-  const p = harness({ storage, receiveMenu: true });
+  const commands: string[] = [];
+  const p = harness({ storage, receiveMenu: true, intercept: async (command, execute) => {
+    commands.push(command.name);
+    return execute();
+  } });
   await p.controller.start();
   const capture = async () => { await p.host().requireSession().save('capture'); return storage.read('capture'); };
   try {
-    const initialIdentity = p.controller.snapshot().identity;
-    const initialSession = p.host().requireSession();
     const options = p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options;
     const count = options.find(item => item.enabled && item.quantity.unit === 'count')!;
     const grams = options.find(item => item.enabled && item.quantity.unit === 'g')!;
     assert.ok(count && grams);
     const before = await capture();
-    await assert.rejects(p.controller.confirmSplit(), /PREVIEW_REQUIRED/);
     for (const [lot, amount] of [[count, 0.5], [grams, grams.quantity.amount + 1]] as const) {
-      await p.controller.previewSplit(lot.id, { amount, unit: lot.quantity.unit });
-      assert.equal(p.controller.snapshot().split_preview?.success, false);
-      await assert.rejects(p.controller.confirmSplit(), /PREVIEW_REQUIRED/);
+      await assert.rejects(p.controller.confirmSplit(lot.id, { amount, unit: lot.quantity.unit }), /ERR_WECHAT_PROBE_ACTION_FAILED/);
       assert.deepEqual(await capture(), before);
+      assert.equal(p.controller.snapshot().split_result, null);
     }
+    assert.equal(commands.filter(name => name === 'menu_preview').length, 0);
+    const direct = await p.controller.confirmSplit(grams.id, { amount: 1, unit: grams.quantity.unit });
+    assert.deepEqual(direct.split_result!.quantity, { amount: 1, unit: grams.quantity.unit });
+    assert.deepEqual(direct.split_result!.remainingQuantity, { amount: grams.quantity.amount - 1, unit: grams.quantity.unit });
     await p.controller.previewSplit(grams.id, { amount: 1, unit: grams.quantity.unit });
     assert.equal(p.controller.snapshot().split_preview?.success, true);
     const detached = p.controller.snapshot().split_preview!;
-    Reflect.set(detached.quantity, 'amount', grams.quantity.amount);
-    Reflect.set(detached, 'sourceLotId', count.id);
-    assert.deepEqual(p.controller.snapshot().split_preview?.quantity, { amount: 1, unit: grams.quantity.unit });
-    assert.equal(p.controller.snapshot().split_preview?.sourceLotId, grams.id);
-    assert.deepEqual(await capture(), before);
-    const snapshot = await p.controller.confirmSplit();
-    const result = snapshot.split_result!;
-    assert.ok(result && result.newLotId !== grams.id);
-    assert.deepEqual(result.quantity, { amount: 1, unit: grams.quantity.unit });
-    assert.deepEqual(result.remainingQuantity, { amount: grams.quantity.amount - 1, unit: grams.quantity.unit });
-    assert.equal(snapshot.menu!.selectable_view_model!.splittable_lot_options.find(item => item.id === result.newLotId)!.quantity.amount, 1);
-    await assert.rejects(p.controller.confirmSplit(), /PREVIEW_REQUIRED/);
-    await p.controller.previewSplit(grams.id, result.remainingQuantity!);
-    await p.controller.confirmSplit();
+    Reflect.set(detached.quantity, 'amount', 99);
+    assert.equal(p.controller.snapshot().split_preview!.quantity.amount, 1);
+    const fractional = await p.controller.confirmSplit(grams.id, { amount: 0.1, unit: grams.quantity.unit });
+    assert.equal(fractional.split_result!.quantity.amount, 0.1);
+    assert.equal(fractional.split_result!.remainingQuantity!.amount, grams.quantity.amount - 1 - 0.1);
+    const remaining = fractional.split_result!.remainingQuantity!;
+    await p.controller.confirmSplit(grams.id, remaining);
     assert.equal(p.controller.snapshot().split_result!.remainingQuantity, null);
     assert.equal(p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.some(item => item.id === grams.id), false);
-    assert.equal(p.host().requireSession(), initialSession);
-    assert.deepEqual(p.controller.snapshot().identity, initialIdentity);
   } finally { await p.controller.dispose(); }
 });
 
-test('M3 split preview released after hiding or disposal never authorizes a split', async () => {
-  for (const stop of ['hide', 'dispose'] as const) {
-    const gate = deferred<void>(); const entered = deferred<void>(); let hold = false;
-    const p = harness({ receiveMenu: true, patch: () => { if (hold) { entered.resolve(); return gate.promise; } } });
-    await p.controller.start();
-    const lot = p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(item => item.enabled && item.quantity.unit === 'g')!;
-    const before = p.host().requireSession().getSelectableViewModel();
-    hold = true;
-    const pending = p.controller.previewSplit(lot.id, { amount: 1, unit: lot.quantity.unit });
-    await entered.promise;
-    if (stop === 'hide') p.controller.setVisible(false);
-    const closing = stop === 'dispose' ? p.controller.dispose() : null;
-    gate.resolve(); await pending; if (closing) await closing;
-    assert.equal(p.controller.snapshot().split_preview, null);
-    if (stop === 'hide') {
-      p.controller.setVisible(true);
-      await assert.rejects(p.controller.confirmSplit(), /PREVIEW_REQUIRED/);
-      assert.deepEqual(p.host().requireSession().getSelectableViewModel(), before);
-      await p.controller.dispose();
-    }
-  }
-});
-
-test('M3 split preview invalidates for accepted operations, changes and late receipts', async () => {
+test('M3 optional preview is invalidated by state changes and delayed receipts', async () => {
   const gate = deferred<void>(); const entered = deferred<void>(); let hold = false;
   const p = harness({ receiveMenu: true, patch: () => { if (hold) { entered.resolve(); return gate.promise; } } });
   await p.controller.start();
@@ -146,154 +118,115 @@ test('M3 split preview invalidates for accepted operations, changes and late rec
       await preview(); assert.equal(p.controller.snapshot().split_preview?.success, true);
       invalidate(); assert.equal(p.controller.snapshot().split_preview, null);
       p.controller.setVisible(true);
-      await assert.rejects(p.controller.confirmSplit(), /PREVIEW_REQUIRED/);
     }
-    // Restore the real menu after the synthetic external change.
     await p.controller.advance();
     await preview(); await p.controller.save(); assert.equal(p.controller.snapshot().split_preview, null);
     await preview(); await p.controller.load(); assert.equal(p.controller.snapshot().split_preview, null);
     hold = true; const pending = preview(); await entered.promise;
-    await assert.rejects(p.controller.advance(), /BUSY/);
+    await assert.rejects(p.controller.confirmSplit(lot.id, { amount: 1, unit: lot.quantity.unit }), /BUSY/);
     p.controller.invalidateSplitPreview();
     gate.resolve(); await pending;
     assert.equal(p.controller.snapshot().split_preview, null);
-    await assert.rejects(p.controller.confirmSplit(), /PREVIEW_REQUIRED/);
-    hold = false; await preview(); assert.equal(p.controller.snapshot().split_preview?.success, true);
+    hold = false;
+    const direct = await p.controller.confirmSplit(lot.id, { amount: 2, unit: lot.quantity.unit });
+    assert.equal(direct.split_result?.quantity.amount, 2);
   } finally { await p.controller.dispose(); }
 });
 
-test('M3 split refuses an untrustworthy action receipt and reports patch errors as uncertain', async () => {
-  for (const fault of ['missing-created', 'patch'] as const) {
+test('M3 delayed preview after hide or disposal cannot restore its old result', async () => {
+  for (const stop of ['hide', 'dispose'] as const) {
+    const gate = deferred<void>(); const entered = deferred<void>(); let hold = false;
+    const p = harness({ receiveMenu: true, patch: () => { if (hold) { entered.resolve(); return gate.promise; } } });
+    await p.controller.start();
+    const lot = p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(item => item.enabled && item.quantity.unit === 'g')!;
+    const before = p.host().requireSession().getSelectableViewModel();
+    hold = true; const pending = p.controller.previewSplit(lot.id, { amount: 1, unit: lot.quantity.unit });
+    await entered.promise;
+    if (stop === 'hide') p.controller.setVisible(false);
+    const closing = stop === 'dispose' ? p.controller.dispose() : null;
+    gate.resolve(); await pending; if (closing) await closing;
+    assert.equal(p.controller.snapshot().split_preview, null);
+    if (stop === 'hide') {
+      assert.deepEqual(p.host().requireSession().getSelectableViewModel(), before);
+      p.controller.setVisible(true); await p.controller.dispose();
+    }
+  }
+});
+
+test('M3 direct split reports untrustworthy or post-dispatch failures as uncertain', async () => {
+  for (const fault of ['missing-created', 'patch', 'failed-after-dispatch', 'action-failure', 'contradictory-validation'] as const) {
     let patchFault = false;
     const p = harness({ receiveMenu: true,
       patch: () => { if (patchFault) { patchFault = false; throw new Error('patch-failure'); } },
       intercept: async (command, execute) => {
         const result = await execute();
-        if (fault !== 'missing-created' || command.name !== 'menu_confirm' || command.selection.action_type !== 'split_lot') return result;
+        if (command.name !== 'menu_confirm_split_direct') return result;
+        const menu = result.command_result.snapshot!.menu!;
+        if (fault === 'failed-after-dispatch') return { command_result: { ...result.command_result, status: 'failed', error_message: 'render-failed' } };
+        const action = fault === 'missing-created' ? { success: true, created_objects: [] }
+          : fault === 'action-failure' ? { success: false, status_code: 'ERR_EXAMPLE', created_objects: [] } : menu.last_action_result;
+        const validation = fault === 'contradictory-validation'
+          ? { action_type: 'split_lot', success: false, status_code: 'ERR_EXAMPLE' } : menu.last_split_validation_result;
         return { command_result: { ...result.command_result, snapshot: { ...result.command_result.snapshot,
-          menu: { ...result.command_result.snapshot!.menu, last_action_result: { success: true, created_objects: [] } } } } };
+          menu: { ...menu, last_action_result: action, last_split_validation_result: validation } } } };
       } });
     await p.controller.start();
     try {
       const lot = p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(item => item.enabled && item.quantity.unit === 'g')!;
-      await p.controller.previewSplit(lot.id, { amount: 1, unit: lot.quantity.unit });
       if (fault === 'patch') patchFault = true;
-      await assert.rejects(p.controller.confirmSplit(), /SPLIT_RESULT_UNCERTAIN/);
+      const completed = p.controller.snapshot().completed_commands;
+      await assert.rejects(p.controller.confirmSplit(lot.id, { amount: 1, unit: lot.quantity.unit }), /SPLIT_RESULT_UNCERTAIN/);
+      assert.equal(p.controller.snapshot().completed_commands, completed);
       assert.equal(p.controller.snapshot().split_result, null);
-      assert.equal(p.controller.snapshot().split_preview, null);
-      await assert.rejects(p.controller.confirmSplit(), /PREVIEW_REQUIRED/);
       assert.equal(p.host().requireSession().getSelectableViewModel().splittable_lot_options.find(item => item.id === lot.id)!.quantity.amount, lot.quantity.amount - 1);
     } finally { await p.controller.dispose(); }
   }
 });
 
-test('M3 split verifies receipts even after backgrounding and treats failed command status as uncertain', async () => {
-  for (const mode of ['hidden-bad-receipt', 'hidden-valid', 'failed-after-dispatch'] as const) {
-    const gate = deferred<void>(); const entered = deferred<void>();
-    const p = harness({ receiveMenu: true, intercept: async (command, execute) => {
-      const result = await execute();
-      if (command.name !== 'menu_confirm' || command.selection.action_type !== 'split_lot') return result;
-      if (mode !== 'failed-after-dispatch') { entered.resolve(); await gate.promise; }
-      if (mode === 'hidden-bad-receipt') return { command_result: { ...result.command_result,
-        snapshot: { ...result.command_result.snapshot, menu: { ...result.command_result.snapshot!.menu,
-          last_action_result: { success: true, created_objects: [] } } } } };
-      if (mode === 'failed-after-dispatch') return { command_result: { ...result.command_result,
-        status: 'failed', error_message: 'render-failed-after-dispatch' } };
-      return result;
-    } });
-    await p.controller.start();
-    try {
-      const lot = p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(item => item.enabled && item.quantity.unit === 'g')!;
-      await p.controller.previewSplit(lot.id, { amount: 1, unit: lot.quantity.unit });
-      const completedBefore = p.controller.snapshot().completed_commands;
-      const confirmation = p.controller.confirmSplit();
-      if (mode !== 'failed-after-dispatch') { await entered.promise; p.controller.setVisible(false); gate.resolve(); }
-      if (mode === 'hidden-valid') {
-        await confirmation;
-        assert.equal(p.controller.snapshot().completed_commands, completedBefore + 1);
-      } else {
-        await assert.rejects(confirmation, /ERR_WECHAT_SPLIT_RESULT_UNCERTAIN/);
-        assert.equal(p.controller.snapshot().completed_commands, completedBefore);
-      }
-      assert.equal(p.controller.snapshot().split_result, null);
-      assert.equal(p.controller.snapshot().split_preview, null);
-      assert.equal(p.host().requireSession().getSelectableViewModel().splittable_lot_options.find(item => item.id === lot.id)!.quantity.amount, lot.quantity.amount - 1);
-    } finally { await p.controller.dispose(); }
-  }
-});
-
-test('M3 split preserves a completed explicit confirmation preview refusal', async () => {
+test('M3 direct split rejects an old success receipt without a new state change', async () => {
+  let old: WechatCommandResult | null = null;
+  let replay = false;
   const p = harness({ receiveMenu: true, intercept: async (command, execute) => {
-    if (command.name !== 'menu_confirm' || command.selection.action_type !== 'split_lot') return execute();
-    return { command_result: { command_name: 'menu_confirm', status: 'completed', snapshot: { menu: {
-      last_preview_result: { action_type: 'split_lot', success: false, status_code: 'ERR_EXAMPLE_REJECTED' },
-      last_action_result: null } } } };
+    if (command.name !== 'menu_confirm_split_direct') return execute();
+    if (replay) return old!;
+    old = await execute();
+    return old;
   } });
   await p.controller.start();
   try {
     const lot = p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(item => item.enabled && item.quantity.unit === 'g')!;
-    await p.controller.previewSplit(lot.id, { amount: 1, unit: lot.quantity.unit });
-    const before = p.controller.snapshot().completed_commands;
-    await assert.rejects(p.controller.confirmSplit(), /ERR_WECHAT_PROBE_ACTION_FAILED:ERR_EXAMPLE_REJECTED/);
-    assert.equal(p.controller.snapshot().completed_commands, before);
+    await p.controller.confirmSplit(lot.id, { amount: 1, unit: lot.quantity.unit });
+    const before = p.host().requireSession().getSelectableViewModel();
+    replay = true;
+    await assert.rejects(p.controller.confirmSplit(lot.id, { amount: 1, unit: lot.quantity.unit }), /SPLIT_RESULT_UNCERTAIN/);
+    assert.deepEqual(p.host().requireSession().getSelectableViewModel(), before);
     assert.equal(p.controller.snapshot().split_result, null);
   } finally { await p.controller.dispose(); }
 });
 
-test('M3 real confirmation rejection clears a prior ActionResult and never dispatches a new action', async () => {
-  let captured: WechatCommandResult | null = null;
-  const p = harness({ receiveMenu: true, intercept: async (command, execute) => {
-    const result = await execute();
-    if (command.name === 'menu_confirm' && command.selection.action_type === 'split_lot') captured = result;
-    return result;
-  } });
-  await p.controller.start();
-  try {
-    const lot = p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(item => item.enabled && item.quantity.unit === 'g' && item.quantity.amount > 3)!;
-    await p.controller.previewSplit(lot.id, { amount: 1, unit: lot.quantity.unit });
-    await p.controller.confirmSplit();
-    assert.equal((captured as WechatCommandResult | null)?.command_result.snapshot?.menu?.last_action_result?.success, true);
-    await p.controller.previewSplit(lot.id, { amount: 1, unit: lot.quantity.unit });
-    const remaining = p.host().requireSession().getSelectableViewModel().splittable_lot_options.find(item => item.id === lot.id)!.quantity.amount;
-    const dispatch = p.host().requireSession().dispatch('split_lot', { source_lot_id: lot.id,
-      quantity: { amount: remaining - 0.5, unit: lot.quantity.unit } });
-    assert.equal(dispatch.success, true);
-    await assert.rejects(p.controller.confirmSplit(), /ERR_WECHAT_PROBE_ACTION_FAILED:ERR_NOT_ENOUGH_RESOURCE/);
-    const result = captured as WechatCommandResult | null;
-    assert.equal(result?.command_result.status, 'completed');
-    assert.equal(result?.command_result.snapshot?.menu?.last_preview_result?.success, false);
-    assert.equal(result?.command_result.snapshot?.menu?.last_action_result, null);
-    assert.equal(p.host().requireSession().getSelectableViewModel().splittable_lot_options.find(item => item.id === lot.id)!.quantity.amount, 0.5);
-  } finally { await p.controller.dispose(); }
-});
-
-test('M3 split treats contradictory or incomplete refusal receipts as uncertain after a real dispatch', async () => {
-  for (const mode of ['preview-false-with-action', 'preview-false-missing-action', 'action-false-with-created'] as const) {
+test('M3 direct split verifies receipt after backgrounding and ignores stale presentation', async () => {
+  for (const valid of [false, true]) {
+    const gate = deferred<void>(); const entered = deferred<void>();
     const p = harness({ receiveMenu: true, intercept: async (command, execute) => {
       const result = await execute();
-      if (command.name !== 'menu_confirm' || command.selection.action_type !== 'split_lot') return result;
-      const menu = result.command_result.snapshot!.menu!;
-      const preview = { ...menu.last_preview_result!, success: false, status_code: 'ERR_EXAMPLE_REJECTED' };
-      const action = mode === 'action-false-with-created'
-        ? { ...menu.last_action_result!, success: false, status_code: 'ERR_EXAMPLE_REJECTED' }
-        : mode === 'preview-false-missing-action' ? undefined : menu.last_action_result;
+      if (command.name !== 'menu_confirm_split_direct') return result;
+      entered.resolve(); await gate.promise;
+      if (valid) return result;
       return { command_result: { ...result.command_result, snapshot: { ...result.command_result.snapshot,
-        menu: { ...menu, last_preview_result: mode === 'action-false-with-created' ? menu.last_preview_result : preview,
-          last_action_result: action } } } };
+        menu: { ...result.command_result.snapshot!.menu, last_action_result: { success: true, created_objects: [] } } } } };
     } });
     await p.controller.start();
     try {
       const lot = p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(item => item.enabled && item.quantity.unit === 'g')!;
-      await p.controller.previewSplit(lot.id, { amount: 1, unit: lot.quantity.unit });
       const before = p.controller.snapshot().completed_commands;
-      await assert.rejects(p.controller.confirmSplit(), /ERR_WECHAT_SPLIT_RESULT_UNCERTAIN/);
-      assert.equal(p.controller.snapshot().completed_commands, before);
+      const pending = p.controller.confirmSplit(lot.id, { amount: 1, unit: lot.quantity.unit });
+      await entered.promise; p.controller.setVisible(false); gate.resolve();
+      if (valid) { await pending; assert.equal(p.controller.snapshot().completed_commands, before + 1); }
+      else { await assert.rejects(pending, /SPLIT_RESULT_UNCERTAIN/); assert.equal(p.controller.snapshot().completed_commands, before); }
       assert.equal(p.controller.snapshot().split_result, null);
-      assert.equal(p.host().requireSession().getSelectableViewModel().splittable_lot_options.find(item => item.id === lot.id)!.quantity.amount, lot.quantity.amount - 1);
     } finally { await p.controller.dispose(); }
   }
 });
-
 test('M3 public menu drives planting and storage through the real binding; restored session replaces observations', async () => {
   const storage = new InMemorySaveStoragePort();
   const p = harness({ storage, receiveMenu: true });

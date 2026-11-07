@@ -186,9 +186,11 @@ export class CocosWechatProbe extends Component {
 
   private menuHandler(name: string): () => void {
     return () => {
+      const beforeEditing = this.controller?.snapshot();
+      if (!beforeEditing || beforeEditing.phase !== 'ready' || beforeEditing.busy || !beforeEditing.visible) return;
+      this.finishSplitEditing();
       const state = this.controller?.snapshot();
       if (!state || state.phase !== 'ready' || state.busy || !state.visible) return;
-      this.finishSplitEditing();
       this.resetCancelConfirmation();
       if (name !== 'SplitConfirm') this.invalidateSplit();
       const options = state.menu?.selectable_view_model;
@@ -220,12 +222,13 @@ export class CocosWechatProbe extends Component {
         } else if (name === 'SplitConfirm' && lot) {
           this.lastCommandWasRead = false;
           const amount = this.splitAmount();
-          const preview = state.split_preview;
-          if (amount !== null && preview?.success && preview.sourceLotId === lot.id
-              && preview.quantity.amount === amount && preview.quantity.unit === lot.quantity.unit) {
-            void this.controller!.confirmSplit().catch(error => {
-              if (isValid(this.node, true)) this.labels.hint.string = String(error).includes('ERR_WECHAT_SPLIT_RESULT_UNCERTAIN')
-                ? '拆分结果待确认，请查看库存核实' : '拆分未完成，请查看状态';
+          if (amount === null) this.labels.hint.string = '请输入大于零的有效数量';
+          else {
+            void this.controller!.confirmSplit(lot.id, { amount, unit: lot.quantity.unit }).catch(error => {
+              const reason = String(error);
+              const rejection = reason.match(/ERR_WECHAT_PROBE_ACTION_FAILED:([^\s]+)/);
+              if (isValid(this.node, true)) this.labels.hint.string = reason.includes('ERR_WECHAT_SPLIT_RESULT_UNCERTAIN')
+                ? '拆分结果待确认，请查看库存核实' : rejection ? `拆分未通过：${this.splitRejection(rejection[1])}` : '拆分未完成，请查看状态';
               console.error('[wechat-m3] split-confirm-failed', String(error));
             });
           }
@@ -300,7 +303,7 @@ export class CocosWechatProbe extends Component {
     const result = state.split_result;
     const resultIndex = result ? lots.findIndex(x => x.id === result.newLotId) : -1;
     this.labels.splitPreview.string = result ? `${resultIndex < 0 ? '新增批次' : `新增第${resultIndex + 1}批`}：${result.quantity.amount}${unit(result.quantity.unit)} · ${result.remainingQuantity ? `来源剩余${result.remainingQuantity.amount}${unit(result.remainingQuantity.unit)}` : '来源已全部拆出'}`
-      : preview ? preview.success ? '校验通过，尚未执行' : `校验未通过：${this.splitRejection(preview.statusCode)}` : '填写数量后先预览，再确认';
+      : preview ? preview.success ? '校验通过，尚未执行' : `校验未通过：${this.splitRejection(preview.statusCode)}` : '填写数量后可直接拆分，也可先预览';
     const enabled = state.phase === 'ready' && state.visible && !state.busy;
     this.splitInput.enabled = enabled && this.page === 'split' && !!lot?.enabled;
     const set = (name: string, value: boolean) => { const button = this.menuButtons[name]; if (button && isValid(button.node, true)) button.interactable = enabled && value; };
@@ -311,9 +314,7 @@ export class CocosWechatProbe extends Component {
     set('StockLot', lots.length > 0); set('StockTarget', targets.length > 0);
     set('StockMove', !!lot?.enabled && !!target?.enabled && target.id !== lot.storage_ref.container_id);
     set('StockSplit', !!lot?.enabled); set('SplitBack', true); set('SplitPreview', !!lot?.enabled);
-    const amount = this.splitAmount();
-    set('SplitConfirm', !!lot?.enabled && amount !== null && !!preview?.success && preview.sourceLotId === lot.id
-      && preview.quantity.amount === amount && preview.quantity.unit === lot.quantity.unit);
+    set('SplitConfirm', !!lot?.enabled);
   }
 
   private render(state: WechatProbeSnapshot): void {

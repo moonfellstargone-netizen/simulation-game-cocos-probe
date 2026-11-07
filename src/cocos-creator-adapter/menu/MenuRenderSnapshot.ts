@@ -7,10 +7,17 @@ export interface MenuErrorSnapshot {
   message: string;
 }
 
+export interface SplitValidationSnapshot {
+  action_type: 'split_lot';
+  success: boolean;
+  status_code: string;
+}
+
 export interface MenuRenderSnapshot {
   view_model: CocosStateViewModelData | null;
   selectable_view_model: CocosSelectableViewModelData | null;
   last_preview_result: CocosActionPreviewResult | null;
+  last_split_validation_result: SplitValidationSnapshot | null;
   last_action_result: ActionResult | null;
   errors: MenuErrorSnapshot[];
 }

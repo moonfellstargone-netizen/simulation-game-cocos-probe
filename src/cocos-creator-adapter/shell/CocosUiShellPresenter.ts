@@ -12,6 +12,7 @@ function emptyMenuSnapshot(): MenuRenderSnapshot {
     view_model: null,
     selectable_view_model: null,
     last_preview_result: null,
+    last_split_validation_result: null,
     last_action_result: null,
     errors: []
   };

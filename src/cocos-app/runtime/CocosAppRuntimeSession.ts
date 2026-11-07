@@ -6,7 +6,7 @@ import { CocosRuntimeFacade } from '../adapters/CocosRuntimeFacade';
 import type { CocosStateViewModelData } from '../view-models/CocosStateViewModel';
 import type { CocosSelectableViewModelData } from '../view-models/CocosSelectableViewModel';
 import type { CocosActionPreviewResult } from '../adapters/CocosActionPreviewer';
-import type { ConfigRepository, GameState, RuntimeContractValidator, SaveStoragePort, SaveSlotWriteSummary } from '../../game-core';
+import type { ConfigRepository, GameState, Quantity, RuntimeContractValidator, SaveStoragePort, SaveSlotWriteSummary } from '../../game-core';
 import { GameRuntime, NewGameBuilder, SaveManager, StorageAudit } from '../../game-core';
 
 export interface CocosActionSessionPort {
@@ -70,6 +70,10 @@ export class CocosAppRuntimeSession {
     const result = this.facade.preview(actionType, parameters);
     this.validateSessionState('preview_after_no_side_effect');
     return result;
+  }
+
+  validateSplit(sourceLotId: string, quantity: Quantity): void {
+    this.runtime.inventory.assertCanSplit(this.state.save_file, sourceLotId, quantity);
   }
 
   async save(slotId: string): Promise<CocosAppRuntimeSessionSaveSummary> {

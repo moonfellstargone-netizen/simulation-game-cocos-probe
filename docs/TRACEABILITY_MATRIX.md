@@ -366,4 +366,7 @@ tests/cocos-wechat-m3-ui.test.ts经既有test.cocos-wechat-runtime的args/files�
 
 trace.cocos.wechat-m1继续关联微信outer、控制器及现有preparation/runtime质量任务。tests/cocos-wechat-runtime.test.ts和tests/cocos-wechat-m3-ui.test.ts覆盖控制器与真实outer的拆分链，沿用既有full/blocker，不新增正式规则或降低门禁。具体通过情况以本轮实际测试与对应提交的证据为准。
 
-M3微信库存拆分复用公开菜单的split_lot预览与确认，数量和单位以正式规则为准；切换材料、数量或会话等情况应使旧预览失效。失败保护、实际分出批次及来源追踪由控制器和现有正式动作共同保障，不修改SaveFile、正式Schema、配置或玩法规则。M2存读档与M3种植库存能力继续保留；PR25、PR26、PR27的依赖须随候选核对。本包不包含M3完整经营、M4或Stage1B。
+M3微信库存拆分支持可选预览；玩家可直接确认当前批次和数量。共享队列以menu_confirm_split_direct调用独立只读校验，通过后才同步提交正式split_lot，校验与执行共用正式数量、预留、定义及容量规则，不依赖preview。切换材料、数量或会话使旧预览失效，预览不成为确认的前置条件；提交后异常或无法核实回执提示结果待确认，不自动重试。原Web菜单确认仍先预览。M2存读档与M3种植库存能力继续保留；不修改SaveFile、正式Schema、配置或玩法规则。PR25、PR26、PR27依赖须随候选核对，本包不包含M3完整经营、M4或Stage1B。
+
+
+拆分独立校验与共享直接确认还涉及InventorySystem、StorageReconciler、CocosAppRuntimeSession、MinimalMenuInteractionController及CocosUiCommandQueue。tests/stage1a-contract.test.ts、tests/cocos-runtime-session.test.ts、tests/cocos-ui-command-queue.test.ts和tests/cocos-scene-binding-application.test.ts分别覆盖只读规则、Session、队列及绑定；原Web交互及测试追踪保留，具体验收不以登记替代。

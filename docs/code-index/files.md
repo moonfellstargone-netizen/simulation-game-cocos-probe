@@ -210,3 +210,6 @@ trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport
 - `apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts`及同名meta：隔离Host校验旧档与备份，避免改变玩家会话。
 - `tests/cocos-wechat-storage.test.ts`：存储适配和故障保护契约，由test.cocos-wechat-runtime执行。
 - `tests/cocos-wechat-schema-optimization.test.mjs`：58项Schema的受控校验结果及完整错误对比和来源参数拒绝契约，由test.cocos-wechat-runtime执行。
+
+
+拆分独立校验路径：`src/game-core/inventory/InventorySystem.ts`（正式只读校验与拆分计划）、`src/game-core/storage/StorageReconciler.ts`（共享占用计算及写回）、`src/cocos-app/runtime/CocosAppRuntimeSession.ts`（当前会话只读校验）、`src/cocos-creator-adapter/menu/MinimalMenuInteractionController.ts`及`src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts`（仅拆分的独立确认）。覆盖分别登记于原stage1a-contract、cocos-session、cocos-ui-command-queue及cocos-scene-binding-application任务。

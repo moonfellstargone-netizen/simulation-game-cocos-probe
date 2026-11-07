@@ -41,15 +41,22 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
   const storage = new WechatSaveStoragePort(() => platform, async () => {});
   let hold = false; let failSplitPatch = false; let unblock!: () => void;
   let cancellations = 0;
+  const submittedCommands: string[] = [];
   let gate = new Promise<void>(resolve => { unblock = resolve; });
   const controller = new WechatProbeController({
     load: async () => ({ resources: { snapshot, schemas, buildId }, identity }),
     createHost: input => createStage1AHost({ snapshot: input.snapshot as RuntimeConfigSnapshot, schemas: input.schemas, buildId, storage, nowIso8601: '2026-11-03T00:00:00.000Z' }),
-    createBinding: host => new QinglanUiSceneProbeComponent(host as CocosSessionHost, { applyNodeBindingPatch: async patch => {
-      if (hold) await gate;
-      if (patch.section === 'menu' && failSplitPatch) { failSplitPatch = false; throw new Error('injected scene update failure after action'); }
-      if (patch.section === 'menu') controller.acceptMenuPatch(patch.payload);
-    } }),
+    createBinding: host => {
+      const binding = new QinglanUiSceneProbeComponent(host as CocosSessionHost, { applyNodeBindingPatch: async patch => {
+        if (hold) await gate;
+        if (patch.section === 'menu' && failSplitPatch) { failSplitPatch = false; throw new Error('injected scene update failure after action'); }
+        if (patch.section === 'menu') controller.acceptMenuPatch(patch.payload);
+      } });
+      return { mount: () => binding.mount(), unmount: () => binding.unmount(), execute: command => {
+        submittedCommands.push(command.name);
+        return binding.execute(command);
+      } };
+    },
     cancelFirstFailedSave: async () => { cancellations++; },
     onChange: state => probe.render(state)
   });
@@ -140,9 +147,11 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     for (const invalid of ['', '0', '-1', 'NaN', '1e309', '2tail', '0x10']) {
       enter(invalid);
       const accepted = controller.snapshot().accepted_commands;
+      const before = controller.snapshot().menu;
       click('SplitConfirm');
       assert.equal(controller.snapshot().accepted_commands, accepted, 'invalid input cannot confirm');
-      assert.equal(probe.menuButtons.SplitConfirm.interactable, false);
+      assert.deepEqual(controller.snapshot().menu, before, 'invalid input cannot change inventory');
+      assert.match(probe.labels.hint.string, /有效数量/, 'invalid input gives the player an explanation');
     }
     enter('300'); await preview();
     assert.equal(probe.splitInput.focused, false, 'preview closes the active edit box');
@@ -150,7 +159,7 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     assert.equal(probe.menuButtons.SplitConfirm.interactable, true);
     enter('301');
     assert.equal(controller.snapshot().split_preview, null, 'typing invalidates the previous receipt');
-    assert.equal(probe.menuButtons.SplitConfirm.interactable, false);
+    assert.equal(probe.menuButtons.SplitConfirm.interactable, true, 'a new quantity can be confirmed directly');
     enter('300'); await preview();
     click('SplitBack');
     assert.equal(controller.snapshot().split_preview, null, 'leaving the page invalidates the receipt');
@@ -158,14 +167,14 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     probe.onHide();
     assert.equal(controller.snapshot().split_preview, null, 'background invalidates the receipt');
     probe.onShow();
-    assert.equal(probe.menuButtons.SplitConfirm.interactable, false);
+    assert.equal(probe.menuButtons.SplitConfirm.interactable, true, 'optional preview is not required after returning');
     await preview();
     gate = new Promise<void>(resolve => { unblock = resolve; });
     hold = true; click('SplitPreview');
     assert.equal(controller.snapshot().busy, true);
     probe.onHide(); hold = false; unblock(); await waitForIdle(); probe.onShow();
     assert.equal(controller.snapshot().split_preview, null, 'a preview completed after hiding must not revive');
-    assert.equal(probe.menuButtons.SplitConfirm.interactable, false);
+    assert.equal(probe.menuButtons.SplitConfirm.interactable, true, 'an obsolete preview is not required for direct confirmation');
     click('SplitBack'); click('StockLot');
     assert.notEqual(probe.lotId, pair.lot.id);
     assert.equal(controller.snapshot().split_preview, null, 'changing lot invalidates the receipt');
@@ -175,34 +184,68 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     enter('0.5'); await preview();
     assert.equal(controller.snapshot().split_preview?.success, false, 'fractional count is rejected by formal preview');
     assert.equal(controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(x => x.id === seedId)!.quantity.amount, seedBeforeReject);
-    assert.equal(probe.menuButtons.SplitConfirm.interactable, false);
+    assert.equal(probe.menuButtons.SplitConfirm.interactable, true, 'confirmation remains available without a preview');
+    const beforeFractionalCount = controller.snapshot().menu!.selectable_view_model;
+    const oldError = console.error; console.error = () => {};
+    try { click('SplitConfirm'); await waitForIdle(); } finally { console.error = oldError; }
+    assert.deepEqual(controller.snapshot().menu!.selectable_view_model, beforeFractionalCount, 'direct fractional count leaves inventory unchanged');
+    assert.equal(controller.snapshot().split_result, null, 'invalid count has no successful receipt');
+    assert.match(controller.snapshot().last_error ?? '', /ERR_WECHAT_PROBE_ACTION_FAILED:ERR_SPLIT_QUANTITY_INVALID/);
+    assert.match(probe.labels.hint.string, /数量不符合单位要求/, 'a definite unit rejection is explained');
+    assert.doesNotMatch(probe.labels.hint.string, /待确认/, 'a pre-dispatch rejection is not uncertain');
     enter(String(seedBeforeReject + 1)); await preview();
     assert.equal(controller.snapshot().split_preview?.success, false, 'quantity exceeding available stock is rejected');
     assert.equal(controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(x => x.id === seedId)!.quantity.amount, seedBeforeReject);
+    const beforeOverQuantity = controller.snapshot().menu!.selectable_view_model;
+    console.error = () => {};
+    try { click('SplitConfirm'); await waitForIdle(); } finally { console.error = oldError; }
+    assert.deepEqual(controller.snapshot().menu!.selectable_view_model, beforeOverQuantity, 'direct over-quantity confirmation leaves inventory unchanged');
+    assert.equal(controller.snapshot().split_result, null, 'rejected confirmation produces no successful receipt');
+    assert.doesNotMatch(probe.labels.splitPreview.string, /新增/, 'rejection is never displayed as successful');
+    assert.match(controller.snapshot().last_error ?? '', /ERR_WECHAT_PROBE_ACTION_FAILED:ERR_NOT_ENOUGH_RESOURCE/);
+    assert.match(probe.labels.hint.string, /数量超过当前库存/, 'a definite over-quantity rejection is explained');
+    assert.doesNotMatch(probe.labels.hint.string, /待确认/, 'a pre-dispatch rejection is not uncertain');
     click('SplitBack'); selectLot(pair.lot.id); click('StockSplit');
     const beforeFraction = controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(x => x.id === pair.lot.id)!.quantity.amount;
-    enter('0.5'); await preview();
-    assert.equal(controller.snapshot().split_preview?.success, true, 'fractional grams use formal preview');
-    click('SplitConfirm'); await waitForIdle();
+    enter('0.5');
+    assert.equal(controller.snapshot().split_preview, null, 'direct split starts without preview');
+    const beforeDirect = controller.snapshot().accepted_commands;
+    const beforeDirectCommands = submittedCommands.length;
+    gate = new Promise<void>(resolve => { unblock = resolve; });
+    hold = true; click('SplitConfirm');
+    try {
+      assert.equal(controller.snapshot().busy, true);
+      click('SplitConfirm');
+      assert.equal(controller.snapshot().accepted_commands, beforeDirect + 1, 'a second click while busy does not submit another action');
+    } finally { hold = false; unblock(); }
+    await waitForIdle();
+    assert.deepEqual(submittedCommands.slice(beforeDirectCommands), ['menu_confirm_split_direct'], 'direct confirmation sends no separate preview command');
     const first = controller.snapshot().split_result;
-    assert.ok(first, 'formal confirmation returns the new lot');
+    assert.ok(first, 'direct formal confirmation returns the new lot without prior preview');
     assert.equal(first.quantity.amount, 0.5);
     assert.equal(first.remainingQuantity?.amount, beforeFraction - 0.5);
     assert.equal(first.sourceLotId, pair.lot.id);
-    assert.equal(probe.menuButtons.SplitConfirm.interactable, false, 'a receipt cannot be reused');
-    enter(String(first.remainingQuantity!.amount)); await preview();
-    assert.equal(controller.snapshot().split_preview?.success, true, 'full quantity is legal');
+    enter('1'); await preview();
+    assert.equal(controller.snapshot().split_preview?.success, true, 'optional preview is available');
+    enter('2');
+    assert.equal(controller.snapshot().split_preview, null, 'changing the input invalidates the optional preview');
+    click('SplitConfirm'); await waitForIdle();
+    const changed = controller.snapshot().split_result;
+    assert.ok(changed, 'changed input is directly confirmed');
+    assert.equal(changed.quantity.amount, 2, 'direct confirmation uses the new input rather than the preview quantity');
+    assert.equal(changed.remainingQuantity?.amount, first.remainingQuantity!.amount - 2);
+    enter(String(changed.remainingQuantity!.amount));
     click('SplitConfirm'); await waitForIdle();
     const full = controller.snapshot().split_result;
     assert.ok(full);
     assert.equal(full.remainingQuantity, null, 'full split removes the exhausted source');
-    assert.equal(full.quantity.amount, beforeFraction - 0.5);
+    assert.equal(full.quantity.amount, beforeFraction - 2.5);
     assert.equal(probe.lotId, null, 'removed source selection is cleared');
     click('SplitBack'); selectLot(first.newLotId); click('StockSplit');
     enter('0.5'); await preview();
     assert.equal(controller.snapshot().split_preview?.success, true);
     failSplitPatch = true;
-    const oldError = console.error; console.error = () => {};
+    console.error = () => {};
     try { click('SplitConfirm'); await waitForIdle(); } finally { console.error = oldError; }
     assert.match(controller.snapshot().last_error ?? '', /ERR_WECHAT_SPLIT_RESULT_UNCERTAIN/);
     assert.match(probe.labels.status.string, /待确认/, 'uncertain action result remains explicit in the status area');

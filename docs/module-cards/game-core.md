@@ -91,3 +91,7 @@ RuntimeSchemaValidator支持显式PrecompiledSchemaValidatorSet：format为runti
 tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / registry test.stage1a-bootstrap实际args/files/covers，沿用full/blocker，不新增任务或降低门禁。该测试覆盖禁用动态Function后的正式启动/合法动作及坏请求、集合/内容拒绝；微信preparation契约覆盖实际facade、全部Schema、来源与生成物篡改，资源预检标记为node-aot-public-bootstrap-passed。Web旧resourcePreflight和默认动态路径保持。Node不替代新提交的Creator/SDK、微信真实输入/日志/重载、Web回归或审查/CI。
 
 函数实现的来源由构建生产链约束；核心只接收已解析Schema与函数集合，不导入Ajv standalone工具或读取生成文件。公开类型沿现有index.ts的export *自然导出，既有动态校验不变。
+
+## 拆分校验与共享仓储对账
+
+InventorySystem.assertCanSplit提供只读正式校验，split与之复用拆分计划；StorageReconciler先计算并校验占用后再统一写回。成功占用规则不变，异常时直接调用的中间状态与此前逐步写入不同；其他仓储动作、新局与正式事务仍须回归。分发后的契约/界面异常不一概证明状态回滚。
