@@ -122,3 +122,7 @@ tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / reg
 ## 拆分独立确认通道
 
 共享Queue的menu_confirm_split_direct仅接受split_lot选择；同步解析当前选项并通过Session只读校验后才dispatch，结果记录last_split_validation_result与真实last_action_result，不调用session.preview。前置拒绝有明确校验回执；分发后异常或失败不能据此断言状态未提交。原menu_confirm、其他动作及Web先预览交互保持。
+
+## 微信加工直接确认
+
+menu_confirm_processing_direct限定start_processing和collect_processing_result，构建当前正式参数并独立校验，再经Session正式分发。前置validation失败与dispatch后的不确定结果区分，原menu_confirm和Web路径保持。

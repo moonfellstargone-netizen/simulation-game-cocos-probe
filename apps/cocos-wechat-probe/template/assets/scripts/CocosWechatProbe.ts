@@ -9,6 +9,8 @@ const { ccclass } = _decorator;
 const UNITS: Record<string, string> = { count: '粒', g: '克', ml: '毫升', bundle: '捆', serving: '份' };
 const STORAGE: Record<string, string> = { room_temp: '常温储存', cellar: '菜窖' };
 const FORMS: Record<string, string> = { fresh: '鲜材', cut: '切好', cured: '腌腊', pickled: '腌菜' };
+// These definitions have no display_name_key in the current formal resources.
+const PROCESSING_NAMES: Record<string, string> = { pickling_jar_basic: '基础腌菜坛', knife_basic: '基础刀具', vegetable: '蔬菜' };
 
 // Display names come from the formal resource snapshot, never from SaveFile.
 function presentationNames(resources: WechatResources): Record<string, string> {
@@ -42,7 +44,17 @@ export class CocosWechatProbe extends Component {
   private lastCommandWasRead = false;
   private clickCount = 0;
   private names: Record<string, string> = {};
-  private page: 'farm' | 'stock' | 'split' = 'farm';
+  private page: 'farm' | 'stock' | 'split' | 'processing' | 'processingTasks' = 'farm';
+  private processingNode: Node | null = null;
+  private processingTasksNode: Node | null = null;
+  private processingInput: EditBox | null = null;
+  private processingMethodId: string | null = null;
+  private processingRequirement = 0;
+  private processingSlot = 0;
+  private processingFacilityId: string | null = null;
+  private processingTaskId: string | null = null;
+  private processingInputs: Record<string, { lotId: string; amount: string }> = {};
+  private processingHintGeneration = 0;
   private farmNode: Node | null = null;
   private stockNode: Node | null = null;
   private splitNode: Node | null = null;
@@ -104,6 +116,7 @@ export class CocosWechatProbe extends Component {
     this.backupButton!.node.on(Button.EventType.CLICK, this.onReadBackup, this);
     this.cancelFirstButton!.node.on(Button.EventType.CLICK, this.onCancelFirst, this);
     this.splitInput!.node.on(EditBox.EventType.TEXT_CHANGED, this.onSplitTextChanged, this);
+    this.processingInput!.node.on(EditBox.EventType.TEXT_CHANGED, this.onProcessingTextChanged, this);
     for (const [name, button] of Object.entries(this.menuButtons)) {
       const handler = this.menuHandler(name);
       this.menuHandlers[name] = handler;
@@ -123,10 +136,13 @@ export class CocosWechatProbe extends Component {
     if (this.backupButton && isValid(this.backupButton.node, true)) this.backupButton.node.off(Button.EventType.CLICK, this.onReadBackup, this);
     if (this.cancelFirstButton && isValid(this.cancelFirstButton.node, true)) this.cancelFirstButton.node.off(Button.EventType.CLICK, this.onCancelFirst, this);
     if (this.splitInput && isValid(this.splitInput.node, true)) this.splitInput.node.off(EditBox.EventType.TEXT_CHANGED, this.onSplitTextChanged, this);
+    if (this.processingInput && isValid(this.processingInput.node, true)) this.processingInput.node.off(EditBox.EventType.TEXT_CHANGED, this.onProcessingTextChanged, this);
     for (const [name, button] of Object.entries(this.menuButtons)) if (isValid(button.node, true)) button.node.off(Button.EventType.CLICK, this.menuHandlers[name], this);
     game.off(Game.EVENT_HIDE, this.onHide, this);
     game.off(Game.EVENT_SHOW, this.onShow, this);
     this.controller?.invalidateSplitPreview();
+    this.controller?.invalidateProcessingPreview();
+    this.processingHintGeneration++;
     void this.controller?.dispose().catch(error => console.error('[wechat-m1] close-failed', String(error)));
   }
 
@@ -146,13 +162,14 @@ export class CocosWechatProbe extends Component {
     this.resetCancelConfirmation();
     this.invalidateSplit();
     this.setCommandReadContext(true);
+    this.clearProcessingSelection();
     void this.controller?.load().catch(error => {
       if (error instanceof Error && error.message === `ERR_SAVE_SLOT_NOT_FOUND:${WECHAT_SAVE_SLOT_ID}`) {
         console.info('[wechat-m2] empty-save-slot', WECHAT_SAVE_SLOT_ID);
       } else console.error('[wechat-m2] load-failed', String(error));
     });
   }
-  private onReadBackup(): void { this.finishSplitEditing(); this.resetCancelConfirmation(); this.invalidateSplit(); this.setCommandReadContext(false); void this.controller?.loadBackup().catch(error => console.error('[wechat-m2] backup-load-failed', String(error))); }
+  private onReadBackup(): void { this.finishSplitEditing(); this.resetCancelConfirmation(); this.invalidateSplit(); this.clearProcessingSelection(); this.setCommandReadContext(false); void this.controller?.loadBackup().catch(error => console.error('[wechat-m2] backup-load-failed', String(error))); }
   private onCancelFirst(): void {
     this.finishSplitEditing();
     this.invalidateSplit();
@@ -173,8 +190,18 @@ export class CocosWechatProbe extends Component {
     const state = this.controller?.snapshot();
     if (state?.phase === 'ready' && !state.busy && state.visible) this.lastCommandWasRead = isRead;
   }
-  private invalidateSplit(): void { this.controller?.invalidateSplitPreview(); }
-  private finishSplitEditing(): void { if (this.splitInput?.isFocused()) this.splitInput.blur(); }
+  private invalidateSplit(): void { this.controller?.invalidateSplitPreview(); this.controller?.invalidateProcessingPreview(); this.processingHintGeneration++; }
+  private finishSplitEditing(): void { if (this.splitInput?.isFocused()) this.splitInput.blur(); if (this.processingInput?.isFocused()) this.processingInput.blur(); }
+  private onProcessingTextChanged(): void {
+    this.resetCancelConfirmation();
+    this.processingHintGeneration++;
+    const state = this.controller?.snapshot();
+    if (!state || state.phase !== 'ready' || state.busy || !state.visible) { this.syncProcessingInput(); return; }
+    const item = this.processingInputs[this.processingKey()];
+    if (item && this.processingInput) item.amount = this.processingInput.string;
+    this.controller?.invalidateProcessingPreview();
+    if (state && isValid(this.node, true)) this.renderMenu(state);
+  }
   private onSplitTextChanged(): void {
     this.resetCancelConfirmation();
     this.invalidateSplit();
@@ -196,6 +223,43 @@ export class CocosWechatProbe extends Component {
       const options = state.menu?.selectable_view_model;
       if (name === 'PageFarm') this.page = 'farm';
       else if (name === 'PageStock') this.page = 'stock';
+      else if (name === 'PageProcessing') this.page = 'processing';
+      else if (name === 'ProcessingTasks') this.page = 'processingTasks';
+      else if (name === 'ProcessingBack') this.page = 'processing';
+      else if (name === 'ProcessingMethod') {
+        this.processingMethodId = this.next(options?.processing_method_options ?? [], this.processingMethodId);
+        this.processingRequirement = 0; this.processingSlot = 0; this.processingInputs = {}; this.processingFacilityId = null; this.syncProcessingInput();
+      } else if (name === 'ProcessingRequirement') {
+        const method = options?.processing_method_options.find(x => x.id === this.processingMethodId);
+        if (method?.input_requirements.length) this.processingRequirement = (this.processingRequirement + 1) % method.input_requirements.length;
+        this.processingSlot = 0;
+        this.syncProcessingInput();
+      } else if (name === 'ProcessingSlot') {
+        const slots = Object.keys(this.processingInputs).filter(key => key.startsWith(`${this.processingRequirement}:`)).length;
+        this.processingSlot = (this.processingSlot + 1) % (slots + 1);
+        this.syncProcessingInput();
+      } else if (name === 'ProcessingLot') {
+        const requirement = options?.processing_method_options.find(x => x.id === this.processingMethodId)?.input_requirements[this.processingRequirement];
+        const candidates = (options?.processable_lot_options ?? []).filter(x => x.enabled && requirement?.lot_ids.includes(x.id));
+        const key = this.processingKey();
+        const previous = this.processingInputs[key]?.lotId ?? null;
+        const index = candidates.findIndex(x => x.id === previous);
+        const id = index === candidates.length - 1 && previous !== null ? null : this.next(candidates, previous);
+        if (id) this.processingInputs[key] = { lotId: id, amount: '' };
+        else {
+          delete this.processingInputs[key];
+          let slot = this.processingSlot + 1;
+          while (this.processingInputs[`${this.processingRequirement}:${slot}`]) {
+            this.processingInputs[`${this.processingRequirement}:${slot - 1}`] = this.processingInputs[`${this.processingRequirement}:${slot}`];
+            delete this.processingInputs[`${this.processingRequirement}:${slot}`];
+            slot++;
+          }
+        }
+        this.syncProcessingInput();
+      } else if (name === 'ProcessingFacility') {
+        const method = options?.processing_method_options.find(x => x.id === this.processingMethodId);
+        this.processingFacilityId = this.next((options?.processing_facility_options ?? []).filter(x => x.enabled && method?.compatible_facility_ids.includes(x.id)), this.processingFacilityId);
+      } else if (name === 'ProcessingTask') this.processingTaskId = this.next(options?.processing_task_options ?? [], this.processingTaskId);
       else if (name === 'StockSplit') this.page = 'split';
       else if (name === 'SplitBack') this.page = 'stock';
       else if (name === 'FarmField') this.fieldId = this.next(options?.field_options.filter(x => x.enabled) ?? [], this.fieldId);
@@ -213,7 +277,33 @@ export class CocosWechatProbe extends Component {
         const target = options?.storage_target_options.find(x => x.id === this.targetId && x.enabled);
         let action: Promise<WechatProbeSnapshot> | null = null;
         let done = '';
-        if (name === 'SplitPreview' && lot) {
+        if (name === 'ProcessingPreview' || name === 'ProcessingStart') {
+          const selection = this.processingSelection();
+          if (!selection) this.labels.hint.string = '请选择方法、设施并填写有效材料数量';
+          else {
+            this.lastCommandWasRead = false;
+            const generation = this.processingHintGeneration;
+            const command = name === 'ProcessingPreview' ? this.controller!.previewProcessing(selection) : this.controller!.confirmProcessing(selection);
+            void command.then(result => {
+              if (!this.canShowProcessingHint(generation, 'processing')) return;
+              const preview = result.processing_preview;
+              if (name === 'ProcessingPreview') {
+                if (!preview || preview.actionType !== 'start_processing') return;
+                this.labels.hint.string = preview.success ? '预览通过，尚未开工' : `预览未通过：${this.processingError(preview.statusCode)}`;
+              } else if (result.processing_result?.actionType === 'start_processing' && result.processing_result.taskId) this.labels.hint.string = '加工已开工';
+            }).catch(error => { if (this.canShowProcessingHint(generation, 'processing')) this.labels.hint.string = this.processingError(String(error)); console.error('[wechat-m3] processing-failed', String(error)); });
+          }
+        } else if (name === 'ProcessingCollect' && this.processingTaskId) {
+          this.lastCommandWasRead = false;
+          const taskId = this.processingTaskId;
+          const generation = this.processingHintGeneration;
+          void this.controller!.confirmProcessing({ action_type: 'collect_processing_result', task_option_id: taskId })
+            .then(result => {
+              if (this.canShowProcessingHint(generation, 'processingTasks') && result.processing_result?.actionType === 'collect_processing_result'
+                  && result.processing_result.taskId === taskId && result.processing_result.lotId) this.labels.hint.string = '加工产物已领取';
+            })
+            .catch(error => { if (this.canShowProcessingHint(generation, 'processingTasks')) this.labels.hint.string = this.processingError(String(error)); console.error('[wechat-m3] processing-collect-failed', String(error)); });
+        } else if (name === 'SplitPreview' && lot) {
           this.lastCommandWasRead = false;
           const amount = this.splitAmount();
           if (amount === null) this.labels.hint.string = '请输入大于零的有效数量';
@@ -245,6 +335,49 @@ export class CocosWechatProbe extends Component {
       }
       this.renderMenu(this.controller!.snapshot());
     };
+  }
+
+  private canShowProcessingHint(generation: number, page: 'processing' | 'processingTasks'): boolean {
+    const current = this.controller?.snapshot();
+    return isValid(this.node, true) && generation === this.processingHintGeneration && this.page === page
+      && current?.phase === 'ready' && current.visible;
+  }
+  private clearProcessingSelection(): void {
+    this.processingMethodId = null; this.processingRequirement = 0; this.processingSlot = 0; this.processingFacilityId = null;
+    this.processingTaskId = null; this.processingInputs = {}; this.syncProcessingInput();
+  }
+  private processingKey(): string { return `${this.processingRequirement}:${this.processingSlot}`; }
+  private syncProcessingInput(): void {
+    if (this.processingInput) this.processingInput.string = this.processingInputs[this.processingKey()]?.amount ?? '';
+  }
+  private processingSelection(): { action_type: 'start_processing'; method_id: string; input_lots: Array<{ lot_option_id: string; quantity: { amount: number; unit: string } }>; facility_option_id: string } | null {
+    const options = this.controller?.snapshot().menu?.selectable_view_model;
+    const method = options?.processing_method_options.find(x => x.id === this.processingMethodId);
+    if (!method || !this.processingFacilityId || !method.compatible_facility_ids.includes(this.processingFacilityId)) return null;
+    const input_lots: Array<{ lot_option_id: string; quantity: { amount: number; unit: string } }> = [];
+    for (const [index, input] of Object.entries(this.processingInputs)) {
+      const requirement = method.input_requirements[Number(index.split(':')[0])];
+      const lot = options?.processable_lot_options.find(x => x.id === input.lotId && x.enabled && requirement?.lot_ids.includes(x.id));
+      const text = input.amount.trim();
+      if (!lot || !/^[+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(text)) return null;
+      const amount = Number(text);
+      if (!Number.isFinite(amount) || amount <= 0) return null;
+      input_lots.push({ lot_option_id: lot.id, quantity: { amount, unit: lot.quantity.unit } });
+    }
+    return { action_type: 'start_processing', method_id: method.id, input_lots, facility_option_id: this.processingFacilityId };
+  }
+  private processingError(error: string): string {
+    if (error.includes('UNCERTAIN')) return '结果待确认，请查看加工任务和库存核实';
+    if (error.includes('ERR_DRAFT_INPUT_LOTS_EMPTY')) return '请选择材料并填写数量';
+    if (error.includes('ERR_PROCESSING_INPUT_MISSING')) return '缺少必需材料，请逐项核对';
+    if (error.includes('ERR_NOT_ENOUGH_RESOURCE')) return '材料不足，请核对数量';
+    if (error.includes('ERR_STORAGE_CAPACITY_OVERFLOW')) return '储存空间不足，请整理库存';
+    if (error.includes('ERR_PROCESSING_TASK_NOT_READY')) return '任务尚未完成，请先推进时间';
+    return '加工未完成，请核对材料、设施和任务状态';
+  }
+  private processingTimeLabel(minute: number): string {
+    return Number.isSafeInteger(minute) && minute >= 0
+      ? `day ${Math.floor(minute / 1440) + 1} minute ${minute % 1440}` : `累计${minute}分钟`;
   }
 
   private splitAmount(): number | null {
@@ -291,6 +424,8 @@ export class CocosWechatProbe extends Component {
     this.farmNode.active = this.page === 'farm';
     this.stockNode.active = this.page === 'stock';
     this.splitNode.active = this.page === 'split';
+    if (this.processingNode) this.processingNode.active = this.page === 'processing';
+    if (this.processingTasksNode) this.processingTasksNode.active = this.page === 'processingTasks';
     this.labels.farmField.string = field ? `地块${fields.findIndex(x => x.id === field.id) + 1}/${fields.length}：${this.names[field.definition_id] ?? '已选地块'} · 可用${fields.filter(x => x.enabled).length}` : `地块：请选择（可用${fields.filter(x => x.enabled).length}/${fields.length}）`;
     this.labels.farmSeed.string = seed ? `种子${seeds.findIndex(x => x.id === seed.id) + 1}/${seeds.length}：${this.names[seed.base_id] ?? '种子批次'} · 现有${seed.quantity.amount}${unit(seed.quantity.unit)} · 播种${this.seedAmount}${unit(seed.quantity.unit)}` : '种子：请选择种子批次';
     this.labels.farmCrop.string = crop ? `作物${crops.findIndex(x => x.id === crop.id) + 1}/${crops.length}：${this.names[crop.crop_base_id] ?? '已选作物'} · 可收获${crops.filter(x => x.enabled).length}株` : `作物：可收获${crops.filter(x => x.enabled).length}株`;
@@ -315,6 +450,40 @@ export class CocosWechatProbe extends Component {
     set('StockMove', !!lot?.enabled && !!target?.enabled && target.id !== lot.storage_ref.container_id);
     set('StockSplit', !!lot?.enabled); set('SplitBack', true); set('SplitPreview', !!lot?.enabled);
     set('SplitConfirm', !!lot?.enabled);
+    if (this.processingNode && this.processingTasksNode && this.processingInput) this.renderProcessing(state, enabled, set);
+  }
+
+  private renderProcessing(state: WechatProbeSnapshot, enabled: boolean, set: (name: string, value: boolean) => void): void {
+    const options = state.menu?.selectable_view_model;
+    const methods = options?.processing_method_options ?? [];
+    const method = methods.find(x => x.id === this.processingMethodId);
+    if (!method && this.processingMethodId) this.clearProcessingSelection();
+    const requirement = method?.input_requirements[this.processingRequirement];
+    const entry = this.processingInputs[this.processingKey()];
+    const lot = options?.processable_lot_options.find(x => x.id === entry?.lotId && x.enabled && requirement?.lot_ids.includes(x.id));
+    const facilities = options?.processing_facility_options ?? [];
+    const facility = facilities.find(x => x.id === this.processingFacilityId && x.enabled && method?.compatible_facility_ids.includes(x.id));
+    if (!facility) this.processingFacilityId = null;
+    const tasks = options?.processing_task_options ?? [];
+    const task = tasks.find(x => x.id === this.processingTaskId);
+    if (!task) this.processingTaskId = null;
+    const unit = (value: string) => UNITS[value] ?? value;
+    this.labels.processingMethod.string = method ? `方法：${this.names[method.id] ?? method.id} · 加工${method.process_duration_minutes}分${method.tool_requirements.length ? ` · 工具：${method.tool_requirements.map(id => this.names[id] ?? PROCESSING_NAMES[id] ?? id).join('/')}` : ''}` : '方法：请选择';
+    const c = requirement?.constraints;
+    const criteria = c ? [c.base_id && (this.names[c.base_id] ?? c.base_id), c.category && (this.names[c.category] ?? PROCESSING_NAMES[c.category] ?? c.category), c.allowed_base_ids.map(id => this.names[id] ?? id).join('/'), c.allowed_forms.map(form => FORMS[form] ?? form).join('/'), c.min_freshness === null ? '' : `新鲜度≥${c.min_freshness}`].filter(Boolean).join(' · ') : '';
+    this.labels.processingRequirement.string = requirement ? `要求${this.processingRequirement + 1}/${method!.input_requirements.length}：${criteria || '材料'}${requirement.min_quantity ? ` · 至少${requirement.min_quantity.amount}${unit(requirement.min_quantity.unit)}` : ''}` : '要求：请选择加工方法';
+    this.labels.processingLot.string = lot ? `项${this.processingSlot + 1}：${this.names[lot.base_id] ?? lot.base_id} ${lot.quantity.amount}${unit(lot.quantity.unit)} · ${FORMS[lot.current_form] ?? lot.current_form}` : `项${this.processingSlot + 1}：可选${requirement?.lot_ids.length ?? 0}批`;
+    this.labels.processingFacility.string = facility ? `设施：${this.names[facility.definition_id] ?? PROCESSING_NAMES[facility.definition_id] ?? facility.definition_id}` : '设施：请选择匹配设施';
+    const statuses: Record<string, string> = { active: '进行中', in_progress: '进行中', ready_to_collect: '可领取', completed: '已领取' };
+    this.labels.processingTask.string = task ? `任务${tasks.findIndex(x => x.id === task.id) + 1}/${tasks.length}：${this.names[task.method_id] ?? task.method_id} · ${statuses[task.status] ?? task.status}` : `任务：${tasks.length}项，请选择`;
+    const out = task?.expected_output;
+    this.labels.processingOutput.string = task ? `预计完成 ${this.processingTimeLabel(task.expected_finish_minute)} · 预计产物${out?.base_id ? (this.names[out.base_id] ?? out.base_id) : '未列出'}${out?.quantity ? ` ${out.quantity.amount}${unit(out.quantity.unit)}` : ''}` : '可推进时间，再选择已完成任务领取';
+    this.processingInput!.enabled = enabled && this.page === 'processing' && !!lot;
+    set('PageProcessing', true); set('ProcessingMethod', methods.length > 0); set('ProcessingRequirement', !!method?.input_requirements.length);
+    set('ProcessingLot', !!requirement?.lot_ids.length); set('ProcessingSlot', !!requirement); set('ProcessingTasks', true); set('ProcessingBack', true);
+    set('ProcessingFacility', facilities.some(x => x.enabled && !!method?.compatible_facility_ids.includes(x.id)));
+    set('ProcessingTask', tasks.length > 0); set('ProcessingPreview', !!method && !!facility); set('ProcessingStart', !!method && !!facility);
+    set('ProcessingCollect', !!task && !!options?.collectable_task_options.some(x => x.id === task.id && x.enabled));
   }
 
   private render(state: WechatProbeSnapshot): void {
@@ -345,6 +514,7 @@ export class CocosWechatProbe extends Component {
   }
 
   private errorText(error: string): string {
+    if (error.includes('ERR_WECHAT_PROCESSING_RESULT_UNCERTAIN')) return '结果待确认，请查看加工任务和库存核实';
     if (error.includes('ERR_WECHAT_SPLIT_RESULT_UNCERTAIN')) return '拆分结果待确认，请查看库存核实';
     if (error.includes('ERR_WECHAT_BACKUP_RECOVERY_INCOMPLETE')) return '存储恢复未完成，当前游戏未变';
     if (error.includes('ERR_WECHAT_BACKUP_RESTORED_RESULT_UNCERTAIN')) return '存储已恢复，读取或显示未完成，请检查游戏';
@@ -378,15 +548,16 @@ export class CocosWechatProbe extends Component {
     camera.clearColor = new Color(22, 31, 42, 255);
     canvas.cameraComponent = camera;
     canvas.alignCanvasWithScreen = true;
-    this.label(root, 'title', '青岚 · 种植与库存', 242, 23);
+    this.label(root, 'title', '青岚 · 种植、库存与加工', 242, 23);
     this.labels.commit = this.label(root, 'commit', '读取运行包身份', 211, 16);
     this.labels.candidate = this.label(root, 'candidate', 'candidate_id: 加载中', 187, 16);
     this.labels.time = this.label(root, 'time', '等待正式资源启动', 158, 22);
     this.labels.status = this.label(root, 'status', '状态: idle', 128, 18);
-    this.menuButtons.PageFarm = this.smallButton(root, 'PageFarm', '种植', -330, 80);
-    this.menuButtons.PageStock = this.smallButton(root, 'PageStock', '库存', -110, 80);
-    this.button = this.smallButton(root, 'AdvanceOneHour', '推进一小时', 110, 80);
-    this.menuButtons.AdvanceDay = this.smallButton(root, 'AdvanceDay', '推进一天', 330, 80);
+    this.menuButtons.PageFarm = this.smallButton(root, 'PageFarm', '种植', -380, 80);
+    this.menuButtons.PageStock = this.smallButton(root, 'PageStock', '库存', -190, 80);
+    this.menuButtons.PageProcessing = this.smallButton(root, 'PageProcessing', '加工', 0, 80);
+    this.button = this.smallButton(root, 'AdvanceOneHour', '推进一小时', 190, 80);
+    this.menuButtons.AdvanceDay = this.smallButton(root, 'AdvanceDay', '推进一天', 380, 80);
 
     this.farmNode = new Node('FarmingPage');
     this.farmNode.layer = Layers.Enum.UI_2D;
@@ -427,6 +598,33 @@ export class CocosWechatProbe extends Component {
     this.menuButtons.SplitPreview = this.smallButton(this.splitNode, 'SplitPreview', '预览拆分', -110, -140);
     this.menuButtons.SplitConfirm = this.smallButton(this.splitNode, 'SplitConfirm', '确认拆分', 110, -140);
 
+    this.processingNode = new Node('ProcessingPage');
+    this.processingNode.layer = Layers.Enum.UI_2D; root.addChild(this.processingNode);
+    this.processingNode.addComponent(UITransform).setContentSize(960, 540);
+    this.menuButtons.ProcessingMethod = this.smallButton(this.processingNode, 'ProcessingMethod', '选择方法', -350, 25);
+    this.labels.processingMethod = this.menuLabel(this.processingNode, 'processingMethod', 80, 25);
+    this.menuButtons.ProcessingRequirement = this.smallButton(this.processingNode, 'ProcessingRequirement', '选择要求', -350, -30);
+    this.labels.processingRequirement = this.menuLabel(this.processingNode, 'processingRequirement', 80, -30);
+    this.menuButtons.ProcessingLot = this.smallButton(this.processingNode, 'ProcessingLot', '换材料/清除', -350, -85);
+    this.labels.processingLot = this.menuLabel(this.processingNode, 'processingLot', -65, -85);
+    this.labels.processingLot.node.getComponent(UITransform)!.setContentSize(350, 40);
+    this.processingInput = this.quantityInput(this.processingNode, 320, -85, '输入材料数量');
+    this.menuButtons.ProcessingTasks = this.smallButton(this.processingNode, 'ProcessingTasks', '设施与任务', -330, -140);
+    this.menuButtons.ProcessingPreview = this.smallButton(this.processingNode, 'ProcessingPreview', '预览加工', -110, -140);
+    this.menuButtons.ProcessingStart = this.smallButton(this.processingNode, 'ProcessingStart', '确认开工', 110, -140);
+    this.menuButtons.ProcessingSlot = this.smallButton(this.processingNode, 'ProcessingSlot', '下一材料项', 330, -140);
+
+    this.processingTasksNode = new Node('ProcessingTasksPage');
+    this.processingTasksNode.layer = Layers.Enum.UI_2D; root.addChild(this.processingTasksNode);
+    this.processingTasksNode.addComponent(UITransform).setContentSize(960, 540);
+    this.menuButtons.ProcessingFacility = this.smallButton(this.processingTasksNode, 'ProcessingFacility', '选择设施', -350, 25);
+    this.labels.processingFacility = this.menuLabel(this.processingTasksNode, 'processingFacility', 80, 25);
+    this.menuButtons.ProcessingTask = this.smallButton(this.processingTasksNode, 'ProcessingTask', '选择任务', -350, -30);
+    this.labels.processingTask = this.menuLabel(this.processingTasksNode, 'processingTask', 80, -30);
+    this.labels.processingOutput = this.menuLabel(this.processingTasksNode, 'processingOutput', 0, -85);
+    this.menuButtons.ProcessingBack = this.smallButton(this.processingTasksNode, 'ProcessingBack', '返回加工', -330, -140);
+    this.menuButtons.ProcessingCollect = this.smallButton(this.processingTasksNode, 'ProcessingCollect', '领取产物', 110, -140);
+
     this.saveButton = this.smallButton(root, 'Save', '保存', -330, -197);
     this.loadButton = this.smallButton(root, 'Load', '读取', -110, -197);
     this.backupButton = this.smallButton(root, 'LoadBackup', '恢复备份', 110, -197);
@@ -439,7 +637,7 @@ export class CocosWechatProbe extends Component {
     this.labels.hint.node.getComponent(UITransform)!.setContentSize(600, 22);
   }
 
-  private quantityInput(parent: Node, x: number, y: number): EditBox {
+  private quantityInput(parent: Node, x: number, y: number, placeholderText = '输入拆分数量'): EditBox {
     const node = new Node('SplitQuantity');
     node.layer = Layers.Enum.UI_2D;
     parent.addChild(node);
@@ -454,7 +652,7 @@ export class CocosWechatProbe extends Component {
     graphics.roundRect(-120, -24, 240, 48, 6);
     graphics.fill();
     const text = this.label(node, 'Text', '', 0, 20);
-    const placeholder = this.label(node, 'Placeholder', '输入拆分数量', 0, 18);
+    const placeholder = this.label(node, 'Placeholder', placeholderText, 0, 18);
     for (const label of [text, placeholder]) {
       label.node.getComponent(UITransform)!.setContentSize(220, 48);
       label.node.getComponent(UITransform)!.setAnchorPoint(0, 1);

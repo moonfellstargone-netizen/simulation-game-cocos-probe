@@ -21,16 +21,37 @@ export class InventorySystem {
   consume(save: SaveFile, lotId: string, required: Quantity): MaterialLot {
     const lot = this.findMaterialLot(save, lotId);
     this.reservations.assertNoActiveReservationForConsumption(save, lotId, required);
-    if (!this.quantity.hasAtLeast(lot.quantity, required)) throw new Error('ERR_NOT_ENOUGH_RESOURCE');
-    const originalAmount = lot.quantity.amount;
-    const originalFootprint = { ...lot.storage_footprint };
-    lot.quantity = this.quantity.subtract(lot.quantity, required);
-    lot.storage_footprint = this.scaleFootprintForRemaining(originalFootprint, lot.quantity.amount, originalAmount);
+    const { quantity, footprint } = this.consumptionResult(lot, required);
+    lot.quantity = quantity;
+    lot.storage_footprint = footprint;
     lot.last_update_time = save.world_time.absolute_minute;
     if (lot.quantity.amount === 0) {
       save.inventory = save.inventory.filter((item) => item.lot_id !== lotId);
     }
     return lot;
+  }
+
+  // Calculate sequential consumption without changing state or allocating IDs.
+  // Repeated lots retain the existing order, including removal after full consumption.
+  planConsumption(save: SaveFile, inputs: readonly { lot_id: string; quantity: Quantity }[]): MaterialLot[] {
+    let inventory = save.inventory.slice();
+    for (const input of inputs) {
+      const projected = { ...save, inventory };
+      const lot = this.findMaterialLot(projected, input.lot_id);
+      this.reservations.assertNoActiveReservationForConsumption(projected, input.lot_id, input.quantity);
+      const { quantity, footprint } = this.consumptionResult(lot, input.quantity);
+      inventory = quantity.amount === 0 ? inventory.filter(item => item.lot_id !== input.lot_id)
+        : inventory.map(item => item !== lot ? item : { ...item, quantity, storage_footprint: footprint });
+    }
+    return inventory;
+  }
+
+  private consumptionResult(lot: MaterialLot, required: Quantity): { quantity: Quantity; footprint: Quantity } {
+    if (!this.quantity.hasAtLeast(lot.quantity, required)) throw new Error('ERR_NOT_ENOUGH_RESOURCE');
+    const originalAmount = lot.quantity.amount;
+    const originalFootprint = { ...lot.storage_footprint };
+    const quantity = this.quantity.subtract(lot.quantity, required);
+    return { quantity, footprint: this.scaleFootprintForRemaining(originalFootprint, quantity.amount, originalAmount) };
   }
 
   assertNoActiveReservation(save: SaveFile, lotId: string, quantity: Quantity): void {

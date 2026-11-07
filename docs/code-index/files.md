@@ -1,4 +1,4 @@
-﻿# Code Index — Files — v0.0.3.0
+# Code Index — Files — v0.0.3.0
 
 | 路径 | 所属模块 | 用途 | 什么时候读 | 相关测试/命令 |
 |---|---|---|---|---|
@@ -213,3 +213,7 @@ trace.cocos.web-inventory-storage连接上述链路和verify-web/webProbeSupport
 
 
 拆分独立校验路径：`src/game-core/inventory/InventorySystem.ts`（正式只读校验与拆分计划）、`src/game-core/storage/StorageReconciler.ts`（共享占用计算及写回）、`src/cocos-app/runtime/CocosAppRuntimeSession.ts`（当前会话只读校验）、`src/cocos-creator-adapter/menu/MinimalMenuInteractionController.ts`及`src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts`（仅拆分的独立确认）。覆盖分别登记于原stage1a-contract、cocos-session、cocos-ui-command-queue及cocos-scene-binding-application任务。
+
+## M3微信加工入口
+
+核心src/game-core/processing/ProcessingSystem.ts、src/game-core/inventory/InventorySystem.ts和src/game-core/storage/StorageReconciler.ts；公共会话src/cocos-app/runtime/CocosAppRuntimeSession.ts；共享菜单与队列src/cocos-creator-adapter/menu/MinimalMenuInteractionController.ts、src/cocos-creator-adapter/shell/CocosUiCommandQueue.ts；微信outer apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts和WechatProbeController.ts。

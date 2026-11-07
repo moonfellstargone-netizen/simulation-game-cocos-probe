@@ -1,4 +1,4 @@
-﻿# Code Index — Public API — v0.0.3.0
+# Code Index — Public API — v0.0.3.0
 
 只记录公开入口与关键流程（非完整符号索引）。
 
@@ -237,3 +237,7 @@ WechatDataClone.ts提供微信目标内的纯DTO复制适配，导出structuredC
 - `InventorySystem.assertCanSplit(save, sourceLotId, quantity)`：只读执行正式拆分的数量、来源、预留、占用及容量校验；正式拆分复用同一规则。
 - `menu_confirm_split_direct`：共享Queue经Binding提交拆分前先验证，`last_split_validation_result`区分分发前拒绝；通过后返回实际`last_action_result`。分发后失败或结果无法核实不代表未提交。
 - `menu_confirm`与Web现有先预览交互保持；微信外层可单独预览或直接确认。
+
+## M3微信加工公共边界
+
+ProcessingSystem.assertCanStartProcessing和assertCanCollect执行只读正式校验；CocosAppRuntimeSession公开validateStartProcessing和validateCollectProcessing，处理当前会话。共享命令menu_confirm_processing_direct仅接受start_processing或collect_processing_result，通过绑定与校验后正式分发；last_processing_validation_result只表示前置校验，正式成功需对应本次ActionResult和刷新公开数据。menu_preview保留独立可选查看。

@@ -2,6 +2,7 @@ import type { ConfigRepository } from '../config/ConfigRepository';
 import type { MaterialLot, ProcessingTask, Quantity, SaveFile } from '../domain/types';
 import type { IdService } from '../id/IdService';
 import { InventorySystem } from '../inventory/InventorySystem';
+import { StorageReconciler } from '../storage/StorageReconciler';
 import { ProcessingConfigResolver, type ProcessingMethodConfig } from './ProcessingConfigResolver';
 
 interface ProcessingInputRequest {
@@ -12,6 +13,7 @@ interface ProcessingInputRequest {
 export class ProcessingSystem {
   private readonly inventory: InventorySystem;
   private readonly processingConfigs: ProcessingConfigResolver;
+  private readonly storage = new StorageReconciler();
 
   constructor(private readonly configs: ConfigRepository, private readonly ids: IdService) {
     this.inventory = new InventorySystem(ids, configs);
@@ -19,18 +21,7 @@ export class ProcessingSystem {
   }
 
   startProcessing(save: SaveFile, methodId: string, inputLots: ProcessingInputRequest[], facilityRef: ProcessingTask['facility_ref']): ProcessingTask {
-    const method = this.processingConfigs.resolveMethod(methodId);
-    for (const input of inputLots) this.inventory.assertNoActiveReservation(save, input.lot_id, input.quantity);
-    const inputRoles = this.resolveInputRoles(save, method, inputLots);
-    for (const requirement of method.input_view_requirements ?? []) {
-      if (!inputLots.some((input) => this.matchesInputRequirement(requirement, this.inventory.findMaterialLot(save, input.lot_id), input.quantity))) {
-        throw new Error('ERR_PROCESSING_INPUT_MISSING');
-      }
-    }
-    const primaryInput = inputRoles.find((input) => input.role === 'primary');
-    if (!primaryInput) throw new Error('ERR_PROCESSING_INPUT_MISSING');
-    this.assertFacilityAllowed(method, facilityRef.definition_id);
-    const environment = this.buildEnvironmentSnapshot(save, facilityRef.container_id);
+    const { method, inputRoles, primaryInput, environment } = this.planStart(save, methodId, inputLots, facilityRef);
     for (const input of inputLots) this.inventory.consume(save, input.lot_id, input.quantity);
     const expectedQuantity = { ...primaryInput.quantity };
     const task: ProcessingTask = {
@@ -62,6 +53,27 @@ export class ProcessingSystem {
     return task;
   }
 
+  assertCanStartProcessing(save: SaveFile, methodId: string, inputLots: ProcessingInputRequest[], facilityRef: ProcessingTask['facility_ref']): void {
+    this.planStart(save, methodId, inputLots, facilityRef);
+  }
+
+  private planStart(save: SaveFile, methodId: string, inputLots: ProcessingInputRequest[], facilityRef: ProcessingTask['facility_ref']) {
+    const method = this.processingConfigs.resolveMethod(methodId);
+    for (const input of inputLots) this.inventory.assertNoActiveReservation(save, input.lot_id, input.quantity);
+    const inputRoles = this.resolveInputRoles(save, method, inputLots);
+    for (const requirement of method.input_view_requirements ?? []) {
+      if (!inputLots.some((input) => this.matchesInputRequirement(requirement, this.inventory.findMaterialLot(save, input.lot_id), input.quantity))) {
+        throw new Error('ERR_PROCESSING_INPUT_MISSING');
+      }
+    }
+    const primaryInput = inputRoles.find((input) => input.role === 'primary');
+    if (!primaryInput) throw new Error('ERR_PROCESSING_INPUT_MISSING');
+    this.assertFacilityAllowed(method, facilityRef.definition_id);
+    const environment = this.buildEnvironmentSnapshot(save, facilityRef.container_id);
+    this.storage.assertMaterials(save, this.inventory.planConsumption(save, inputLots));
+    return { method, inputRoles, primaryInput, environment };
+  }
+
   startPickling(save: SaveFile, methodId: string, inputLots: ProcessingInputRequest[], facilityRef: ProcessingTask['facility_ref']): ProcessingTask {
     return this.startProcessing(save, methodId, inputLots, facilityRef);
   }
@@ -81,6 +93,21 @@ export class ProcessingSystem {
   }
 
   collect(save: SaveFile, taskId: string): MaterialLot {
+    const { task, lot } = this.planCollect(save, taskId);
+    lot.lot_id = this.ids.next('lot_processed');
+    lot.processing_history![0]!.history_id = this.ids.next('hist_processing');
+    task.status = 'completed';
+    task.current_stage = 'ready';
+    task.progress = 100;
+    save.inventory.push(lot);
+    return lot;
+  }
+
+  assertCanCollect(save: SaveFile, taskId: string): void {
+    this.planCollect(save, taskId);
+  }
+
+  private planCollect(save: SaveFile, taskId: string): { task: ProcessingTask; lot: MaterialLot } {
     const task = save.processing_tasks.find((item) => item.task_id === taskId);
     if (!task) throw new Error(`ERR_PROCESSING_TASK_NOT_FOUND:${taskId}`);
     if (task.status === 'completed') throw new Error('ERR_PROCESSING_TASK_ALREADY_COMPLETED');
@@ -94,7 +121,7 @@ export class ProcessingSystem {
     const outputForm = String(outputFormRules.success_form ?? 'pickled');
     const transformedProfile = this.buildOutputPropertyProfile(materialDef, method, task);
     const lot: MaterialLot = {
-      lot_id: this.ids.next('lot_processed'),
+      lot_id: '',
       base_id: String(outputBaseId),
       category: String(materialDef.category ?? 'vegetable'),
       quantity: { amount: Number(quantity.amount), unit: quantity.unit },
@@ -117,7 +144,7 @@ export class ProcessingSystem {
       definition_ref: { type: 'material', id: String(outputBaseId), canonical_id: `base:${String(outputBaseId)}` },
       storage_footprint: { amount: Math.max(1, Math.ceil(Number(quantity.amount) / 100)), unit: 'slot_weight' },
       processing_history: [{
-        history_id: this.ids.next('hist_processing'),
+        history_id: '',
         operation_type: 'collect_processing_result',
         method_id: task.method_id,
         action_request_id: null,
@@ -127,11 +154,8 @@ export class ProcessingSystem {
         notes: []
       }]
     };
-    task.status = 'completed';
-    task.current_stage = 'ready';
-    task.progress = 100;
-    save.inventory.push(lot);
-    return lot;
+    this.storage.assertMaterials(save, [...save.inventory, lot]);
+    return { task, lot };
   }
 
   private resolveInputRoles(save: SaveFile, method: ProcessingMethodConfig, inputLots: ProcessingInputRequest[]): Array<ProcessingInputRequest & { role: string; base_id: string; current_form: string }> {

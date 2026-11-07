@@ -4,7 +4,7 @@
 
 ## 本轮范围
 
-本轮唯一目标是v0.0.3.0的M3微信库存拆分包：在M2及M3种植与库存首包基础上，接入可选预览与独立校验的库存拆分确认，并保留播种、收获、整批转移、手动存读档和前后台保护。候选依赖PR25、PR26和PR27的既有变更；运行身份仍来自当前包的只读candidate_id和短commit，正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；本包不代表M3完整经营或M4手机验收完成。
+本轮唯一目标是v0.0.3.0的M3微信加工包：在M2及M3种植、库存与拆分候选基础上，接入加工方法、材料、设施、任务、开工与领取，并保留时间推进、手动存读档和前后台保护。加工预览可选，直接确认使用独立正式校验；候选依赖PR25、PR26、PR27和PR28的既有变更，正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；本包不代表M3完整经营或M4手机验收完成。
 
 独立apps/cocos-wechat-probe模块只消费派生公共runtime与正式资源，可使用cc，禁止直接wx/fs、业务内部、工具和测试依赖；旧三层不得反向依赖它。微信outer通过Creator平台存储外层提供手动单槽存读档及备份恢复，不增加自动保存或离线补时。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture；planned Stage1B wx-storage-port不转active。
 
@@ -153,3 +153,9 @@ M2运行时改动集中于独立微信outer，并同步构建来源、测试和�
 备份与中断保护须同时考虑失败前后可能发生写入：备份、主档与恢复信息分开；读取、恢复和失败路径以源码及针对性测试为准，不能将异常等同于未落盘。故障保护依赖存储键相互独立和可读回一致的有限模型，真实微信断电、设备故障及底层原子性未证明。备份恢复不等于跨平台导入或自动存档。
 
 tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的args/files，相关源及meta也进入preparation/runtime登记和trace.cocos.wechat-m1。受控Node契约不替代真实Creator、官方微信工具输入/存储/生命周期、最终提交CI或手机验收；具体结果以仓库外证据为准。
+
+## M3微信加工包
+
+微信outer消费现有公开方法、输入要求、批次、设施和任务投影；玩家可直接开工和领取，预览可选。menu_confirm_processing_direct先对当前选择做只读正式校验，再经Session/ActionPipeline分发start_processing或collect_processing_result；不能将预计产物当作实际领取。任务推进仍使用advance_time，工具和方法时间仅作配置说明，不新增工具消耗、扣时、重复输入、Stage1B或其他正式玩法。
+
+ProcessingSystem与正式动作共用独立开工和领取计划；InventorySystem按既有顺序计算逐项消耗，StorageReconciler复用同一占用计算检查投影容量，在任务及产物ID分配前拒绝无效操作。会话/选择变化清旧预览，业务拒绝与提交后结果不确定分别呈现，不自动重发。老Web交互仍沿原菜单路径。trace.processing.required-inputs与trace.cocos.wechat-m1分别连接核心和微信相关既有测试，Creator、微信、手机及Web各自按固定提交留证。

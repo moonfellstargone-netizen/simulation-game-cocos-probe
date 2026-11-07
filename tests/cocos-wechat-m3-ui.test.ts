@@ -26,10 +26,12 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
   });
   const { CocosWechatProbe } = await import('data:text/javascript;base64,' + Buffer.from(bundled.outputFiles[0]!.text).toString('base64'));
   const probe = new CocosWechatProbe();
-  probe.labels = Object.fromEntries(['candidate', 'commit', 'time', 'status', 'result', 'hint', 'farmField', 'farmSeed', 'farmCrop', 'stockLot', 'stockTarget', 'stockHelp', 'splitLot', 'splitUnit', 'splitPreview'].map(name => [name, { string: '' }]));
+  probe.labels = Object.fromEntries(['candidate', 'commit', 'time', 'status', 'result', 'hint', 'farmField', 'farmSeed', 'farmCrop', 'stockLot', 'stockTarget', 'stockHelp', 'splitLot', 'splitUnit', 'splitPreview', 'processingMethod', 'processingRequirement', 'processingLot', 'processingFacility', 'processingTask', 'processingOutput'].map(name => [name, { string: '' }]));
   probe.farmNode = { active: true }; probe.stockNode = { active: false }; probe.splitNode = { active: false };
   probe.splitInput = { string: '', enabled: false, focused: false, isFocused() { return this.focused; }, blur() { this.focused = false; } };
-  const names = ['PageFarm', 'PageStock', 'AdvanceDay', 'FarmField', 'FarmSeed', 'FarmCrop', 'FarmMinus', 'FarmPlus', 'FarmPlant', 'FarmHarvest', 'StockLot', 'StockTarget', 'StockMove', 'StockSplit', 'SplitBack', 'SplitPreview', 'SplitConfirm'];
+  probe.processingNode = { active: false }; probe.processingTasksNode = { active: false };
+  probe.processingInput = { string: '', enabled: false, focused: false, isFocused() { return this.focused; }, blur() { this.focused = false; } };
+  const names = ['PageFarm', 'PageStock', 'PageProcessing', 'AdvanceDay', 'FarmField', 'FarmSeed', 'FarmCrop', 'FarmMinus', 'FarmPlus', 'FarmPlant', 'FarmHarvest', 'StockLot', 'StockTarget', 'StockMove', 'StockSplit', 'SplitBack', 'SplitPreview', 'SplitConfirm', 'ProcessingMethod', 'ProcessingRequirement', 'ProcessingLot', 'ProcessingSlot', 'ProcessingTasks', 'ProcessingFacility', 'ProcessingTask', 'ProcessingBack', 'ProcessingPreview', 'ProcessingStart', 'ProcessingCollect'];
   probe.menuButtons = Object.fromEntries(names.map(name => [name, { node: {}, interactable: false }]));
   const snapshot = JSON.parse(readFileSync('design_snapshot/generated/stage_1A_runtime_snapshot.json', 'utf8')) as RuntimeConfigSnapshot;
   const schemas = Object.fromEntries(snapshot.schema_paths.map(path => [path, JSON.parse(readFileSync(`design_snapshot/${path}`, 'utf8'))]));
@@ -257,6 +259,144 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     assert.equal(probe.lotId, null, 'reading the earlier save clears a now-absent selected lot');
     assert.equal(controller.snapshot().identity!.candidate_id, identity.candidate_id);
     assert.equal(controller.snapshot().menu!.selectable_view_model!.field_options.find(x => x.id === fieldId)!.enabled, false);
+
+    // Exercise the actual screen through the public menu and formal pipeline.
+    for (let day = 0; day < 30 && !controller.snapshot().menu!.selectable_view_model!.harvestable_crop_options.some(x => x.field_plot_id === fieldId); day++) {
+      click('AdvanceDay'); await waitForIdle();
+    }
+    const restoredCrop = controller.snapshot().menu!.selectable_view_model!.harvestable_crop_options.find(x => x.field_plot_id === fieldId);
+    assert.ok(restoredCrop);
+    click('PageFarm'); click('FarmCrop'); click('FarmHarvest'); await waitForIdle();
+    click('PageProcessing'); click('ProcessingMethod');
+    const choices = controller.snapshot().menu!.selectable_view_model!;
+    const method = choices.processing_method_options.find(x => x.id === probe.processingMethodId)!;
+    assert.ok(method.input_requirements.length >= 2);
+    assert.doesNotMatch(probe.labels.processingMethod.string, /操作.*分/, 'configured operation cost must not imply automatic time advancement');
+    assert.match(probe.labels.processingMethod.string, /加工.*分/, 'configured process duration remains visible');
+    assert.match(probe.labels.processingRequirement.string, /要求1/);
+    assert.match(probe.labels.processingMethod.string, /基础刀具/, 'the actual configured tool has a readable name');
+    assert.match(probe.labels.processingRequirement.string, /蔬菜/, 'the actual category has a readable name');
+    assert.doesNotMatch(probe.labels.processingMethod.string, /knife_basic/);
+    assert.doesNotMatch(probe.labels.processingRequirement.string, /vegetable/);
+    click('ProcessingTasks'); click('ProcessingFacility'); click('ProcessingBack');
+    assert.match(probe.labels.processingFacility.string, /基础腌菜坛/, 'the actual facility has a readable name');
+    assert.doesNotMatch(probe.labels.processingFacility.string, /pickling_jar_basic/);
+    console.error = () => {};
+    try { click('ProcessingStart'); await waitForIdle(); } finally { console.error = oldError; }
+    assert.match(probe.labels.hint.string, /请选择材料并填写数量/, 'empty inputs have a specific actionable message');
+    const enterProcessing = (value: string) => { probe.processingInput.string = value; probe.processingInput.focused = true; probe.onProcessingTextChanged(); };
+    click('ProcessingLot');
+    const firstRequirement = method.input_requirements[0]!;
+    probe.onCancelFirst();
+    assert.equal(probe.confirmCancelFirst, true);
+    enterProcessing(String(firstRequirement.min_quantity?.amount ?? 300));
+    assert.equal(probe.confirmCancelFirst, false, 'editing processing quantity cancels the first-save cancellation confirmation');
+    const cancellationsBeforeProcessingEdit = cancellations;
+    probe.onCancelFirst();
+    assert.equal(cancellations, cancellationsBeforeProcessingEdit, 'the next click after editing only requests confirmation');
+    probe.resetCancelConfirmation();
+    click('ProcessingSlot'); click('ProcessingLot'); enterProcessing('1');
+    assert.equal(probe.processingSelection()!.input_lots.length, 2, 'a requirement can include more than one input item');
+    while (probe.processingInputs[probe.processingKey()]) click('ProcessingLot');
+    assert.equal(probe.processingSelection()!.input_lots.length, 1, 'an extra item can be cleared without changing the first');
+    click('ProcessingSlot');
+    const beforeRefusal = controller.snapshot().menu!.selectable_view_model!;
+    const beforeCommands = submittedCommands.length;
+    console.error = () => {};
+    try { click('ProcessingStart'); await waitForIdle(); } finally { console.error = oldError; }
+    assert.deepEqual(submittedCommands.slice(beforeCommands), ['menu_confirm_processing_direct'], 'missing inputs are independently validated without preview');
+    assert.deepEqual(controller.snapshot().menu!.selectable_view_model!.processing_task_options, beforeRefusal.processing_task_options);
+    assert.deepEqual(controller.snapshot().menu!.selectable_view_model!.processable_lot_options, beforeRefusal.processable_lot_options);
+    assert.match(probe.labels.hint.string, /缺少|不足|未完成/);
+    for (let index = 1; index < method.input_requirements.length; index++) {
+      click('ProcessingRequirement'); click('ProcessingLot');
+      assert.ok(method.input_requirements[index]!.min_quantity);
+      enterProcessing(String(method.input_requirements[index]!.min_quantity!.amount));
+    }
+    click('ProcessingPreview'); await waitForIdle();
+    assert.equal(controller.snapshot().processing_preview?.success, true);
+    assert.match(probe.labels.hint.string, /预览通过/);
+    assert.equal(probe.processingInput.focused, false, 'preview closes the keyboard');
+    const inputRequirement = method.input_requirements[method.input_requirements.length - 1]!;
+    const updatedAmount = inputRequirement.min_quantity!.amount + 1;
+    enterProcessing(String(updatedAmount));
+    assert.equal(controller.snapshot().processing_preview, null);
+    assert.doesNotMatch(probe.labels.hint.string, /预览通过/, 'editing clears the visible preview success');
+    click('ProcessingPreview'); await waitForIdle();
+    assert.match(probe.labels.hint.string, /预览通过/);
+    const selectedLot = probe.processingInputs[probe.processingKey()].lotId;
+    click('ProcessingLot');
+    assert.equal(controller.snapshot().processing_preview, null);
+    assert.doesNotMatch(probe.labels.hint.string, /预览通过/, 'changing the lot clears the visible preview success');
+    for (let i = 0; probe.processingInputs[probe.processingKey()]?.lotId !== selectedLot && i <= inputRequirement.lot_ids.length + 1; i++) click('ProcessingLot');
+    assert.equal(probe.processingInputs[probe.processingKey()]?.lotId, selectedLot);
+    enterProcessing(String(updatedAmount));
+    click('ProcessingPreview'); await waitForIdle();
+    gate = new Promise<void>(resolve => { unblock = resolve; });
+    hold = true; click('ProcessingPreview');
+    assert.equal(controller.snapshot().busy, true);
+    const busyMethod = probe.processingMethodId;
+    click('ProcessingMethod');
+    assert.equal(probe.processingMethodId, busyMethod, 'busy screen blocks further selection');
+    controller.setVisible(false);
+    assert.equal(controller.snapshot().processing_preview, null, 'background invalidates the processing preview');
+    const oldValue = probe.processingInputs[probe.processingKey()].amount;
+    enterProcessing('999');
+    assert.equal(probe.processingInputs[probe.processingKey()].amount, oldValue, 'background cannot change a processing selection');
+    hold = false; unblock(); await waitForIdle();
+    assert.equal(controller.snapshot().processing_preview, null, 'late background preview cannot reappear');
+    controller.setVisible(true);
+    click('ProcessingPreview'); await waitForIdle();
+    enterProcessing(String(updatedAmount));
+    assert.equal(controller.snapshot().processing_preview, null, 'editing clears stale preview');
+    assert.doesNotMatch(probe.labels.hint.string, /预览通过/);
+    const amountBeforeStart = controller.snapshot().menu!.selectable_view_model!.processable_lot_options.find(x => x.id === selectedLot)!.quantity.amount;
+    const beforeStart = submittedCommands.length;
+    const originalConfirm = controller.confirmProcessing.bind(controller);
+    let releaseReceipt!: () => void;
+    let receiptReady!: () => void;
+    let receiptGate = new Promise<void>(resolve => { releaseReceipt = resolve; });
+    let receiptArrived = new Promise<void>(resolve => { receiptReady = resolve; });
+    controller.confirmProcessing = async selection => {
+      const receipt = await originalConfirm(selection);
+      receiptReady(); await receiptGate;
+      return receipt;
+    };
+    click('ProcessingStart'); await waitForIdle();
+    await receiptArrived;
+    assert.deepEqual(submittedCommands.slice(beforeStart), ['menu_confirm_processing_direct'], 'confirmation does not require a preview');
+    const taskId = controller.snapshot().processing_result?.taskId;
+    assert.ok(taskId);
+    const amountAfterStart = controller.snapshot().menu!.selectable_view_model!.processable_lot_options.find(x => x.id === selectedLot)?.quantity.amount ?? 0;
+    assert.equal(amountAfterStart, amountBeforeStart - updatedAmount, 'direct confirmation uses the newly entered quantity');
+    enterProcessing(String(updatedAmount));
+    click('PageStock'); click('PageProcessing');
+    probe.labels.hint.string = '界面已更新';
+    releaseReceipt(); await new Promise(resolve => setImmediate(resolve));
+    assert.equal(probe.labels.hint.string, '界面已更新', 'late start receipt cannot revive success after edit and page changes');
+    click('ProcessingTasks'); click('ProcessingTask');
+    assert.match(probe.labels.processingTask.string, /进行中/, 'an active task is shown in Chinese');
+    assert.doesNotMatch(probe.labels.processingTask.string, /active/);
+    assert.match(probe.labels.processingOutput.string, /预计产物/);
+    assert.match(probe.labels.processingOutput.string, /预计完成 day \d+ minute \d+/);
+    assert.equal(probe.menuButtons.ProcessingCollect.interactable, false);
+    const task = controller.snapshot().menu!.selectable_view_model!.processing_task_options.find(x => x.id === taskId)!;
+    const maxDays = Math.ceil((task.expected_finish_minute - task.start_world_minute) / 1440) + 1;
+    for (let day = 0; day < maxDays && !controller.snapshot().menu!.selectable_view_model!.collectable_task_options.some(x => x.id === taskId && x.enabled); day++) {
+      click('AdvanceDay'); await waitForIdle();
+    }
+    assert.equal(probe.menuButtons.ProcessingCollect.interactable, true);
+    receiptGate = new Promise<void>(resolve => { releaseReceipt = resolve; });
+    receiptArrived = new Promise<void>(resolve => { receiptReady = resolve; });
+    click('ProcessingCollect'); await waitForIdle();
+    await receiptArrived;
+    assert.equal(controller.snapshot().processing_result?.taskId, taskId);
+    assert.ok(controller.snapshot().processing_result?.lotId);
+    probe.onHide(); probe.onShow();
+    probe.labels.hint.string = '已返回游戏';
+    releaseReceipt(); await new Promise(resolve => setImmediate(resolve));
+    assert.equal(probe.labels.hint.string, '已返回游戏', 'late collection receipt cannot revive success after background');
+    controller.confirmProcessing = originalConfirm;
   } finally { console.info = oldInfo; await controller.dispose(); }
 });
 
@@ -293,6 +433,11 @@ test('M3 bottom hint geometry fits the design viewport, avoids controls, and ret
   const result = rect(probe.labels.result.node);
   const quantityInput = rect(probe.splitInput.node);
   const quantityUnit = rect(probe.labels.splitUnit.node);
+  const processingInput = rect(probe.processingInput.node);
+  const processingLot = rect(probe.labels.processingLot.node);
+  assert.ok(processingInput.left >= -480 && processingInput.right <= 480 && processingInput.bottom >= -270 && processingInput.top <= 270,
+    'processing quantity input stays within the design viewport');
+  assert.ok(processingInput.left >= processingLot.right, 'processing quantity input does not overlap the lot label');
   for (const [name, item] of [['split input', quantityInput], ['split unit', quantityUnit]] as const) {
     assert.ok(item.left >= -480 && item.right <= 480 && item.bottom >= -270 && item.top <= 270,
       `${name} stays within the design viewport`);
@@ -311,7 +456,7 @@ test('M3 bottom hint geometry fits the design viewport, avoids controls, and ret
       `hint must not overlap ${button.node.name}`);
     assert.ok(result.top <= control.bottom || control.top <= result.bottom || result.right <= control.left || control.right <= result.left,
       `result must not overlap ${button.node.name}`);
-    for (const name of ['FarmMinus', 'FarmPlus', 'FarmPlant', 'FarmHarvest', 'StockMove', 'StockSplit', 'SplitBack', 'SplitPreview', 'SplitConfirm']) {
+    for (const name of ['FarmMinus', 'FarmPlus', 'FarmPlant', 'FarmHarvest', 'StockMove', 'StockSplit', 'SplitBack', 'SplitPreview', 'SplitConfirm', 'ProcessingTasks', 'ProcessingPreview', 'ProcessingStart', 'ProcessingSlot', 'ProcessingBack', 'ProcessingCollect']) {
       const action = rect(probe.menuButtons[name].node);
       assert.ok(control.top <= action.bottom || action.top <= control.bottom || control.right <= action.left || action.right <= control.left,
         `${button.node.name} must not overlap ${name}`);
@@ -320,10 +465,35 @@ test('M3 bottom hint geometry fits the design viewport, avoids controls, and ret
   assert.ok(probe.labels.hint.lineHeight <= hint.top - hint.bottom, 'hint line fits in its label height');
   probe.onCancelFirst();
   assert.equal(probe.labels.hint.string, '再点一次：撤销未完成首档，保留当前游戏');
+  assert.match(probe.errorText('ERR_WECHAT_PROCESSING_RESULT_UNCERTAIN'), /待确认.*核实/);
+  assert.equal(probe.processingTimeLabel(0), 'day 1 minute 0');
+  assert.equal(probe.processingTimeLabel(1439), 'day 1 minute 1439');
+  assert.equal(probe.processingTimeLabel(1440), 'day 2 minute 0');
+  assert.equal(probe.processingTimeLabel(2880), 'day 3 minute 0');
+  const renderMenu = probe.renderMenu.bind(probe);
+  const processingSelection = probe.processingSelection.bind(probe);
+  probe.renderMenu = () => {};
+  probe.processingSelection = () => ({ action_type: 'start_processing', method_id: 'test', facility_option_id: 'test', input_lots: [] });
+  let fakeReceipt: any = { processing_result: null };
+  probe.controller = { snapshot: () => ({ phase: 'ready', busy: false, visible: true, menu: null }),
+    invalidateSplitPreview() {}, invalidateProcessingPreview() {}, confirmProcessing: async () => fakeReceipt };
+  probe.page = 'processing';
+  probe.menuHandler('ProcessingStart')(); await new Promise(resolve => setImmediate(resolve));
+  assert.notEqual(probe.labels.hint.string, '加工已开工', 'a missing start receipt cannot report success');
+  fakeReceipt = { processing_result: { actionType: 'collect_processing_result', taskId: 'other', lotId: 'lot' } };
+  probe.menuHandler('ProcessingStart')(); await new Promise(resolve => setImmediate(resolve));
+  assert.notEqual(probe.labels.hint.string, '加工已开工', 'a wrong action cannot report start success');
+  probe.page = 'processingTasks'; probe.processingTaskId = 'expected';
+  probe.menuHandler('ProcessingCollect')(); await new Promise(resolve => setImmediate(resolve));
+  assert.notEqual(probe.labels.hint.string, '加工产物已领取', 'a different task cannot report collection success');
+  probe.controller = null; probe.renderMenu = renderMenu; probe.processingSelection = processingSelection;
   // Check production onLoad registers and onDestroy removes the actual text-change callback.
   let changes = 0;
   const textChanged = probe.onSplitTextChanged.bind(probe);
   probe.onSplitTextChanged = () => { changes++; textChanged(); };
+  let processingChanges = 0;
+  const processingTextChanged = probe.onProcessingTextChanged.bind(probe);
+  probe.onProcessingTextChanged = () => { processingChanges++; processingTextChanged(); };
   probe.loadJson = () => new Promise(() => {});
   const oldInfo = console.info; console.info = () => {};
   try {
@@ -332,8 +502,13 @@ test('M3 bottom hint geometry fits the design viewport, avoids controls, and ret
     probe.splitInput.string = '0.5';
     inputNode.emit('text-changed');
     assert.equal(changes, 1, 'registered EditBox event reaches the production callback');
+    const processingNode = probe.processingInput.node;
+    processingNode.emit('text-changed');
+    assert.equal(processingChanges, 1, 'processing EditBox callback is registered');
     probe.onDestroy();
     inputNode.emit('text-changed');
     assert.equal(changes, 1, 'destroy removes the text-change callback');
+    processingNode.emit('text-changed');
+    assert.equal(processingChanges, 1, 'destroy removes the processing text-change callback');
   } finally { console.info = oldInfo; }
 });

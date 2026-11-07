@@ -24,6 +24,13 @@ export class StorageReconciler {
     this.calculate(save, [...materials, ...dishes]);
   }
 
+  // Validate prospective material occupancy using the same reconciliation as dispatch.
+  assertMaterials(save: SaveFile, inventory: readonly MaterialLot[]): void {
+    const materials: StorageOccupant[] = inventory.map(object => ({ object_type: 'MaterialLot', object_id: object.lot_id, object }));
+    const dishes: StorageOccupant[] = save.dish_lots.map(object => ({ object_type: 'DishLot', object_id: object.dish_lot_id, object }));
+    this.calculate(save, [...materials, ...dishes]);
+  }
+
   private calculate(save: SaveFile, occupants: StorageOccupant[]): Map<StorageContainer, { refs: StorageOccupantRef[]; used: number }> {
     const containers = new Map(save.storage_containers.map((container) => [container.container_id, container]));
     const totals = new Map(save.storage_containers.map((container) => [container, { refs: [] as StorageOccupantRef[], used: 0 }]));

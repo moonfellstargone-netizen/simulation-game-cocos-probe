@@ -1,4 +1,4 @@
-﻿# Runtime Map — v0.0.3.0
+# Runtime Map — v0.0.3.0
 
 ## 系统职责
 
@@ -170,3 +170,7 @@ tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的arg
 ## M3微信库存拆分
 
 M3微信库存拆分支持可选预览；玩家可直接确认当前批次和数量。共享队列以menu_confirm_split_direct调用独立只读校验，通过后才同步提交正式split_lot，校验与执行共用正式数量、预留、定义及容量规则，不依赖preview。切换材料、数量或会话使旧预览失效，预览不成为确认的前置条件；提交后异常或无法核实回执提示结果待确认，不自动重试。原Web菜单确认仍先预览。M2存读档与M3种植库存能力继续保留；不修改SaveFile、正式Schema、配置或玩法规则。PR25、PR26、PR27依赖须随候选核对，本包不包含M3完整经营、M4或Stage1B。
+
+## M3微信加工
+
+公开方法、批次、设施与任务→微信outer选择→可选menu_preview或menu_confirm_processing_direct→Session独立校验→正式ActionPipeline；推进及领取仍为现有正式Action。提交后异常或无法验证结果提示核实，不自动重试。原Web菜单路径保持。

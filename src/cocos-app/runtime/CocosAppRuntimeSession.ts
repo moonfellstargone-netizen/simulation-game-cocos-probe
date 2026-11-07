@@ -6,7 +6,7 @@ import { CocosRuntimeFacade } from '../adapters/CocosRuntimeFacade';
 import type { CocosStateViewModelData } from '../view-models/CocosStateViewModel';
 import type { CocosSelectableViewModelData } from '../view-models/CocosSelectableViewModel';
 import type { CocosActionPreviewResult } from '../adapters/CocosActionPreviewer';
-import type { ConfigRepository, GameState, Quantity, RuntimeContractValidator, SaveStoragePort, SaveSlotWriteSummary } from '../../game-core';
+import type { ConfigRepository, GameState, Quantity, StartProcessingParams, RuntimeContractValidator, SaveStoragePort, SaveSlotWriteSummary } from '../../game-core';
 import { GameRuntime, NewGameBuilder, SaveManager, StorageAudit } from '../../game-core';
 
 export interface CocosActionSessionPort {
@@ -74,6 +74,20 @@ export class CocosAppRuntimeSession {
 
   validateSplit(sourceLotId: string, quantity: Quantity): void {
     this.runtime.inventory.assertCanSplit(this.state.save_file, sourceLotId, quantity);
+  }
+
+  validateStartProcessing(parameters: StartProcessingParams): void {
+    this.contracts.assertActionRequest({ request_id: 'validation_start_processing', actor_id: 'player',
+      action_type: 'start_processing', created_time: this.state.save_file.world_time.absolute_minute,
+      idempotency_key: 'validation_start_processing_idem', parameters });
+    this.runtime.processing.assertCanStartProcessing(this.state.save_file, parameters.method_id, parameters.input_lots, parameters.facility_ref);
+  }
+
+  validateCollectProcessing(taskId: string): void {
+    this.contracts.assertActionRequest({ request_id: 'validation_collect_processing', actor_id: 'player',
+      action_type: 'collect_processing_result', created_time: this.state.save_file.world_time.absolute_minute,
+      idempotency_key: 'validation_collect_processing_idem', parameters: { task_id: taskId } });
+    this.runtime.processing.assertCanCollect(this.state.save_file, taskId);
   }
 
   async save(slotId: string): Promise<CocosAppRuntimeSessionSaveSummary> {

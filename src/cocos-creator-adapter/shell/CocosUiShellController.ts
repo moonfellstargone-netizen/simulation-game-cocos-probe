@@ -52,6 +52,13 @@ export class CocosUiShellController {
     });
   }
 
+  confirmProcessingDirect(selection: Extract<MenuActionSelection, { action_type: 'start_processing' | 'collect_processing_result' }>): CocosUiShellRenderSnapshot {
+    return this.runShellOperation('menu_confirm_processing_direct', () => {
+      this.presenter.renderMenuSnapshot(this.menu.confirmProcessingDirect(selection));
+      this.presenter.renderSaveLoadSnapshot(this.saveLoad.refresh());
+    });
+  }
+
   async save(selection: SaveSlotSelection): Promise<CocosUiShellRenderSnapshot> {
     return await this.runAsyncShellOperation('save', async () => {
       this.presenter.renderSaveLoadSnapshot(await this.saveLoad.save(selection));

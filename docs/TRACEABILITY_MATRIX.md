@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 独立微信追踪trace.cocos.wechat-m1覆盖M1基础、M2独立outer存储适配、M3种植/库存首包与库存拆分包，保留31条/29个current追踪；完整M3和M4尚未完成。旧Web、业务核心、Session/Queue、SaveFile和正式资源保持；Node与真实平台证据分别记录。完整AST/symbol自动索引和Nightly仍不是当前实现。
+- 独立微信追踪trace.cocos.wechat-m1覆盖M1基础、M2独立outer存储适配、M3种植/库存首包、库存拆分包及微信加工包，保留31条/29个current追踪；完整M3和M4尚未完成。旧Web交互、SaveFile和正式资源保持；核心加工校验与Session/Queue有本轮受限变更；Node与真实平台证据分别记录。完整AST/symbol自动索引和Nightly仍不是当前实现。
 
 ## 2. 状态语义
 
@@ -370,3 +370,9 @@ M3微信库存拆分支持可选预览；玩家可直接确认当前批次和数
 
 
 拆分独立校验与共享直接确认还涉及InventorySystem、StorageReconciler、CocosAppRuntimeSession、MinimalMenuInteractionController及CocosUiCommandQueue。tests/stage1a-contract.test.ts、tests/cocos-runtime-session.test.ts、tests/cocos-ui-command-queue.test.ts和tests/cocos-scene-binding-application.test.ts分别覆盖只读规则、Session、队列及绑定；原Web交互及测试追踪保留，具体验收不以登记替代。
+
+## M3微信加工包追踪
+
+trace.processing.required-inputs继续连接ProcessingSystem和现有test.stage1a-contract、test.action-preview、test.cocos-session及test.cocos-menu；test.cocos-ui-command-queue和test.cocos-scene-binding登记共享队列路径；trace.cocos.wechat-m1连接既有微信preparation/runtime，tests/cocos-wechat-runtime.test.ts和tests/cocos-wechat-m3-ui.test.ts覆盖实际outer与队列。具体通过状态以固定提交的实际测试和平台证据为准，不由登记推断。
+
+独立开工/领取计划复用正式规则及StorageReconciler计算；序列输入沿原顺序，不定义重复lot新语义。menu_confirm_processing_direct不调用preview，预览仅供可选查看；确认依据本次只读校验与正式结果。缺料、容量、异常回执和既有存读/生命周期分别验证；Web原菜单行为不改。

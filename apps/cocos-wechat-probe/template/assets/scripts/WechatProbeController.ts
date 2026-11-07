@@ -25,6 +25,7 @@ export interface WechatQuantity { readonly amount: number; readonly unit: string
 export interface WechatFieldOption { readonly id: string; readonly definition_id: string; readonly enabled: boolean; readonly occupied_tiles: number; readonly active_crop_count: number }
 export interface WechatMaterialOption {
   readonly id: string; readonly enabled: boolean; readonly base_id: string; readonly current_form: string;
+  readonly category?: string; readonly compatible_method_ids?: readonly string[];
   readonly quantity: WechatQuantity;
   readonly storage_ref: { readonly location_id: string; readonly storage_type: string; readonly container_id: string };
 }
@@ -33,6 +34,28 @@ export interface WechatStorageOption {
   readonly id: string; readonly enabled: boolean; readonly location_id: string; readonly storage_type: string;
   readonly capacity: WechatQuantity; readonly used_capacity: number; readonly supported_forms: readonly string[];
 }
+export interface WechatProcessingRequirement {
+  readonly requirement_index: number;
+  readonly constraints: { readonly category: string | null; readonly base_id: string | null; readonly allowed_base_ids: readonly string[]; readonly allowed_forms: readonly string[]; readonly min_freshness: number | null };
+  readonly min_quantity: WechatQuantity | null; readonly lot_ids: readonly string[];
+}
+export interface WechatProcessingMethod {
+  readonly id: string; readonly label_key: string | null; readonly enabled: boolean;
+  readonly input_requirements: readonly WechatProcessingRequirement[]; readonly compatible_facility_ids: readonly string[];
+  readonly tool_requirements: readonly string[]; readonly time_cost_minutes: number; readonly process_duration_minutes: number;
+}
+export interface WechatProcessingFacility {
+  readonly id: string; readonly enabled: boolean; readonly definition_id: string;
+  readonly compatible_method_ids: readonly string[]; readonly container_id: string;
+}
+export interface WechatProcessingTask {
+  readonly id: string; readonly enabled: boolean; readonly method_id: string; readonly status: string;
+  readonly current_stage: string; readonly start_world_minute: number; readonly expected_finish_minute: number;
+  readonly expected_output: { readonly base_id: string | null; readonly quantity: WechatQuantity | null } | null;
+}
+export type WechatProcessingSelection =
+  | { readonly action_type: 'start_processing'; readonly method_id: string; readonly input_lots: { readonly lot_option_id: string; readonly quantity: WechatQuantity }[]; readonly facility_option_id: string }
+  | { readonly action_type: 'collect_processing_result'; readonly task_option_id: string };
 export interface WechatMenuSnapshot {
   readonly view_model: { readonly time_label: string } | null;
   readonly selectable_view_model: {
@@ -41,6 +64,11 @@ export interface WechatMenuSnapshot {
     readonly harvestable_crop_options: readonly WechatCropOption[];
     readonly splittable_lot_options: readonly WechatMaterialOption[];
     readonly storage_target_options: readonly WechatStorageOption[];
+    readonly processing_method_options: readonly WechatProcessingMethod[];
+    readonly processable_lot_options: readonly WechatMaterialOption[];
+    readonly processing_facility_options: readonly WechatProcessingFacility[];
+    readonly processing_task_options: readonly WechatProcessingTask[];
+    readonly collectable_task_options: readonly { readonly id: string; readonly enabled: boolean }[];
   } | null;
 }
 
@@ -49,6 +77,7 @@ function copyMenu(value: WechatMenuSnapshot): WechatMenuSnapshot {
   const s = value.selectable_view_model;
   const material = (item: WechatMaterialOption): WechatMaterialOption => ({ id: item.id, enabled: item.enabled,
     base_id: item.base_id, current_form: item.current_form, quantity: { amount: item.quantity.amount, unit: item.quantity.unit },
+    category: item.category, compatible_method_ids: [...(item.compatible_method_ids ?? [])],
     storage_ref: { location_id: item.storage_ref.location_id, storage_type: item.storage_ref.storage_type, container_id: item.storage_ref.container_id } });
   return { view_model: value.view_model ? { time_label: value.view_model.time_label } : null,
     selectable_view_model: s ? {
@@ -58,7 +87,21 @@ function copyMenu(value: WechatMenuSnapshot): WechatMenuSnapshot {
       splittable_lot_options: s.splittable_lot_options.map(material),
       storage_target_options: s.storage_target_options.map(item => ({ id: item.id, enabled: item.enabled, location_id: item.location_id,
         storage_type: item.storage_type, capacity: { amount: item.capacity.amount, unit: item.capacity.unit }, used_capacity: item.used_capacity,
-        supported_forms: [...item.supported_forms] }))
+        supported_forms: [...item.supported_forms] })),
+      processing_method_options: (s.processing_method_options ?? []).map(item => ({ id: item.id, label_key: item.label_key, enabled: item.enabled,
+        input_requirements: item.input_requirements.map(req => ({ requirement_index: req.requirement_index,
+          constraints: { ...req.constraints, allowed_base_ids: [...req.constraints.allowed_base_ids], allowed_forms: [...req.constraints.allowed_forms] },
+          min_quantity: req.min_quantity ? { ...req.min_quantity } : null, lot_ids: [...req.lot_ids] })),
+        compatible_facility_ids: [...item.compatible_facility_ids], tool_requirements: [...item.tool_requirements],
+        time_cost_minutes: item.time_cost_minutes, process_duration_minutes: item.process_duration_minutes })),
+      processable_lot_options: (s.processable_lot_options ?? []).map(material),
+      processing_facility_options: (s.processing_facility_options ?? []).map(item => ({ id: item.id, enabled: item.enabled,
+        definition_id: item.definition_id, container_id: item.container_id, compatible_method_ids: [...item.compatible_method_ids] })),
+      processing_task_options: (s.processing_task_options ?? []).map(item => ({ id: item.id, enabled: item.enabled,
+        method_id: item.method_id, status: item.status, current_stage: item.current_stage,
+        start_world_minute: item.start_world_minute, expected_finish_minute: item.expected_finish_minute,
+        expected_output: item.expected_output ? { base_id: item.expected_output.base_id, quantity: item.expected_output.quantity ? { ...item.expected_output.quantity } : null } : null })),
+      collectable_task_options: (s.collectable_task_options ?? []).map(item => ({ id: item.id, enabled: item.enabled }))
     } : null };
 }
 
@@ -71,7 +114,8 @@ export interface WechatCommandResult {
       readonly menu?: {
         readonly last_preview_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
         readonly last_split_validation_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
-        readonly last_action_result?: { readonly success: boolean; readonly status_code?: string; readonly created_objects?: readonly { readonly object_type: string; readonly object_id: string }[]; readonly updated_objects?: readonly { readonly object_type: string; readonly object_id: string }[] } | null;
+        readonly last_processing_validation_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
+        readonly last_action_result?: { readonly success: boolean; readonly status_code?: string; readonly created_objects?: readonly { readonly object_type: string; readonly object_id: string }[]; readonly updated_objects?: readonly { readonly object_type: string; readonly object_id: string }[]; readonly consumed_resources?: readonly { readonly resource_type: string; readonly resource_id: string; readonly quantity: WechatQuantity }[] } | null;
       };
       readonly save_load?: {
         readonly last_save_result?: { readonly slot_id: string } | null;
@@ -83,6 +127,7 @@ export interface WechatCommandResult {
 
 export type WechatCommand =
   | { readonly name: 'menu_preview' | 'menu_confirm_split_direct'; readonly selection: { readonly action_type: 'split_lot'; readonly source_lot_option_id: string; readonly quantity: WechatQuantity } }
+  | { readonly name: 'menu_preview' | 'menu_confirm_processing_direct'; readonly selection: WechatProcessingSelection }
   | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'advance_time'; readonly minutes: 60 | 1440 } }
   | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'plant_crop'; readonly field_option_id: string; readonly seed_lot_option_id: string; readonly seed_quantity: WechatQuantity } }
   | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'harvest_crop'; readonly crop_option_id: string } }
@@ -109,10 +154,14 @@ export interface WechatProbeSnapshot {
   readonly menu: WechatMenuSnapshot | null;
   readonly split_preview: WechatSplitPreview | null;
   readonly split_result: WechatSplitResult | null;
+  readonly processing_preview: WechatProcessingPreview | null;
+  readonly processing_result: WechatProcessingResult | null;
 }
 
 export interface WechatSplitPreview { readonly sourceLotId: string; readonly quantity: WechatQuantity; readonly success: boolean; readonly statusCode: string }
 export interface WechatSplitResult { readonly sourceLotId: string; readonly newLotId: string; readonly quantity: WechatQuantity; readonly remainingQuantity: WechatQuantity | null }
+export interface WechatProcessingPreview { readonly actionType: WechatProcessingSelection['action_type']; readonly success: boolean; readonly statusCode: string }
+export interface WechatProcessingResult { readonly actionType: WechatProcessingSelection['action_type']; readonly taskId: string; readonly lotId: string | null }
 
 export function readCandidateIdentity(value: unknown): Readonly<CandidateIdentity> {
   if (!value || typeof value !== 'object') throw new Error('ERR_WECHAT_CANDIDATE_INVALID');
@@ -149,6 +198,10 @@ export class WechatProbeController {
   private splitPreview: WechatSplitPreview | null = null;
   private splitResult: WechatSplitResult | null = null;
   private splitCommandInFlight: 'preview' | 'confirm' | null = null;
+  private processingGeneration = 0;
+  private processingPreview: WechatProcessingPreview | null = null;
+  private processingResult: WechatProcessingResult | null = null;
+  private processingCommandInFlight: 'preview' | 'confirm' | null = null;
 
   constructor(private readonly options: {
     load: () => Promise<{ resources: WechatResources; identity: unknown }>;
@@ -167,7 +220,9 @@ export class WechatProbeController {
       busy: this.busy, visible: this.visible, accepted_commands: this.accepted, completed_commands: this.completed,
       last_error: this.error, menu: this.menu ? copyMenu(this.menu) : null,
       split_preview: this.splitPreview ? { ...this.splitPreview, quantity: { ...this.splitPreview.quantity } } : null,
-      split_result: this.splitResult ? { ...this.splitResult, quantity: { ...this.splitResult.quantity }, remainingQuantity: this.splitResult.remainingQuantity ? { ...this.splitResult.remainingQuantity } : null } : null });
+      split_result: this.splitResult ? { ...this.splitResult, quantity: { ...this.splitResult.quantity }, remainingQuantity: this.splitResult.remainingQuantity ? { ...this.splitResult.remainingQuantity } : null } : null,
+      processing_preview: this.processingPreview ? { ...this.processingPreview } : null,
+      processing_result: this.processingResult ? { ...this.processingResult } : null });
   }
 
   acceptMenuPatch(value: unknown): void {
@@ -178,6 +233,9 @@ export class WechatProbeController {
     // public state invalidates the pending receipt; confirmation itself changes it.
     if (this.splitCommandInFlight !== 'confirm' && JSON.stringify(this.menu) !== JSON.stringify(next)) {
       this.invalidateSplitPreview();
+    }
+    if (this.processingCommandInFlight !== 'confirm' && JSON.stringify(this.menu) !== JSON.stringify(next)) {
+      this.invalidateProcessingPreview();
     }
     this.menu = next;
     this.notify();
@@ -232,6 +290,27 @@ export class WechatProbeController {
       quantity: { amount: quantity.amount, unit: quantity.unit } } });
   }
 
+  invalidateProcessingPreview(): void {
+    this.processingGeneration++;
+    this.processingPreview = null;
+    this.processingResult = null;
+    if (!this.disposed) this.notify();
+  }
+
+  async previewProcessing(selection: WechatProcessingSelection): Promise<WechatProbeSnapshot> {
+    return this.execute({ name: 'menu_preview', selection: this.copyProcessingSelection(selection) });
+  }
+
+  async confirmProcessing(selection: WechatProcessingSelection): Promise<WechatProbeSnapshot> {
+    return this.execute({ name: 'menu_confirm_processing_direct', selection: this.copyProcessingSelection(selection) });
+  }
+
+  private copyProcessingSelection(selection: WechatProcessingSelection): WechatProcessingSelection {
+    if (selection.action_type === 'collect_processing_result') return { action_type: selection.action_type, task_option_id: selection.task_option_id };
+    return { action_type: selection.action_type, method_id: selection.method_id, facility_option_id: selection.facility_option_id,
+      input_lots: selection.input_lots.map(input => ({ lot_option_id: input.lot_option_id, quantity: { ...input.quantity } })) };
+  }
+
   async save(): Promise<WechatProbeSnapshot> {
     return this.execute({ name: 'save', selection: { slot_id: WECHAT_SAVE_SLOT_ID } });
   }
@@ -254,6 +333,7 @@ export class WechatProbeController {
     if (this.busy) throw new Error('ERR_WECHAT_PROBE_BUSY');
     this.busy = true;
     this.invalidateSplitPreview();
+    this.invalidateProcessingPreview();
     this.accepted++;
     this.error = null;
     this.notify();
@@ -273,7 +353,7 @@ export class WechatProbeController {
   setVisible(visible: boolean): void {
     if (this.disposed || this.visible === visible) return;
     this.visible = visible;
-    if (!visible) this.invalidateSplitPreview();
+    if (!visible) { this.invalidateSplitPreview(); this.invalidateProcessingPreview(); }
     this.notify();
   }
 
@@ -283,10 +363,16 @@ export class WechatProbeController {
     if (this.busy) throw new Error('ERR_WECHAT_PROBE_BUSY');
     const splitBefore = command.name === 'menu_confirm_split_direct'
       ? this.menu?.selectable_view_model?.splittable_lot_options ?? [] : [];
+    const processBefore = command.name === 'menu_confirm_processing_direct' ? this.menu?.selectable_view_model : null;
     this.busy = true;
     this.invalidateSplitPreview();
+    this.invalidateProcessingPreview();
     const splitGeneration = this.splitGeneration;
+    const processingGeneration = this.processingGeneration;
     this.splitCommandInFlight = (command.name === 'menu_preview' || command.name === 'menu_confirm_split_direct') && command.selection.action_type === 'split_lot'
+      ? (command.name === 'menu_preview' ? 'preview' : 'confirm') : null;
+    this.processingCommandInFlight = (command.name === 'menu_preview' || command.name === 'menu_confirm_processing_direct')
+      && (command.selection.action_type === 'start_processing' || command.selection.action_type === 'collect_processing_result')
       ? (command.name === 'menu_preview' ? 'preview' : 'confirm') : null;
     this.accepted++;
     this.error = null;
@@ -316,11 +402,15 @@ export class WechatProbeController {
           const reason = error instanceof Error ? error.message : String(error);
           throw new Error(`ERR_WECHAT_SPLIT_RESULT_UNCERTAIN:${reason}`);
         }
+        if (actualCommand.name === 'menu_confirm_processing_direct') {
+          const reason = error instanceof Error ? error.message : String(error);
+          throw new Error(`ERR_WECHAT_PROCESSING_RESULT_UNCERTAIN:${reason}`);
+        }
         throw error;
       }
       const current = result.command_result;
       const preview = current.snapshot?.menu?.last_preview_result;
-      const previewValid = preview?.action_type === 'split_lot' && typeof preview.success === 'boolean'
+      const previewValid = actualCommand.name === 'menu_preview' && preview?.action_type === actualCommand.selection.action_type && typeof preview.success === 'boolean'
         && typeof preview.status_code === 'string' && preview.status_code.length > 0;
       if (!this.disposed && actualCommand.name === 'menu_confirm_split_direct') {
         // A failed shell command can occur after dispatch; it does not prove rollback.
@@ -363,7 +453,50 @@ export class WechatProbeController {
             quantity: { ...created.quantity }, remainingQuantity: source ? { ...source.quantity } : null };
         }
       }
-      if (actualCommand.name !== 'menu_confirm_split_direct') {
+      if (!this.disposed && actualCommand.name === 'menu_confirm_processing_direct') {
+        const validation = current.snapshot?.menu?.last_processing_validation_result;
+        const action = current.snapshot?.menu?.last_action_result;
+        const selection = actualCommand.selection;
+        if (current.status !== 'completed' || current.command_name !== actualCommand.name
+            || validation?.action_type !== selection.action_type || typeof validation.success !== 'boolean'
+            || typeof validation.status_code !== 'string' || !validation.status_code) {
+          throw new Error('ERR_WECHAT_PROCESSING_RESULT_UNCERTAIN');
+        }
+        if (!validation.success) {
+          if (action !== null) throw new Error('ERR_WECHAT_PROCESSING_RESULT_UNCERTAIN');
+          throw new Error(`ERR_WECHAT_PROBE_ACTION_FAILED:${validation.status_code}`);
+        }
+        if (action?.success !== true || !processBefore) throw new Error('ERR_WECHAT_PROCESSING_RESULT_UNCERTAIN');
+        const after = this.menu?.selectable_view_model;
+        let taskId: string;
+        let lotId: string | null = null;
+        if (selection.action_type === 'start_processing') {
+          const created = action.created_objects?.filter(item => item.object_type === 'ProcessingTask') ?? [];
+          const task = created.length === 1 ? after?.processing_task_options.find(item => item.id === created[0].object_id) : undefined;
+          const consumed = action.consumed_resources ?? [];
+          if (!task || processBefore.processing_task_options.some(item => item.id === task.id) || task.method_id !== selection.method_id
+              || task.status !== 'active' || consumed.length !== selection.input_lots.length
+              || selection.input_lots.some((input, i) => consumed[i]?.resource_type !== 'MaterialLot' || consumed[i]?.resource_id !== input.lot_option_id
+                || consumed[i]?.quantity.amount !== input.quantity.amount || consumed[i]?.quantity.unit !== input.quantity.unit)) {
+            throw new Error('ERR_WECHAT_PROCESSING_RESULT_UNCERTAIN');
+          }
+          taskId = task.id;
+        } else {
+          const oldTask = processBefore.processing_task_options.find(item => item.id === selection.task_option_id);
+          const task = after?.processing_task_options.find(item => item.id === selection.task_option_id);
+          const created = action.created_objects?.filter(item => item.object_type === 'MaterialLot') ?? [];
+          const lot = created.length === 1 ? after?.splittable_lot_options.find(item => item.id === created[0].object_id) : undefined;
+          const updated = action.updated_objects?.filter(item => item.object_type === 'ProcessingTask' && item.object_id === selection.task_option_id) ?? [];
+          if (!oldTask || oldTask.status !== 'ready_to_collect' || !task || task.status !== 'completed' || !lot
+              || processBefore.splittable_lot_options.some(item => item.id === lot.id) || updated.length !== 1) {
+            throw new Error('ERR_WECHAT_PROCESSING_RESULT_UNCERTAIN');
+          }
+          taskId = task.id; lotId = lot.id;
+        }
+        this.completed++;
+        if (processingGeneration === this.processingGeneration && this.visible) this.processingResult = { actionType: selection.action_type, taskId, lotId };
+      }
+      if (actualCommand.name !== 'menu_confirm_split_direct' && actualCommand.name !== 'menu_confirm_processing_direct') {
         const success = actualCommand.name === 'menu_preview'
           ? previewValid && current.command_name === actualCommand.name
           : actualCommand.name === 'menu_confirm'
@@ -378,10 +511,14 @@ export class WechatProbeController {
         }
         if (!this.disposed) {
           this.completed++;
-          if (actualCommand.name === 'menu_preview' && splitGeneration === this.splitGeneration && this.visible && previewValid) {
+          if (actualCommand.name === 'menu_preview' && actualCommand.selection.action_type === 'split_lot' && splitGeneration === this.splitGeneration && this.visible && previewValid) {
             const selection = actualCommand.selection;
             this.splitPreview = { sourceLotId: selection.source_lot_option_id, quantity: { ...selection.quantity },
               success: preview!.success, statusCode: preview!.status_code };
+          }
+          if (actualCommand.name === 'menu_preview' && actualCommand.selection.action_type !== 'split_lot'
+              && processingGeneration === this.processingGeneration && this.visible && previewValid) {
+            this.processingPreview = { actionType: actualCommand.selection.action_type, success: preview!.success, statusCode: preview!.status_code };
           }
         }
       }
@@ -392,6 +529,7 @@ export class WechatProbeController {
       throw result;
     } finally {
       this.splitCommandInFlight = null;
+      this.processingCommandInFlight = null;
       if (!this.disposed) { this.busy = false; this.notify(); }
     }
     return this.snapshot();
@@ -401,6 +539,7 @@ export class WechatProbeController {
     if (this.closing !== null) return this.closing;
     this.disposed = true;
     this.invalidateSplitPreview();
+    this.invalidateProcessingPreview();
     this.menu = null;
     this.phase = 'closed';
     this.busy = false;

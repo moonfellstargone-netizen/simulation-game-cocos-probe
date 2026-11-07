@@ -372,3 +372,83 @@ test('Cocos UI command queue source stays a shell wrapper without platform or co
     assert.equal(text.includes(forbidden), false, `queue source leaked forbidden token ${forbidden}`);
   }
 });
+
+test('direct processing queue validates before dispatch without calling preview', async () => {
+  const { host, queue, storage } = makeQueuedShell();
+  await queue.execute({ name: 'create_session' });
+  const session = host.requireSession();
+  let current = session.getSelectableViewModel();
+  const field = current.field_options.find(item => item.enabled)!;
+  const seed = current.seed_lot_options.find(item => item.enabled)!;
+  let earlierActions = 2;
+  assert.equal(session.dispatch('plant_crop', { field_plot_id: field.id, seed_lot_id: seed.id, seed_quantity: { amount: 1, unit: seed.quantity.unit } }).success, true);
+  for (let i = 0; i < 30 && !session.getSelectableViewModel().harvestable_crop_options.some(item => item.field_plot_id === field.id); i++) {
+    assert.equal(session.dispatch('advance_time', { minutes: 1440 }).success, true);
+    earlierActions++;
+  }
+  const crop = session.getSelectableViewModel().harvestable_crop_options.find(item => item.field_plot_id === field.id)!;
+  assert.ok(crop);
+  assert.equal(session.dispatch('harvest_crop', { crop_id: crop.id }).success, true);
+  current = session.getSelectableViewModel();
+  const method = current.processing_method_options[0]!;
+  const facility = current.processing_facility_options.find(item => item.enabled && method.compatible_facility_ids.includes(item.id))!;
+  const inputs = method.input_requirements.map((requirement, index) => {
+    const lot = current.processable_lot_options.find(item => item.enabled && requirement.lot_ids.includes(item.id))!;
+    assert.ok(lot);
+    return { lot_option_id: lot.id, quantity: { amount: index === 0 ? 300 : 15, unit: lot.quantity.unit } };
+  });
+  const selection = { action_type: 'start_processing' as const, method_id: method.id, input_lots: inputs, facility_option_id: facility.id };
+  let previews = 0; session.preview = () => { previews++; throw new Error('direct processing must not call preview'); };
+  let dispatches = 0;
+  const originalDispatch = session.dispatch.bind(session);
+  session.dispatch = ((...args: Parameters<typeof session.dispatch>) => { dispatches++; return originalDispatch(...args); }) as typeof session.dispatch;
+  const before = await captureSerializedSession(session, storage, 'processing_direct_before');
+  const originalSelectable = session.getSelectableViewModel.bind(session);
+  session.getSelectableViewModel = () => {
+    const view = originalSelectable();
+    const projectedFacility = view.processing_facility_options.find(item => item.id === facility.id)!;
+    Reflect.set(projectedFacility.facility_ref, 'storage_type', 'invalid_schema_value');
+    return view;
+  };
+  const malformed = await queue.execute({ name: 'menu_confirm_processing_direct', selection });
+  assert.deepEqual(malformed.snapshot.menu.last_processing_validation_result, { action_type: 'start_processing', success: false, status_code: 'ERR_SCHEMA_VALIDATION_FAILED' });
+  assert.equal(malformed.snapshot.menu.last_action_result, null);
+  assert.equal(dispatches, 0);
+  assert.equal(await captureSerializedSession(session, storage, 'processing_direct_after_schema_rejection'), before);
+  session.getSelectableViewModel = originalSelectable;
+  const invalid = await queue.execute({ name: 'menu_confirm_processing_direct', selection: { ...selection, input_lots: inputs.slice(0, 1) } });
+  assert.equal(invalid.status, 'completed');
+  assert.deepEqual(invalid.snapshot.menu.last_processing_validation_result, { action_type: 'start_processing', success: false, status_code: 'ERR_PROCESSING_INPUT_MISSING' });
+  assert.equal(invalid.snapshot.menu.last_action_result, null);
+  assert.equal(await captureSerializedSession(session, storage, 'processing_direct_after'), before);
+  const started = await queue.execute({ name: 'menu_confirm_processing_direct', selection });
+  assert.equal(started.status, 'completed');
+  assert.deepEqual(started.snapshot.menu.last_processing_validation_result, { action_type: 'start_processing', success: true, status_code: 'OK' });
+  assert.equal(started.snapshot.menu.last_action_result?.success, true);
+  assert.equal(started.snapshot.menu.last_action_result?.request_id, `start_processing_${String(earlierActions * 2 + 1).padStart(6, '0')}`);
+  assert.equal(started.snapshot.menu.last_action_result?.created_objects.find(item => item.object_type === 'ProcessingTask')?.object_id, 'task_processing_000001');
+  assert.equal(started.snapshot.menu.last_preview_result, null);
+  const task = session.getSelectableViewModel().processing_task_options[0]!;
+  assert.ok(task);
+  const early = await queue.execute({ name: 'menu_confirm_processing_direct', selection: { action_type: 'collect_processing_result', task_option_id: task.id } });
+  assert.equal(early.snapshot.menu.last_processing_validation_result?.success, false);
+  assert.equal(early.snapshot.menu.last_action_result, null);
+  assert.equal(session.dispatch('advance_time', { minutes: task.expected_finish_minute - task.start_world_minute }).success, true);
+  const collected = await queue.execute({ name: 'menu_confirm_processing_direct', selection: { action_type: 'collect_processing_result', task_option_id: task.id } });
+  assert.equal(collected.status, 'completed');
+  assert.deepEqual(collected.snapshot.menu.last_processing_validation_result, { action_type: 'collect_processing_result', success: true, status_code: 'OK' });
+  assert.equal(collected.snapshot.menu.last_action_result?.success, true);
+  const actualDispatch = session.dispatch.bind(session);
+  session.dispatch = ((...args: Parameters<typeof session.dispatch>) => {
+    actualDispatch(...args);
+    throw new Error('injected after processing dispatch');
+  }) as typeof session.dispatch;
+  const afterDispatch = await queue.execute({ name: 'menu_confirm_processing_direct', selection });
+  assert.equal(afterDispatch.status, 'failed');
+  assert.equal(afterDispatch.snapshot.menu.last_processing_validation_result?.success, true);
+  assert.equal(afterDispatch.snapshot.menu.last_action_result, null);
+  assert.match(afterDispatch.error_message ?? '', /injected after processing dispatch/);
+  assert.equal(session.getSelectableViewModel().processing_task_options.length, 2, 'formal action may have committed before failure');
+  assert.equal(previews, 0);
+  host.destroySession();
+});

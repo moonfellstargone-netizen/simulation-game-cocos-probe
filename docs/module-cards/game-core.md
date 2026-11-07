@@ -95,3 +95,7 @@ tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / reg
 ## 拆分校验与共享仓储对账
 
 InventorySystem.assertCanSplit提供只读正式校验，split与之复用拆分计划；StorageReconciler先计算并校验占用后再统一写回。成功占用规则不变，异常时直接调用的中间状态与此前逐步写入不同；其他仓储动作、新局与正式事务仍须回归。分发后的契约/界面异常不一概证明状态回滚。
+
+## 微信加工独立校验
+
+ProcessingSystem共用开工和领取只读计划，InventorySystem按既有顺序投影材料，StorageReconciler复用同一占用计算。ActionPipeline与正式Schema、配置和玩法不变；正式提交与预览仍各自经现有管线。

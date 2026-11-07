@@ -1,4 +1,4 @@
-﻿# Quality Map — v0.0.3.0
+# Quality Map — v0.0.3.0
 
 ## 系统职责
 
@@ -141,3 +141,7 @@ tests/cocos-wechat-schema-optimization.test.mjs纳入既有test:cocos-wechat-run
 
 
 拆分独立校验覆盖现有test.stage1a-contract、test.cocos-session、test.cocos-ui-command-queue、test.cocos-scene-binding-application及test.cocos-wechat-runtime的正式执行、拒绝和回执行为；保留full/blocker与既有Web、其他仓储动作回归。实际结果以本轮执行及对应提交为准。
+
+## M3微信加工
+
+核心与Session/队列测试、现有微信运行时和M3界面测试覆盖独立校验、可选预览与正式加工；保留Web生命周期和浏览器回归。沿用现有full/blocker登记，不修改质量门禁；实际通过情况以相应固定提交证据为准。

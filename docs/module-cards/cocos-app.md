@@ -83,3 +83,7 @@ trace.cocos.cross-step-recovery通过tests/stage1a-bootstrap.test.ts验证五保
 ## 拆分独立只读校验
 
 CocosAppRuntimeSession.validateSplit(sourceLotId, quantity)委托正式InventorySystem.assertCanSplit，只读验证当前会话状态，不执行预览、分配ID或改变SaveFile；失败抛现有正式错误。直接确认后仍由session.dispatch及ActionPipeline处理正式动作，不能据分发后异常推断回滚。
+
+## 微信加工Session边界
+
+CocosAppRuntimeSession的validateStartProcessing与validateCollectProcessing调用正式只读校验，不改变会话或分配领域对象ID；正式Action仍经dispatch。

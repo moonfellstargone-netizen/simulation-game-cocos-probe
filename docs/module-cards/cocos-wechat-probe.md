@@ -9,7 +9,7 @@ source_of_truth: false
 
 ## 模块职责与读取入口
 
-本轮唯一目标是v0.0.3.0的M3微信库存拆分包：在M2及M3种植与库存首包基础上，接入可选预览与独立校验的库存拆分确认，并保留播种、收获、整批转移、手动存读档和前后台保护。候选依赖PR25、PR26和PR27的既有变更；运行身份仍来自当前包的只读candidate_id和短commit，正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；本包不代表M3完整经营或M4手机验收完成。
+本轮唯一目标是v0.0.3.0的M3微信加工包：在M2及M3种植、库存与拆分候选基础上，接入加工方法、材料、设施、任务、开工与领取，并保留时间推进、手动存读档和前后台保护。加工预览可选，直接确认使用独立正式校验；候选依赖PR25、PR26、PR27和PR28的既有变更，正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；本包不代表M3完整经营或M4手机验收完成。
 
 独立apps/cocos-wechat-probe模块只消费派生公共runtime与正式资源，可使用cc，禁止直接wx/fs、业务内部、工具和测试依赖；旧三层不得反向依赖它。微信outer通过Creator平台存储外层提供手动单槽存读档及备份恢复，不增加自动保存或离线补时。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture；planned Stage1B wx-storage-port不转active。
 
@@ -60,7 +60,7 @@ tests/cocos-wechat-data-clone.test.ts追加到原test:cocos-wechat-runtime / tes
 
 ## M2微信存储与生命周期
 
-M2候选建立微信存储及生命周期基础；M3种植与库存首包在此基础上推进，当前拆分包继续依赖该能力。
+M2候选建立微信存储及生命周期基础；M3种植与库存首包在此基础上推进，后续拆分和加工候选继续依赖该能力。
 
 M2运行时改动集中于独立微信outer，并同步构建来源、测试和文档：手动单逻辑槽经Creator sys.localStorage接入平台存储，保存与读取沿既有Session/SaveManager及校验；前后台事件只限制输入与维护会话，不自动存档或补算时间。旧三层及outer直接wx/fs禁令保持，正式SaveFile和玩法不变。
 
@@ -77,3 +77,7 @@ tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的arg
 M3微信库存拆分支持可选预览；玩家可直接确认当前批次和数量。共享队列以menu_confirm_split_direct调用独立只读校验，通过后才同步提交正式split_lot，校验与执行共用正式数量、预留、定义及容量规则，不依赖preview。切换材料、数量或会话使旧预览失效，预览不成为确认的前置条件；提交后异常或无法核实回执提示结果待确认，不自动重试。原Web菜单确认仍先预览。M2存读档与M3种植库存能力继续保留；不修改SaveFile、正式Schema、配置或玩法规则。PR25、PR26、PR27依赖须随候选核对，本包不包含M3完整经营、M4或Stage1B。
 
 针对性覆盖进入既有test.cocos-wechat-runtime与preparation登记；q:full、无缓存q:release、Creator、微信工具、浏览器回归和对应提交CI各自验证，测试登记不代表已通过。
+
+## M3微信加工包
+
+微信加工页面读取公开方法、必需材料、兼容设施和任务；支持数量输入、可选预览、直接开工、推进时间和领取。正式结果从本次ActionResult与公开快照核对，预计产物只作预计；异常或结果不确定提示核实，不自动重试。继续保护已有存读档、切页和前后台；本包依赖PR25、PR26、PR27、PR28，完整M3和M4未完成。

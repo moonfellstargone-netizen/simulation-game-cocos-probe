@@ -1,4 +1,4 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.3.0
+# CODE_CONTEXT_INDEX — v0.0.3.0
 
 版本：v0.0.3.0 / WeChat Stage1A Pilot / 微信真机Stage1A试水版。
 
@@ -190,7 +190,7 @@ tests/cocos-web-orders.test.ts、readiness/menu、prepare与web-verification分�
 
 先读[module-card](module-cards/cocos-wechat-probe.md)与[ADR-0005](adr/ADR-0005-independent-wechat-m1-outer.md)，再读apps/cocos-wechat-probe、tools/cocos-probe/lib/prepareProject.mjs、tools/cocos-wechat-probe/prepare.mjs、build.mjs、lib/source.mjs、lib/sourceProvenance.mjs及tests/cocos-wechat-preparation.test.mjs和tests/cocos-wechat-runtime.test.ts。
 
-本轮唯一目标是v0.0.3.0的M3微信库存拆分包：在M2及M3种植与库存首包基础上，接入可选预览与独立校验的库存拆分确认，并保留播种、收获、整批转移、手动存读档和前后台保护。候选依赖PR25、PR26和PR27的既有变更；运行身份仍来自当前包的只读candidate_id和短commit，正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；本包不代表M3完整经营或M4手机验收完成。
+本轮唯一目标是v0.0.3.0的M3微信加工包：在M2及M3种植、库存与拆分候选基础上，接入加工方法、材料、设施、任务、开工与领取，并保留时间推进、手动存读档和前后台保护。加工预览可选，直接确认使用独立正式校验；候选依赖PR25、PR26、PR27和PR28的既有变更，正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；本包不代表M3完整经营或M4手机验收完成。
 
 test:cocos-wechat-preparation / test.cocos-wechat-preparation实际执行tests/cocos-wechat-preparation.test.mjs；test:cocos-wechat-runtime / test.cocos-wechat-runtime实际执行tests/cocos-wechat-runtime.test.ts，均为full/blocker。trace.cocos.wechat-m1连接新outer、共享生产者、微信构建、候选身份、架构负例和质量登记。Node只能证明受控准备/行为契约；真实Creator3.8.8/SDK、官方微信工具场景/输入/日志/重载、受影响Web回归和最终提交CI各自验收。旧全部追踪、权威架构禁令和Web功能/来源检查保留，不以修改阈值、预期、CI或affected算法通过门禁。
 

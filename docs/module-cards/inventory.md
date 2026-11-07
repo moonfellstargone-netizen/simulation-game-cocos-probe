@@ -63,3 +63,7 @@ trace.inventory.split-quantity连接InventorySystem及配置调用方，现有te
 ## 拆分只读校验与容量
 
 InventorySystem.assertCanSplit与正式split复用同一拆分计划，按正式数量、单位、预留、定义和存储占用规则验证；只读校验不分配ID或提交状态。分发前的容量拒绝不会消耗拆分ID。StorageReconciler以相同占用顺序先计算再统一写回，成功规则保持；该共享对账也服务其他仓储动作和新局，异常时直接调用的中间写入行为与此前逐步写入不同，正式Action的异常依现有事务处理。
+
+## 加工输入投影
+
+InventorySystem.planConsumption以原有consume数量和占用算法按输入顺序构建只读库存投影；不改变正式重复批次语义。ProcessingSystem在实际消费前使用投影进行储存对账。

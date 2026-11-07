@@ -1,4 +1,4 @@
-﻿# Domain Map — v0.0.3.0
+# Domain Map — v0.0.3.0
 
 ## 系统职责
 
@@ -99,3 +99,7 @@ cocos-wechat-probe仅消费现有Stage1A公共运行时；M3首包通过现有pl
 ## 拆分校验与共享存储
 
 正式InventorySystem拆分与assertCanSplit复用数量、预留、定义和容量检查；只读校验不创建材料或分配ID。StorageReconciler仍按材料、菜品次序计算占用，统一校验后写回；其他仓储动作及新局共享该实现，异常直接调用的中间状态不同于此前逐步写入。业务规则、正式Schema和SaveFile不变。
+
+## 微信加工的独立校验
+
+ProcessingSystem.assertCanStartProcessing和assertCanCollect复用正式开工、领取的只读计划；InventorySystem.planConsumption按既有输入顺序计算消耗，StorageReconciler.assertMaterials复用既有容量规则。正式执行和独立校验共用计划，不新增重复输入规则。

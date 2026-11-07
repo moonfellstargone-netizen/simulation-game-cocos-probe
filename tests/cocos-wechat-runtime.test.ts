@@ -67,6 +67,103 @@ function harness(options: { identity?: CandidateIdentity; storage?: SaveStorageP
   return { controller, states, host: () => host!, binding: () => binding!, factories: () => factories };
 }
 
+test('M3 processing validates without preview, then starts, restores and collects via real public pipeline', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const commands: string[] = [];
+  let lastStarted: WechatCommandResult | null = null; let replay = false;
+  const p = harness({ storage, receiveMenu: true, intercept: async (command, execute) => {
+    commands.push(command.name);
+    if (replay && command.name === 'menu_confirm_processing_direct') return lastStarted!;
+    const result = await execute();
+    if (command.name === 'menu_confirm_processing_direct' && command.selection.action_type === 'start_processing'
+        && result.command_result.snapshot?.menu?.last_action_result?.success) lastStarted = result;
+    return result;
+  } });
+  await p.controller.start();
+  const capture = async () => { await p.host().requireSession().save('capture'); return storage.read('capture'); };
+  try {
+    const initial = p.controller.snapshot().menu!.selectable_view_model!;
+    const field = initial.field_options.find(item => item.enabled)!;
+    const seed = initial.seed_lot_options.find(item => item.enabled)!;
+    await p.controller.plant(field.id, seed.id, { amount: 1, unit: seed.quantity.unit });
+    for (let i = 0; i < 4; i++) await p.controller.advanceDay();
+    const crop = p.controller.snapshot().menu!.selectable_view_model!.harvestable_crop_options.find(item => item.enabled)!;
+    assert.ok(crop); await p.controller.harvest(crop.id);
+    const menu = p.controller.snapshot().menu!.selectable_view_model!;
+    const method = menu.processing_method_options.find(item => item.enabled)!;
+    const facility = menu.processing_facility_options.find(item => item.enabled && method.compatible_facility_ids.includes(item.id))!;
+    const inputs = method.input_requirements.map(requirement => {
+      const lot = menu.processable_lot_options.find(item => item.enabled && requirement.lot_ids.includes(item.id))!;
+      assert.ok(lot);
+      return { lot_option_id: lot.id, quantity: { amount: requirement.min_quantity?.amount ?? Math.min(300, lot.quantity.amount), unit: lot.quantity.unit } };
+    });
+    const selection = { action_type: 'start_processing' as const, method_id: method.id, facility_option_id: facility.id, input_lots: inputs };
+    const before = await capture();
+    await assert.rejects(p.controller.confirmProcessing({ ...selection, input_lots: inputs.slice(0, 1) }), /ERR_WECHAT_PROBE_ACTION_FAILED/);
+    assert.deepEqual(await capture(), before);
+    assert.equal(commands.filter(name => name === 'menu_preview').length, 0);
+    const started = await p.controller.confirmProcessing(selection);
+    const taskId = started.processing_result!.taskId;
+    assert.equal(started.processing_result!.actionType, 'start_processing');
+    assert.ok(started.menu!.selectable_view_model!.processing_task_options.some(task => task.id === taskId && task.status === 'active'));
+    const afterStart = await capture();
+    replay = true;
+    await assert.rejects(p.controller.confirmProcessing(selection), /ERR_WECHAT_PROCESSING_RESULT_UNCERTAIN/);
+    assert.deepEqual(await capture(), afterStart, 'replayed receipt cannot create or pretend to create a task');
+    replay = false;
+    await assert.rejects(p.controller.confirmProcessing({ action_type: 'collect_processing_result', task_option_id: taskId }), /ERR_WECHAT_PROBE_ACTION_FAILED/);
+    assert.deepEqual(await capture(), afterStart);
+    await p.controller.save(); await p.controller.load();
+    assert.equal(p.controller.snapshot().processing_result, null);
+    await p.controller.advanceDay(); await p.controller.advanceDay();
+    const collected = await p.controller.confirmProcessing({ action_type: 'collect_processing_result', task_option_id: taskId });
+    assert.equal(collected.processing_result!.actionType, 'collect_processing_result');
+    assert.equal(collected.processing_result!.taskId, taskId);
+    assert.ok(collected.processing_result!.lotId);
+    assert.equal(collected.menu!.selectable_view_model!.processing_task_options.find(task => task.id === taskId)!.status, 'completed');
+    assert.equal(commands.filter(name => name === 'menu_preview').length, 0);
+  } finally { await p.controller.dispose(); }
+});
+
+test('M3 processing verifies direct receipts after dispatch and backgrounding', async () => {
+  for (const mode of ['failed-after-dispatch', 'missing-task', 'hidden-valid', 'hidden-bad'] as const) {
+    const gate = deferred<void>(); const entered = deferred<void>();
+    const p = harness({ receiveMenu: true, intercept: async (command, execute) => {
+      const result = await execute();
+      if (command.name !== 'menu_confirm_processing_direct' || command.selection.action_type !== 'start_processing') return result;
+      if (mode.startsWith('hidden-')) { entered.resolve(); await gate.promise; }
+      if (mode === 'failed-after-dispatch') return { command_result: { ...result.command_result, status: 'failed', error_message: 'render-failed' } };
+      if (mode === 'missing-task' || mode === 'hidden-bad') return { command_result: { ...result.command_result,
+        snapshot: { ...result.command_result.snapshot, menu: { ...result.command_result.snapshot!.menu,
+          last_action_result: { success: true, created_objects: [] } } } } };
+      return result;
+    } });
+    await p.controller.start();
+    try {
+      const initial = p.controller.snapshot().menu!.selectable_view_model!;
+      const field = initial.field_options.find(item => item.enabled)!;
+      const seed = initial.seed_lot_options.find(item => item.enabled)!;
+      await p.controller.plant(field.id, seed.id, { amount: 1, unit: seed.quantity.unit });
+      for (let i = 0; i < 4; i++) await p.controller.advanceDay();
+      await p.controller.harvest(p.controller.snapshot().menu!.selectable_view_model!.harvestable_crop_options.find(item => item.enabled)!.id);
+      const menu = p.controller.snapshot().menu!.selectable_view_model!;
+      const method = menu.processing_method_options.find(item => item.enabled)!;
+      const facility = menu.processing_facility_options.find(item => item.enabled && method.compatible_facility_ids.includes(item.id))!;
+      const input_lots = method.input_requirements.map(req => {
+        const lot = menu.processable_lot_options.find(item => item.enabled && req.lot_ids.includes(item.id))!;
+        return { lot_option_id: lot.id, quantity: { amount: req.min_quantity?.amount ?? Math.min(300, lot.quantity.amount), unit: lot.quantity.unit } };
+      });
+      const before = p.controller.snapshot().completed_commands;
+      const pending = p.controller.confirmProcessing({ action_type: 'start_processing', method_id: method.id, facility_option_id: facility.id, input_lots });
+      if (mode.startsWith('hidden-')) { await entered.promise; p.controller.setVisible(false); gate.resolve(); }
+      if (mode === 'hidden-valid') { await pending; assert.equal(p.controller.snapshot().completed_commands, before + 1); }
+      else { await assert.rejects(pending, /ERR_WECHAT_PROCESSING_RESULT_UNCERTAIN/); assert.equal(p.controller.snapshot().completed_commands, before); }
+      assert.equal(p.controller.snapshot().processing_result, null);
+      assert.equal(p.host().requireSession().getSelectableViewModel().processing_task_options.length, 1, 'formal action really committed');
+    } finally { await p.controller.dispose(); }
+  }
+});
+
 test('M3 direct split validates independently, preserves state on rejection and supports optional preview and full split', async () => {
   const storage = new InMemorySaveStoragePort();
   const commands: string[] = [];
