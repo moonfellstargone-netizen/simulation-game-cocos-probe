@@ -79,3 +79,7 @@ SelectableVM仅扩展现有order_options，复制issuer/deadline/signed余量、
 ## 跨步骤恢复公共会话
 
 trace.cocos.cross-step-recovery通过tests/stage1a-bootstrap.test.ts验证五保存点的新Host读取、后续真实菜单动作、完整状态及持久ID安全。Session/SelectableVM/StateVM生产接口与算法保持；原有Session失败加载/预览无副作用/ID回归继续执行，恢复列表不能当本次成功。真实网页由verify-web独立输入，Node结果不替代引擎或浏览器。
+
+## 拆分独立只读校验
+
+CocosAppRuntimeSession.validateSplit(sourceLotId, quantity)委托正式InventorySystem.assertCanSplit，只读验证当前会话状态，不执行预览、分配ID或改变SaveFile；失败抛现有正式错误。直接确认后仍由session.dispatch及ActionPipeline处理正式动作，不能据分发后异常推断回滚。

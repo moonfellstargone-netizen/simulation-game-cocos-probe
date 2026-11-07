@@ -1,4 +1,4 @@
-﻿# Domain Map — v0.0.2.46
+﻿# Domain Map — v0.0.3.0
 
 ## 系统职责
 
@@ -91,3 +91,11 @@ DemandResolver与现有状态/截止、真实菜品整批消费、奖励和事�
 ## 触摸与小屏归属
 
 ProbeLayout、原生滚动与输入布局属于既有cocos-engine-probe外层，验证工具归tools，行为/工具契约归tests。trace.cocos.touch-small-screen不引入新领域系统，core、Session/Queue、SaveFile及正式业务规则保持；未来微信/Stage1B不是当前实现。
+
+## 微信M1表现边界
+
+cocos-wechat-probe仅消费现有Stage1A公共运行时；M3首包通过现有plant_crop、advance_time、harvest_crop及store_item正式Action接入种植和库存，后续拆分包使用split_lot，不新增领域模型或业务规则。候选身份属于包来源信息，不是SaveFile字段；M2存储/生命周期属于平台外层，不增加领域模型；完整M3及M4尚未完成。
+
+## 拆分校验与共享存储
+
+正式InventorySystem拆分与assertCanSplit复用数量、预留、定义和容量检查；只读校验不创建材料或分配ID。StorageReconciler仍按材料、菜品次序计算占用，统一校验后写回；其他仓储动作及新局共享该实现，异常直接调用的中间状态不同于此前逐步写入。业务规则、正式Schema和SaveFile不变。

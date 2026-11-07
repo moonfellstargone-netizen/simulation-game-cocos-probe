@@ -1,4 +1,4 @@
-﻿# Quality Map — v0.0.2.46
+﻿# Quality Map — v0.0.3.0
 
 ## 系统职责
 
@@ -104,3 +104,40 @@ ProbeOrders.ts/.meta与cocos-web-orders.test.ts登记既有prepare/lifecycle，�
 ## 触摸与小屏验证登记
 
 tests/cocos-web-layout.test.ts进入既有test.cocos-engine-probe-lifecycle实际args/package脚本，ProbeLayout.ts/.meta及测试登记prepare/lifecycle files；工具断言负例沿既有web-verification。trace.cocos.touch-small-screen与affected/traceability契约闭合，47任务/full45/release47及全部旧回归保持。最终提交独立Creator/SDK、built/editor原生touch与逐图验收不由Node/CI推定。
+
+## 微信M1质量登记
+
+trace.cocos.wechat-m1新增test.cocos-wechat-preparation与test.cocos-wechat-runtime，实际args/files/covers登记，均full/blocker。preparation覆盖微信prepare/build/source/sourceProvenance及共享prepareProject、webProbeSupport与template；旧test.cocos-probe-preparation补共享helper。新outer import/wx-global及旧三层反向依赖为authoritative负例，旧Web禁令保留。Node不执行真实Creator或官方工具；q:affected不替代完整、无缓存发布及对应提交CI。
+
+## Schema预编译质量覆盖
+
+tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / registry test.stage1a-bootstrap实际args/files/covers，沿用full/blocker，不新增任务或降低门禁。该测试覆盖禁用动态Function后的正式启动/合法动作及坏请求、集合/内容拒绝；微信preparation契约覆盖实际facade、全部Schema、来源与生成物篡改，资源预检标记为node-aot-public-bootstrap-passed。Web旧resourcePreflight和默认动态路径保持。Node不替代新提交的Creator/SDK、微信真实输入/日志/重载、Web回归或审查/CI。
+
+trace.cocos.wechat-m1同时连接核心校验/公共bootstrap、编译器工具与既有bootstrap full/blocker任务；trace.runtime.bootstrap-resources保持现有资源装配权威，planned条目不变。
+
+## 微信DTO复制覆盖
+
+tests/cocos-wechat-data-clone.test.ts追加到原test:cocos-wechat-runtime / test.cocos-wechat-runtime实际args/files/covers，验证原生DTO复制对比与拒绝路径；helper和测试同步登记preparation files。原两项微信full/blocker任务保留，不新增任务、CI或算法；M2存储及生命周期由独立outer提供。M3种植与库存首包及后续拆分包继续沿用既有门禁；完整M3、M4和Stage1B尚未完成。
+
+sourceProvenance及prepare真实输入记录helper，.ts架构扫描和旧三层不得反向依赖apps的规则保持；只在微信构建目标注入，不对全局作polyfill。
+
+## M2微信存储与生命周期
+
+M2运行时改动集中于独立微信outer，并同步构建来源、测试和文档：手动单逻辑槽经Creator sys.localStorage接入平台存储，保存与读取沿既有Session/SaveManager及校验；前后台事件只限制输入与维护会话，不自动存档或补算时间。旧三层及outer直接wx/fs禁令保持，正式SaveFile和玩法不变。
+
+受控契约分别覆盖隔离Session验证、port复验与字节复核、持久提升及Binding读取；准备/提升失败和Session读取校验失败保留原会话。Binding的UI补丁可能在Session提交后才失败，这类错误不能一概归为原会话未改变，相关运行结果须分阶段核验。
+
+备份与中断保护须同时考虑失败前后可能发生写入：备份、主档与恢复信息分开；读取、恢复和失败路径以源码及针对性测试为准，不能将异常等同于未落盘。故障保护依赖存储键相互独立和可读回一致的有限模型，真实微信断电、设备故障及底层原子性未证明。备份恢复不等于跨平台导入或自动存档。
+
+tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的args/files，相关源及meta也进入preparation/runtime登记和trace.cocos.wechat-m1。受控Node契约不替代真实Creator、官方微信工具输入/存储/生命周期、最终提交CI或手机验收；具体结果以仓库外证据为准。
+
+## 微信M2包体修复覆盖
+
+tests/cocos-wechat-schema-optimization.test.mjs纳入既有test:cocos-wechat-runtime及test.cocos-wechat-runtime实际args、files和covers，相关编译与来源文件登记受影响范围，保留full/blocker和原测试。测试以受控样本比较58项Schema在动态、默认standalone与loopRequired=1生成器下的结果及完整errors，并覆盖来源参数拒绝。preparation继续覆盖debug=false和微信engine模板；这些Node测试不替代真实Creator、微信工具或设备验收。
+
+## M3微信库存拆分
+
+微信运行回归继续沿用test.cocos-wechat-runtime和test.cocos-wechat-preparation的full/blocker，拆分场景覆盖正式预览、确认、拒绝及旧预览失效；保留M2存储和M3种植库存回归。受控测试、Creator构建、微信工具输入、浏览器回归和对应提交CI分别验收，不以历史结果代替。
+
+
+拆分独立校验覆盖现有test.stage1a-contract、test.cocos-session、test.cocos-ui-command-queue、test.cocos-scene-binding-application及test.cocos-wechat-runtime的正式执行、拒绝和回执行为；保留full/blocker与既有Web、其他仓储动作回归。实际结果以本轮执行及对应提交为准。

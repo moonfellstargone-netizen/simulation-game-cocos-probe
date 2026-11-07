@@ -59,6 +59,70 @@ test('Cocos UI command queue executes shell commands and returns render snapshot
   assert.equal(destroyed.snapshot.lifecycle.has_session, false);
 });
 
+test('direct split queue validates independently without preview and rejects before dispatch', async () => {
+  const { host, queue, storage } = makeQueuedShell();
+  await queue.execute({ name: 'create_session' });
+  const session = host.requireSession();
+  const lot = session.getSelectableViewModel().splittable_lot_options.find(item => item.enabled && item.quantity.unit === 'count' && item.quantity.amount >= 2);
+  assert.ok(lot);
+  const before = await captureSerializedSession(session, storage, 'direct_split_before');
+  let previews = 0;
+  const originalPreview = session.preview.bind(session);
+  session.preview = () => { previews++; throw new Error('direct split must not call preview'); };
+  const invalid = await queue.execute({ name: 'menu_confirm_split_direct', selection: { action_type: 'split_lot', source_lot_option_id: lot.id, quantity: { amount: 0.5, unit: 'count' } } });
+  assert.equal(invalid.status, 'completed');
+  assert.deepEqual(invalid.snapshot.menu.last_split_validation_result, { action_type: 'split_lot', success: false, status_code: 'ERR_SPLIT_QUANTITY_INVALID' });
+  assert.equal(invalid.snapshot.menu.last_action_result, null);
+  assert.equal(invalid.snapshot.menu.last_preview_result, null);
+  assert.equal(await captureSerializedSession(session, storage, 'direct_split_after_rejection'), before);
+  assert.equal(previews, 0);
+  const selection = { action_type: 'split_lot' as const, source_lot_option_id: lot.id, quantity: { amount: 1, unit: 'count' as const } };
+  const [first, second] = await Promise.all([
+    queue.enqueue({ name: 'menu_confirm_split_direct', selection }),
+    queue.enqueue({ name: 'menu_confirm_split_direct', selection })
+  ]);
+  for (const result of [first, second]) {
+    assert.equal(result.status, 'completed');
+    assert.equal(result.command_name, 'menu_confirm_split_direct');
+    assert.deepEqual(result.snapshot.menu.last_split_validation_result, { action_type: 'split_lot', success: true, status_code: 'OK' });
+    assert.equal(result.snapshot.menu.last_preview_result, null);
+    assert.equal(result.snapshot.menu.last_action_result?.success, true);
+    assert.equal(result.snapshot.menu.last_action_result?.created_objects.length, 1);
+  }
+  assert.notEqual(first.snapshot.menu.last_action_result?.created_objects[0]?.object_id, second.snapshot.menu.last_action_result?.created_objects[0]?.object_id);
+  const remaining = session.getSelectableViewModel().splittable_lot_options.find(item => item.id === lot.id);
+  assert.equal(remaining?.quantity.amount, lot.quantity.amount - 2);
+  assert.equal(previews, 0);
+  session.preview = originalPreview;
+  const legacy = await queue.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
+  assert.equal(legacy.snapshot.menu.last_preview_result?.success, true, 'legacy confirm retains preview behavior');
+  assert.equal(legacy.snapshot.menu.last_split_validation_result, null);
+  host.destroySession();
+});
+
+test('direct split distinguishes dispatch-side failure from safe pre-dispatch rejection', async () => {
+  const { host, queue } = makeQueuedShell();
+  await queue.execute({ name: 'create_session' });
+  const session = host.requireSession();
+  const lot = session.getSelectableViewModel().splittable_lot_options.find(item => item.enabled && item.quantity.unit === 'count' && item.quantity.amount > 1);
+  assert.ok(lot);
+  let previewCalls = 0;
+  session.preview = () => { previewCalls++; throw new Error('unexpected preview'); };
+  const dispatch = session.dispatch.bind(session);
+  session.dispatch = ((...args: Parameters<typeof session.dispatch>) => {
+    dispatch(...args);
+    throw new Error('injected failure after formal commit');
+  }) as typeof session.dispatch;
+  const result = await queue.execute({ name: 'menu_confirm_split_direct', selection: { action_type: 'split_lot', source_lot_option_id: lot.id, quantity: { amount: 1, unit: 'count' } } });
+  assert.equal(result.status, 'failed');
+  assert.equal(result.snapshot.menu.last_split_validation_result?.success, true, 'pre-dispatch validation succeeded');
+  assert.equal(result.snapshot.menu.last_action_result, null, 'missing result must not imply rollback');
+  assert.match(result.error_message ?? '', /injected failure after formal commit/);
+  assert.equal(session.getSelectableViewModel().splittable_lot_options.find(item => item.id === lot.id)?.quantity.amount, lot.quantity.amount - 1);
+  assert.equal(previewCalls, 0);
+  host.destroySession();
+});
+
 test('Cocos UI command queue serializes async save/load commands in enqueue order', async () => {
   const storage = new ControlledSaveStoragePort();
   const { queue } = makeQueuedShell(storage);

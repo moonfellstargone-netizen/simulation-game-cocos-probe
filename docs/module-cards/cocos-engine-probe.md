@@ -9,7 +9,7 @@ source_of_truth: false
 
 ## 模块职责
 
-apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期桥接。只有该outer可使用cc；旧game-core、cocos-app、cocos-creator-adapter保持engine-neutral。既有网页支持农事、公开材料批次浏览、正式store_item整批转移及手动本地单槽存读档。既有网页拆分及核心校验保持；既有outer消费app最小只读配方/操作约束及燃料投影，提供第四网页烹饪选料与真实菜品反馈；既有加工页保留，正式匹配、数量、时间和事务仍由既有核心校验，真实输入另行验收。
+apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期桥接。本Web outer可使用cc，独立微信outer另见cocos-wechat-probe模块卡；旧game-core、cocos-app、cocos-creator-adapter保持engine-neutral。既有网页支持农事、公开材料批次浏览、正式store_item整批转移及手动本地单槽存读档。既有网页拆分及核心校验保持；既有outer消费app最小只读配方/操作约束及燃料投影，提供第四网页烹饪选料与真实菜品反馈；既有加工页保留，正式匹配、数量、时间和事务仍由既有核心校验，真实输入另行验收。
 
 工程从唯一src/design_snapshot派生runtime、snapshot及全部58项Schema；工作副本、依赖、缓存、报告和构建均在仓库外，禁止手改副本成为第二源码权威。script.loose=false保留标准JavaScript语义，不能恢复Creator默认loose破坏Ajv继承getter的已知转换。
 
@@ -32,7 +32,7 @@ apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期
 - apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts：无cc的单次操作协调、busy和销毁后迟到反馈保护。
 - apps/cocos-probe/template/assets/scripts/ProbeFarming.ts：公开选项副本、当前选择、带单位播种数量和既有菜单命令草稿。
 - apps/cocos-probe/template/build-templates/web-desktop/index.ejs、probe-viewport.css、probe-viewport.js：官方构建模板上的页面容器和视口同步；保留cocosTemplate注入，不能手改派生index.html。
-- tools/cocos-probe/prepare.mjs：唯一来源派生仓库外工程。
+- tools/cocos-probe/prepare.mjs：兼容Web入口，经固定共享prepareProject生产者从唯一来源派生仓库外工程。
 - tools/cocos-probe/build.mjs：真实构建及Web逐文件/目录摘要。
 - tools/cocos-probe/verify-web.mjs：verifyWebProbe(options)与独立真实浏览器CLI。
 - tools/cocos-probe/lib/webProbeSupport.mjs：构建/验收共享的HTTP、参数、来源与Web摘要辅助。

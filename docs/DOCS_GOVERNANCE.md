@@ -1,4 +1,4 @@
-﻿# DOCS_GOVERNANCE — v0.0.2.46
+﻿# DOCS_GOVERNANCE — v0.0.3.0
 
 文档治理规范。
 
@@ -119,3 +119,7 @@ trace.orders.legal-state-deadline保留既有三处来源与核心/预览/Sessio
 ## 触摸与小屏追踪
 
 trace.cocos.touch-small-screen连接纯布局/原生输入、工具与Node负例，保留全部旧active/planned条目。新增helper/.meta及测试登记prepare/lifecycle，布局测试真实进入lifecycle args/package脚本；实际改动测试逐文件affected闭合，不改算法或策略。地图登记不证明Creator、浏览器或手机通过；真实输入和图检按精确候选独立记录。
+
+## 微信M1文档与运行结果
+
+新增cocos-wechat-probe模块卡、ADR-0005与trace.cocos.wechat-m1连接真实源和两项full/blocker测试；地图不代替源码或运行证明。版本名称为WeChat Stage1A Pilot，当前为M3库存拆分包；完整M3和M4的后续要求不自动成为已实现项。实际账号、安装、构建/输入结果与报告保持仓库外，不把当轮过程记录写成永久规则。

@@ -61,6 +61,28 @@ test('scene binding distinguishes preview and confirm refresh areas while preser
   assert.equal(host.requireSession().getViewModel().time_label, 'day 1 minute 420');
 });
 
+test('scene binding forwards direct split validation and real action without invoking preview', async () => {
+  const { host, binding, port } = makeSceneBinding();
+  await binding.execute({ name: 'create_session' });
+  const session = host.requireSession();
+  const lot = session.getSelectableViewModel().splittable_lot_options.find(item => item.enabled && item.quantity.unit === 'count' && item.quantity.amount > 1);
+  assert.ok(lot);
+  let previews = 0;
+  session.preview = () => { previews++; throw new Error('unexpected preview'); };
+  port.clear();
+  const result = await binding.execute({ name: 'menu_confirm_split_direct', selection: { action_type: 'split_lot', source_lot_option_id: lot.id, quantity: { amount: 1, unit: 'count' } } });
+  assert.equal(result.command_result.command_name, 'menu_confirm_split_direct');
+  assert.equal(result.command_result.status, 'completed');
+  assert.equal(result.command_result.snapshot.menu.last_split_validation_result?.success, true);
+  assert.equal(result.command_result.snapshot.menu.last_preview_result, null);
+  assert.equal(result.command_result.snapshot.menu.last_action_result?.success, true);
+  assert.equal(result.applied_updates.some(update => update.section === 'menu'), true);
+  assert.equal(port.recordedUpdates().some(update => update.section === 'menu'), true);
+  assert.equal(session.getSelectableViewModel().splittable_lot_options.find(item => item.id === lot.id)?.quantity.amount, lot.quantity.amount - 1);
+  assert.equal(previews, 0);
+  host.destroySession();
+});
+
 test('scene binding forwards save/load refreshes and preserves load failure safety', async () => {
   const { host, binding, storage } = makeSceneBinding();
   await binding.execute({ name: 'create_session' });
