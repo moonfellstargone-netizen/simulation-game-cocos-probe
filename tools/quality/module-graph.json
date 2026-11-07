@@ -1,5 +1,5 @@
 {
-  "version": "0.0.2.46",
+  "version": "0.0.3.0",
   "modules": {
     "game-core": {
       "roots": [
@@ -13,7 +13,8 @@
         "wx",
         "node:fs",
         "fs",
-        "apps/cocos-probe/**"
+        "apps/cocos-probe/**",
+        "apps/cocos-wechat-probe/**"
       ],
       "tags": [
         "core",
@@ -35,7 +36,8 @@
         "node:fs",
         "fs",
         "tests/**",
-        "apps/cocos-probe/**"
+        "apps/cocos-probe/**",
+        "apps/cocos-wechat-probe/**"
       ],
       "tags": [
         "adapter",
@@ -59,7 +61,8 @@
         "fs",
         "src/game-core/dev-api.ts",
         "src/game-core/testing-api.ts",
-        "apps/cocos-probe/**"
+        "apps/cocos-probe/**",
+        "apps/cocos-wechat-probe/**"
       ],
       "tags": [
         "creator-adapter",
@@ -171,6 +174,31 @@
         "release-blocker"
       ],
       "description": "真实Creator外层工程源模板，单向消费派生的公共runtime；可用cc，禁止业务内部和测试依赖。可打开副本及缓存/构建位于仓库外。"
+    },
+    "cocos-wechat-probe": {
+      "roots": [
+        "apps/cocos-wechat-probe/**"
+      ],
+      "dependsOn": [
+        "cocos-creator-adapter",
+        "cocos-app",
+        "game-core"
+      ],
+      "forbiddenDeps": [
+        "wx",
+        "fs",
+        "node:fs",
+        "tools/**",
+        "tests/**",
+        "src/game-core/dev-api.ts",
+        "src/game-core/testing-api.ts"
+      ],
+      "tags": [
+        "cocos-engine",
+        "wechat-probe",
+        "release-blocker"
+      ],
+      "description": "M1最小微信小游戏源模板：真实cc仅在此平台outer使用，单向消费派生公共runtime；禁止wx/fs及内部/测试依赖。候选身份只读，临时内存新局，不提供M2持久化。"
     }
   }
 }

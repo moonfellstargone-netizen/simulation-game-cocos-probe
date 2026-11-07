@@ -7,6 +7,83 @@ import { resolveGateTasks } from '../tools/quality/lib/resolveGateTasks.mjs';
 const root = process.cwd();
 const readJson = (rel) => JSON.parse(readFileSync(join(root, rel), 'utf8'));
 
+test('WeChat M1 and M2 trace closes over executed preparation, runtime and storage contracts without opening Stage1B', () => {
+  const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();
+  const entry = traceabilityMap.entries.find(item => item.id === 'trace.cocos.wechat-m1');
+  assert.equal(entry?.status, 'active');
+  assert.equal(entry.stage, 'Stage 1A');
+  assert.ok(traceabilityMap.currentFullReleaseTraceIds.includes(entry.id));
+  for (const module of ['cocos-wechat-probe', 'tools', 'tests']) assert.ok(entry.moduleRefs.includes(module));
+  for (const [id, file] of [['test.cocos-wechat-preparation', 'tests/cocos-wechat-preparation.test.mjs'], ['test.cocos-wechat-runtime', 'tests/cocos-wechat-runtime.test.ts']]) {
+    assert.ok(entry.testRefs.includes(id));
+    const task = registry.tests[id];
+    assert.equal(task.stability, 'blocker');
+    for (const tag of ['full', 'blocker']) assert.ok(task.tags.includes(tag));
+    assert.ok(task.args.includes(file), id + ' must execute its test');
+    assert.ok(task.files.includes(file));
+    for (const module of ['cocos-wechat-probe', 'tests']) assert.ok(task.covers.includes(module));
+    for (const gate of ['full', 'release']) assert.ok(resolveGateTasks(gate, gatePolicy, registry).some(item => item.id === id));
+  }
+  const preparation = registry.tests['test.cocos-wechat-preparation'];
+  for (const file of ['tools/cocos-probe/lib/prepareProject.mjs', 'tools/cocos-probe/lib/webProbeSupport.mjs', 'tools/cocos-wechat-probe/prepare.mjs', 'tools/cocos-wechat-probe/build.mjs', 'tools/cocos-wechat-probe/lib/source.mjs', 'tools/cocos-wechat-probe/lib/sourceProvenance.mjs']) assert.ok(preparation.files.includes(file));
+  assert.ok(registry.tests['test.cocos-probe-preparation'].files.includes('tools/cocos-probe/lib/prepareProject.mjs'));
+  const bootstrap = registry.tests['test.stage1a-bootstrap'];
+  const precompiledTest = 'tests/runtime-precompiled-schema.test.ts';
+  assert.ok(entry.testRefs.includes('test.stage1a-bootstrap'));
+  assert.ok(bootstrap.args.includes(precompiledTest), 'bootstrap must actually execute the precompiled schema contract');
+  assert.ok(bootstrap.files.includes(precompiledTest));
+  assert.ok(readJson('package.json').scripts['test:stage1a-bootstrap'].split(/\s+/).includes(precompiledTest));
+  for (const file of ['src/game-core/validation/RuntimeSchemaValidator.ts', 'src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts', 'tools/cocos-wechat-probe/lib/precompiledSchemas.mjs']) assert.ok(entry.sourceRefs.includes(file));
+  assert.ok(preparation.files.includes('tools/cocos-wechat-probe/lib/precompiledSchemas.mjs'));
+  for (const module of ['game-core', 'cocos-creator-adapter']) assert.ok(entry.moduleRefs.includes(module));
+  const cloneHelper = 'apps/cocos-wechat-probe/runtime/WechatDataClone.ts';
+  const cloneTest = 'tests/cocos-wechat-data-clone.test.ts';
+  const runtime = registry.tests['test.cocos-wechat-runtime'];
+  const m3UiTest = 'tests/cocos-wechat-m3-ui.test.ts';
+  assert.ok(existsSync(join(root, m3UiTest)), 'M3 outer interaction test must exist');
+  assert.ok(runtime.args.includes(m3UiTest), 'runtime must execute M3 outer interactions');
+  assert.ok(runtime.files.includes(m3UiTest), 'runtime must register M3 outer interactions');
+  assert.ok(readJson('package.json').scripts['test:cocos-wechat-runtime'].split(/\s+/).includes(m3UiTest));
+  const optimizationTest = 'tests/cocos-wechat-schema-optimization.test.mjs';
+  assert.ok(existsSync(join(root, optimizationTest)));
+  assert.ok(runtime.args.includes(optimizationTest), 'runtime must execute the Schema optimization contract');
+  assert.ok(readJson('package.json').scripts['test:cocos-wechat-runtime'].split(/\s+/).includes(optimizationTest));
+  assert.ok(runtime.covers.includes('tools'));
+  for (const file of [optimizationTest, 'tools/cocos-wechat-probe/lib/precompiledSchemas.mjs', 'tools/cocos-wechat-probe/lib/sourceProvenance.mjs', 'tools/cocos-wechat-probe/prepare.mjs']) {
+    assert.ok(runtime.files.includes(file), 'runtime must register ' + file);
+    assert.ok(preparation.files.includes(file), 'preparation must register ' + file);
+  }
+  assert.ok(entry.sourceRefs.includes(cloneHelper));
+  assert.ok(runtime.args.includes(cloneTest), 'runtime task must execute the DTO clone contract');
+  assert.ok(readJson('package.json').scripts['test:cocos-wechat-runtime'].split(/\s+/).includes(cloneTest));
+  for (const file of [cloneHelper, cloneTest]) {
+    assert.ok(runtime.files.includes(file));
+    assert.ok(preparation.files.includes(file));
+  }
+  const storageSource = 'apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts';
+  const storageTest = 'tests/cocos-wechat-storage.test.ts';
+  assert.ok(entry.sourceRefs.includes(storageSource), 'M2 storage source must be traced');
+  assert.ok(runtime.args.includes(storageTest), 'runtime task must execute M2 storage and failure contracts');
+  assert.ok(readJson('package.json').scripts['test:cocos-wechat-runtime'].split(/\s+/).includes(storageTest));
+  for (const file of [storageSource, storageSource + '.meta', storageTest]) {
+    assert.ok(existsSync(join(root, file)), file + ' must exist');
+    assert.ok(runtime.files.includes(file), 'runtime must register ' + file);
+    assert.ok(preparation.files.includes(file), 'preparation must register ' + file);
+  }
+  for (const module of ['cocos-wechat-probe', 'cocos-creator-adapter', 'cocos-app', 'game-core', 'tests']) {
+    assert.ok(runtime.covers.includes(module), 'M2 affected coverage must include ' + module);
+  }
+  const storageContracts = readFileSync(join(root, storageTest), 'utf8');
+  for (const behavior of ['backup partial-write', 'main partial-write', 'interrupted first save', 'marker cleanup failures', 'corrupt backup']) {
+    assert.ok(storageContracts.includes(behavior), 'missing executable M2 negative case: ' + behavior);
+  }
+  assert.equal(traceabilityMap.entries.find(item => item.id === 'trace.stage1b.wx-storage-port')?.status, 'planned');
+  const card = readFileSync(join(root, 'docs/module-cards/cocos-wechat-probe.md'), 'utf8');
+  for (const phrase of ['M2候选', 'M3', 'M4', '不取自SaveFile', '禁止直接wx/fs', '真实微信断电']) assert.ok(card.includes(phrase), phrase);
+  const historicalM1 = readFileSync(join(root, 'docs/adr/ADR-0005-independent-wechat-m1-outer.md'), 'utf8');
+  assert.ok(historicalM1.includes('M1注入临时InMemorySaveStoragePort'), 'M1 historical design must remain explicit');
+});
+
 
 test('touch small-screen trace closes over executed layout and browser assertion contracts', () => {
   const { traceabilityMap, registry, gatePolicy } = loadTraceabilityContext();

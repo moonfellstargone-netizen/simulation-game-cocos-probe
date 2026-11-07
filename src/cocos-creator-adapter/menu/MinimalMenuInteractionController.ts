@@ -2,6 +2,7 @@ import type { CocosSessionHost } from '../CocosSessionHost';
 import { MenuActionBinding, type MenuActionSelection } from './MenuActionBinding';
 import { MinimalMenuPresenter } from './MinimalMenuPresenter';
 import type { MenuRenderSnapshot } from './MenuRenderSnapshot';
+import type { StartProcessingParams, CollectProcessingResultParams } from '../../game-core';
 
 export class MinimalMenuInteractionController {
   private readonly binding = new MenuActionBinding();
@@ -53,6 +54,64 @@ export class MinimalMenuInteractionController {
       this.presenter.renderError(this.toError(error));
       return this.presenter.currentSnapshot();
     }
+  }
+
+  confirmSplitDirect(selection: Extract<MenuActionSelection, { action_type: 'split_lot' }>): MenuRenderSnapshot {
+    this.presenter.clearTransientResults();
+    const session = this.host.requireSession();
+    let parameters: { source_lot_id: string; quantity: typeof selection.quantity };
+    try {
+      if (selection.action_type !== 'split_lot') throw new Error('ERR_MENU_SPLIT_ACTION_INVALID');
+      const selectable = session.getSelectableViewModel();
+      this.presenter.renderSelectableViewModel(selectable);
+      const draft = this.binding.buildDraft(selectable, selection);
+      if (draft.action_type !== 'split_lot') throw new Error('ERR_MENU_SPLIT_ACTION_INVALID');
+      parameters = draft.parameters as typeof parameters;
+      session.validateSplit(parameters.source_lot_id, parameters.quantity);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.presenter.renderSplitValidation({ action_type: 'split_lot', success: false, status_code: message.split(':')[0] || 'ERR_UNKNOWN' });
+      return this.presenter.currentSnapshot();
+    }
+    this.presenter.renderSplitValidation({ action_type: 'split_lot', success: true, status_code: 'OK' });
+    try {
+      this.presenter.renderActionResult(session.dispatch('split_lot', parameters));
+      this.presenter.renderViewModel(session.getViewModel());
+      this.presenter.renderSelectableViewModel(session.getSelectableViewModel());
+    } catch (error) {
+      this.presenter.renderError(this.toError(error));
+    }
+    return this.presenter.currentSnapshot();
+  }
+
+  confirmProcessingDirect(selection: Extract<MenuActionSelection, { action_type: 'start_processing' | 'collect_processing_result' }>): MenuRenderSnapshot {
+    this.presenter.clearTransientResults();
+    const session = this.host.requireSession();
+    const actionType = selection.action_type;
+    let parameters: StartProcessingParams | CollectProcessingResultParams;
+    try {
+      if (actionType !== 'start_processing' && actionType !== 'collect_processing_result') throw new Error('ERR_MENU_PROCESSING_ACTION_INVALID');
+      const selectable = session.getSelectableViewModel();
+      this.presenter.renderSelectableViewModel(selectable);
+      const draft = this.binding.buildDraft(selectable, selection);
+      if (draft.action_type !== actionType) throw new Error('ERR_MENU_PROCESSING_ACTION_INVALID');
+      parameters = draft.parameters as StartProcessingParams | CollectProcessingResultParams;
+      if (actionType === 'start_processing') session.validateStartProcessing(parameters as StartProcessingParams);
+      else session.validateCollectProcessing((parameters as CollectProcessingResultParams).task_id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.presenter.renderProcessingValidation({ action_type: actionType, success: false, status_code: message.split(':')[0] || 'ERR_UNKNOWN' });
+      return this.presenter.currentSnapshot();
+    }
+    this.presenter.renderProcessingValidation({ action_type: actionType, success: true, status_code: 'OK' });
+    try {
+      this.presenter.renderActionResult(session.dispatch(actionType, parameters));
+      this.presenter.renderViewModel(session.getViewModel());
+      this.presenter.renderSelectableViewModel(session.getSelectableViewModel());
+    } catch (error) {
+      this.presenter.renderError(this.toError(error));
+    }
+    return this.presenter.currentSnapshot();
   }
 
   currentSnapshot(): MenuRenderSnapshot {

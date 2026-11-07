@@ -1,8 +1,8 @@
-# CHECK_ARCHITECTURE — v0.0.2.46
+# CHECK_ARCHITECTURE — v0.0.3.0
 
-v0.0.2.46 / Touch Interaction & Small-screen Readiness验证约定built-web触摸视口800×360、844×390、960×432及844×250→390缩高恢复；正文14CSSpx、按钮/EditBox命中高44CSSpx，滚动取消与一次tap一次请求需真实事件和本次结果证据。旧鼠标矩阵、经营/五点恢复、存储故障和销毁回归保持；根typecheck和Node不能代替真实Creator SDK、构建与浏览器验收，不修改门禁策略、阈值或正式资源。
+v0.0.3.0 / WeChat Stage1A Pilot。本轮唯一目标是v0.0.3.0的M3微信加工包：在M2及M3种植、库存与拆分候选基础上，接入加工方法、材料、设施、任务、开工与领取，并保留时间推进、手动存读档和前后台保护。加工预览可选，直接确认使用独立正式校验；候选依赖PR25、PR26、PR27和PR28的既有变更，正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；本包不代表M3完整经营或M4手机验收完成。
 
-## 1. 本轮检查目标
+## 1. 既有Web检查目标（保留）
 
 既有trace.cocos.web-viewport-input继续追踪视口与物理输入；新增订单网页验证不替代既有矩阵、resize、农事、拆分、加工、烹饪与清理检查。
 
@@ -40,7 +40,7 @@ Node任务与独立真实验收分别追踪。本版新增trace.cocos.web-orders
 
 ## 7. 业务边界不变
 
-旧game-core、cocos-app、cocos-creator-adapter仍不接真实 Cocos、不接 wx或fs；只有既有cocos-engine-probe外层可导入cc，并受单向公开runtime边界约束。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture，不新增玩法、微信存储、AOT或资源热更新。
+旧game-core、cocos-app、cocos-creator-adapter仍不接真实 Cocos、不接 wx或fs；已登记Web与微信outer可导入cc，并受单向公开runtime边界约束。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture，不新增玩法或资源热更新；微信存储由独立outer适配，正式Schema保留构建期预编译兼容，其他AOT不在当前范围。
 
 ## 8. Cursor 预检
 
@@ -52,7 +52,7 @@ cache probe 位于 `.cache/quality`，report-only。`q:release` 不 include affe
 
 ## 10. 后续路线（不是授权目标）
 
-Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.2.46 范围。traceability map 中 `planned` 条目**不是**当前实现。
+Nightly gate 实装、Wx Storage Port、完整 AST/symbol 自动索引均为后续候选，不是 v0.0.3.0 范围。traceability map 中 `planned` 条目**不是**当前实现。
 
 ## 11. 固定检查短语
 
@@ -109,3 +109,25 @@ trace.cocos.cross-step-recovery的新增集成行为由test.stage1a-bootstrap实
 ## 触摸与小屏检查
 
 trace.cocos.touch-small-screen复用prepare/lifecycle/web-verification三项full/blocker；ProbeLayout及.meta、布局测试登记files，测试进入实际lifecycle args/package脚本。quality-affected和traceability契约验证单文件执行与追踪闭合，门禁仍47任务/full45/release47；Node契约不执行真实浏览器，最终固定提交另验Creator/SDK、旧built/editor链及新增真实触摸与逐图检查。
+
+## M1微信独立验收
+
+test:cocos-wechat-preparation / test.cocos-wechat-preparation实际执行tests/cocos-wechat-preparation.test.mjs；test:cocos-wechat-runtime / test.cocos-wechat-runtime实际执行tests/cocos-wechat-runtime.test.ts，均为full/blocker。trace.cocos.wechat-m1连接新outer、共享生产者、微信构建、候选身份、架构负例和质量登记。Node只能证明受控准备/行为契约；真实Creator3.8.8/SDK、官方微信工具场景/输入/日志/重载、受影响Web回归和最终提交CI各自验收。旧全部追踪、权威架构禁令和Web功能/来源检查保留，不以修改阈值、预期、CI或affected算法通过门禁。
+
+独立apps/cocos-wechat-probe模块只消费派生公共runtime与正式资源，可使用cc，禁止直接wx/fs、业务内部、工具和测试依赖；旧三层不得反向依赖它。微信outer通过Creator平台存储外层提供手动单槽存读档及备份恢复，不增加自动保存或离线补时。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture；planned Stage1B wx-storage-port不转active。
+
+共享helper进入旧preparation的files；新增两项任务实际args/files/covers闭合。新构建记录只认可微信game.js/game.json/project.config.json，Web记录仍要求index.html，两者不可互换。官方工具运行和一次真实输入的证据独立记录，不从安装、CLI或普通小程序页面自动化推断小游戏Canvas已可控。
+
+## 正式Schema预编译覆盖
+
+tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / registry test.stage1a-bootstrap实际args/files/covers，沿用full/blocker，不新增任务或降低门禁。该测试覆盖禁用动态Function后的正式启动/合法动作及坏请求、集合/内容拒绝；微信preparation契约覆盖实际facade、全部Schema、来源与生成物篡改，资源预检标记为node-aot-public-bootstrap-passed。Web旧resourcePreflight和默认动态路径保持。Node不替代新提交的Creator/SDK、微信真实输入/日志/重载、Web回归或审查/CI。
+
+Schema预编译只解除微信运行时动态编译依赖；M2存储通过独立outer适配，不因此开放Stage1B、其他AOT或M3—M4。
+
+## M2微信存储与生命周期
+
+M2运行时改动集中于独立微信outer，并同步构建来源、测试和文档：手动单逻辑槽经Creator sys.localStorage接入平台存储，保存与读取沿既有Session/SaveManager及校验；前后台事件只限制输入与维护会话，不自动存档或补算时间。旧三层及outer直接wx/fs禁令保持，正式SaveFile和玩法不变。
+
+备份与中断保护须同时考虑失败前后可能发生写入：备份、主档与恢复信息分开；读取、恢复和失败路径以源码及针对性测试为准，不能将异常等同于未落盘。故障保护依赖存储键相互独立和可读回一致的有限模型，真实微信断电、设备故障及底层原子性未证明。备份恢复不等于跨平台导入或自动存档。
+
+tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的args/files，相关源及meta也进入preparation/runtime登记和trace.cocos.wechat-m1。受控Node契约不替代真实Creator、官方微信工具输入/存储/生命周期、最终提交CI或手机验收；具体结果以仓库外证据为准。

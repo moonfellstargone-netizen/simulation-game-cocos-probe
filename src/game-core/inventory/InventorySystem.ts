@@ -3,10 +3,12 @@ import type { ConfigRepository } from '../config/ConfigRepository';
 import { QuantityService } from '../shared/quantity';
 import type { IdService } from '../id/IdService';
 import { ReservationGuard } from '../reservation/ReservationGuard';
+import { StorageReconciler } from '../storage/StorageReconciler';
 
 export class InventorySystem {
   private readonly quantity = new QuantityService();
   private readonly reservations = new ReservationGuard();
+  private readonly storage = new StorageReconciler();
 
   constructor(private readonly ids: IdService, private readonly configs: ConfigRepository) {}
 
@@ -19,11 +21,9 @@ export class InventorySystem {
   consume(save: SaveFile, lotId: string, required: Quantity): MaterialLot {
     const lot = this.findMaterialLot(save, lotId);
     this.reservations.assertNoActiveReservationForConsumption(save, lotId, required);
-    if (!this.quantity.hasAtLeast(lot.quantity, required)) throw new Error('ERR_NOT_ENOUGH_RESOURCE');
-    const originalAmount = lot.quantity.amount;
-    const originalFootprint = { ...lot.storage_footprint };
-    lot.quantity = this.quantity.subtract(lot.quantity, required);
-    lot.storage_footprint = this.scaleFootprintForRemaining(originalFootprint, lot.quantity.amount, originalAmount);
+    const { quantity, footprint } = this.consumptionResult(lot, required);
+    lot.quantity = quantity;
+    lot.storage_footprint = footprint;
     lot.last_update_time = save.world_time.absolute_minute;
     if (lot.quantity.amount === 0) {
       save.inventory = save.inventory.filter((item) => item.lot_id !== lotId);
@@ -31,26 +31,35 @@ export class InventorySystem {
     return lot;
   }
 
+  // Calculate sequential consumption without changing state or allocating IDs.
+  // Repeated lots retain the existing order, including removal after full consumption.
+  planConsumption(save: SaveFile, inputs: readonly { lot_id: string; quantity: Quantity }[]): MaterialLot[] {
+    let inventory = save.inventory.slice();
+    for (const input of inputs) {
+      const projected = { ...save, inventory };
+      const lot = this.findMaterialLot(projected, input.lot_id);
+      this.reservations.assertNoActiveReservationForConsumption(projected, input.lot_id, input.quantity);
+      const { quantity, footprint } = this.consumptionResult(lot, input.quantity);
+      inventory = quantity.amount === 0 ? inventory.filter(item => item.lot_id !== input.lot_id)
+        : inventory.map(item => item !== lot ? item : { ...item, quantity, storage_footprint: footprint });
+    }
+    return inventory;
+  }
+
+  private consumptionResult(lot: MaterialLot, required: Quantity): { quantity: Quantity; footprint: Quantity } {
+    if (!this.quantity.hasAtLeast(lot.quantity, required)) throw new Error('ERR_NOT_ENOUGH_RESOURCE');
+    const originalAmount = lot.quantity.amount;
+    const originalFootprint = { ...lot.storage_footprint };
+    const quantity = this.quantity.subtract(lot.quantity, required);
+    return { quantity, footprint: this.scaleFootprintForRemaining(originalFootprint, quantity.amount, originalAmount) };
+  }
+
   assertNoActiveReservation(save: SaveFile, lotId: string, quantity: Quantity): void {
     this.reservations.assertNoActiveReservationForConsumption(save, lotId, quantity);
   }
 
   split(save: SaveFile, sourceLotId: string, splitQuantity: Quantity): MaterialLot {
-    const source = this.findMaterialLot(save, sourceLotId);
-    this.assertSplitQuantity(source.quantity);
-    this.assertSplitQuantity(splitQuantity);
-    if (!this.quantity.hasAtLeast(source.quantity, splitQuantity)) throw new Error('ERR_NOT_ENOUGH_RESOURCE');
-    this.assertNoActiveReservation(save, sourceLotId, splitQuantity);
-    const originalAmount = source.quantity.amount;
-    const sourceRemainingAmount = originalAmount - splitQuantity.amount;
-    if (!Number.isFinite(sourceRemainingAmount) || sourceRemainingAmount < 0 || sourceRemainingAmount >= originalAmount
-      || ((source.quantity.unit === 'count' || Number.isInteger(splitQuantity.amount))
-        && originalAmount - sourceRemainingAmount !== splitQuantity.amount)) {
-      throw new Error('ERR_SPLIT_QUANTITY_NOT_REPRESENTABLE');
-    }
-    const rule = this.splitFootprintRule(source);
-    const splitFootprint = this.footprintFromDefinition(splitQuantity.amount, rule);
-    const sourceFootprint = sourceRemainingAmount > 0 ? this.footprintFromDefinition(sourceRemainingAmount, rule) : null;
+    const { source, sourceRemainingAmount, splitFootprint, sourceFootprint } = this.planSplit(save, sourceLotId, splitQuantity);
     const split: MaterialLot = {
       ...structuredClone(source),
       lot_id: this.ids.next('lot_split'),
@@ -76,6 +85,32 @@ export class InventorySystem {
     }
     save.inventory.push(split);
     return split;
+  }
+
+  assertCanSplit(save: SaveFile, sourceLotId: string, splitQuantity: Quantity): void {
+    this.planSplit(save, sourceLotId, splitQuantity);
+  }
+
+  private planSplit(save: SaveFile, sourceLotId: string, splitQuantity: Quantity): {
+    source: MaterialLot; sourceRemainingAmount: number; splitFootprint: Quantity; sourceFootprint: Quantity | null
+  } {
+    const source = this.findMaterialLot(save, sourceLotId);
+    this.assertSplitQuantity(source.quantity);
+    this.assertSplitQuantity(splitQuantity);
+    if (!this.quantity.hasAtLeast(source.quantity, splitQuantity)) throw new Error('ERR_NOT_ENOUGH_RESOURCE');
+    this.assertNoActiveReservation(save, sourceLotId, splitQuantity);
+    const originalAmount = source.quantity.amount;
+    const sourceRemainingAmount = originalAmount - splitQuantity.amount;
+    if (!Number.isFinite(sourceRemainingAmount) || sourceRemainingAmount < 0 || sourceRemainingAmount >= originalAmount
+      || ((source.quantity.unit === 'count' || Number.isInteger(splitQuantity.amount))
+        && originalAmount - sourceRemainingAmount !== splitQuantity.amount)) {
+      throw new Error('ERR_SPLIT_QUANTITY_NOT_REPRESENTABLE');
+    }
+    const rule = this.splitFootprintRule(source);
+    const splitFootprint = this.footprintFromDefinition(splitQuantity.amount, rule);
+    const sourceFootprint = sourceRemainingAmount > 0 ? this.footprintFromDefinition(sourceRemainingAmount, rule) : null;
+    this.storage.assertMaterialSplit(save, source, sourceFootprint, splitFootprint);
+    return { source, sourceRemainingAmount, splitFootprint, sourceFootprint };
   }
 
   private assertSplitQuantity(quantity: Quantity): void {

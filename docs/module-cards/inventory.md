@@ -59,3 +59,11 @@ source_of_truth: false
 InventorySystem经ConfigRepository读取当前已加载材料/种子定义，按ceil(quantity/base_quantity*footprint)、正数至少1slot_weight分别重算源余量和新批次占用；不从已取整旧占用继续按比例缩放，也不以直接数量比较容器容量。Runtime及Farming/Processing/Cooking只传播构造依赖，consume算法不改。数量/定义拒绝发生在修改及ID分配前；容量失败沿既有事务恢复领域状态，已消耗ID不要求回滚。
 
 trace.inventory.split-quantity连接InventorySystem及配置调用方，现有test.stage1a-contract、test.action-preview、test.cocos-session、test.cocos-menu验证完整状态、正/负例、定义变化、连续拆分、全量来源、预留/容量保护、公开预览与失败后存读档/健康恢复。正式资源、SaveFile、管线和核心规则保持；真实Creator与现有built/editor回归独立执行，网页拆分由trace.cocos.web-inventory-split独立真实输入验收，不从核心测试推定。
+
+## 拆分只读校验与容量
+
+InventorySystem.assertCanSplit与正式split复用同一拆分计划，按正式数量、单位、预留、定义和存储占用规则验证；只读校验不分配ID或提交状态。分发前的容量拒绝不会消耗拆分ID。StorageReconciler以相同占用顺序先计算再统一写回，成功规则保持；该共享对账也服务其他仓储动作和新局，异常时直接调用的中间写入行为与此前逐步写入不同，正式Action的异常依现有事务处理。
+
+## 加工输入投影
+
+InventorySystem.planConsumption以原有consume数量和占用算法按输入顺序构建只读库存投影；不改变正式重复批次语义。ProcessingSystem在实际消费前使用投影进行储存对账。

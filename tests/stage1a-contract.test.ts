@@ -121,6 +121,52 @@ test('split quantities reject invalid or unrepresentable changes before allocati
   assert.equal(healthy.domain_events[0]?.event_id, 'evt_000001');
 });
 
+test('independent split validation is read-only and shares formal quantity, unit, reservation and footprint rules', () => {
+  const { runtime, state } = buildRuntime();
+  const original = cloneForCompare(state);
+  for (const [source, amount, unit, code] of [
+    ['salt_initial_001', 201, 'g', 'ERR_NOT_ENOUGH_RESOURCE'],
+    ['salt_initial_001', 1, 'ml', 'ERR_QUANTITY_UNIT_MISMATCH'],
+    ['seed_cabbage_initial_001', 0.5, 'count', 'ERR_SPLIT_QUANTITY_INVALID'],
+    ['salt_initial_001', Number.MIN_VALUE, 'g', 'ERR_SPLIT_QUANTITY_NOT_REPRESENTABLE']
+  ] as const) {
+    assert.throws(() => runtime.inventory.assertCanSplit(state.save_file, source, { amount, unit }), new RegExp(code));
+    assert.deepEqual(state, original);
+  }
+  assert.doesNotThrow(() => runtime.inventory.assertCanSplit(state.save_file, 'salt_initial_001', { amount: 0.25, unit: 'g' }));
+  assert.doesNotThrow(() => runtime.inventory.assertCanSplit(state.save_file, 'salt_initial_001', { amount: 200, unit: 'g' }));
+  assert.deepEqual(state, original);
+  const reservationId = injectTestReservation(state, 'salt_initial_001', 1, 'validation');
+  const reserved = cloneForCompare(state);
+  assert.throws(() => runtime.inventory.assertCanSplit(state.save_file, 'salt_initial_001', { amount: 1, unit: 'g' }), /ERR_ALREADY_RESERVED/);
+  assert.deepEqual(state, reserved);
+  releaseTestReservation(state, reservationId);
+  const result = dispatch(runtime, state, 'split_lot', { source_lot_id: 'salt_initial_001', quantity: { amount: 0.25, unit: 'g' } }, 'independent_split_recovery');
+  assert.equal(result.success, true);
+  assert.equal(result.created_objects[0]?.object_id, 'lot_split_000001');
+  assert.equal(result.domain_events[0]?.event_id, 'evt_000001');
+});
+
+test('independent capacity validation rejects a partial split without consuming IDs but allows a full split at capacity', () => {
+  const { runtime, state } = buildRuntime();
+  const source = runtime.inventory.findMaterialLot(state.save_file, 'salt_initial_001');
+  const container = state.save_file.storage_containers.find(item => item.container_id === source.storage_ref.container_id)!;
+  container.capacity.amount = container.used_capacity;
+  const before = cloneForCompare(state);
+  assert.throws(() => runtime.inventory.assertCanSplit(state.save_file, source.lot_id, { amount: 1, unit: 'g' }), /ERR_STORAGE_CAPACITY_OVERFLOW/);
+  assert.deepEqual(state, before);
+  const failed = dispatch(runtime, state, 'split_lot', { source_lot_id: source.lot_id, quantity: { amount: 1, unit: 'g' } }, 'full_room_failure');
+  assert.equal(failed.status_code, 'ERR_STORAGE_CAPACITY_OVERFLOW');
+  assert.deepEqual(state, before);
+  assert.doesNotThrow(() => runtime.inventory.assertCanSplit(state.save_file, source.lot_id, { ...source.quantity }));
+  assert.deepEqual(state, before);
+  const full = dispatch(runtime, state, 'split_lot', { source_lot_id: source.lot_id, quantity: { ...source.quantity } }, 'full_room_full_split');
+  assert.equal(full.success, true);
+  assert.equal(full.created_objects[0]?.object_id, 'lot_split_000001');
+  assert.equal(full.domain_events[0]?.event_id, 'evt_000001');
+  new StorageAudit().assertReconciled(state.save_file);
+});
+
 test('full splits remove the empty source while preserving inherited data, lineage and reconciled capacity', () => {
   for (const id of ['salt_initial_001', 'seed_cabbage_initial_001']) {
     const { runtime, state, contracts } = buildRuntime();
@@ -366,6 +412,56 @@ test('start_processing consumes configured input lots, creates schema-valid Proc
   new StorageAudit().assertReconciled(state.save_file);
 });
 
+test('processing independent start validation is read-only and preserves repeated input order and IDs', () => {
+  const subject = buildRuntime(); const control = buildRuntime();
+  const cabbage = prepareHarvestedCabbage(subject.runtime, subject.state);
+  assert.equal(cabbage, prepareHarvestedCabbage(control.runtime, control.state));
+  const inputs = [
+    { lot_id: cabbage, quantity: { amount: 100, unit: 'g' } },
+    { lot_id: 'salt_initial_001', quantity: { amount: 15, unit: 'g' } },
+    { lot_id: cabbage, quantity: { amount: 200, unit: 'g' } }
+  ];
+  const before = cloneForCompare(subject.state);
+  subject.runtime.processing.assertCanStartProcessing(subject.state.save_file, 'pickling_cabbage_basic', inputs, picklingFacilityRef);
+  assert.deepEqual(subject.state, before);
+  const invalid = [...inputs, { lot_id: cabbage, quantity: { amount: 999999, unit: 'g' } }];
+  assert.throws(() => subject.runtime.processing.assertCanStartProcessing(subject.state.save_file, 'pickling_cabbage_basic', invalid, picklingFacilityRef), /ERR_NOT_ENOUGH_RESOURCE/);
+  assert.deepEqual(subject.state, before);
+  const rejected = dispatch(subject.runtime, subject.state, 'start_processing', { method_id: 'pickling_cabbage_basic', input_lots: invalid, facility_ref: picklingFacilityRef }, 'sequential_refusal');
+  assert.equal(rejected.status_code, 'ERR_NOT_ENOUGH_RESOURCE');
+  assert.deepEqual(subject.state, before);
+  const params = { method_id: 'pickling_cabbage_basic', input_lots: inputs, facility_ref: picklingFacilityRef };
+  const actual = dispatch(subject.runtime, subject.state, 'start_processing', params, 'sequential_healthy');
+  const expected = dispatch(control.runtime, control.state, 'start_processing', params, 'sequential_healthy');
+  assert.equal(actual.success, true);
+  assert.deepEqual(actual, expected);
+  assert.deepEqual(subject.state, control.state);
+});
+
+test('processing collection independently rejects full storage before allocating output IDs and recovers', () => {
+  const subject = buildRuntime(); const control = buildRuntime();
+  const taskId = prepareProcessingTask(subject.runtime, subject.state);
+  assert.equal(taskId, prepareProcessingTask(control.runtime, control.state));
+  assert.equal(dispatch(subject.runtime, subject.state, 'advance_time', { minutes: 2880 }, 'independent_ready').success, true);
+  assert.equal(dispatch(control.runtime, control.state, 'advance_time', { minutes: 2880 }, 'independent_ready').success, true);
+  const cellar = subject.state.save_file.storage_containers.find(item => item.container_id === 'home_cellar_01')!;
+  const originalCapacity = cellar.capacity.amount;
+  cellar.capacity.amount = cellar.used_capacity;
+  const before = cloneForCompare(subject.state);
+  assert.throws(() => subject.runtime.processing.assertCanCollect(subject.state.save_file, taskId), /ERR_STORAGE_CAPACITY_OVERFLOW/);
+  assert.deepEqual(subject.state, before);
+  const rejected = dispatch(subject.runtime, subject.state, 'collect_processing_result', { task_id: taskId }, 'independent_full');
+  assert.equal(rejected.status_code, 'ERR_STORAGE_CAPACITY_OVERFLOW');
+  assert.deepEqual(subject.state, before);
+  subject.state.save_file.storage_containers.find(item => item.container_id === 'home_cellar_01')!.capacity.amount = originalCapacity;
+  subject.runtime.processing.assertCanCollect(subject.state.save_file, taskId);
+  const actual = dispatch(subject.runtime, subject.state, 'collect_processing_result', { task_id: taskId }, 'independent_collect');
+  const expected = dispatch(control.runtime, control.state, 'collect_processing_result', { task_id: taskId }, 'independent_collect');
+  assert.equal(actual.success, true);
+  assert.deepEqual(actual, expected);
+  assert.deepEqual(subject.state, control.state);
+});
+
 test('processing required inputs reject missing material and subminimum salt before state or object IDs change', async (t) => {
   for (const missing of ['salt', 'cabbage', 'salt_below_minimum'] as const) {
     await t.test(missing, () => {
@@ -381,6 +477,8 @@ test('processing required inputs reject missing material and subminimum salt bef
         { lot_id: 'salt_initial_001', quantity: { amount: missing === 'salt_below_minimum' ? minimumSalt - 0.001 : minimumSalt, unit: 'g' } }
       ].filter((input) => missing === 'salt' ? input.lot_id !== 'salt_initial_001' : missing === 'cabbage' ? input.lot_id === 'salt_initial_001' : true);
       const before = cloneForCompare(subject.state);
+      assert.throws(() => subject.runtime.processing.assertCanStartProcessing(subject.state.save_file, 'pickling_cabbage_basic', inputs, picklingFacilityRef), /ERR_PROCESSING_INPUT_MISSING/);
+      assert.deepEqual(subject.state, before);
       const failed = dispatch(subject.runtime, subject.state, 'start_processing', {
         method_id: 'pickling_cabbage_basic', input_lots: inputs, facility_ref: picklingFacilityRef
       }, `required_${missing}`);
@@ -501,6 +599,8 @@ test('processing failures roll back task creation, input consumption, output cre
 
   const taskId = prepareProcessingTask(runtime, state);
   const beforeNotReady = cloneForCompare(state);
+  assert.throws(() => runtime.processing.assertCanCollect(state.save_file, taskId), /ERR_PROCESSING_TASK_NOT_READY/);
+  assert.deepEqual(state, beforeNotReady);
   const notReady = dispatch(runtime, state, 'collect_processing_result', { task_id: taskId }, 'bad_collect_not_ready');
   assert.equal(notReady.success, false);
   assert.equal(notReady.status_code, 'ERR_PROCESSING_TASK_NOT_READY');
@@ -511,6 +611,8 @@ test('processing failures roll back task creation, input consumption, output cre
   const collect = dispatch(runtime, state, 'collect_processing_result', { task_id: taskId }, 'collect_once');
   assert.equal(collect.success, true);
   const beforeRepeat = cloneForCompare(state);
+  assert.throws(() => runtime.processing.assertCanCollect(state.save_file, taskId), /ERR_PROCESSING_TASK_ALREADY_COMPLETED/);
+  assert.deepEqual(state, beforeRepeat);
   const repeat = dispatch(runtime, state, 'collect_processing_result', { task_id: taskId }, 'bad_collect_repeat');
   assert.equal(repeat.success, false);
   assert.equal(repeat.status_code, 'ERR_PROCESSING_TASK_ALREADY_COMPLETED');
