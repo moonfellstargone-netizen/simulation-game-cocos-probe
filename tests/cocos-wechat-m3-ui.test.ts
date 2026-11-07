@@ -130,3 +130,55 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     assert.equal(controller.snapshot().menu!.selectable_view_model!.field_options.find(x => x.id === fieldId)!.enabled, false);
   } finally { console.info = oldInfo; await controller.dispose(); }
 });
+
+test('M3 bottom hint geometry fits the design viewport, avoids controls, and retains confirmation text', async () => {
+  const bundled = await build({ entryPoints: ['apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts'],
+    bundle: true, write: false, platform: 'node', format: 'esm',
+    tsconfigRaw: { compilerOptions: { experimentalDecorators: true } },
+    plugins: [{ name: 'cc-layout-port', setup(builder) {
+      builder.onResolve({ filter: /^cc$/ }, () => ({ path: 'cc', namespace: 'test-layout' }));
+      builder.onResolve({ filter: /generated\/probe-runtime\.js$/ }, () => ({ path: 'runtime', namespace: 'test-layout' }));
+      builder.onLoad({ filter: /.*/, namespace: 'test-layout' }, args => ({ contents: args.path === 'cc'
+        ? `export class Node { constructor(name) { this.name=name; this.children=[]; this.components=[]; this.position={x:0,y:0,z:0}; } addChild(node) { this.children.push(node); node.parent=this; } addComponent(Type) { const c=new Type(); c.node=this; this.components.push(c); return c; } getComponent(Type) { return this.components.find(c => c instanceof Type) ?? null; } setPosition(x,y,z) { this.position={x,y,z}; } }
+           export class Component { constructor() { this.node = new Node('root'); } }
+           export class UITransform { setContentSize(width,height) { this.width=width; this.height=height; } }
+           export class Canvas {} export class Label {} export class Color { constructor(...v) { this.values=v; } }
+           export class Button { static Transition={NONE:0}; } export class Graphics { roundRect() {} fill() {} }
+           export class Camera { static ProjectionType={ORTHO:0}; static ClearFlag={SOLID_COLOR:0}; }
+           export const _decorator={ccclass:()=>v=>v}, isValid=()=>true, Layers={Enum:{UI_2D:1}}, view={setDesignResolutionSize() {}}, ResolutionPolicy={SHOW_ALL:0};
+           export const Game={}, game={}, JsonAsset={}, resources={}, screen={}, sys={};`
+        : 'export const createStage1AHost = () => {}; export class QinglanUiSceneProbeComponent {}', loader: 'js' }));
+    } }]
+  });
+  const { CocosWechatProbe } = await import('data:text/javascript;base64,' + Buffer.from(bundled.outputFiles[0]!.text).toString('base64'));
+  const probe = new CocosWechatProbe();
+  probe.createView();
+  const rect = (node: any) => {
+    const transform = node.components.find((c: any) => typeof c.width === 'number' && typeof c.height === 'number');
+    assert.ok(transform, `missing UITransform for ${node.name}`);
+    return { left: node.position.x - transform.width / 2, right: node.position.x + transform.width / 2,
+      bottom: node.position.y - transform.height / 2, top: node.position.y + transform.height / 2 };
+  };
+  const hint = rect(probe.labels.hint.node);
+  const result = rect(probe.labels.result.node);
+  assert.ok(hint.bottom >= -250, 'hint needs at least 20 logical pixels above design viewport bottom');
+  assert.ok(hint.left >= -480 && hint.right <= 480, 'hint stays within design viewport width');
+  assert.ok(result.left >= -480 && result.right <= 480, 'result stays within design viewport width');
+  assert.ok(result.right <= hint.left || hint.right <= result.left || result.top <= hint.bottom || hint.top <= result.bottom,
+    'result and hint do not overlap');
+  for (const button of [probe.saveButton, probe.loadButton, probe.backupButton, probe.cancelFirstButton]) {
+    const control = rect(button.node);
+    assert.ok(hint.top <= control.bottom || control.top <= hint.bottom || hint.right <= control.left || control.right <= hint.left,
+      `hint must not overlap ${button.node.name}`);
+    assert.ok(result.top <= control.bottom || control.top <= result.bottom || result.right <= control.left || control.right <= result.left,
+      `result must not overlap ${button.node.name}`);
+    for (const name of ['FarmMinus', 'FarmPlus', 'FarmPlant', 'FarmHarvest', 'StockMove']) {
+      const action = rect(probe.menuButtons[name].node);
+      assert.ok(control.top <= action.bottom || action.top <= control.bottom || control.right <= action.left || action.right <= control.left,
+        `${button.node.name} must not overlap ${name}`);
+    }
+  }
+  assert.ok(probe.labels.hint.lineHeight <= hint.top - hint.bottom, 'hint line fits in its label height');
+  probe.onCancelFirst();
+  assert.equal(probe.labels.hint.string, '再点一次：撤销未完成首档，保留当前游戏');
+});

@@ -341,14 +341,16 @@ export class CocosWechatProbe extends Component {
     this.labels.stockHelp = this.menuLabel(this.stockNode, 'stockHelp', 80, -85);
     this.menuButtons.StockMove = this.smallButton(this.stockNode, 'StockMove', '整批转移', 110, -140);
 
-    this.saveButton = this.smallButton(root, 'Save', '保存', -330, -200);
-    this.loadButton = this.smallButton(root, 'Load', '读取', -110, -200);
-    this.backupButton = this.smallButton(root, 'LoadBackup', '恢复备份', 110, -200);
-    this.cancelFirstButton = this.smallButton(root, 'CancelFirstSave', '撤销首档', 330, -200);
+    this.saveButton = this.smallButton(root, 'Save', '保存', -330, -197);
+    this.loadButton = this.smallButton(root, 'Load', '读取', -110, -197);
+    this.backupButton = this.smallButton(root, 'LoadBackup', '恢复备份', 110, -197);
+    this.cancelFirstButton = this.smallButton(root, 'CancelFirstSave', '撤销首档', 330, -197);
     this.labels.result = this.label(root, 'result', '推进按钮 0 · 已完成命令 0', -237, 14);
-    this.labels.result.node.getComponent(UITransform)!.setContentSize(900, 18);
-    this.labels.hint = this.label(root, 'hint', '手动保存与读取；可选择恢复失败存档', -257, 15);
-    this.labels.hint.node.getComponent(UITransform)!.setContentSize(900, 18);
+    this.labels.result.node.setPosition(-300, -237, 0);
+    this.labels.result.node.getComponent(UITransform)!.setContentSize(270, 22);
+    this.labels.hint = this.label(root, 'hint', '手动保存与读取；可选择恢复失败存档', -237, 15);
+    this.labels.hint.node.setPosition(150, -237, 0);
+    this.labels.hint.node.getComponent(UITransform)!.setContentSize(600, 22);
   }
 
   private menuLabel(parent: Node, name: string, x: number, y: number): Label {
