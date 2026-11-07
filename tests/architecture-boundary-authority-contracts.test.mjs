@@ -9,6 +9,28 @@ import { runArchitectureBoundaryCheck } from '../tools/quality/plugins/architect
 const root = process.cwd();
 const readJson = (rel) => JSON.parse(readFileSync(join(root, rel), 'utf8'));
 
+test('WeChat M1 outer permits cc but rejects wx, internals and reverse dependencies without weakening Web', () => {
+  const tempRoot = mkdtempSync(join(tmpdir(), 'wechat-m1-boundary-'));
+  for (const dir of ['tools/quality/rules', 'apps/cocos-wechat-probe', 'apps/cocos-probe', 'src/game-core', 'src/cocos-app', 'src/cocos-creator-adapter']) mkdirSync(join(tempRoot, dir), { recursive: true });
+  writeFileSync(join(tempRoot, 'tools/quality/module-graph.json'), JSON.stringify(readJson('tools/quality/module-graph.json')));
+  writeFileSync(join(tempRoot, 'tools/quality/rules/architecture-boundary.rules.json'), JSON.stringify(readJson('tools/quality/rules/architecture-boundary.rules.json')));
+  const component = "import { Component } from 'cc';\nexport const component = Component;\n";
+  for (const outer of ['cocos-probe', 'cocos-wechat-probe']) writeFileSync(join(tempRoot, 'apps/' + outer + '/clean.ts'), component);
+  assert.equal(runArchitectureBoundaryCheck({ rootDir: tempRoot }).status, 'passed');
+  const imports = ['wx', 'fs', 'node:fs', 'node:fs/promises', '../../src/game-core/index', '../../src/cocos-app/index', '../../src/cocos-creator-adapter/index', '../../tools/helper', '../../tests/helper', '../cocos-probe/clean'];
+  imports.forEach((source, index) => writeFileSync(join(tempRoot, 'apps/cocos-wechat-probe/bad-' + index + '.ts'), `import x from '${source}';\nexport default x;\n`));
+  for (const layer of ['game-core', 'cocos-app', 'cocos-creator-adapter']) writeFileSync(join(tempRoot, 'src/' + layer + '/wechat-reverse.ts'), "import x from '../../apps/cocos-wechat-probe/clean';\nexport default x;\n");
+  for (const outer of ['cocos-probe', 'cocos-wechat-probe']) writeFileSync(join(tempRoot, 'apps/' + outer + '/global.js'), "export const value = wx.getStorageSync('save');\n");
+  const invalid = runArchitectureBoundaryCheck({ rootDir: tempRoot });
+  assert.equal(invalid.status, 'failed');
+  for (let index = 0; index < imports.length; index++) assert.ok(invalid.findings.some(item => item.mode === 'authoritative' && item.file === 'apps/cocos-wechat-probe/bad-' + index + '.ts'), imports[index]);
+  for (const layer of ['game-core', 'cocos-app', 'cocos-creator-adapter']) assert.ok(invalid.findings.some(item => item.mode === 'authoritative' && item.file === 'src/' + layer + '/wechat-reverse.ts'));
+  for (const outer of ['cocos-probe', 'cocos-wechat-probe']) assert.ok(invalid.findings.some(item => item.mode === 'authoritative' && item.file === 'apps/' + outer + '/global.js'));
+  const graph = readJson('tools/quality/module-graph.json');
+  assert.deepEqual(graph.modules['cocos-wechat-probe'].roots, ['apps/cocos-wechat-probe/**']);
+  for (const layer of ['game-core', 'cocos-app', 'cocos-creator-adapter']) assert.ok(graph.modules[layer].forbiddenDeps.includes('apps/cocos-wechat-probe/**'));
+});
+
 test('new engine layer permits cc while blocking internal imports and reverse dependencies', () => {
   const tempRoot = mkdtempSync(join(tmpdir(), 'cocos-outer-boundary-'));
   for (const dir of ['tools/quality/rules', 'apps/cocos-probe', 'src/game-core', 'src/cocos-app', 'src/cocos-creator-adapter']) mkdirSync(join(tempRoot, dir), { recursive: true });
@@ -47,6 +69,10 @@ test('low-risk architecture boundary rules are authoritative while existing stat
   assert.equal(byId['component-binding-no-savefile-state-leak']?.severity, 'shadow_error');
   assert.equal(byId['cocos-engine-probe-no-wx-global']?.mode, 'authoritative');
   assert.equal(byId['cocos-engine-probe-no-wx-global']?.severity, 'error');
+  for (const id of ['cocos-wechat-probe-public-runtime-only', 'cocos-wechat-probe-no-wx-global']) {
+    assert.equal(byId[id]?.mode, 'authoritative');
+    assert.equal(byId[id]?.severity, 'error');
+  }
 });
 
 test('arch:check covers both legacy validator and architecture-boundary authoritative rules', () => {

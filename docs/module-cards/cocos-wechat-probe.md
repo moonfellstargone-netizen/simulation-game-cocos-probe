@@ -1,0 +1,71 @@
+---
+doc_type: module_card
+status: active
+applies_to: cocos-wechat-probe
+source_of_truth: false
+---
+
+# cocos-wechat-probe
+
+## 模块职责与读取入口
+
+本轮唯一目标是v0.0.3.0内的M3种植与库存首包：基于M2候选，在微信outer接入地块和种子选择、播种、收获、库存浏览及整批转移；保留手动存读档和前后台保护。运行身份仍来自当前包的只读candidate_id和短commit；正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；M3完整经营和M4手机验收尚未完成，大版本名称不表示试水已完成。
+
+独立apps/cocos-wechat-probe模块只消费派生公共runtime与正式资源，可使用cc，禁止直接wx/fs、业务内部、工具和测试依赖；旧三层不得反向依赖它。微信outer通过Creator平台存储外层提供手动单槽存读档及备份恢复，不增加自动保存或离线补时。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture；planned Stage1B wx-storage-port不转active。
+
+- `apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts`：真实cc场景、资源加载、Label/Button与只读观察，提供种植与库存选择及确认。
+- 主存档读取返回空槽时，微信界面提示“未找到主存档；无备份时可先保存”，不将空槽记为命令成功；单独存在备份时仍保留备份保护。只有精确的主槽空档错误按提示记录，读取/坏档/备份恢复等失败仍按错误处理。微信storage读取遇到平台异常伪装成同一个空槽错误时改报存储读取失败，防止误认空档。
+- `apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts`：无cc的资源/身份校验、公共Host/Binding、busy与前后台、销毁迟到保护；通过正式菜单绑定提交播种、推进、收获、整批储存及手动存读档命令，并协调备份恢复和首档撤销。
+- `apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts`：在隔离的公开Host会话中校验现有存档，拒绝写入平台存储，验证结束销毁临时Host；用于备份和恢复前置检查。
+- `tools/cocos-probe/lib/prepareProject.mjs`：固定共享生产者，不开放任意template/runtime入口/BuildId角色。
+- `tools/cocos-wechat-probe/prepare.mjs`：prepareWechatProbe({rootDir?, outputDir, appId})，固定wechat profile。
+- `tools/cocos-wechat-probe/build.mjs`：buildWechatProbe({creator, project, logDir})，独立微信记录；rootDir仅受控fixture入口，CLI不能选择。
+- `tools/cocos-wechat-probe/lib/source.mjs`和`tools/cocos-wechat-probe/lib/sourceProvenance.mjs`：准备/构建关联、实际Git输入与依赖、工具字节及微信产物树摘要。
+
+## 来源、身份与外部配置
+
+prepare固定web/wechat内部profile，共享tools/cocos-probe/lib/prepareProject.mjs，保留旧Web prepareCocosProbe/readProbeResources签名、默认格式、角色与CLI。两条链均继承绝对空目录/路径隔离/symlink、正式58Schema、实际源与依赖摘要、公共bootstrap preflight、来源重读和排他写入。微信candidate_id由唯一生产者在冻结outputs前生成，来自当前生成资源assets/resources/candidate-identity.json；不取自SaveFile。每个新构建要求新候选和新空目录，已有构建或失败不静默复用身份；相同version/commit的候选仍可区分。最终产物摘要只在包外保存，明确目录树/ZIP/二维码范围，不嵌回自身；本轮不上传或发码。
+
+AppID由明确本地参数提供，派生工程和开发者工具配置位于仓库外；不把账号凭据或AppID硬编码到源模板。微信BuildId沿project-target的snakeVersion经deriveBuildId('cocos_wechat_probe', ...)派生；candidate_id另行生成，不改变原版本/BuildId与存档语义。固定候选要求完整commit及dirty=false；开发dirty来源须明确记录，不能称固定候选。
+
+## 修改后验证
+
+test:cocos-wechat-preparation / test.cocos-wechat-preparation实际执行tests/cocos-wechat-preparation.test.mjs；test:cocos-wechat-runtime / test.cocos-wechat-runtime实际执行tests/cocos-wechat-runtime.test.ts，均为full/blocker。trace.cocos.wechat-m1连接新outer、共享生产者、微信构建、候选身份、架构负例和质量登记。Node只能证明受控准备/行为契约；真实Creator3.8.8/SDK、官方微信工具场景/输入/日志/重载、受影响Web回归和最终提交CI各自验收。旧全部追踪、权威架构禁令和Web功能/来源检查保留，不以修改阈值、预期、CI或affected算法通过门禁。
+
+版本完成仍按q:full和无缓存q:release，真实平台结果写包外报告。运行工具只读observer不得提供执行命令替代真实Button输入。相同候选重载后仍须核运行身份；M1内存新局重载不承诺恢复进度，不用它冒充M2平台读档。
+
+## 地图同步
+
+维护module-graph、authoritative import/token边界、test-registry、traceability-map、cocos/runtime/quality地图和files/public-api。旧Web与旧三层禁令保留，不扩大白名单。决定见[ADR-0005](../adr/ADR-0005-independent-wechat-m1-outer.md)。
+
+## 微信Schema预编译
+
+正式Schema构建期预编译最初用于微信M1的动态编译兼容：微信prepare使用当前锁定Ajv standalone，沿既有strict=false、allErrors=true、allowUnionTypes=true校验选项编译全部58项正式Schema，并生成安全ESM导出及明确ID映射。不改正式Schema或业务校验语义，不新增依赖，不猴补Function/eval或使用恒true替代校验器；其他AOT仍不在当前范围。
+
+M2包体修复在上述选项上增加loopRequired=1，inlineRefs保留默认值；此前M1生成未使用该选项。微信构建固定debug=false并在来源校验中拒绝其他值；微信engine模板裁去M2未用功能，保留2D、UI、Graphics、Animation和Tween及配置的WebGL后端。受控测试比较58项Schema的动态校验与两种standalone的结果和完整errors，不能替代真实构建或设备验证。
+
+微信compileWechatSchemas位于tools/cocos-wechat-probe/lib/precompiledSchemas.mjs，在唯一prepare生产链冻结outputs前生成wechat-precompiled-validators.mjs、wechat-schema-precompile.json及wechat-runtime-entry.mjs。前两者记录安全schema_NNN导出/ID映射、完整Schema内容、编译器版本与选项、实际CommonJS编译器依赖闭包及生成摘要；Node编译器依赖通过Ajv入口的require.cache闭包记录，不能冒称由esbuild运行bundle的metafile捕获。facade显式注入precompiledValidators后再打包到assets/generated/probe-runtime.js，Cocos不直接导入额外standalone文件。核心的绑定检查不以自声明元数据证明函数可信；真实Ajv生成代码及工具/源/依赖字节由prepare和构建来源记录约束。
+
+tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / registry test.stage1a-bootstrap实际args/files/covers，沿用full/blocker，不新增任务或降低门禁。该测试覆盖禁用动态Function后的正式启动/合法动作及坏请求、集合/内容拒绝；微信preparation契约覆盖实际facade、全部Schema、来源与生成物篡改，资源预检标记为node-aot-public-bootstrap-passed。Web旧resourcePreflight和默认动态路径保持。Node不替代新提交的Creator/SDK、微信真实输入/日志/重载、Web回归或审查/CI。
+
+运行期资源绑定仅容许Creator JsonAsset对对象键作无语义重排：源侧schemaSources仍保留完整原JSON，原始Schema/生成物及工具/产物字节SHA保持严格；运行期解析后递归排序对象键并比较完整JSON内容。字段集合、数组次序与全部值必须一致，未知字段不忽略；坏JSON、非JSON或任何内容差异均拒绝，不回退动态编译。
+
+## 微信目标DTO复制
+
+WechatDataClone.ts提供微信目标内的纯DTO复制适配，导出structuredClone供wechat profile的esbuild inject局部绑定runtime中的标准自由标识符。不修改globalThis或Cocos引擎，不在src中新增指向apps的源import，也不改变默认Node/Web路径；它不是通用Web API polyfill。支持数组、普通对象/空原型DTO输入及原始值，保留undefined、数组空位、共享引用/别名、循环和特殊属性键；非DTO对象、函数、Symbol与options（包括transfer）明确DataCloneError拒绝，不用JSON往返静默丢失数据。
+
+源位于apps/cocos-wechat-probe/runtime/WechatDataClone.ts，仍由新outer已有module roots和authoritative .ts规则扫描；无cc/wx/fs依赖。helper经prepare实际onLoad进入manifest.inputs，并由sourceProvenance要求存在，源与依赖/生成物字节校验不放宽。微信facade受控预检同时禁用动态Function并移除原生structuredClone，正式启动/动作/坏请求仍须经过公共运行时；这不能替代最终候选的Creator/微信真实输入或手机验收。
+
+tests/cocos-wechat-data-clone.test.ts追加到原test:cocos-wechat-runtime / test.cocos-wechat-runtime实际args/files/covers，验证原生DTO复制对比与拒绝路径；helper和测试同步登记preparation files。原两项微信full/blocker任务保留，不新增任务、CI或算法；M2存储及生命周期由独立outer提供。当前M3种植与库存首包继续沿用既有门禁；完整M3、M4和Stage1B尚未完成。
+
+## M2微信存储与生命周期
+
+M2运行时改动集中于独立微信outer，并同步构建来源、测试和文档：手动单逻辑槽经Creator sys.localStorage接入平台存储，保存与读取沿既有Session/SaveManager及校验；前后台事件只限制输入与维护会话，不自动存档或补算时间。旧三层及outer直接wx/fs禁令保持，正式SaveFile和玩法不变。
+
+备份与中断保护须同时考虑失败前后可能发生写入：备份、主档与事务标记使用独立物理key；旧主档经公开存档校验、备份及回读确认后才更新主档。标记存在时拒绝普通读写；显式备份恢复先经隔离Session校验，port内部再次校验并复核备份与标记字节，再将相同备份写回主档并核实后清标记，随后经Binding由玩家会话读取。标记清理抛错时当前实例锁定结果不确定；若清理先生效又抛错，重启后的提交结果无法仅凭标记判定。首次保存失败无旧档备份：识别到完整首存标记且无备份时，可经界面二次确认撤销未完成首档，保留当前会话；未知或损坏标记、无可用备份等部分状态无法通过此按钮恢复，应保留现场而非假称能恢复旧档。
+
+受控测试中，备份准备/提升失败和Session读档校验失败保留原会话。Binding的UI补丁应用可能在Session提交后失败，这类错误不能一概称为原会话未改变；错误反馈与实际会话结果须分别观察，不因此重发正式操作。
+
+故障保护依赖存储键相互独立和可读回一致的有限模型，真实微信断电、设备故障及底层原子性未证明，不能将异常等同于未落盘，也不能承诺任意中断的原子提交。备份恢复不等于跨平台导入或自动存档。
+
+tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的args/files，相关源及meta也进入preparation/runtime登记和trace.cocos.wechat-m1。受控Node契约不替代真实Creator、官方微信工具输入/存储/生命周期、最终提交CI或手机验收；具体结果以仓库外证据为准。
