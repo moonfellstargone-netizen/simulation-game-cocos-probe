@@ -130,3 +130,7 @@ menu_confirm_processing_direct限定start_processing和collect_processing_result
 ## 微信加工只读核对
 
 微信outer复用既有Queue refresh刷新当前Session菜单投影；这不发正式Action、不读写存档，不更改Web原有菜单路径。结果有效性和领取不确定锁由微信outer验证。
+
+## 概率播种参数与初始化
+
+菜单播种选择可携带seeds_per_tile，与seed_quantity总粒数一起交给正式Action。bootstrap接受显式randomSeed并传递给Session的新局构建；真实outer选择新局种子，core保持可复现且与平台无关，读取存档时沿用保存的流。公开菜单只传规则概率及已经揭晓的成长状态；未揭晓成苗结果不属于玩家投影。

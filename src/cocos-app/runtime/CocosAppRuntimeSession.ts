@@ -16,6 +16,7 @@ export interface CocosActionSessionPort {
 export interface CocosAppRuntimeSessionOptions {
   buildId?: string;
   nowIso8601?: string;
+  randomSeed?: string;
 }
 
 export interface CocosAppRuntimeSessionSaveSummary extends SaveSlotWriteSummary {
@@ -45,7 +46,8 @@ export class CocosAppRuntimeSession {
     this.runtime = new GameRuntime(this.configs, this.contracts);
     this.state = new NewGameBuilder(this.configs).buildStage1A({
       buildId: this.options.buildId ?? 'cocos_app_session_default',
-      nowIso8601: this.options.nowIso8601 ?? '2026-05-19T00:00:00.000Z'
+      nowIso8601: this.options.nowIso8601 ?? '2026-05-19T00:00:00.000Z',
+      ...(this.options.randomSeed === undefined ? {} : { randomSeed: this.options.randomSeed })
     });
     this.dispatcher = new CocosActionDispatcher(this.runtime.pipeline, () => this.state);
     this.facade = new CocosRuntimeFacade(this.dispatcher, () => this.state, this.configs, this.contracts);

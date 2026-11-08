@@ -181,4 +181,4 @@ WechatProbeController.refreshProcessingView→既有Queue refresh→当前Sessio
 
 ## 播种数量闭合
 
-plant_crop→FarmingSystem预检查库存/预留/配置容量→单事务创建N株/扣N粒/占N格→Runtime逐株回执与事件→SelectableVM剩余格投影→Web/微信农事页面。harvest_crop仍逐株收获及释放1格。trace.farming.seed-quantity连接核心/预览/Session/readiness和真实两端消费。
+plant_crop总粒数+seeds_per_tile→FarmingSystem预检查库存/预留/整除/配置容量→单事务扣种、按种植位保存成苗结果和随机流→Runtime播种回执→advance_time到sprout揭晓，失败释放位置→SelectableVM公开已揭晓状态与剩余位→Web/微信农事页面。harvest_crop只对成熟成功作物收获并释放1位。trace.farming.seed-quantity连接概率/旧档兼容/预览/Session/readiness和两端消费。

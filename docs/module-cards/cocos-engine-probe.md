@@ -147,4 +147,4 @@ editor保留原矩阵，新增触摸用Creator原生WebpageFullScreen控件切�
 
 ## 批量播种兼容
 
-Web农事读取公开地块capacity_tiles/available_tiles，展示空余格数，保留半满地块选择。种子数量经原正式菜单确认；真实browser断言按所选数量核验扣种、占格和新增作物数，不能沿用扣多粒却仅占1格的旧预期。Web拆分仍保留既有预览交互；本次取消独立预览按钮仅属于微信页面。trace.farming.seed-quantity连接共享核心与两端回归。
+Web农事读取公开地块capacity_tiles/available_tiles，展示空余格数，保留半满地块选择。播种位数和每位粒数经原正式菜单确认；真实browser按总粒数核验扣种、按种植位数核验占位和播种对象数，并区分后续成苗失败。概率采用用户确认规则，不把每个播种对象都当作保证成熟。Web拆分仍保留既有预览交互；本次取消独立预览按钮仅属于微信页面。trace.farming.seed-quantity连接共享核心与两端回归。

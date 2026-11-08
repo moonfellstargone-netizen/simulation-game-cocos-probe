@@ -17,10 +17,18 @@ const MATRIX = [
   { width: 960, height: 640, dpr: 1 }, { width: 800, height: 600, dpr: 1 },
   { width: 960, height: 640, dpr: 2 }
 ];
+const SUCCESS_NEW_GAME_TIME = '2026-11-08T00:00:16.000Z';
+const FAILURE_NEW_GAME_TIME = '2026-11-08T00:00:25.000Z';
+// Control only the wall clock read by the normal new-game bootstrap. Timers keep running.
+async function timedPage(context, time = SUCCESS_NEW_GAME_TIME) {
+  const page = await context.newPage();
+  await page.clock.setFixedTime(time);
+  return page;
+}
 const settle = (page) => page.evaluate(() => new Promise((accept) => requestAnimationFrame(() => requestAnimationFrame(accept))));
 const status = (page) => page.evaluate(() => globalThis.__cocosWebProbe.status());
 const scroll = (page) => page.evaluate(() => ({ x: scrollX, y: scrollY }));
-const SELECTION_BUTTONS = ['SelectField', 'SelectSeed', 'SelectCrop', 'SeedAmountDecrease', 'SeedAmountIncrease'];
+const SELECTION_BUTTONS = ['SelectField', 'SelectSeed', 'SelectCrop', 'SeedAmountDecrease', 'SeedAmountIncrease', 'SeedsPerTile'];
 const INVENTORY_LOCAL_BUTTONS = ['OpenInventory', 'OpenFarming', 'SelectInventoryLot', 'SelectStorageTarget'];
 const PROCESSING_LOCAL_BUTTONS = ['OpenProcessing', 'SelectProcessingMethod', 'SelectProcessingInput', 'SelectProcessingLot', 'SelectProcessingFacility', 'SelectProcessingTask'];
 const COOKING_LOCAL_BUTTONS = ['OpenCooking', 'SelectCookingRecipe', 'SelectCookingRole', 'SelectCookingLot', 'ClearCookingRole', 'SelectCookingHeat', 'SelectCookingStorage'];
@@ -308,7 +316,7 @@ async function reloadAndReopenRecovery(page, name, saved, result, recordDir, log
   assertStoredSaveUnchanged(saved, await storedSave(page));
   const context = page.context();
   await page.close();
-  const reopened = await context.newPage();
+  const reopened = await timedPage(context);
   let reopen;
   try {
     watchErrors(reopened, name + '-reopen', logs);
@@ -352,7 +360,7 @@ async function disposeProbe(page) {
 async function farmingLoop(browser, url, result, recordDir, logs) {
   const context = await browser.newContext({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
   try {
-    const page = await context.newPage(); watchErrors(page, 'farming-loop', logs);
+    const page = await timedPage(context); watchErrors(page, 'farming-loop', logs);
     await page.goto(url); await awaitReady(page); await attachButtonObservation(page);
     const initial = await status(page);
     const initialFarming = assertFarmingProjection(initial);
@@ -383,6 +391,9 @@ async function farmingLoop(browser, url, result, recordDir, logs) {
     for (let amount = seed.quantity.amount; amount >= 2; amount--) {
       await physicalClick(page, 'farming-quantity-decrease-' + amount, result, recordDir, 'SeedAmountDecrease', { key: 'seedAmount', value: amount });
     }
+    await physicalClick(page, 'farming-density-2', result, recordDir, 'SeedsPerTile', { key: 'seedsPerTile', value: 2 });
+    assert.equal((await status(page)).farming.seedAmount, 4);
+    assert.match((await status(page)).displayedFarming.planting, /96%/);
     const planted = await physicalClick(page, 'farming-plant', result, recordDir, 'PlantCrop', { actionType: 'plant_crop', status: 'completed', timeLabel: initial.timeLabel });
     const savedState = await status(page);
     assert.equal(savedState.farming.fieldOptions.find(item => item.id === field.id).active_crop_count, 2);
@@ -429,10 +440,64 @@ async function farmingLoop(browser, url, result, recordDir, logs) {
   } finally { await context.close(); }
 }
 
+async function germinationFailureLoop(browser, url, result, recordDir, logs) {
+  const context = await browser.newContext({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
+  try {
+    const page = await timedPage(context, FAILURE_NEW_GAME_TIME); watchErrors(page, 'germination-failure', logs);
+    await page.goto(url); await awaitReady(page); await attachButtonObservation(page);
+    const initial = await status(page);
+    const field = initial.farming.fieldOptions.find(item => item.enabled);
+    const seed = initial.farming.seedOptions.find(item => item.enabled);
+    assert.ok(field && seed);
+    await physicalClick(page, 'germination-field', result, recordDir, 'SelectField', { key: 'selectedFieldId', value: field.id });
+    await physicalClick(page, 'germination-seed', result, recordDir, 'SelectSeed', { key: 'selectedSeedId', value: seed.id });
+    // Exercise all displayed densities without dispatching or changing the RNG stream.
+    for (const [density, rate] of [[2, 96], [3, 99.2], [1, 80]]) {
+      await physicalClick(page, 'germination-density-' + density, result, recordDir, 'SeedsPerTile', { key: 'seedsPerTile', value: density });
+      const selection = await status(page);
+      assert.equal(selection.farming.plantingTiles, 1);
+      assert.equal(selection.farming.seedAmount, density);
+      assert.ok(Math.abs(selection.farming.successProbability * 100 - rate) < 1e-8);
+      assert.ok(selection.displayedFarming.planting.includes(rate + '%'));
+    }
+    const planted = await physicalClick(page, 'germination-plant', result, recordDir, 'PlantCrop', { actionType: 'plant_crop', status: 'completed', timeLabel: initial.timeLabel });
+    assert.equal(planted.after.farming.cropStatusOptions.filter(item => item.lifecycle_status === 'failed').length, 0, 'hidden sampled failure is not revealed at planting');
+    await physicalClick(page, 'germination-save-before-reveal', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: initial.timeLabel });
+    const saved = await storedSave(page);
+    const advanceDay = async name => {
+      const next = timeInMinutes((await status(page)).timeLabel) + 1440;
+      return physicalClick(page, name, result, recordDir, 'AdvanceOneDay', { actionType: 'advance_time', status: 'completed', timeLabel: `day ${Math.floor(next / 1440)} minute ${next % 1440}` });
+    };
+    const first = await advanceDay('germination-reveal');
+    const failed = first.after.farming.cropStatusOptions.filter(item => item.lifecycle_status === 'failed');
+    assert.equal(failed.length, 1);
+    assert.equal(first.after.farming.harvestableOptions.length, 0);
+    assert.equal(first.after.farming.fieldOptions.find(item => item.id === field.id).occupied_tiles, 0);
+    assert.equal(first.after.farming.seedOptions.find(item => item.id === seed.id).quantity.amount, seed.quantity.amount - 1, 'failure consumes the planted seed');
+    assert.deepEqual(first.after.farming.materialOptions, planted.after.farming.materialOptions, 'failed germination creates no harvested material');
+    assert.match(first.after.displayedFarming.crop, /成苗失败1位/);
+    assertStoredSaveUnchanged(saved, await storedSave(page));
+    const loaded = await physicalClick(page, 'germination-load-before-reveal', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: initial.timeLabel });
+    assert.deepEqual(loaded.after.farming.cropStatusOptions, planted.after.farming.cropStatusOptions);
+    const repeated = await advanceDay('germination-repeat-reveal');
+    assert.deepEqual(repeated.after.farming.cropStatusOptions, first.after.farming.cropStatusOptions, 'load and advance must reveal the same saved outcome');
+    const replanted = await physicalClick(page, 'germination-replant', result, recordDir, 'PlantCrop', { actionType: 'plant_crop', status: 'completed', timeLabel: repeated.after.timeLabel });
+    for (let days = 0; !(await status(page)).farming.harvestableOptions.length; days++) {
+      assert.ok(days < 10, 'the second deterministic planting must mature through ordinary time');
+      await advanceDay('germination-recovery-day-' + days);
+    }
+    const ready = (await status(page)).farming.harvestableOptions[0];
+    await physicalClick(page, 'germination-select-recovered', result, recordDir, 'SelectCrop', { key: 'selectedCropId', value: ready.id });
+    const harvested = await physicalClick(page, 'germination-harvest-recovered', result, recordDir, 'HarvestCrop', { actionType: 'harvest_crop', status: 'completed', timeLabel: (await status(page)).timeLabel });
+    assertStoredSaveUnchanged(saved, await storedSave(page));
+    return { fixedTime: FAILURE_NEW_GAME_TIME, scope: 'normal UI; fixed new-game time selects a reproducible first failure and second success; no outcome injection', planted, first, loaded, repeated, replanted, harvested, lifecycle: await disposeProbe(page) };
+  } finally { await context.close(); }
+}
+
 async function inventoryLoop(browser, url, result, recordDir, logs) {
   const context = await browser.newContext({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
   try {
-    const page = await context.newPage(); watchErrors(page, 'inventory-loop', logs);
+    const page = await timedPage(context); watchErrors(page, 'inventory-loop', logs);
     await page.goto(url); await awaitReady(page); await attachButtonObservation(page);
     const initial = await status(page);
     assert.equal(initial.panel, 'farming');
@@ -504,7 +569,7 @@ async function inventoryLoop(browser, url, result, recordDir, logs) {
 async function splitLoop(browser, url, result, recordDir, logs) {
   const context = await browser.newContext({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
   try {
-    let page = await context.newPage(); watchErrors(page, 'split-loop', logs);
+    let page = await timedPage(context); watchErrors(page, 'split-loop', logs);
     await page.goto(url); await awaitReady(page); await attachButtonObservation(page);
     const initial = await status(page); const farm = assertFarmingProjection(initial);
     const field = farm.fieldOptions.find((item) => item.enabled); const seed = farm.seedOptions.find((item) => item.enabled);
@@ -581,7 +646,7 @@ async function splitLoop(browser, url, result, recordDir, logs) {
     await physicalClick(page, 'split-save-continued', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: saved.timeLabel });
     const reopenSavedState = await status(page); const reopenSaved = { ...await storedSave(page), timeLabel: reopenSavedState.timeLabel };
     const reloadLifecycle = await disposeProbe(page); await page.close();
-    page = await context.newPage(); watchErrors(page, 'split-reopen', logs);
+    page = await timedPage(context); watchErrors(page, 'split-reopen', logs);
     await page.goto(url); await awaitReady(page); await attachButtonObservation(page);
     const reopenInitial = await status(page); const reopenStartup = await storedSave(page);
     const reopenLoaded = await physicalClick(page, 'split-reopen-manual-load', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: reopenSaved.timeLabel });
@@ -602,7 +667,7 @@ async function splitLoop(browser, url, result, recordDir, logs) {
 async function processingLoop(browser, url, result, recordDir, logs) {
   const context = await browser.newContext({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
   try {
-    let page = await context.newPage(); watchErrors(page, 'processing-loop', logs);
+    let page = await timedPage(context); watchErrors(page, 'processing-loop', logs);
     await page.goto(url); await awaitReady(page); await attachButtonObservation(page);
     const initial = await status(page); const farming = assertFarmingProjection(initial);
     const initiallyStored = await storedSave(page); assert.equal(initiallyStored.raw, null);
@@ -747,7 +812,7 @@ async function processingLoop(browser, url, result, recordDir, logs) {
     await physicalClick(page, 'processing-save-next-active', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: nextStarted.after.timeLabel });
     const secondSavedState = await status(page); const secondSaved = { ...await storedSave(page), timeLabel: secondSavedState.timeLabel };
     const firstLifecycle = await disposeProbe(page); assertStoredSaveUnchanged(secondSaved, await storedSave(page));
-    await page.close(); page = await context.newPage(); watchErrors(page, 'processing-reopen', logs);
+    await page.close(); page = await timedPage(context); watchErrors(page, 'processing-reopen', logs);
     await page.goto(url); await awaitReady(page); await attachButtonObservation(page);
     const reopenInitial = await status(page); const reopenStartup = await storedSave(page);
     const reopenLoaded = await physicalClick(page, 'processing-reopen-manual-load', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: secondSaved.timeLabel });
@@ -838,7 +903,7 @@ async function cookingLoop(page, result, recordDir, logs, priorSave) {
   assertLocalSaveRecovery({ saved, initial: reloadInitial, afterStartup: reloadStartup, loaded: reloadLoaded, afterLoad: await storedSave(page) });
   assertCookingLoadRecovery(savedState, reloadLoaded);
   const firstLifecycle = await disposeProbe(page); assertStoredSaveUnchanged(saved, await storedSave(page));
-  const context = page.context(); await page.close(); page = await context.newPage(); watchErrors(page, 'cooking-reopen', logs);
+  const context = page.context(); await page.close(); page = await timedPage(context); watchErrors(page, 'cooking-reopen', logs);
   await page.goto(result.url); await awaitReady(page); await attachButtonObservation(page);
   const reopenInitial = await status(page); const reopenStartup = await storedSave(page);
   const reopenLoaded = await physicalClick(page, 'cooking-reopen-manual-load', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: saved.timeLabel });
@@ -861,7 +926,7 @@ async function cookingLoop(page, result, recordDir, logs, priorSave) {
 
 async function emptyOrderLoop(browser,url,result,recordDir,logs){
   const context=await browser.newContext({viewport:{width:960,height:640},deviceScaleFactor:1});
-  try{const page=await context.newPage();watchErrors(page,'orders-empty',logs);await page.goto(url);await awaitReady(page);await attachButtonObservation(page);
+  try{const page=await timedPage(context);watchErrors(page,'orders-empty',logs);await page.goto(url);await awaitReady(page);await attachButtonObservation(page);
     const initial=await status(page),saved=await storedSave(page);assert.equal(saved.raw,null);
     await physicalClick(page,'orders-empty-open',result,recordDir,'OpenOrders',{panel:'orders'});
     const opened=assertOrdersProjection(await status(page));assert.equal(opened.selectedOrderId,null);assert.equal(opened.selectedDishId,null);assert.equal(opened.dishOptions.length,0);
@@ -914,7 +979,7 @@ async function ordersLoop(page,result,recordDir,logs,priorSave){
   const reloadLoaded=await physicalClick(page,'orders-refresh-manual-load',result,recordDir,'LoadLocal',{name:'load',status:'completed',timeLabel:completed.timeLabel});assertLocalSaveRecovery({saved:completed,initial:reloadInitial,afterStartup:reloadStartup,loaded:reloadLoaded,afterLoad:await storedSave(page)});assertOrderLoadRecovery(completedState,reloadLoaded);
   await physicalClick(page,'orders-refresh-page',result,recordDir,'OpenOrders',{panel:'orders'});await choose('order',order.id,'orders-refresh-order');
   await physicalClick(page,'orders-refresh-duplicate-disabled',result,recordDir,'SubmitOrder',{disabled:true});
-  const firstLifecycle=await disposeProbe(page);const context=page.context();await page.close();page=await context.newPage();watchErrors(page,'orders-reopen',logs);await page.goto(result.url);await awaitReady(page);await attachButtonObservation(page);
+  const firstLifecycle=await disposeProbe(page);const context=page.context();await page.close();page=await timedPage(context);watchErrors(page,'orders-reopen',logs);await page.goto(result.url);await awaitReady(page);await attachButtonObservation(page);
   const reopenInitial=await status(page),reopenStartup=await storedSave(page);
   const reopenLoaded=await physicalClick(page,'orders-reopen-manual-load',result,recordDir,'LoadLocal',{name:'load',status:'completed',timeLabel:completed.timeLabel});assertLocalSaveRecovery({saved:completed,initial:reopenInitial,afterStartup:reopenStartup,loaded:reopenLoaded,afterLoad:await storedSave(page)});assertOrderLoadRecovery(completedState,reopenLoaded);
   await physicalClick(page,'orders-reopen-page',result,recordDir,'OpenOrders',{panel:'orders'});await choose('order',order.id,'orders-reopen-order');
@@ -957,7 +1022,7 @@ async function storageFailureRecovery(browser, url, result, recordDir, logs) {
       };
       globalThis.__webProbeStorageFault = control;
     }, { key: STORAGE_KEY });
-    const page = await context.newPage(); watchErrors(page, 'storage-controlled-faults', logs);
+    const page = await timedPage(context); watchErrors(page, 'storage-controlled-faults', logs);
     await page.goto(url); await awaitReady(page); await attachButtonObservation(page);
     assert.equal((await storedSave(page, true)).raw, null, 'a dedicated context must begin with an empty project slot');
     await physicalClick(page, 'storage-fault-advance', result, recordDir);
@@ -1191,7 +1256,7 @@ async function recoveryLoop(browser, url, result, recordDir, logs) {
   for(const point of CROSS_STEP_POINTS) {
     const context=await browser.newContext({viewport:{width:960,height:640},deviceScaleFactor:1});
     try {
-      let page=await context.newPage();watchErrors(page,'recovery-'+point+'-setup',logs);
+      let page=await timedPage(context);watchErrors(page,'recovery-'+point+'-setup',logs);
       await page.goto(url);await awaitReady(page);await attachButtonObservation(page);
       assert.equal((await storedSave(page)).raw,null,'each recovery point must be an independent ordinary new game');
       const setup=recoveryDriver(page,'recovery-'+point+'-setup',result,recordDir);
@@ -1202,7 +1267,7 @@ async function recoveryLoop(browser, url, result, recordDir, logs) {
       const checkpoint={point,savedState,saved:recoverySaveEvidence(recordDir,'recovery-'+point+'-point-save',saved)};
       for(const mode of ['reload','newpage']) {
         if(mode==='reload') {await page.evaluate(()=>{globalThis.__crossStepPreviousDocument=true;});await page.reload();}
-        else {await page.close();page=await context.newPage();watchErrors(page,'recovery-'+point+'-'+mode,logs);await page.goto(url);}
+        else {await page.close();page=await timedPage(context);watchErrors(page,'recovery-'+point+'-'+mode,logs);await page.goto(url);}
         await awaitReady(page);const documentFresh=await page.evaluate(()=>globalThis.__crossStepPreviousDocument===undefined);
         const initial=await status(page),afterStartup=await storedSave(page);await attachButtonObservation(page);
         const loaded=await physicalClick(page,'recovery-'+point+'-'+mode+'-load',result,recordDir,'LoadLocal',{name:'load',status:'completed',timeLabel:saved.timeLabel});
@@ -1245,7 +1310,7 @@ async function crossStepFailureRecovery(browser,url,result,recordDir,logs) {
       Storage.prototype.setItem=function(requested,value){if(this===storage&&requested===key){control.calls.write++;if(control.mode==='write')throw new Error('controlled-recovery-write');}return write.call(this,requested,value);};
       globalThis.__webProbeStorageFault=control;
     },{key:STORAGE_KEY});
-    const page=await context.newPage();watchErrors(page,'cross-step-isolated-faults',logs);await page.goto(url);await awaitReady(page);await attachButtonObservation(page);
+    const page=await timedPage(context);watchErrors(page,'cross-step-isolated-faults',logs);await page.goto(url);await awaitReady(page);await attachButtonObservation(page);
     const driver=recoveryDriver(page,'recovery-fault',result,recordDir);await driver.plant();
     await page.evaluate(()=>{globalThis.__crossStepHealthyObserver=globalThis.__cocosWebProbe;});
     const failures=[];
@@ -1530,7 +1595,7 @@ export async function touchLoop(browser,url,recordDir,logs,previewMode,parentRes
   parentResult.touch=result;
   const context=await browser.newContext({viewport:TOUCH_VIEWPORTS[0],deviceScaleFactor:1,hasTouch:true});
   try {
-    const page=await context.newPage();watchErrors(page,'touch',logs);
+    const page=await timedPage(context);watchErrors(page,'touch',logs);
     await page.goto(url);await awaitReady(page);
     if(previewMode){await observeNativePreviewFrames(page);result.previewSelections.push(await selectNativePreviewWindow(page));}
     await assertTouchCanvas(page,TOUCH_VIEWPORTS[0],result);await attachTouchObservation(page);
@@ -1611,7 +1676,7 @@ export async function touchLoop(browser,url,recordDir,logs,previewMode,parentRes
   } finally {await context.close();}
   const lateContext=await browser.newContext({viewport:TOUCH_VIEWPORTS[0],deviceScaleFactor:1,hasTouch:true});
   try {
-    const page=await lateContext.newPage();watchErrors(page,'touch-destroy',logs);await page.goto(url);await awaitReady(page);
+    const page=await timedPage(lateContext);watchErrors(page,'touch-destroy',logs);await page.goto(url);await awaitReady(page);
     if(previewMode){await observeNativePreviewFrames(page);result.previewSelections.push(await selectNativePreviewWindow(page));}
     await assertTouchCanvas(page,TOUCH_VIEWPORTS[0],result);await attachTouchObservation(page);
     const target=await revealTouchControl(page,'AdvanceOneHour',result,recordDir);
@@ -1629,7 +1694,7 @@ export async function verifyWebProbe(options) {
   const parsed = parseWebProbeArgs(Object.entries({ '--project': options.project, '--browser': options.browser, '--report-dir': options.reportDir, '--build-record': options.buildRecord, ...(options.previewUrl ? { '--preview-url': options.previewUrl } : {}) }).flat());
   const projectDir = realpathSync(parsed.project);
   const recordDir = createWebReportDirectory(ROOT, parsed.reportDir, projectDir);
-  const result = { format: 'cocos-web-verification/v1', startedAt: new Date().toISOString(), passed: false, mode: parsed.previewUrl ? 'editor-preview' : 'built-web', recordDir, clicks: [], inputs: [] };
+  const result = { format: 'cocos-web-verification/v1', startedAt: new Date().toISOString(), passed: false, mode: parsed.previewUrl ? 'editor-preview' : 'built-web', recordDir, clockControl: { method: 'page.clock.setFixedTime before navigation; real timers continue', successTime: SUCCESS_NEW_GAME_TIME, failureTime: FAILURE_NEW_GAME_TIME, scope: 'isolated browser test contexts only; production new games derive a seed from current time; no SaveFile injection' }, clicks: [], inputs: [] };
   const logs = [];
   let browser;
   let server;
@@ -1654,7 +1719,7 @@ export async function verifyWebProbe(options) {
       const name = `viewport-${item.width}x${item.height}-dpr${item.dpr}`;
       const context = await browser.newContext({ viewport: { width: item.width, height: item.height }, deviceScaleFactor: item.dpr });
       try {
-        const page = await context.newPage();
+        const page = await timedPage(context);
         watchErrors(page, name, logs);
         page.on('response', async (response) => {
           if (!resourceUrl && response.url().includes('/assets/resources/') && response.url().endsWith('.json')) {
@@ -1679,7 +1744,7 @@ export async function verifyWebProbe(options) {
     }
     const context = await browser.newContext({ viewport: { width: 960, height: 640 }, deviceScaleFactor: 1 });
     try {
-      const page = await context.newPage(); watchErrors(page, 'resize', logs);
+      const page = await timedPage(context); watchErrors(page, 'resize', logs);
       await page.goto(result.url); await awaitReady(page); await attachButtonObservation(page);
       await page.evaluate(async (names) => {
         const cc = await System.import('cc');
@@ -1707,6 +1772,7 @@ export async function verifyWebProbe(options) {
       result.resizeLifecycle = await disposeProbe(page);
     } finally { await context.close(); }
     result.farming = await farmingLoop(browser, result.url, result, recordDir, logs);
+    result.germination = await germinationFailureLoop(browser, result.url, result, recordDir, logs);
     result.inventory = await inventoryLoop(browser, result.url, result, recordDir, logs);
     result.splitting = await splitLoop(browser, result.url, result, recordDir, logs);
     result.orderEmpty = await emptyOrderLoop(browser, result.url, result, recordDir, logs);
@@ -1720,14 +1786,14 @@ export async function verifyWebProbe(options) {
       assert.ok(resourceUrl, 'actual probe resource URL must be observed');
       const context = await browser.newContext({ viewport: { width: 960, height: 640 } });
       try {
-        const missing = await context.newPage(); watchErrors(missing, 'missing-resource', logs);
+        const missing = await timedPage(context); watchErrors(missing, 'missing-resource', logs);
         await missing.route(resourceUrl, (route) => route.fulfill({ status: 404, body: 'missing probe resources' }));
         await missing.goto(result.url);
         await missing.waitForFunction(() => globalThis.__cocosWebProbe?.status().phase === 'failed');
         result.missingResource = await status(missing);
         assert.equal(result.missingResource.hasSession, false); assert.ok(result.missingResource.errors.length > 0);
         await missing.close();
-        const early = await context.newPage(); watchErrors(early, 'loading-destroy', logs);
+        const early = await timedPage(context); watchErrors(early, 'loading-destroy', logs);
         let release;
         const resumed = new Promise((accept) => { release = accept; });
         await early.route(resourceUrl, async (route) => { await resumed; await route.continue().catch(() => {}); });

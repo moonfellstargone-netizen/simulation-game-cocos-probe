@@ -16,11 +16,56 @@ function makeSession(storage: SaveStoragePort = new InMemorySaveStoragePort()) {
     configs,
     session: new CocosAppRuntimeSession(configs, contracts, storage, {
       buildId: testBuildId('cocos_session_test'),
-      nowIso8601: '2026-05-19T00:00:00.000Z'
+      nowIso8601: '2026-05-19T00:00:00.000Z',
+      randomSeed: 'farming-test-23' // Fixed success scenario; probability failures have separate coverage.
     }),
     storage
   };
 }
+
+test('field controller keeps total seeds separate from planted positions', () => {
+  const { session } = makeSession();
+  const field = new FieldMenuController(session);
+  const result = field.requestPlantCabbage('field_plot_01', 'seed_cabbage_initial_001', { amount: 6, unit: 'count' }, 3);
+  assert.equal(result.success, true, result.status_code);
+  assert.equal(result.created_objects.length, 2);
+  assert.equal(session.getSelectableViewModel().field_options[0]!.occupied_tiles, 2);
+  assert.equal(session.getSelectableViewModel().seed_lot_options[0]!.quantity.amount, 4);
+});
+
+test('pending germination and random stream resume identically across load before and after sprouting', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const { configs, contracts } = buildRuntimeWithoutState();
+  const create = () => new CocosAppRuntimeSession(configs, contracts, storage, {
+    buildId: testBuildId('cocos_session_probability'), nowIso8601: '2026-05-19T00:00:00.000Z', randomSeed: 'farming-test-28'
+  });
+  const original = create();
+  const parameters = { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 3, unit: 'count' }, seeds_per_tile: 3 };
+  assert.equal(original.dispatch('plant_crop', parameters).success, true);
+  await original.save('germination_pending');
+  const pendingText = (await storage.read('germination_pending'))!;
+  const pending = JSON.parse(pendingText) as SaveFile;
+  assert.equal(pending.crop_instances[0]!.germination!.outcome, 'failed');
+  assert.equal(pending.crop_instances[0]!.germination!.revealed, false);
+  const restored = create();
+  await restored.load('germination_pending');
+  assert.equal(original.dispatch('advance_time', { minutes: 1100 }).success, true);
+  assert.equal(restored.dispatch('advance_time', { minutes: 1100 }).success, true);
+  await original.save('germination_original'); await restored.save('germination_restored');
+  assert.equal(await storage.read('germination_original'), await storage.read('germination_restored'));
+  const resolved = JSON.parse((await storage.read('germination_restored'))!) as SaveFile;
+  assert.equal(resolved.crop_instances[0]!.lifecycle_status, 'failed');
+  assert.equal(resolved.fields[0]!.occupied_tiles, 0);
+  assert.deepEqual(resolved.random_state, pending.random_state);
+  assert.equal(original.dispatch('plant_crop', parameters).success, true);
+  assert.equal(restored.dispatch('plant_crop', parameters).success, true);
+  await original.save('germination_original_next'); await restored.save('germination_restored_next');
+  assert.equal(await storage.read('germination_original_next'), await storage.read('germination_restored_next'));
+  const resolvedLoad = create(); await resolvedLoad.load('germination_restored');
+  assert.equal(resolvedLoad.dispatch('harvest_crop', { crop_id: resolved.crop_instances[0]!.crop_id }).success, false);
+  await resolvedLoad.save('germination_failed_retry');
+  assert.equal(await storage.read('germination_failed_retry'), await storage.read('germination_restored'));
+});
 
 test('batch planted crops retain their count across saves and harvest independently after a fresh session', async () => {
   const storage = new InMemorySaveStoragePort();

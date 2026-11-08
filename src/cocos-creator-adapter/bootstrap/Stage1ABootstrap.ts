@@ -14,6 +14,7 @@ export interface Stage1ABootstrapResources {
   storage: SaveStoragePort;
   buildId: string;
   nowIso8601: string;
+  randomSeed?: string;
   precompiledValidators?: PrecompiledSchemaValidatorSet;
 }
 
@@ -31,7 +32,8 @@ export function createStage1AHost(input: Stage1ABootstrapResources): CocosSessio
   if (stage.stageId !== 'stage_1A') throw new Error(`ERR_BOOTSTRAP_STAGE_UNSUPPORTED:${stage.stageId}`);
   const host = new CocosSessionHost(configs, contracts, input.storage, {
     buildId: input.buildId,
-    nowIso8601: input.nowIso8601
+    nowIso8601: input.nowIso8601,
+    ...(input.randomSeed === undefined ? {} : { randomSeed: input.randomSeed })
   });
   host.createSession();
   return host;
@@ -61,6 +63,9 @@ function assertInput(input: Stage1ABootstrapResources): void {
   if (typeof input.buildId !== 'string' || !input.buildId.trim()) throw new Error('ERR_BOOTSTRAP_RESOURCE_INVALID:buildId');
   if (!isValidStartupTimestamp(input.nowIso8601)) {
     throw new Error('ERR_BOOTSTRAP_RESOURCE_INVALID:nowIso8601');
+  }
+  if (input.randomSeed !== undefined && (typeof input.randomSeed !== 'string' || !input.randomSeed.trim())) {
+    throw new Error('ERR_BOOTSTRAP_RESOURCE_INVALID:randomSeed');
   }
 }
 

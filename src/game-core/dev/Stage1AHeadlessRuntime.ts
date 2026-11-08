@@ -12,6 +12,7 @@ export interface Stage1AHeadlessRuntimeOptions {
   buildId?: string;
   nowIso8601?: string;
   actorId?: string;
+  randomSeed?: string;
 }
 
 export interface HeadlessDispatchResult {
@@ -36,7 +37,8 @@ export class Stage1AHeadlessRuntime {
     this.runtime = new GameRuntime(this.configs, this.contracts);
     this.state = new NewGameBuilder(this.configs).buildStage1A({
       buildId: this.options.buildId ?? 'headless_runtime_default',
-      nowIso8601: this.options.nowIso8601 ?? '2026-05-19T00:00:00.000Z'
+      nowIso8601: this.options.nowIso8601 ?? '2026-05-19T00:00:00.000Z',
+      ...(this.options.randomSeed === undefined ? {} : { randomSeed: this.options.randomSeed })
     });
     this.validateCurrentState();
   }

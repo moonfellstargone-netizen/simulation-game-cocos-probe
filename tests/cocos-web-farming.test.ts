@@ -11,7 +11,7 @@ const DAY = { name: 'menu_confirm', selection: { action_type: 'advance_time', mi
 const SAVE = { name: 'save', selection: { slot_id: 'web_probe' } } as const;
 const LOAD = { name: 'load', selection: { slot_id: 'web_probe' } } as const;
 
-async function publicFarming() {
+async function publicFarming(randomSeed = 'new_game:2026-11-08T00:00:16.000Z') {
   const snapshot = JSON.parse(readFileSync('design_snapshot/generated/stage_1A_runtime_snapshot.json', 'utf8')) as RuntimeConfigSnapshot;
   const farming = new ProbeFarming();
   let calls = 0;
@@ -24,7 +24,7 @@ async function publicFarming() {
     }),
     createHost: (input) => {
       host = createStage1AHost({ ...input, snapshot: input.snapshot as RuntimeConfigSnapshot,
-        storage: new InMemorySaveStoragePort(), nowIso8601: '2026-10-31T00:00:00.000Z' });
+        storage: new InMemorySaveStoragePort(), nowIso8601: '2026-10-31T00:00:00.000Z', randomSeed });
       return host;
     },
     createBinding: (current) => new QinglanUiSceneProbeComponent(current as CocosSessionHost, {
@@ -98,7 +98,7 @@ test('explicit public selections plant, advance and harvest through the real com
   assert.equal(afterPlant.selectedSeedId, seedId);
   assert.equal(p.farming.harvestCommand(), null, 'a growing crop is not a fabricated ready option');
   await growUntilPubliclyHarvestable(p);
-  assert.equal(p.farming.status().harvestableOptions.length, 2, 'both planted seeds grow into separate crops');
+  assert.equal(p.farming.status().harvestableOptions.length, 2, 'both positions succeed for the declared fixed seed, not for every new game');
   p.farming.selectNextCrop();
   const ready = p.farming.status();
   const cropId = ready.selectedCropId;
@@ -231,4 +231,61 @@ test('selection observations are detached, failed choices clear, and quantity co
   assert.deepEqual(farming.status().fieldOptions, []);
   assert.deepEqual(farming.status().materialOptions, []);
   assert.equal(farming.harvestCommand(), null);
+});
+
+test('position count and seeds per position are independent, use public policy, and dispatch total seed consumption', async t => {
+  const p = await publicFarming(); t.after(() => p.lifetime.dispose());
+  choosePlant(p);
+  p.farming.adjustSeedAmount(1);
+  for (const [density, chance] of [[2, .96], [3, .992], [1, .8]]) {
+    p.farming.cycleSeedsPerTile();
+    const state = p.farming.status();
+    assert.equal(state.plantingTiles, 2);
+    assert.equal(state.seedsPerTile, density);
+    assert.equal(state.seedAmount, 2 * density);
+    assert.ok(Math.abs(state.successProbability! - chance) < 1e-10);
+  }
+  p.farming.cycleSeedsPerTile();
+  const before = p.farming.status();
+  const command = requiredCommand(p.farming.plantCommand());
+  if (command.name !== 'menu_confirm' || command.selection.action_type !== 'plant_crop') throw new Error('expected planting');
+  assert.equal(command.selection.seeds_per_tile, 2);
+  assert.equal(command.selection.seed_quantity.amount, 4);
+  await p.interaction.execute(command);
+  const after = p.farming.status();
+  assert.equal(after.fieldOptions[0].occupied_tiles, 2);
+  assert.equal(after.seedOptions[0].quantity.amount, before.seedOptions[0].quantity.amount - 4);
+  assert.equal(after.cropStatusOptions.length, 2);
+  for (const crop of after.cropStatusOptions) assert.deepEqual(Object.keys(crop).sort(), ['field_plot_id', 'growth_stage', 'id', 'lifecycle_status']);
+  await growUntilPubliclyHarvestable(p);
+  assert.equal(p.farming.status().harvestableOptions.length, 2);
+});
+
+test('a fixed real new-game seed exposes failure only at growth, frees the position, and load never rerolls it', async t => {
+  const p = await publicFarming('new_game:2026-11-08T00:00:25.000Z'); t.after(() => p.lifetime.dispose());
+  await p.interaction.execute(choosePlant(p));
+  const planted = p.farming.status();
+  assert.equal(planted.fieldOptions[0].occupied_tiles, 1);
+  assert.equal(planted.cropStatusOptions[0].lifecycle_status, 'active');
+  assert.equal(JSON.stringify(planted.cropStatusOptions).includes('outcome'), false);
+  await p.interaction.execute(SAVE);
+  await p.interaction.execute(DAY);
+  const failed = p.farming.status();
+  assert.equal(failed.cropStatusOptions[0].lifecycle_status, 'failed');
+  assert.equal(failed.cropStatusOptions[0].growth_stage, 'withered');
+  assert.equal(failed.fieldOptions[0].occupied_tiles, 0);
+  assert.equal(failed.fieldOptions[0].available_tiles, 6);
+  assert.equal(p.farming.harvestCommand(), null);
+  assert.deepEqual(failed.materialOptions, planted.materialOptions, 'no harvested output or seed refund');
+  await p.interaction.execute(LOAD);
+  assert.deepEqual(p.farming.status().cropStatusOptions, planted.cropStatusOptions);
+  await p.interaction.execute(DAY);
+  assert.deepEqual(p.farming.status().cropStatusOptions, failed.cropStatusOptions);
+  await p.interaction.execute(requiredCommand(p.farming.plantCommand()));
+  await growUntilPubliclyHarvestable(p);
+  p.farming.selectNextCrop();
+  await p.interaction.execute(requiredCommand(p.farming.harvestCommand()));
+  assert.equal(p.interaction.status().operation.status, 'completed');
+  assert.equal(p.farming.status().fieldOptions[0].occupied_tiles, 0);
+  assert.ok(p.farming.status().materialOptions.some(item => item.base_id === 'cabbage' && item.quantity.amount === 1200));
 });

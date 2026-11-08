@@ -2,7 +2,7 @@
   "snapshot_id": "stage_1A_runtime_snapshot",
   "source_formal_design_version": "v1.5.2.2",
   "source_config_profile": "configs/active_stage_1A/load_order.yaml",
-  "source_config_hash_sha256": "5a93d61d8af809fdf37495221fe359f12841adcbe794e0eee583fb2134260516",
+  "source_config_hash_sha256": "754652dc735a1b16651610d8f2446f656b9849b1a62c7cfff05d9fdcd41b4251",
   "loaded_documents": {
     "configs/core/rule_versions.yaml": {
       "version_bundle": {
@@ -1154,7 +1154,7 @@
       "cooking_views": {
         "seasoning": {
           "role": "seasoning",
-          "saltiness_power": 1.0
+          "saltiness_power": 1
         }
       },
       "processing_views": {
@@ -1211,7 +1211,7 @@
       "cooking_views": {
         "stir_fry": {
           "role": "oil",
-          "oiliness_power": 1.0,
+          "oiliness_power": 1,
           "heat_transfer": "medium"
         }
       },
@@ -1368,13 +1368,18 @@
         }
       },
       "seed_defaults": {
-        "germination_rate": 0.92,
+        "germination_rate": 0.8,
         "seed_quality": "normal",
         "genetic_summary": {
           "growth_tendency": "normal",
           "storage_tendency": "normal",
           "medicinal_tendency": "low"
         }
+      },
+      "planting_policy": {
+        "policy_version": "independent-seeds-v1",
+        "max_seeds_per_tile": 3,
+        "reveal_growth_progress": 20
       },
       "source_policy": {
         "default_source": "npc_trade",
@@ -2381,7 +2386,7 @@
             "canonical_id": "base:salt"
           },
           "storage_footprint": {
-            "amount": 2.0,
+            "amount": 2,
             "unit": "slot_weight"
           }
         },
@@ -2430,7 +2435,7 @@
             "canonical_id": "base:bacon"
           },
           "storage_footprint": {
-            "amount": 2.0,
+            "amount": 2,
             "unit": "slot_weight"
           }
         },

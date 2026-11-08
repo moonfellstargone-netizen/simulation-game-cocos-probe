@@ -5,10 +5,10 @@ code_package_npm_version: 0.0.3-0
 code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_3_0
 version_name: WeChat Stage1A Pilot
 chinese_version_name: 微信真机Stage1A试水版
-scope: M1 candidate within the WeChat Stage1A Pilot: independent minimal outer, read-only candidate identity, public runtime advance_time button, fixed-source preparation and separate WeChat build provenance. Preserve core, Session/Queue, SaveFile, formal resources and existing Web regressions. Temporary in-memory new session only; M2 storage/lifecycle, M3 complete loop and M4 phone acceptance remain unimplemented or unverified.
+scope: WeChat Stage1A Pilot M3 candidate: farming, inventory, direct split, processing, manual save/load. This runtime derivative includes the user-approved probabilistic planting amendment; full M3 and M4 acceptance remain incomplete.
 
-formal_source_statement: 正式包 v1.5.2.2 remains authoritative
-context_statement: 当前仅M1微信最小构建与运行候选，正式advance_time及只读身份沿既有公共入口；同步版本/来源/架构/追踪并保持代码包内部检查体系治理，保留Web支持；core、Session/Queue、SaveFile与正式资源保持，M2—M4尚未实现或验收，不从Node或安装记录冒称微信或手机通过
-quality_surface: trace.cocos.touch-small-screen, pure ProbeLayout behavior and executed preparation/lifecycle/web-verification contracts; inherited 29 traces; q:full, q:release without cache, independent Creator/SDK and built/editor mouse/touch evidence
-authority_statement: design pack remains authoritative; GitHub repo is daily code authority
+formal_source_statement: 正式包 v1.5.2.2为原始来源；本派生集合另含2026-11-08用户明确批准的概率播种修订，不能称原包已规定80%或与原始资料字节完全一致
+context_statement: 每个种植位最多3粒、每粒独立80%成苗，最终最多保留1株；2粒96%、3粒99.2%。最小扩展播种参数、成苗保存字段和派生配置，原始包及历史快照不改。旧作物不追溯补抽；其它Stage1A规则沿原来源，正式变化经ActionPipeline
+quality_surface: trace.farming.seed-quantity and inherited traces; q:full and q:release without cache; independent Creator/SDK and built/editor regression; new WeChat device results require separate evidence
+authority_statement: design pack remains authoritative except the explicit approved planting amendment; GitHub repo is daily code authority; 代码包内部检查体系治理保持，原架构边界和正式Action校验不放宽
 affected_boundary: q:affected and cache probe serve development feedback only; q:full and q:release without cache remain completion authority

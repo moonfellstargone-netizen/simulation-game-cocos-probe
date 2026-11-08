@@ -51,7 +51,7 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
   let gate = new Promise<void>(resolve => { unblock = resolve; });
   const controller = new WechatProbeController({
     load: async () => ({ resources: { snapshot, schemas, buildId }, identity }),
-    createHost: input => liveHost = createStage1AHost({ snapshot: input.snapshot as RuntimeConfigSnapshot, schemas: input.schemas, buildId, storage, nowIso8601: '2026-11-03T00:00:00.000Z' }),
+    createHost: input => liveHost = createStage1AHost({ snapshot: input.snapshot as RuntimeConfigSnapshot, schemas: input.schemas, buildId, storage, nowIso8601: '2026-11-03T00:00:00.000Z', randomSeed: 'farming-test-23' }),
     createBinding: host => {
       const binding = new QinglanUiSceneProbeComponent(host as CocosSessionHost, { applyNodeBindingPatch: async patch => {
         if (hold) await gate;
@@ -132,11 +132,27 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     for (let i = 0; i < 9; i++) click('FarmPlus');
     assert.equal(probe.seedAmount, 10, 'the UI never silently truncates the requested quantity');
     assert.match(probe.labels.farmField.string, /空余6\/6格/);
-    assert.match(probe.labels.farmSeed.string, /10株\/占10格.*土地空间不足/);
+    assert.match(probe.labels.farmSeed.string, /种10位.*共10粒/);
+    assert.match(probe.labels.farmSeed.string, /土地空间不足/);
     assert.equal(probe.menuButtons.FarmPlant.interactable, false);
     click('FarmPlant');
     assert.equal(controller.snapshot().accepted_commands, beforeSelect, 'over-capacity input cannot consume seeds');
     for (let i = 0; i < 9; i++) click('FarmMinus');
+    assert.match(probe.labels.farmSeed.string, /每位成苗率80%/);
+    click('FarmSeeds2');
+    assert.match(probe.labels.farmSeed.string, /种1位.*每位2粒.*共2粒/);
+    assert.match(probe.labels.farmSeed.string, /每位成苗率96%/);
+    click('FarmSeeds3');
+    assert.match(probe.labels.farmSeed.string, /每位成苗率99.2%/);
+    for (let i = 0; i < 3; i++) click('FarmPlus');
+    assert.match(probe.labels.farmSeed.string, /种4位.*共12粒/);
+    assert.match(probe.labels.farmSeed.string, /种子不足/);
+    assert.equal(probe.menuButtons.FarmPlant.interactable, false);
+    click('FarmPlant');
+    assert.equal(controller.snapshot().accepted_commands, beforeSelect);
+    for (let i = 0; i < 3; i++) click('FarmMinus');
+    click('FarmSeeds1');
+    click('FarmSeeds2');
 
     const seedBefore = initial.menu!.selectable_view_model!.seed_lot_options.find(x => x.id === seedId)!.quantity.amount;
     click('FarmPlant'); await waitForIdle();
@@ -144,8 +160,10 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     const planted = controller.snapshot().menu!.selectable_view_model!;
     assert.equal(planted.field_options.find(x => x.id === fieldId)!.enabled, true);
     assert.equal(planted.field_options.find(x => x.id === fieldId)!.available_tiles, 5);
-    assert.equal(planted.seed_lot_options.find(x => x.id === seedId)!.quantity.amount, seedBefore - 1);
+    assert.equal(planted.seed_lot_options.find(x => x.id === seedId)!.quantity.amount, seedBefore - 2, 'one position consumes the selected two seeds, not one or two positions');
     assert.equal(probe.fieldId, fieldId, 'a partly occupied field remains selected');
+    assert.match(probe.labels.farmCrop.string, /待出苗1.*生长中0/);
+    assert.match(probe.labels.farmCrop.string, /出苗失败0/);
     await controller.save();
     controller.setVisible(false); const oldPage = probe.page; const accepted = controller.snapshot().accepted_commands;
     click('PageStock'); click('AdvanceDay');
@@ -630,6 +648,12 @@ test('M3 bottom hint geometry fits the design viewport, avoids controls, and ret
     || quantityInput.top <= quantityUnit.bottom || quantityUnit.top <= quantityInput.bottom,
     'split quantity input and unit label do not overlap');
   const separate = (a: any, b: any) => a.right <= b.left || b.right <= a.left || a.top <= b.bottom || b.top <= a.bottom;
+  const farmItems = probe.farmNode.children.map((node: any) => ({ name: node.name, rect: rect(node) }));
+  for (let i = 0; i < farmItems.length; i++) {
+    const { name, rect: item } = farmItems[i];
+    assert.ok(item.left >= -480 && item.right <= 480 && item.bottom >= -250 && item.top <= 250, `farm/${name} remains within the design viewport`);
+    for (let j = 0; j < i; j++) assert.ok(separate(item, farmItems[j].rect), `farm/${name} overlaps ${farmItems[j].name}`);
+  }
   for (const [pageName, page] of Object.entries(probe.processingPages) as Array<[string, any]>) {
     const items = page.children.map((node: any) => ({ name: node.name, rect: rect(node) }));
     for (let i = 0; i < items.length; i++) {
@@ -650,7 +674,7 @@ test('M3 bottom hint geometry fits the design viewport, avoids controls, and ret
       `hint must not overlap ${button.node.name}`);
     assert.ok(result.top <= control.bottom || control.top <= result.bottom || result.right <= control.left || control.right <= result.left,
       `result must not overlap ${button.node.name}`);
-    for (const name of ['FarmMinus', 'FarmPlus', 'FarmPlant', 'FarmHarvest', 'StockMove', 'StockSplit', 'SplitBack', 'SplitRefresh', 'SplitConfirm']) {
+    for (const name of ['FarmMinus', 'FarmPlus', 'FarmSeeds1', 'FarmSeeds2', 'FarmSeeds3', 'FarmPlant', 'FarmHarvest', 'StockMove', 'StockSplit', 'SplitBack', 'SplitRefresh', 'SplitConfirm']) {
       const action = rect(probe.menuButtons[name].node);
       assert.ok(control.top <= action.bottom || action.top <= control.bottom || control.right <= action.left || action.right <= control.left,
         `${button.node.name} must not overlap ${name}`);

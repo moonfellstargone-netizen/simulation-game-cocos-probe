@@ -25,6 +25,14 @@ export interface CocosMaterialLotOption extends CocosSelectableOptionBase {
   active_reservation_count: number;
   compatible_method_ids: string[];
   compatible_recipe_roles: Array<{ recipe_variant_id: string; role: string }>;
+  planting_policy?: { max_seeds_per_tile: number; per_seed_success_rate: number };
+}
+
+export interface CocosCropStatusOption {
+  id: string;
+  field_plot_id: string;
+  growth_stage: string;
+  lifecycle_status: string;
 }
 
 export interface CocosHarvestableCropOption extends CocosSelectableOptionBase {
@@ -163,6 +171,7 @@ export interface CocosSelectableViewModelData {
   field_options: CocosFieldOption[];
   seed_lot_options: CocosMaterialLotOption[];
   harvestable_crop_options: CocosHarvestableCropOption[];
+  crop_status_options?: CocosCropStatusOption[];
   splittable_lot_options: CocosMaterialLotOption[];
   processable_lot_options: CocosMaterialLotOption[];
   collectable_task_options: CocosCollectableTaskOption[];
@@ -232,6 +241,10 @@ export class CocosSelectableViewModel {
         };
       }),
       seed_lot_options: materialOptions.filter((option) => option.category === 'seed' || option.current_form.includes('seed') || option.base_id.endsWith('_seed')),
+      // Only already-visible lifecycle stages are projected; random samples remain in core state.
+      crop_status_options: save.crop_instances.filter(crop => !['harvested', 'removed'].includes(crop.lifecycle_status)).map(crop => ({
+        id: crop.crop_id, field_plot_id: crop.field_plot_id, growth_stage: crop.growth_stage, lifecycle_status: crop.lifecycle_status
+      })),
       harvestable_crop_options: save.crop_instances.map((crop) => ({
         id: crop.crop_id,
         label_key: `crop.${crop.crop_base_id}.name`,
@@ -416,6 +429,15 @@ export class CocosSelectableViewModel {
     const lot = save.inventory.find((item) => item.lot_id === lotId);
     if (!lot) throw new Error(`ERR_SELECTABLE_LOT_NOT_FOUND:${lotId}`);
     const activeReservationCount = save.reservations.filter((reservation) => reservation.status === 'active' && reservation.target_ref.object_type === 'MaterialLot' && reservation.target_ref.object_id === lot.lot_id).length;
+    const seedDefinition = Object.entries(this.configs.loadStage1A().documents)
+      .filter(([path]) => path.startsWith('configs/farming/seeds/') && path.endsWith('.yaml'))
+      .map(([, definition]) => definition as { id?: string; seed_defaults?: { germination_rate?: number }; planting_policy?: { max_seeds_per_tile?: number } })
+      .find(definition => definition.id === lot.base_id);
+    const maxSeeds = seedDefinition?.planting_policy?.max_seeds_per_tile;
+    const rate = seedDefinition?.seed_defaults?.germination_rate;
+    const plantingPolicy = typeof maxSeeds === 'number' && Number.isSafeInteger(maxSeeds) && maxSeeds > 0
+      && typeof rate === 'number' && Number.isFinite(rate) && rate >= 0 && rate <= 1
+      ? { max_seeds_per_tile: maxSeeds, per_seed_success_rate: rate } : null;
     return {
       id: lot.lot_id,
       label_key: `material.${lot.base_id}.${lot.current_form}`,
@@ -428,7 +450,8 @@ export class CocosSelectableViewModel {
       storage_ref: { ...lot.storage_ref },
       active_reservation_count: activeReservationCount,
       compatible_method_ids: processingMethodIds.filter((methodId) => this.lotMatchesProcessingMethod(lot, methodId)),
-      compatible_recipe_roles: recipeVariantIds.flatMap((recipeId) => this.compatibleRecipeRoles(lot, recipeId).map((role) => ({ recipe_variant_id: recipeId, role })))
+      compatible_recipe_roles: recipeVariantIds.flatMap((recipeId) => this.compatibleRecipeRoles(lot, recipeId).map((role) => ({ recipe_variant_id: recipeId, role }))),
+      ...(plantingPolicy === null ? {} : { planting_policy: plantingPolicy })
     };
   }
 

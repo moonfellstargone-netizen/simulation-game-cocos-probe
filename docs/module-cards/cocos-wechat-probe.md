@@ -9,13 +9,13 @@ source_of_truth: false
 
 ## 模块职责与读取入口
 
-本轮唯一目标是v0.0.3.0的M3微信加工包：在M2及M3种植、库存与拆分候选基础上，接入加工方法、材料、设施、任务、开工与领取，并保留时间推进、手动存读档和前后台保护。加工预览可选，直接确认使用独立正式校验；候选依赖PR25、PR26、PR27和PR28的既有变更，正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；本包不代表M3完整经营或M4手机验收完成。
+当前v0.0.3.0 M3候选保留微信加工，并按用户确认修订概率播种及拆分交互：种植位数与每位粒数分开，1至3粒对应80%/96%/99.2%成苗率，失败可补种；拆分用实时说明和直接确认。加工预览可选，直接确认使用独立正式校验；候选依赖PR25、PR26、PR27和PR28，正式动作仍经公共Host/Binding/Queue与ActionPipeline。时间推进、手动存读档和前后台保护保留。真实Creator、微信工具和手机结果分别验收，本包不代表完整M3或M4完成。
 
-独立apps/cocos-wechat-probe模块只消费派生公共runtime与正式资源，可使用cc，禁止直接wx/fs、业务内部、工具和测试依赖；旧三层不得反向依赖它。微信outer通过Creator平台存储外层提供手动单槽存读档及备份恢复，不增加自动保存或离线补时。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture；planned Stage1B wx-storage-port不转active。
+独立apps/cocos-wechat-probe模块只消费派生公共runtime与正式资源，可使用cc，禁止直接wx/fs、业务内部、工具和测试依赖；旧三层不得反向依赖它。微信outer通过Creator平台存储外层提供手动单槽存读档及备份恢复，不增加自动保存或离线补时。不进入 Stage 1B，不改变 ActionPipeline，不改变正式 fixture；本次SaveFile内CropInstance的兼容成苗字段及派生Schema/config修订见SOURCE_DESIGN_PACK，旧作物不补抽。planned Stage1B wx-storage-port不转active。
 
-- `apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts`：真实cc场景、资源加载、Label/Button与只读观察，提供种植、库存选择、拆分数量输入及预览确认。
+- `apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts`：真实cc场景、资源加载、Label/Button与只读观察，提供概率播种、库存选择、拆分数量实时说明和直接确认。
 - 主存档读取返回空槽时，微信界面提示“未找到主存档；无备份时可先保存”，不将空槽记为命令成功；单独存在备份时仍保留备份保护。只有精确的主槽空档错误按提示记录，读取/坏档/备份恢复等失败仍按错误处理。微信storage读取遇到平台异常伪装成同一个空槽错误时改报存储读取失败，防止误认空档。
-- `apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts`：无cc的资源/身份校验、公共Host/Binding、busy与前后台、销毁迟到保护；通过正式菜单绑定提交播种、推进、收获、整批储存、拆分预览确认及手动存读档命令，并协调备份恢复和首档撤销。
+- `apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts`：无cc的资源/身份校验、公共Host/Binding、busy与前后台、销毁迟到保护；通过正式菜单绑定提交播种、推进、收获、整批储存、直接拆分及手动存读档命令，并协调备份恢复和首档撤销。拆分预览API仅作兼容保留，页面不展示独立预览按钮。
 - `apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts`：在隔离的公开Host会话中校验现有存档，拒绝写入平台存储，验证结束销毁临时Host；用于备份和恢复前置检查。
 - `tools/cocos-probe/lib/prepareProject.mjs`：固定共享生产者，不开放任意template/runtime入口/BuildId角色。
 - `tools/cocos-wechat-probe/prepare.mjs`：prepareWechatProbe({rootDir?, outputDir, appId})，固定wechat profile。
@@ -88,6 +88,6 @@ M3微信库存拆分支持可选预览；玩家可直接确认当前批次和数
 
 ## 农事数量与拆分简化
 
-field_options透传capacity_tiles/available_tiles，页面说明每粒1株/1格并显示可用容量；正式批量播种仍经公共Queue及ActionPipeline，超量不截断或偷偷改数量。拆分页面移除独立预览按钮，输入实时展示拆出与剩余，直接确认继续使用Session独立校验；后台、回执不确定或提交后异常不得重发旧输入，通过显式只读核对当前库存后重新输入。Controller可选预览API保留兼容，不作为页面前提。trace.farming.seed-quantity和既有微信追踪覆盖这些路径，Node结果不代替真实设备输入。
+field_options透传capacity_tiles/available_tiles；页面明确种植位数、每位1至3粒、总耗种与每位成苗率，出苗失败后显示可补种空位。正式批量播种仍经公共Queue及ActionPipeline，超量不截断或偷偷改数量，未揭晓随机结果不显示。拆分页面移除独立预览按钮，输入实时展示拆出与剩余，直接确认继续使用Session独立校验；后台、回执不确定或提交后异常不得重发旧输入，通过显式只读核对当前库存后重新输入。Controller可选预览API保留兼容，不作为页面前提。trace.farming.seed-quantity和既有微信追踪覆盖这些路径，Node结果不代替真实设备输入。
 
 通用menu_confirm只接受当前命令和动作对应的预览/正式回执，Controller实例内记住已观察请求ID以拒绝重复回执；普通load不重建dispatcher，记录不清空。新Controller创建新集合。完成次数不因旧回执增加，不自动重发；此保护不承诺跨控制器去重。

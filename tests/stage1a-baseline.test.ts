@@ -114,19 +114,19 @@ test('Stage 1A baseline final state is consistent across fixture runner, headles
   const fixtureReport = new Stage1AFixtureRunner(runtime.pipeline, {
     configs,
     buildId: baselineBuildIds.fixture_baseline,
-    nowIso8601: '2026-05-19T00:00:00.000Z'
+    nowIso8601: '2026-05-19T00:00:00.000Z', randomSeed: 'farming-test-23'
   }).runFixtureThroughStepId(fixture, 'T20_release_injected_reservation');
 
   const headlessRuntime = new Stage1AHeadlessRuntime(configs, contracts, {
     buildId: baselineBuildIds.headless_baseline,
-    nowIso8601: '2026-05-19T00:00:00.000Z'
+    nowIso8601: '2026-05-19T00:00:00.000Z', randomSeed: 'farming-test-23'
   });
   const headlessReport = new Stage1AActionScriptRunner().runCoreLoop(headlessRuntime);
 
   const storage = new InMemorySaveStoragePort();
   const cocosSession = new CocosAppRuntimeSession(configs, contracts, storage, {
     buildId: baselineBuildIds.cocos_baseline,
-    nowIso8601: '2026-05-19T00:00:00.000Z'
+    nowIso8601: '2026-05-19T00:00:00.000Z', randomSeed: 'farming-test-23'
   });
   const cocosRefs = runCoreLoopThroughSession(cocosSession);
   await cocosSession.save('stage1a_baseline');

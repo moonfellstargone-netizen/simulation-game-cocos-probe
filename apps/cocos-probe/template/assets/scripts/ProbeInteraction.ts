@@ -141,6 +141,7 @@ function failureMessage(code: string): string {
   if (code === 'ERR_FIELD_OCCUPIED') return '地块已占用，请重新选择';
   if (code === 'ERR_FIELD_CAPACITY_EXCEEDED') return '土地空位不足，请减少播种数量';
   if (code === 'ERR_PLANT_QUANTITY_INVALID') return '播种数量须为正整数粒';
+  if (code === 'ERR_SEEDS_PER_TILE_INVALID') return '每位须为1至3粒，总粒数须与播种位数对应';
   if (code === 'ERR_CROP_NOT_MATURE') return '作物尚未成熟';
   if (code.startsWith('ERR_STORAGE_FORM_NOT_SUPPORTED')) return '该位置不支持这种物料形态';
   if (code.startsWith('ERR_STORAGE_CAPACITY_OVERFLOW')) return '储存容量不足，请选择其他位置';

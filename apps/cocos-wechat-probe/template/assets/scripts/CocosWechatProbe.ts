@@ -79,6 +79,7 @@ export class CocosWechatProbe extends Component {
   private lotId: string | null = null;
   private targetId: string | null = null;
   private seedAmount = 1;
+  private seedsPerTile = 1;
 
   onLoad(): void {
     this.createView();
@@ -91,15 +92,17 @@ export class CocosWechatProbe extends Component {
         return { resources: loadedResources as WechatResources, identity };
       },
       createHost: input => {
+        const nowIso8601 = new Date().toISOString();
+        const randomSeed = `new_game:${nowIso8601}`;
         validateSaved = createWechatPriorSaveValidator(validationStorage => createStage1AHost({
-          ...input, storage: validationStorage, nowIso8601: new Date().toISOString()
+          ...input, storage: validationStorage, nowIso8601, randomSeed
         }));
         storage = new WechatSaveStoragePort(() => {
           // Creator may replace sys.localStorage with a warning-only stub on initialization failure.
           if (!window.localStorage || sys.localStorage !== window.localStorage) throw new Error('ERR_WECHAT_STORAGE_UNAVAILABLE');
           return sys.localStorage;
         }, validateSaved);
-        return createStage1AHost({ ...input, storage, nowIso8601: new Date().toISOString() });
+        return createStage1AHost({ ...input, storage, nowIso8601, randomSeed });
       },
       createBinding: host => new QinglanUiSceneProbeComponent(host, { applyNodeBindingPatch: patch => {
         if (patch.section === 'menu') this.controller?.acceptMenuPatch(patch.payload);
@@ -253,10 +256,11 @@ export class CocosWechatProbe extends Component {
       else if (name === 'StockSplit') this.page = 'split';
       else if (name === 'SplitBack') this.page = 'stock';
       else if (name === 'FarmField') this.fieldId = this.next(options?.field_options.filter(x => x.enabled) ?? [], this.fieldId);
-      else if (name === 'FarmSeed') { this.seedId = this.next(options?.seed_lot_options.filter(x => x.enabled) ?? [], this.seedId); this.seedAmount = 1; }
+      else if (name === 'FarmSeed') { this.seedId = this.next(options?.seed_lot_options.filter(x => x.enabled) ?? [], this.seedId); this.seedAmount = 1; this.seedsPerTile = 1; }
       else if (name === 'FarmCrop') this.cropId = this.next(options?.harvestable_crop_options.filter(x => x.enabled) ?? [], this.cropId);
       else if (name === 'FarmMinus' && this.seedId !== null) this.seedAmount = Math.max(1, this.seedAmount - 1);
       else if (name === 'FarmPlus' && this.seedId !== null && Number.isSafeInteger(this.seedAmount + 1)) this.seedAmount++;
+      else if (/^FarmSeeds[123]$/.test(name) && this.seedId !== null) this.seedsPerTile = Number(name.slice(-1));
       else if (name === 'StockLot') { this.lotId = this.next(options?.splittable_lot_options ?? [], this.lotId); if (this.splitInput) this.splitInput.string = ''; }
       else if (name === 'StockTarget') this.targetId = this.next(options?.storage_target_options ?? [], this.targetId);
       else {
@@ -270,7 +274,8 @@ export class CocosWechatProbe extends Component {
         if (name === 'SplitRefresh') this.refreshSplit();
         else if (name === 'SplitConfirm' && lot) this.confirmSplit(lot);
         if (name === 'AdvanceDay') { action = this.controller!.advanceDay(); done = '已推进一天'; }
-        else if (name === 'FarmPlant' && field && seed) { action = this.controller!.plant(field.id, seed.id, { amount: this.seedAmount, unit: seed.quantity.unit }); done = '播种完成'; }
+        else if (name === 'FarmPlant' && field && seed) { action = this.controller!.plant(field.id, seed.id,
+          { amount: this.seedAmount * this.seedsPerTile, unit: seed.quantity.unit }, this.seedsPerTile); done = `已播种${this.seedAmount}位，出苗后查看成苗结果`; }
         else if (name === 'FarmHarvest' && crop) { action = this.controller!.harvest(crop.id); done = '收获完成'; }
         else if (name === 'StockMove' && lot && target && target.id !== lot.storage_ref.container_id) { action = this.controller!.move(lot.id, target.id); done = '转移完成'; }
         if (action) {
@@ -680,7 +685,7 @@ export class CocosWechatProbe extends Component {
     const lots = options?.splittable_lot_options ?? [];
     const targets = options?.storage_target_options ?? [];
     if (!fields.some(x => x.id === this.fieldId && x.enabled)) this.fieldId = null;
-    if (!seeds.some(x => x.id === this.seedId && x.enabled)) { this.seedId = null; this.seedAmount = 1; }
+    if (!seeds.some(x => x.id === this.seedId && x.enabled)) { this.seedId = null; this.seedAmount = 1; this.seedsPerTile = 1; }
     if (!crops.some(x => x.id === this.cropId && x.enabled)) this.cropId = null;
     if (!lots.some(x => x.id === this.lotId)) this.lotId = null;
     if (!targets.some(x => x.id === this.targetId)) this.targetId = null;
@@ -699,9 +704,22 @@ export class CocosWechatProbe extends Component {
     if (this.processingNode) this.processingNode.active = inProcessing;
     for (const [page, node] of Object.entries(this.processingPages)) node.active = this.page === page;
     this.labels.farmField.string = field ? `地块：${this.names[field.definition_id] ?? '已选地块'} · 空余${field.available_tiles}/${field.capacity_tiles}格` : `地块：请选择（可用${fields.filter(x => x.enabled).length}/${fields.length}）`;
-    const plantProblem = seed && field ? this.seedAmount > seed.quantity.amount ? '种子不足' : this.seedAmount > field.available_tiles ? '土地空间不足' : null : null;
-    this.labels.farmSeed.string = seed ? `${this.names[seed.base_id] ?? '种子'}${seed.quantity.amount}${unit(seed.quantity.unit)} · 播${this.seedAmount}粒 → ${this.seedAmount}株/占${this.seedAmount}格${plantProblem ? ` · ${plantProblem}` : ''}` : '种子：请选择种子批次';
-    this.labels.farmCrop.string = crop ? `作物${crops.findIndex(x => x.id === crop.id) + 1}/${crops.length}：${this.names[crop.crop_base_id] ?? '已选作物'} · 可收获${crops.filter(x => x.enabled).length}株` : `作物：可收获${crops.filter(x => x.enabled).length}株`;
+    const totalSeeds = this.seedAmount * this.seedsPerTile;
+    const policy = seed?.planting_policy;
+    const validPolicy = policy && Number.isSafeInteger(policy.max_seeds_per_tile) && policy.max_seeds_per_tile >= 1
+      && Number.isFinite(policy.per_seed_success_rate) && policy.per_seed_success_rate >= 0 && policy.per_seed_success_rate <= 1;
+    const plantProblem = seed && field ? !validPolicy ? '种植规则不可用'
+      : !Number.isSafeInteger(totalSeeds) || totalSeeds <= 0 || !Number.isSafeInteger(this.seedAmount) || !Number.isSafeInteger(seed.quantity.amount)
+        || !Number.isSafeInteger(this.seedsPerTile) || this.seedsPerTile < 1 || this.seedsPerTile > policy!.max_seeds_per_tile ? '数量无效'
+      : this.seedAmount > field.available_tiles ? '土地空间不足' : totalSeeds > seed.quantity.amount ? '种子不足' : null : null;
+    const chance = validPolicy ? `${Math.round((1 - (1 - policy!.per_seed_success_rate) ** this.seedsPerTile) * 1000) / 10}%` : '—';
+    this.labels.farmSeed.string = seed ? `${this.names[seed.base_id] ?? '种子'} · 种${this.seedAmount}位 × 每位${this.seedsPerTile}粒＝共${totalSeeds}粒（库存${seed.quantity.amount}粒）\n每位成苗率${chance}${plantProblem ? ` · ${plantProblem}` : ' · 每位最多1株'}` : '请选择种子，再选择种植位数与每位粒数';
+    const cropStatuses = options?.crop_status_options ?? [];
+    const pending = cropStatuses.filter(item => item.lifecycle_status === 'active' && item.growth_stage === 'seed').length;
+    const growing = cropStatuses.filter(item => item.lifecycle_status === 'active' && item.growth_stage !== 'seed').length;
+    const failed = cropStatuses.filter(item => item.lifecycle_status === 'failed').length;
+    if (failed > 0 && field && field.available_tiles > 0) this.labels.farmField.string += ' · 可补种';
+    this.labels.farmCrop.string = `待出苗${pending} · 生长中${growing}\n出苗失败${failed} · 可收获${crops.filter(x => x.enabled).length}${crop ? `（选${crops.findIndex(x => x.id === crop.id) + 1}）` : ''}`;
     this.labels.stockLot.string = lot ? `批次${lots.findIndex(x => x.id === lot.id) + 1}/${lots.length}：${this.names[lot.base_id] ?? '材料'} ${lot.quantity.amount}${unit(lot.quantity.unit)} · ${place(lot.storage_ref.storage_type)}${lot.enabled ? '' : ' · 不可用'}` : `库存：${lots.length}批，请选择材料`;
     this.labels.stockTarget.string = target ? `目标：${place(target.storage_type)} · 空间占用${target.used_capacity}/${target.capacity.amount}${unit(target.capacity.unit)}${target.enabled ? '' : ' · 不可用'}` : `目标：${targets.length}处，请选择储存位置`;
     this.labels.stockHelp.string = lot ? `形态：${this.names[`${lot.base_id}:${lot.current_form}`] ?? FORMS[lot.current_form] ?? lot.current_form} · 目标支持：${target?.supported_forms.map(form => FORMS[form] ?? form).join('/') || '未列出'} · 整批转移` : '选择材料批次与目标后可整批转移';
@@ -719,6 +737,12 @@ export class CocosWechatProbe extends Component {
     set('PageFarm', true); set('PageStock', true); set('PageProcessing', true); set('AdvanceDay', true);
     set('FarmField', fields.some(x => x.enabled)); set('FarmSeed', seeds.some(x => x.enabled)); set('FarmCrop', crops.some(x => x.enabled));
     set('FarmMinus', !!seed && this.seedAmount > 1); set('FarmPlus', !!seed && Number.isSafeInteger(this.seedAmount + 1));
+    for (let count = 1; count <= 3; count++) {
+      const name = 'FarmSeeds' + count;
+      set(name, !!seed && !!validPolicy && count <= policy!.max_seeds_per_tile);
+      const label = this.menuButtons[name].node.children.find(child => child.name === 'caption')?.getComponent(Label);
+      if (label) label.string = `${count === this.seedsPerTile ? '✓ ' : ''}${count}粒/位`;
+    }
     set('FarmPlant', !!field && !!seed && !plantProblem); set('FarmHarvest', !!crop);
     set('StockLot', lots.length > 0); set('StockTarget', targets.length > 0);
     set('StockMove', !!lot?.enabled && !!target?.enabled && target.id !== lot.storage_ref.container_id);
@@ -910,6 +934,7 @@ export class CocosWechatProbe extends Component {
     if (error.includes('ERR_WECHAT_ACTION_RESULT_UNCERTAIN')) return '操作结果待确认，请查看土地和库存核实';
     if (error.includes('ERR_FIELD_CAPACITY_EXCEEDED')) return '土地空间不足，请减少播种数量';
     if (error.includes('ERR_PLANT_QUANTITY_INVALID')) return '播种数量须为正整数';
+    if (error.includes('ERR_SEEDS_PER_TILE_INVALID')) return '每位须播1至3粒，总粒数须能均分';
     if (error.includes('ERR_STORAGE_CAPACITY_OVERFLOW')) return '储存空间不足，请整理库存后再操作';
     if (error.includes('ERR_NOT_ENOUGH_RESOURCE')) return '材料数量不足，请核对当前库存';
     if (error.includes('ERR_WECHAT_PROCESSING_RESULT_UNCERTAIN')) return '结果待确认，请查看加工任务和库存核实';
@@ -963,14 +988,19 @@ export class CocosWechatProbe extends Component {
     this.farmNode.addComponent(UITransform).setContentSize(960, 540);
     this.menuButtons.FarmField = this.smallButton(this.farmNode, 'FarmField', '选择地块', -350, 25);
     this.menuButtons.FarmSeed = this.smallButton(this.farmNode, 'FarmSeed', '选择种子', -350, -30);
-    this.menuButtons.FarmCrop = this.smallButton(this.farmNode, 'FarmCrop', '选择作物', -350, -85);
+    this.menuButtons.FarmCrop = this.smallButton(this.farmNode, 'FarmCrop', '选择成熟作物', -150, -140);
     this.labels.farmField = this.menuLabel(this.farmNode, 'farmField', 80, 25);
     this.labels.farmSeed = this.menuLabel(this.farmNode, 'farmSeed', 80, -30);
-    this.labels.farmCrop = this.menuLabel(this.farmNode, 'farmCrop', 80, -85);
-    this.menuButtons.FarmMinus = this.smallButton(this.farmNode, 'FarmMinus', '种子 −1', -330, -140);
-    this.menuButtons.FarmPlus = this.smallButton(this.farmNode, 'FarmPlus', '种子 +1', -110, -140);
-    this.menuButtons.FarmPlant = this.smallButton(this.farmNode, 'FarmPlant', '播种', 110, -140);
-    this.menuButtons.FarmHarvest = this.smallButton(this.farmNode, 'FarmHarvest', '收获', 330, -140);
+    this.labels.farmSeed.fontSize = 16; this.labels.farmSeed.lineHeight = 19;
+    this.labels.farmSeed.node.getComponent(UITransform)!.setContentSize(620, 44);
+    this.labels.farmCrop = this.menuLabel(this.farmNode, 'farmCrop', 300, -140);
+    this.labels.farmCrop.fontSize = 15; this.labels.farmCrop.lineHeight = 19;
+    this.labels.farmCrop.node.getComponent(UITransform)!.setContentSize(300, 44);
+    this.menuButtons.FarmMinus = this.smallButton(this.farmNode, 'FarmMinus', '少种1位', -380, -85);
+    this.menuButtons.FarmPlus = this.smallButton(this.farmNode, 'FarmPlus', '多种1位', -190, -85);
+    for (let count = 1; count <= 3; count++) this.menuButtons['FarmSeeds' + count] = this.smallButton(this.farmNode, 'FarmSeeds' + count, `${count}粒/位`, (count - 1) * 190, -85);
+    this.menuButtons.FarmPlant = this.smallButton(this.farmNode, 'FarmPlant', '播种', -350, -140);
+    this.menuButtons.FarmHarvest = this.smallButton(this.farmNode, 'FarmHarvest', '收获', 50, -140);
 
     this.stockNode = new Node('InventoryPage');
     this.stockNode.layer = Layers.Enum.UI_2D;

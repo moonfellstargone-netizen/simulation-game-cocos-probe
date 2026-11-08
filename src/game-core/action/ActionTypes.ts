@@ -28,6 +28,7 @@ export interface PlantCropParams {
   field_plot_id: string;
   seed_lot_id: string;
   seed_quantity: Quantity;
+  seeds_per_tile?: number;
 }
 
 export interface AdvanceTimeParams {

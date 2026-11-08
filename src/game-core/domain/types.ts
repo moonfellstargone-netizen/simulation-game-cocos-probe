@@ -123,6 +123,14 @@ export interface FieldPlotState {
 }
 
 export interface CropInstance {
+  germination?: {
+    policy_version: 'independent-seeds-v1';
+    seeds_per_tile: number;
+    per_seed_success_rate: number;
+    reveal_growth_progress: number;
+    outcome: 'succeeded' | 'failed';
+    revealed: boolean;
+  };
   crop_id: string;
   crop_base_id: string;
   seed_lot_id: string | null;

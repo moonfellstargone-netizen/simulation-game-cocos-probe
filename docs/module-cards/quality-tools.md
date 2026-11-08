@@ -74,3 +74,6 @@ quality-map、TRACEABILITY_MATRIX、GLOSSARY 中 q:*、PR CI 与 traceability �
 ## 浏览器本地存档与刷新恢复
 
 trace.cocos.browser-local-save连接外层BrowserSaveStoragePort.ts、CocosWebProbe.ts、ProbeInteraction.ts及浏览器/固定来源工具；保留trace.cocos.web-save-load-recovery对既有Queue命令结果归属的追踪。真实三按钮AdvanceOneHour、SaveLocal、LoadLocal使用固定单槽web_probe和稳定项目key，启动不读写存储；同origin/profile刷新先创建新局，手动读取恢复保存状态。getter/读写拒绝和坏档保持当前会话，不回退内存。tests/cocos-browser-storage.test.ts与既有生命周期/交互回归由test.cocos-engine-probe-lifecycle实际执行，tests/cocos-web-serve-contracts.test.mjs由test.cocos-web-verification-contracts执行；files/covers、单文件affected及full/blocker闭合。ProbeInteraction保留本次反馈、busy和销毁后迟到保护；真实Creator/Chrome物理点击、刷新及同context新页面手动恢复独立验收，根typecheck只覆盖src，Node通过不能替代引擎或持久化证据。
+# 运行配置派生物同步
+
+tools/rebuild-design-snapshot.mjs依据现有runtime snapshot声明的loaded_documents读取运行配置源并计算规范化SHA256；不扩大active资源清单。默认再生，--check只读拒绝陈旧内容或摘要。test.cocos-probe-preparation登记该工具，实际测试覆盖当前源一致、隔离副本修改成苗率后检查失败、检查不写文件及显式再生恢复。原始资料包不改，派生规则授权说明见SOURCE_DESIGN_PACK。

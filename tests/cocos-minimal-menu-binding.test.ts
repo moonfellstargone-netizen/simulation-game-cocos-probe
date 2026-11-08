@@ -14,12 +14,36 @@ function makeMenu() {
   const storage = new InMemorySaveStoragePort();
   const host = new CocosSessionHost(configs, contracts, storage, {
     buildId: testBuildId('cocos_menu_binding_test'),
-    nowIso8601: '2026-05-21T00:00:00.000Z'
+    nowIso8601: '2026-05-21T00:00:00.000Z',
+    randomSeed: 'farming-test-23' // Fixed successful farming setup for downstream menu tests.
   });
   host.createSession();
   const controller = new MinimalMenuInteractionController(host);
   return { host, controller, storage, configs };
 }
+
+test('plant menu passes total seed quantity and seeds per position through formal validation', async () => {
+  const menu = makeMenu();
+  const session = menu.host.requireSession();
+  const choices = session.getSelectableViewModel();
+  const selection = { action_type: 'plant_crop' as const, field_option_id: choices.field_options[0]!.id,
+    seed_lot_option_id: choices.seed_lot_options[0]!.id, seed_quantity: quantity(6, 'count'), seeds_per_tile: 3 };
+  const result = menu.controller.confirm(selection);
+  assert.equal(result.last_action_result?.success, true);
+  assert.equal(result.last_action_result!.created_objects.filter(item => item.object_type === 'CropInstance').length, 2);
+  assert.equal(session.getSelectableViewModel().field_options[0]!.available_tiles, 4);
+  assert.equal(session.getSelectableViewModel().seed_lot_options[0]!.quantity.amount, 4);
+  await session.save('grouped_before_invalid');
+  const before = await menu.storage.read('grouped_before_invalid');
+  const rejected = menu.controller.confirm({ ...selection, seed_quantity: quantity(4, 'count') });
+  assert.equal(rejected.last_preview_result?.success, false);
+  assert.equal(rejected.last_action_result, null);
+  await session.save('grouped_after_invalid');
+  assert.equal(await menu.storage.read('grouped_after_invalid'), before);
+  const recovered = menu.controller.confirm({ ...selection, seed_quantity: quantity(4, 'count'), seeds_per_tile: 2 });
+  assert.equal(recovered.last_action_result?.success, true);
+  assert.equal(session.getSelectableViewModel().field_options[0]!.active_crop_count, 4);
+});
 
 async function v44MenuBytes(menu: ReturnType<typeof makeMenu>, slot: string): Promise<string> {
   await menu.host.requireSession().save(slot);

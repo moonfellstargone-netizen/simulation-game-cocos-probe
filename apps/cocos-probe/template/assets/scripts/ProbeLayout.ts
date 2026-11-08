@@ -91,9 +91,10 @@ export function createProbeLayout(width: number, height: number): ProbeLayoutPla
   const farmLeft = column('farming', 0), farmRight = column('farming', 1);
   farmLeft.label('FieldSummary'); farmLeft.button('SelectField');
   farmLeft.label('SeedSummary'); farmLeft.button('SelectSeed');
-  farmLeft.label('CropSummary'); farmLeft.button('SelectCrop');
+  farmLeft.label('CropSummary', 62, true); farmLeft.button('SelectCrop');
   farmRight.label('InventorySummary', 62, true);
-  farmRight.amount(); farmRight.button('PlantCrop'); farmRight.button('HarvestCrop');
+  farmRight.amount(); farmRight.button('SeedsPerTile'); farmRight.label('PlantingSummary', 62, true);
+  farmRight.button('PlantCrop'); farmRight.button('HarvestCrop');
 
   const stockLeft = column('inventory', 0), stockRight = column('inventory', 1);
   stockLeft.label('InventoryLot'); stockLeft.button('SelectInventoryLot');

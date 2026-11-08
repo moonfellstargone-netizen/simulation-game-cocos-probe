@@ -534,7 +534,8 @@ current_scope_requirements = {
         f'code package version: `{expected_code_version}`',
         '正式包 v1.5.2.2',
         '代码包内部检查体系治理',
-        '不改变正式包设定',
+        '原始资料包与历史固定快照保持原文',
+        '用户明确批准的概率播种修订',
         '不把日志包或规划对话作为正式设计来源',
     ],
     'docs/CODE_CONTEXT_INDEX.md': [

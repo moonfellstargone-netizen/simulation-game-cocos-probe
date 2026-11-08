@@ -1,6 +1,6 @@
 # PROJECT_MAP — v0.0.3.0
 
-本候选同时修复播种数量与拆分交互：每粒种子创建1株并占1格，按地块定义的容量原子校验，半满地块可继续播种；每株按现有配置独立生长、收获并释放1格。微信拆分使用实时数量说明和直接确认，独立校验与提交结果保护保持。多粒换算采用用户明确确认的补充规则，原正式包仅提供单粒样例，不能将该样例作为多粒语义依据。原存档结构、正式动作类型与单株产量定义保持。
+本候选按用户最新确认修订概率播种：每个种植位投1至3粒，成苗率分别为80%、96%、99.2%，最终最多留1株；批量操作分别表达种植位数和每位粒数。有效播种消耗全部投入种子，到出苗阶段揭晓，失败释放该位；输入、库存或容量不合法则整次拒绝。随机结果和流位置随存档保存，预览不消耗真实随机流；旧档已有作物不补抽。微信拆分保持实时数量说明和直接确认。该规则是原正式包之上的用户授权修订，派生配置与闭合Schema作最小扩展，原始资料包不改；单株产量、其它经营规则与平台边界保持。下文各历史阶段“不改变Schema/SaveFile”的描述限定于原阶段，本次变动以本段及SOURCE_DESIGN_PACK为准。
 
 项目分级地图导航入口。
 
@@ -84,3 +84,6 @@ trace.cocos.touch-small-screen连接既有cocos-engine-probe/tools/tests模块�
 ## 微信M1追踪与边界
 
 trace.cocos.wechat-m1连接cocos-wechat-probe模块卡、ADR-0005、cocos/runtime/quality地图与files/public-api索引。新增preparation/runtime任务为full/blocker，旧模块与全部追踪保持。M2增加微信存储和生命周期外层；完整经营与手机为M3/M4，尚未完成，不激活Stage1B planned条目。
+# 概率播种配置生产链
+
+白菜种子源配置→tools/rebuild-design-snapshot.mjs→design_snapshot/generated/stage_1A_runtime_snapshot.json→既有prepare及全部58Schema校验/微信预编译→独立运行工程。该工具与陈旧源反例登记在test.cocos-probe-preparation及trace.farming.seed-quantity；不直接手改生成物来伪造源同步。

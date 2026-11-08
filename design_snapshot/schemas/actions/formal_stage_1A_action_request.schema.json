@@ -85,6 +85,11 @@
             },
             "seed_quantity": {
               "$ref": "common_defs.schema.json#/$defs/Quantity"
+            },
+            "seeds_per_tile": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
             }
           }
         }

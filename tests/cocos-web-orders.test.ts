@@ -17,7 +17,7 @@ async function orderProbe(storage = new InMemorySaveStoragePort(), intercept?: I
   const orders = new ProbeOrders(); let host: CocosSessionHost | null = null; let calls = 0;
   const lifetime = new ProbeLifetime({
     loadResources: async () => ({ snapshot, buildId: 'web_orders_contract', schemas: Object.fromEntries(snapshot.schema_paths.map(path => [path, JSON.parse(readFileSync('design_snapshot/' + path, 'utf8'))])) }),
-    createHost: input => host = createStage1AHost({ ...input, snapshot: input.snapshot as RuntimeConfigSnapshot, storage, nowIso8601: '2026-11-02T00:00:00.000Z' }),
+    createHost: input => host = createStage1AHost({ ...input, snapshot: input.snapshot as RuntimeConfigSnapshot, storage, nowIso8601: '2026-11-02T00:00:00.000Z', randomSeed: 'farming-test-23' }),
     createBinding: current => new QinglanUiSceneProbeComponent(current as CocosSessionHost, { applyNodeBindingPatch: patch => { if (patch.section === 'menu') orders.refresh(patch.payload as ProbeMenuSnapshot); } })
   });
   const interaction = new ProbeInteraction({ isAvailable: () => !lifetime.isDisposed() && lifetime.status().phase === 'ready',
@@ -32,7 +32,7 @@ async function orderProbe(storage = new InMemorySaveStoragePort(), intercept?: I
   async function ready() {
     const x = buildRuntimeWithoutState();
     const fixture = x.snapshot.loaded_documents['tests/fixtures/stage_1A_action_sequence.yaml'];
-    const report = new Stage1AFixtureRunner(x.runtime.pipeline, { configs: x.configs, buildId: 'web_orders_fixture', nowIso8601: '2026-11-02T00:00:00.000Z' }).runFixtureThroughStepId(fixture, 'T13_cook_bacon_cabbage');
+    const report = new Stage1AFixtureRunner(x.runtime.pipeline, { configs: x.configs, buildId: 'web_orders_fixture', nowIso8601: '2026-11-02T00:00:00.000Z', randomSeed: 'farming-test-23' }).runFixtureThroughStepId(fixture, 'T13_cook_bacon_cabbage');
     x.contracts.assertSaveFile(report.state.save_file);
     await storage.write('web_probe', new SaveManager().serialize(report.state)); await send(LOAD);
     return { dishId: report.aliases.dish_lot, saved: await capture() };

@@ -248,6 +248,8 @@ WechatProbeController.refreshProcessingView(): Promise<WechatProbeSnapshot>经�
 
 ## 农事数量与容量
 
-FarmingSystem.plantCrop返回CropInstance[]；正式plant_crop的created_objects覆盖本次创建的全部作物。FieldOption公开capacity_tiles/available_tiles，分别取定义容量与剩余空位；微信WechatFieldOption和Web ProbeFieldOption消费相同字段，不拥有SaveFile写入口。每株独立收获、释放占格，单株既有动作参数和存档形状保持。
+FarmingSystem.plantCrop返回每个播种位的CropInstance[]；正式plant_crop新增可选seeds_per_tile（1至3，默认1），seed_quantity仍为总粒数，必须整除。created_objects表示已播种的位置，不保证全部成苗。FieldOption公开capacity_tiles/available_tiles；两端只消费公开规则概率和已揭晓的作物状态，不持有SaveFile写入口或展示未来抽样结果。旧作物缺少新成苗元数据时保持原成长。
+
+Stage1ABootstrapResources及Session可接受显式randomSeed，新局初始化后随存档保存；真实outer从启动时输入构造新局种子，测试可以显式固定。读取已保存会话不覆盖其随机流。核心不调用系统时钟或Math.random决定成苗。
 
 WechatProbeController.refreshSplitView()复用严格只读当前会话refresh，成功后由界面重新输入拆分数量；不读取/写入存档、不提交拆分或自动重试。previewSplit兼容API保留，微信页面不再显示独立预览按钮。

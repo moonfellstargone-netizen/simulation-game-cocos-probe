@@ -31,11 +31,14 @@ const configs = new ConfigRepository(snapshot);
 const contracts = new RuntimeContractValidator(RuntimeSchemaValidator.fromSnapshotSchemas(collectJsonSchemas(join(root, 'design_snapshot/schemas'))));
 const runtime = new Stage1AHeadlessRuntime(configs, contracts, {
   buildId: deriveBuildId('stage1a_headless_cli', markers.snakeVersion),
+  // The scripted demonstration chooses a reproducible successful farming scenario.
+  randomSeed: 'farming-test-23',
   nowIso8601: '2026-05-19T00:00:00.000Z'
 });
 const runner = new Stage1AActionScriptRunner();
 
 console.log('New game created');
+console.log('Demonstration seed: farming-test-23 (selected successful scenario; normal games can fail to emerge)');
 const report = runner.runCoreLoop(runtime);
 for (const step of report.step_results) {
   console.log(`${step.action_type} ${step.success ? 'OK' : step.status_code}`);

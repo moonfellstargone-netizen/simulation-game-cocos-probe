@@ -198,7 +198,7 @@ export function assertUiCommandObservation(observation, expected) {
   assert.equal(after.operation.worldMinute, worldMinute, 'save/load summary must match the resulting public time without stale success data');
 }
 
-const FARMING_COLLECTIONS = ['fieldOptions', 'seedOptions', 'harvestableOptions', 'materialOptions'];
+const FARMING_COLLECTIONS = ['fieldOptions', 'seedOptions', 'harvestableOptions', 'materialOptions', 'cropStatusOptions'];
 
 // Assess only public, detached menu projections. The verifier must not inspect or repair SaveFile.
 export function assertFarmingProjection(state) {
@@ -210,7 +210,11 @@ export function assertFarmingProjection(state) {
     if (farming[selected] !== null) assert.ok(farming[options].some((item) => item.id === farming[selected] && item.enabled), 'selection must refer to a current enabled option');
   }
   assert.ok(Number.isSafeInteger(farming.seedAmount) && farming.seedAmount >= 1, 'seed quantity must be a positive safe integer');
-  for (const key of ['field', 'seed', 'crop', 'inventory', 'amount']) {
+  assert.ok(Number.isSafeInteger(farming.plantingTiles) && farming.plantingTiles >= 1);
+  assert.ok(Number.isSafeInteger(farming.seedsPerTile) && farming.seedsPerTile >= 1 && farming.seedsPerTile <= 3);
+  assert.equal(farming.seedAmount, farming.plantingTiles * farming.seedsPerTile, 'total seeds and planting positions must remain distinct');
+  for (const crop of farming.cropStatusOptions) assert.deepEqual(Object.keys(crop).sort(), ['field_plot_id', 'growth_stage', 'id', 'lifecycle_status'], 'public crops must not leak hidden germination outcomes');
+  for (const key of ['field', 'seed', 'crop', 'inventory', 'amount', 'planting']) {
     assert.ok(typeof state.displayedFarming?.[key] === 'string' && state.displayedFarming[key].trim(), key + ' must have visible feedback');
   }
   return farming;
@@ -247,10 +251,10 @@ export function assertFarmingCommandObservation(observation, expected) {
     const seed = lotQuantity(before.seedOptions, before.selectedSeedId);
     const remaining = lotQuantity(after.seedOptions, before.selectedSeedId);
     assert.ok(field?.enabled && seed, 'planting requires the explicitly selected public field and seed');
-    assert.equal(updatedField?.occupied_tiles, field.occupied_tiles + before.seedAmount, 'each seed must occupy one tile');
-    assert.equal(updatedField?.active_crop_count, field.active_crop_count + before.seedAmount, 'each seed must create one crop');
+    assert.equal(updatedField?.occupied_tiles, field.occupied_tiles + before.plantingTiles, 'each planting position must occupy one tile');
+    assert.equal(updatedField?.active_crop_count, field.active_crop_count + before.plantingTiles, 'each planting position must create one crop');
     assert.equal(updatedField.capacity_tiles, field.capacity_tiles);
-    assert.equal(updatedField.available_tiles, field.available_tiles - before.seedAmount);
+    assert.equal(updatedField.available_tiles, field.available_tiles - before.plantingTiles);
     assert.equal(updatedField.enabled, updatedField.available_tiles > 0);
     if (remaining) assert.equal(remaining.unit, seed.unit, 'planting must retain the seed quantity unit');
     assert.equal(remaining?.amount ?? 0, seed.amount - before.seedAmount, 'planting must consume exactly the selected seed quantity');
@@ -1281,7 +1285,7 @@ export function assertTouchResizeObservation(observation) {
   assert.deepEqual(crossStepWorld(observation.after), crossStepWorld(observation.before), 'resize must preserve the complete business world');
   assert.deepEqual(observation.after.operation, observation.before.operation);
   for (const [section,keys] of Object.entries({
-    farming:['selectedFieldId','selectedSeedId','selectedCropId','seedAmount'],
+    farming:['selectedFieldId','selectedSeedId','selectedCropId','seedAmount','plantingTiles','seedsPerTile','successProbability'],
     inventory:['selectedLotId','selectedTargetId','splitQuantityText'],
     processing:['selectedMethodId','selectedRequirementIndex','selectedFacilityId','selectedTaskId','inputSelections'],
     cooking:['selectedRecipeId','selectedRole','selectedTargetId','heatLevel','activeMinutesText','inputSelections'],

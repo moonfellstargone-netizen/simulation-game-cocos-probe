@@ -26,6 +26,7 @@ export interface FixtureRunnerOptions {
   saveManager?: SaveManager;
   buildId?: string;
   nowIso8601?: string;
+  randomSeed?: string;
 }
 
 export interface FixtureStepExecution {
@@ -103,7 +104,8 @@ export class Stage1AFixtureRunner {
       if (!builder) throw new Error('ERR_FIXTURE_NEW_GAME_BUILDER_REQUIRED');
       const newState = builder.buildStage1A({
         buildId: this.options.buildId ?? 'fixture_runner_default',
-        nowIso8601: this.options.nowIso8601 ?? '2026-05-18T00:00:00.000Z'
+        nowIso8601: this.options.nowIso8601 ?? '2026-05-18T00:00:00.000Z',
+        ...(this.options.randomSeed === undefined ? {} : { randomSeed: this.options.randomSeed })
       });
       return { state: newState, execution: { step_id: step.step_id, action_type: step.action_type, success: true, status_code: 'OK_NEW_GAME_STARTED' } };
     }

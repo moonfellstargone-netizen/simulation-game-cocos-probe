@@ -24,7 +24,7 @@ interface ProbeView {
   readonly operation: Label;
   readonly buttons: readonly Button[];
   readonly controls: Record<string, Button>;
-  readonly farming: { field: Label; seed: Label; crop: Label; inventory: Label; amount: Label };
+  readonly farming: { field: Label; seed: Label; crop: Label; inventory: Label; amount: Label; planting: Label };
   readonly panels: { farming: Node; inventory: Node; processing: Node; cooking: Node; orders: Node };
   readonly orders: { order: Label; state: Label; deadline: Label; quantity: Label; demand: Label; history: Label; dish: Label; detail: Label; money: Label; reputation: Label; preview: Label; result: Label };
   readonly inventory: { lot: Label; form: Label; quantity: Label; location: Label; target: Label; capacity: Label; hint: Label };
@@ -130,8 +130,9 @@ export class CocosWebProbe extends Component {
       setEnabled('SelectField', farmEnabled && state.fieldOptions.some((option) => option.enabled));
       setEnabled('SelectSeed', farmEnabled && state.seedOptions.some((option) => option.enabled));
       setEnabled('SelectCrop', farmEnabled && state.harvestableOptions.some((option) => option.enabled));
-      setEnabled('SeedAmountDecrease', farmEnabled && state.selectedSeedId !== null && state.seedAmount > 1);
+      setEnabled('SeedAmountDecrease', farmEnabled && state.selectedSeedId !== null && state.plantingTiles > 1);
       setEnabled('SeedAmountIncrease', farmEnabled && state.selectedSeedId !== null);
+      setEnabled('SeedsPerTile', farmEnabled && state.selectedSeedId !== null);
       setEnabled('PlantCrop', farmEnabled && state.canPlant);
       setEnabled('HarvestCrop', farmEnabled && state.canHarvest);
       const stock = inventory.status();
@@ -196,9 +197,16 @@ export class CocosWebProbe extends Component {
       ui.farming.seed.string = seed
         ? `种子：${names[seed.base_id] ?? '种子批次'} ｜ 剩余${seed.quantity.amount}${displayUnit(seed.quantity.unit)}`
         : '种子：请选择种子批次';
-      ui.farming.crop.string = state.harvestableOptions.length === 0 ? '暂无可收获作物'
-        : `可收获${state.harvestableOptions.length}株 ｜ ${crop ? names[crop.crop_base_id] ?? '已选作物' : '请选择作物'}`;
-      ui.farming.amount.string = `${state.seedAmount}${seed ? displayUnit(seed.quantity.unit) : '粒'}`;
+      const failed = state.cropStatusOptions.filter(item => item.lifecycle_status === 'failed').length;
+      const pending = state.cropStatusOptions.filter(item => item.lifecycle_status === 'active' && item.growth_stage === 'seed').length;
+      const growing = state.cropStatusOptions.filter(item => item.lifecycle_status === 'active' && item.growth_stage !== 'seed').length;
+      ui.farming.crop.string = `待成苗${pending}位 ｜ 生长中${growing}株 ｜ 成苗失败${failed}位 ｜ 可收获${state.harvestableOptions.length}株` + (crop ? ` ｜ ${names[crop.crop_base_id] ?? '已选作物'}` : '');
+      ui.farming.amount.string = `${state.plantingTiles}位`;
+      ui.controls.SeedsPerTile.node.getComponentInChildren(Label)!.string = `每位${state.seedsPerTile}粒 ↻`;
+      const probability = state.successProbability === null ? '请选择种子' : `每位成苗率${Number((state.successProbability * 100).toFixed(1))}%`;
+      const shortage = field && state.plantingTiles > field.available_tiles ? '；土地空位不足'
+        : seed && state.seedAmount > seed.quantity.amount ? '；种子不足' : '';
+      ui.farming.planting.string = `${state.plantingTiles}位 × 每位${state.seedsPerTile}粒 = 共耗种${state.seedAmount}粒 ｜ ${probability}${shortage}`;
       ui.farming.inventory.string = state.materialOptions.length === 0 ? '暂无库存'
         : '库存末3批：' + state.materialOptions.slice(-3).map((item) => `${names[item.base_id] ?? '物料'} ${item.quantity.amount}${displayUnit(item.quantity.unit)}`).join(' / ');
       updateButtons();
@@ -379,7 +387,8 @@ export class CocosWebProbe extends Component {
       }),
       createHost: (input) => {
         names = presentationNames(input);
-        return createStage1AHost({ ...input, storage: new BrowserSaveStoragePort(), nowIso8601: new Date().toISOString() });
+        const nowIso8601 = new Date().toISOString();
+        return createStage1AHost({ ...input, storage: new BrowserSaveStoragePort(), nowIso8601, randomSeed: `new_game:${nowIso8601}` });
       },
       createBinding: (host) => new QinglanUiSceneProbeComponent(host, {
         applyNodeBindingPatch: (patch) => {
@@ -476,6 +485,7 @@ export class CocosWebProbe extends Component {
     localSelection('SelectCrop', () => farming.selectNextCrop());
     localSelection('SeedAmountDecrease', () => farming.adjustSeedAmount(-1));
     localSelection('SeedAmountIncrease', () => farming.adjustSeedAmount(1));
+    localSelection('SeedsPerTile', () => farming.cycleSeedsPerTile());
     const switchPanel = (next: 'farming' | 'inventory' | 'processing' | 'cooking' | 'orders') => {
       inventory.invalidateSplitPreview();
       ui.split.input.blur();
@@ -592,7 +602,7 @@ export class CocosWebProbe extends Component {
         } : null,
         displayedFarming: alive() ? {
           field: ui.farming.field.string, seed: ui.farming.seed.string, crop: ui.farming.crop.string,
-          inventory: ui.farming.inventory.string, amount: ui.farming.amount.string
+          inventory: ui.farming.inventory.string, amount: ui.farming.amount.string, planting: ui.farming.planting.string
         } : null,
         nodeValid: alive(), errors: [...errors]
       }),
@@ -645,10 +655,11 @@ export class CocosWebProbe extends Component {
       seed: this.makeLabel(panels.farming, 'SeedSummary', '种子：等待启动', 125, 18),
       crop: this.makeLabel(panels.farming, 'CropSummary', '暂无可收获作物', 95, 18),
       inventory: this.makeLabel(panels.farming, 'InventorySummary', '等待库存', 65, 17),
-      amount: this.makeLabel(panels.farming, 'SeedAmount', '1粒', -44, 21)
+      amount: this.makeLabel(panels.farming, 'SeedAmount', '1位', -44, 21),
+      planting: this.makeLabel(panels.farming, 'PlantingSummary', '请选择种子查看成苗率', -80, 15)
     };
-    farming.amount.node.setPosition(-140, -44, 0);
-    farming.amount.node.getComponent(UITransform)!.setContentSize(110, 44);
+    farming.amount.node.setPosition(-240, -44, 0);
+    farming.amount.node.getComponent(UITransform)!.setContentSize(100, 44);
     const inventory = {
       lot: this.makeLabel(panels.inventory, 'InventoryLot', '请选择材料批次', 160, 20),
       form: this.makeSectionLabel(panels.inventory, 'InventoryForm', '形态：—', -235, 130, 410, 18),
@@ -731,11 +742,12 @@ export class CocosWebProbe extends Component {
       SelectField: this.makeButton(panels.farming, 'SelectField', '选择地块', -300, 20, 260),
       SelectSeed: this.makeButton(panels.farming, 'SelectSeed', '选择种子', 0, 20, 260),
       SelectCrop: this.makeButton(panels.farming, 'SelectCrop', '选择收获作物', 300, 20, 260),
-      SeedAmountDecrease: this.makeButton(panels.farming, 'SeedAmountDecrease', '−', -370, -44, 90),
-      SeedAmountIncrease: this.makeButton(panels.farming, 'SeedAmountIncrease', '＋', -260, -44, 90),
-      PlantCrop: this.makeButton(panels.farming, 'PlantCrop', '播种', 55, -44, 220),
+      SeedAmountDecrease: this.makeButton(panels.farming, 'SeedAmountDecrease', '位−', -400, -44, 60),
+      SeedAmountIncrease: this.makeButton(panels.farming, 'SeedAmountIncrease', '位＋', -330, -44, 60),
+      SeedsPerTile: this.makeButton(panels.farming, 'SeedsPerTile', '每位1粒 ↻', -85, -44, 180),
+      PlantCrop: this.makeButton(panels.farming, 'PlantCrop', '播种', 105, -44, 160),
       AdvanceOneDay: this.makeButton(canvasNode, 'AdvanceOneDay', '推进一天', 155, -120),
-      HarvestCrop: this.makeButton(panels.farming, 'HarvestCrop', '收获', 310, -44, 230),
+      HarvestCrop: this.makeButton(panels.farming, 'HarvestCrop', '收获', 310, -44, 210),
       SelectInventoryLot: this.makeButton(panels.inventory, 'SelectInventoryLot', '下一批材料', -235, 43, 390),
       SelectStorageTarget: this.makeButton(panels.inventory, 'SelectStorageTarget', '选择目标位置', -345, -74, 190),
       MoveInventoryLot: this.makeButton(panels.inventory, 'MoveInventoryLot', '移动整批', -125, -74, 190),

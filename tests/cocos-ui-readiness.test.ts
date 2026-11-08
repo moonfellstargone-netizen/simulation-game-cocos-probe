@@ -13,7 +13,8 @@ function makeSessionFixture(storage = new InMemorySaveStoragePort()) {
   const { configs, contracts } = buildRuntimeWithoutState();
   const session = new CocosAppRuntimeSession(configs, contracts, storage, {
     buildId: testBuildId('cocos_ui_readiness_test'),
-    nowIso8601: '2026-05-19T00:00:00.000Z'
+    nowIso8601: '2026-05-19T00:00:00.000Z',
+    randomSeed: 'farming-test-23' // Fixed successful farming setup; not a production guarantee.
   });
   return { session, storage, configs };
 }
@@ -21,6 +22,32 @@ function makeSessionFixture(storage = new InMemorySaveStoragePort()) {
 function makeSession() {
   return makeSessionFixture().session;
 }
+
+test('farming choices expose configured chance and visible crop stages without revealing random outcomes', async () => {
+  const { session, storage, configs } = makeSessionFixture();
+  const before = session.getSelectableViewModel();
+  const seed = before.seed_lot_options[0]!;
+  assert.deepEqual(seed.planting_policy, { max_seeds_per_tile: 3, per_seed_success_rate: 0.8 });
+  seed.planting_policy!.per_seed_success_rate = 0;
+  assert.equal(session.getSelectableViewModel().seed_lot_options[0]!.planting_policy!.per_seed_success_rate, 0.8, 'UI policy is detached');
+  assert.equal(session.dispatch('plant_crop', { field_plot_id: before.field_options[0]!.id, seed_lot_id: seed.id,
+    seed_quantity: { amount: 6, unit: 'count' }, seeds_per_tile: 3 }).success, true);
+  await session.save('projection_probability');
+  const save = JSON.parse((await storage.read('projection_probability'))!) as SaveFile;
+  assert.equal(save.crop_instances.length, 2);
+  const projector = new CocosSelectableViewModel(configs);
+  const publicBefore = projector.build(save);
+  assert.equal(publicBefore.crop_status_options!.length, 2);
+  for (const crop of publicBefore.crop_status_options!) {
+    assert.deepEqual(Object.keys(crop).sort(), ['field_plot_id', 'growth_stage', 'id', 'lifecycle_status']);
+    assert.equal(crop.growth_stage, 'seed');
+    assert.equal(crop.lifecycle_status, 'active');
+  }
+  save.crop_instances[0]!.germination!.outcome = 'failed';
+  assert.deepEqual(projector.build(save), publicBefore, 'pending success/failure samples yield identical public state');
+  publicBefore.crop_status_options![0]!.lifecycle_status = 'tampered';
+  assert.equal(projector.build(save).crop_status_options![0]!.lifecycle_status, 'active');
+});
 
 test('v44 order projection exposes configured demand, signed deadline and actual nullable settlement without inventing matching rules', async () => {
   const { session, storage, configs } = makeSessionFixture();
@@ -573,6 +600,10 @@ test('CocosActionDraftBuilder converts selected UI values into formal Action par
   assert.deepEqual(drafts.plantCrop('selected_field', 'selected_seed', { amount: 2, unit: 'count' }), {
     action_type: 'plant_crop',
     parameters: { field_plot_id: 'selected_field', seed_lot_id: 'selected_seed', seed_quantity: { amount: 2, unit: 'count' } }
+  });
+  assert.deepEqual(drafts.plantCrop('selected_field', 'selected_seed', { amount: 6, unit: 'count' }, 3), {
+    action_type: 'plant_crop',
+    parameters: { field_plot_id: 'selected_field', seed_lot_id: 'selected_seed', seed_quantity: { amount: 6, unit: 'count' }, seeds_per_tile: 3 }
   });
   assert.deepEqual(drafts.splitLot('selected_lot', { amount: 120, unit: 'g' }), {
     action_type: 'split_lot',

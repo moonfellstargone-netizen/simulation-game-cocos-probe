@@ -99,7 +99,7 @@ export class GameRuntime {
         actionType: 'plant_crop',
         execute: (state, request) => {
           if (request.action_type !== 'plant_crop') throw new Error('ERR_HANDLER_ACTION_MISMATCH');
-          const crops = this.farming.plantCrop(state.save_file, request.parameters.field_plot_id, request.parameters.seed_lot_id, request.parameters.seed_quantity);
+          const crops = this.farming.plantCrop(state.save_file, request.parameters.field_plot_id, request.parameters.seed_lot_id, request.parameters.seed_quantity, request.parameters.seeds_per_tile);
           for (const crop of crops) this.appendEvent(state, request, 'farming.crop_planted', {
             crop_id: crop.crop_id,
             field_plot_id: crop.field_plot_id,

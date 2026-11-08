@@ -4,7 +4,7 @@ import type { CocosSelectableViewModelData, CocosCookableRecipeOption, CocosMate
 import type { FormalStage1AActionType, Quantity } from '../../game-core';
 
 export type MenuActionSelection =
-  | { action_type: 'plant_crop'; field_option_id: string; seed_lot_option_id: string; seed_quantity: Quantity }
+  | { action_type: 'plant_crop'; field_option_id: string; seed_lot_option_id: string; seed_quantity: Quantity; seeds_per_tile?: number }
   | { action_type: 'advance_time'; minutes: number }
   | { action_type: 'harvest_crop'; crop_option_id: string }
   | { action_type: 'store_item'; source_lot_option_id: string; target_storage_option_id: string }
@@ -22,7 +22,7 @@ export class MenuActionBinding {
       case 'plant_crop': {
         const field = this.requiredEnabled(selectable.field_options, selection.field_option_id, 'field_option');
         const seed = this.requiredEnabled(selectable.seed_lot_options, selection.seed_lot_option_id, 'seed_lot_option');
-        return this.drafts.plantCrop(field.id, seed.id, selection.seed_quantity);
+        return this.drafts.plantCrop(field.id, seed.id, selection.seed_quantity, selection.seeds_per_tile);
       }
       case 'advance_time':
         return this.drafts.advanceTime(selection.minutes);

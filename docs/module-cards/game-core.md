@@ -102,4 +102,4 @@ ProcessingSystem共用开工和领取只读计划，InventorySystem按既有顺�
 
 ## 播种数量与地块容量
 
-FarmingSystem.plantCrop按正安全整数count创建CropInstance数组，每粒1株、每株1格。地块容量由definition_id对应的正式field_plot_definitions读取，不向SaveFile增加容量或批次规模字段。种子库存/预留与剩余空格校验先于消耗和对象分配；半满地块允许续种，超量整次失败。GameRuntime为每株返回created_objects与领域事件，单株调用兼容。每株收获沿既有default_quantity_g，释放1格；生长阶段读取stage_sequence，避免硬编码阈值。旧档已丢失的历史播种数量不可推断，不自动补偿。trace.farming.seed-quantity连接核心、预览、Session、readiness及两端回归。
+FarmingSystem.plantCrop以seed_quantity总粒数和可选seeds_per_tile（1至3，默认1）计算种植位数，要求正安全整数且能整除。每位最多形成1株，按正式派生配置的单粒0.8计算至少一粒成功概率；批量请求先校验库存、预留和地块容量，再消耗种子及分配对象。成苗结果与专用随机流随SaveFile保存，达到现有sprout阈值时揭晓失败并释放位置，成功继续生长。未带成苗数据的旧作物继续原生长规则；不追溯补抽或返还历史种子。预览隔离真实流，重复读取同保存不重新抽样。每株产量沿既有default_quantity_g。trace.farming.seed-quantity连接参数/持久化/概率/容量/预览/Session与两端回归。

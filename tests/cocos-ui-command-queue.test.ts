@@ -12,6 +12,7 @@ function makeQueuedShell(storage: SaveStoragePort = new InMemorySaveStoragePort(
   const { configs, contracts } = buildRuntimeWithoutState();
   const host = new CocosSessionHost(configs, contracts, storage, {
     buildId: testBuildId('cocos_ui_command_queue_test'),
+    randomSeed: 'farming-test-23',
     nowIso8601: '2026-05-21T00:00:00.000Z'
   });
   const shell = new CocosUiShellController(host);

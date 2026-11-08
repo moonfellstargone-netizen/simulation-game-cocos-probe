@@ -189,12 +189,12 @@ function farmingState() {
   return {
     phase: 'ready', hasSession: true, busy: false, timeLabel: 'day 1 minute 360', displayedTime: 'day 1 minute 360', errors: [],
     operation: { sequence: 0, name: null, status: 'idle', message: '请选择地块和种子', errorMessage: null, slotId: null, worldMinute: null },
-    displayedOperation: '请选择地块和种子', displayedFarming: { field: '地块可用', seed: '种子10粒', crop: '暂无可收获作物', inventory: '种子10粒', amount: '1粒' },
+    displayedOperation: '请选择地块和种子', displayedFarming: { field: '地块可用', seed: '种子10粒', crop: '暂无可收获作物', inventory: '种子10粒', amount: '1位', planting: '1位×1粒=1粒，80%' },
     farming: {
       fieldOptions: [{ id: 'field', enabled: true, occupied_tiles: 0, capacity_tiles: 6, available_tiles: 6, active_crop_count: 0 }],
       seedOptions: [{ id: 'seed', enabled: true, quantity: { amount: 10, unit: 'count' } }],
-      harvestableOptions: [], materialOptions: [{ id: 'seed', enabled: true, quantity: { amount: 10, unit: 'count' } }],
-      selectedFieldId: 'field', selectedSeedId: 'seed', selectedCropId: null, seedAmount: 1, canPlant: true, canHarvest: false
+      cropStatusOptions: [], harvestableOptions: [], materialOptions: [{ id: 'seed', enabled: true, quantity: { amount: 10, unit: 'count' } }],
+      selectedFieldId: 'field', selectedSeedId: 'seed', selectedCropId: null, seedAmount: 1, plantingTiles: 1, seedsPerTile: 1, successProbability: .8, canPlant: true, canHarvest: false
     }
   };
 }
@@ -281,14 +281,33 @@ test('farming success needs actual seed consumption and field occupancy, while r
 });
 
 test('batch farming observations reject consuming two seeds for only one plant', () => {
-  const before = farmingState(); before.farming.seedAmount = 2;
-  const after = plantedState(); after.farming.seedAmount = 2;
+  const before = farmingState(); before.farming.seedAmount = 2; before.farming.plantingTiles = 2;
+  const after = plantedState(); after.farming.seedAmount = 2; after.farming.plantingTiles = 2;
   after.farming.seedOptions[0].quantity.amount = 8;
   after.farming.materialOptions[0].quantity.amount = 8;
   const expectation = { actionType: 'plant_crop', status: 'completed', timeLabel: before.timeLabel };
   assert.throws(() => assertFarmingCommandObservation(farmingClick(before, after), expectation));
   Object.assign(after.farming.fieldOptions[0], { occupied_tiles: 2, active_crop_count: 2, available_tiles: 4 });
   assert.doesNotThrow(() => assertFarmingCommandObservation(farmingClick(before, after), expectation));
+});
+
+test('probabilistic sowing observes positions separately from seeds and excludes hidden outcomes', () => {
+  const before = farmingState(), after = plantedState();
+  for (const state of [before, after]) Object.assign(state.farming, { seedAmount: 6, plantingTiles: 2, seedsPerTile: 3, successProbability: .992 });
+  Object.assign(after.farming.fieldOptions[0], { occupied_tiles: 2, active_crop_count: 2, available_tiles: 4 });
+  after.farming.seedOptions[0].quantity.amount = 4;
+  after.farming.materialOptions[0].quantity.amount = 4;
+  const expected = { actionType: 'plant_crop', status: 'completed', timeLabel: before.timeLabel };
+  assert.doesNotThrow(() => assertFarmingCommandObservation(farmingClick(before, after), expected));
+  for (const corrupt of [
+    state => { state.farming.seedOptions[0].quantity.amount = 8; },
+    state => { Object.assign(state.farming.fieldOptions[0], { occupied_tiles: 6, active_crop_count: 6, available_tiles: 0 }); },
+    state => { state.farming.seedAmount = 2; },
+    state => { state.farming.cropStatusOptions = [{ id: 'crop', field_plot_id: 'field', growth_stage: 'seed', lifecycle_status: 'active', outcome: 'failed' }]; }
+  ]) {
+    const broken = structuredClone(after); corrupt(broken);
+    assert.throws(() => assertFarmingCommandObservation(farmingClick(before, broken), expected));
+  }
 });
 
 test('harvest requires positive public output quantity and field release, never a lot-count-only success', () => {

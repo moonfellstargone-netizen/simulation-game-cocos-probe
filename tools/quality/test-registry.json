@@ -1183,6 +1183,7 @@
       ],
       "files": [
         "tests/cocos-probe-preparation.test.mjs",
+          "tools/rebuild-design-snapshot.mjs",
         "tools/cocos-probe/prepare.mjs",
         "apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts",
         "apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts",

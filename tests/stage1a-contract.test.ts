@@ -369,7 +369,89 @@ test('plant_crop creates schema-valid DomainEvent and ActionResult mutation summ
   new StorageAudit().assertReconciled(state.save_file);
 });
 
-test('batch planting creates one independent crop per seed and supports partially occupied fields', () => {
+test('independent seeds combine within one tile and reveal failure at sprout without rerolling or refunding', () => {
+  for (const example of [
+    { seed: 'stage1_fixed_seed', seeds: 1, outcome: 'failed' },
+    { seed: 'stage1_fixed_seed', seeds: 2, outcome: 'succeeded' },
+    { seed: 'farming-test-28', seeds: 3, outcome: 'failed' },
+    { seed: 'farming-test-23', seeds: 3, outcome: 'succeeded' }
+  ]) {
+    const { runtime, state, contracts } = buildRuntime(example.seed);
+    const planted = dispatch(runtime, state, 'plant_crop', { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001',
+      seed_quantity: { amount: example.seeds, unit: 'count' }, seeds_per_tile: example.seeds }, 'germination_plant');
+    assert.equal(planted.success, true, planted.status_code);
+    assert.equal(planted.created_objects.length, 1, 'one tile retains at most one plant, regardless of seed count');
+    assert.equal(state.save_file.fields[0]!.occupied_tiles, 1);
+    assert.equal(state.save_file.inventory.find(lot => lot.lot_id === 'seed_cabbage_initial_001')!.quantity.amount, 10 - example.seeds);
+    let crop = state.save_file.crop_instances[0]!;
+    assert.equal(crop.germination!.outcome, example.outcome);
+    assert.equal(crop.germination!.revealed, false);
+    assert.equal(crop.germination!.per_seed_success_rate, 0.8);
+    const stream = cloneForCompare(state.save_file.random_state);
+    assert.equal((stream.streams as Record<string, { position: number }>).farming_germination_v1!.position, example.seeds);
+    const revealMinute = Math.ceil((crop.expected_harvest_minute - crop.planted_time) * 0.2);
+    assert.equal(dispatch(runtime, state, 'advance_time', { minutes: revealMinute - 1 }, 'before_reveal').success, true);
+    assert.equal(state.save_file.crop_instances[0]!.germination!.revealed, false);
+    assert.equal(dispatch(runtime, state, 'advance_time', { minutes: 1 }, 'at_reveal').success, true);
+    crop = state.save_file.crop_instances[0]!;
+    assert.equal(crop.germination!.revealed, true);
+    assert.equal(crop.lifecycle_status, example.outcome === 'failed' ? 'failed' : 'active');
+    assert.equal(state.save_file.fields[0]!.occupied_tiles, example.outcome === 'failed' ? 0 : 1);
+    assert.equal(dispatch(runtime, state, 'advance_time', { minutes: 5400 }, 'after_reveal').success, true);
+    assert.deepEqual(state.save_file.random_state, stream, 'time advancement never redraws germination');
+    const beforeHarvest = cloneForCompare(state);
+    const harvest = dispatch(runtime, state, 'harvest_crop', { crop_id: crop.crop_id }, 'germination_harvest');
+    assert.equal(harvest.success, example.outcome === 'succeeded');
+    if (example.outcome === 'failed') assert.deepEqual(state, beforeHarvest);
+    else assert.deepEqual(state.save_file.inventory.find(lot => lot.lot_id === harvest.created_objects[0]!.object_id)!.quantity, { amount: 1200, unit: 'g' });
+    contracts.assertSaveFile(state.save_file);
+  }
+});
+
+test('multi-seed tiles preserve independent random position and reject non-divisible requests atomically', () => {
+  const subject = buildRuntime('farming-test-23');
+  const control = buildRuntime('farming-test-23');
+  const params = (amount: number, seeds_per_tile: number) => ({ field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount, unit: 'count' }, seeds_per_tile });
+  for (const [amount, seeds] of [[3, 2], [1, 0], [1, 4], [1, 1.5], [12, 3]]) {
+    const before = cloneForCompare(subject.state);
+    const rejected = dispatch(subject.runtime, subject.state, 'plant_crop', params(amount!, seeds!), 'reject_multiseed');
+    assert.equal(rejected.success, false);
+    assert.deepEqual(subject.state, before, 'rejection consumes neither seeds nor random draws');
+  }
+  const actual = dispatch(subject.runtime, subject.state, 'plant_crop', params(6, 3), 'healthy_multiseed');
+  const expected = dispatch(control.runtime, control.state, 'plant_crop', params(6, 3), 'healthy_multiseed');
+  assert.equal(actual.success, true, actual.status_code);
+  assert.deepEqual(actual, expected);
+  assert.deepEqual(subject.state, control.state);
+  assert.equal(actual.created_objects.length, 2);
+  assert.equal(subject.state.save_file.fields[0]!.occupied_tiles, 2);
+  assert.equal((subject.state.save_file.random_state.streams as Record<string, { position: number }>).farming_germination_v1!.position, 6);
+  const split = buildRuntime('farming-test-23');
+  dispatch(split.runtime, split.state, 'plant_crop', params(3, 3), 'split_multiseed_a');
+  dispatch(split.runtime, split.state, 'plant_crop', params(3, 3), 'split_multiseed_b');
+  assert.deepEqual(split.state.save_file.random_state, subject.state.save_file.random_state);
+  assert.deepEqual(split.state.save_file.crop_instances.map(crop => crop.germination), subject.state.save_file.crop_instances.map(crop => crop.germination));
+});
+
+test('legacy crops without germination preserve their growth and old saves while probability fields are closed', () => {
+  const { runtime, state, contracts } = buildRuntime('farming-test-28');
+  const plant = dispatch(runtime, state, 'plant_crop', { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 1, unit: 'count' } }, 'legacy_crop');
+  assert.equal(plant.success, true);
+  delete state.save_file.crop_instances[0]!.germination;
+  state.save_file.random_state.streams = {};
+  contracts.assertSaveFile(state.save_file);
+  assert.equal(dispatch(runtime, state, 'advance_time', { minutes: 5400 }, 'legacy_mature').success, true);
+  assert.equal(state.save_file.crop_instances[0]!.lifecycle_status, 'ready_to_harvest');
+  assert.deepEqual(state.save_file.random_state.streams, {});
+  assert.equal(dispatch(runtime, state, 'harvest_crop', { crop_id: plant.created_objects[0]!.object_id }, 'legacy_harvest').success, true);
+  const current = buildRuntime();
+  dispatch(current.runtime, current.state, 'plant_crop', { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 1, unit: 'count' } }, 'schema_crop');
+  const malformed = cloneForCompare(current.state.save_file);
+  Object.assign(malformed.crop_instances[0]!.germination!, { seeds_per_tile: 4, unexpected: true });
+  assert.throws(() => contracts.assertSaveFile(malformed), /ERR_SCHEMA_VALIDATION_FAILED/);
+});
+
+test('batch planting creates one independent crop per single-seed tile and supports partially occupied fields', () => {
   const { runtime, state, contracts } = buildRuntime();
   const plant = (amount: number, suffix: string) => dispatch(runtime, state, 'plant_crop', {
     field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount, unit: 'count' }

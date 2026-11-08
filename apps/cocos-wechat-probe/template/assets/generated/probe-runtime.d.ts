@@ -5,6 +5,7 @@ import type { PriorValidationHost } from '../scripts/WechatPriorSaveValidator';
 export function createStage1AHost(input: WechatResources & {
   storage: { read(slotId: string): Promise<string | null>; write(slotId: string, serializedSave: string): Promise<void> };
   nowIso8601: string;
+  randomSeed?: string;
 }): WechatHost & PriorValidationHost;
 
 export class InMemorySaveStoragePort {

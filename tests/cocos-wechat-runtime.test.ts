@@ -27,7 +27,7 @@ function deferred<T>() {
   const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
   return { promise, resolve, reject };
 }
-function harness(options: { identity?: CandidateIdentity; storage?: SaveStoragePort;
+function harness(options: { identity?: CandidateIdentity; storage?: SaveStoragePort; randomSeed?: string;
   load?: () => Promise<{ resources: WechatResources; identity: unknown }>;
   prepareBackupRecovery?: () => Promise<void>;
   recoverValidatedBackup?: () => Promise<void>;
@@ -46,7 +46,8 @@ function harness(options: { identity?: CandidateIdentity; storage?: SaveStorageP
     createHost: input => {
       factories++;
       host = createStage1AHost({ snapshot: input.snapshot as RuntimeConfigSnapshot, schemas: input.schemas,
-        buildId: input.buildId, nowIso8601: '2026-11-03T00:00:00.000Z', storage: options.storage ?? new InMemorySaveStoragePort() });
+        buildId: input.buildId, nowIso8601: '2026-11-03T00:00:00.000Z', storage: options.storage ?? new InMemorySaveStoragePort(),
+        randomSeed: options.randomSeed ?? 'farming-test-23' }); // Successful setup unless this test explicitly selects a failure seed.
       return host;
     },
     createBinding: currentHost => {
@@ -1188,7 +1189,48 @@ test('M2 explicit first-save cancellation shares the busy lock and suppresses la
 });
 
 
-test('M3 planting rejects ten seeds, creates six crops and harvest obeys remaining storage capacity', async () => {
+test('M3 grouped sowing validates independently and three failed seeds release one planting position after reveal', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const p = harness({ storage, receiveMenu: true, randomSeed: 'farming-test-28' });
+  await p.controller.start();
+  const capture = async () => { await p.host().requireSession().save('probability-audit'); return storage.read('probability-audit'); };
+  try {
+    const menu = p.controller.snapshot().menu!.selectable_view_model!;
+    const field = menu.field_options[0]; const seed = menu.seed_lot_options[0];
+    const before = await capture();
+    for (const [total, perTile] of [[4, 3], [1.5, 1], [12, 3], [4, 4], [3, 0]]) {
+      await assert.rejects(p.controller.plant(field.id, seed.id, { amount: total, unit: 'count' }, perTile));
+      assert.equal(await capture(), before, 'invalid grouping and insufficient seed cannot change world state or random stream');
+    }
+    await p.controller.plant(field.id, seed.id, { amount: 3, unit: 'count' }, 3);
+    let current = p.controller.snapshot().menu!.selectable_view_model!;
+    assert.equal(current.field_options[0].available_tiles, 5);
+    assert.equal(current.field_options[0].active_crop_count, 1);
+    assert.equal(current.seed_lot_options[0].quantity.amount, seed.quantity.amount - 3);
+    assert.deepEqual(current.crop_status_options!.map(item => [item.lifecycle_status, item.growth_stage]), [['active', 'seed']]);
+    assert.equal(JSON.stringify(current).includes('germination'), false);
+    await p.controller.save(); await p.controller.load();
+    assert.deepEqual(p.controller.snapshot().menu!.selectable_view_model!.crop_status_options, current.crop_status_options);
+    await p.controller.advanceDay();
+    current = p.controller.snapshot().menu!.selectable_view_model!;
+    assert.deepEqual(current.crop_status_options!.map(item => [item.lifecycle_status, item.growth_stage]), [['failed', 'withered']]);
+    assert.equal(current.harvestable_crop_options.length, 0);
+    assert.equal(current.field_options[0].available_tiles, 6);
+    assert.equal(current.field_options[0].active_crop_count, 0);
+    assert.equal(p.controller.snapshot().last_error, null, 'a germination failure is gameplay, not a program error');
+    const failureBeforeHarvest = await capture();
+    await assert.rejects(p.controller.harvest(current.crop_status_options![0].id));
+    assert.equal(await capture(), failureBeforeHarvest);
+    await p.controller.plant(field.id, seed.id, { amount: 4, unit: 'count' }, 2);
+    current = p.controller.snapshot().menu!.selectable_view_model!;
+    assert.equal(current.field_options[0].active_crop_count, 2);
+    assert.equal(current.field_options[0].available_tiles, 4);
+    assert.equal(current.seed_lot_options[0].quantity.amount, seed.quantity.amount - 7);
+    assert.equal(current.crop_status_options!.filter(item => item.lifecycle_status === 'failed').length, 1, 'failed sowing remains visible as history');
+  } finally { await p.controller.dispose(); }
+});
+
+test('M3 planting rejects ten positions, reveals six sowing outcomes and harvest obeys remaining storage capacity', async () => {
   const storage = new InMemorySaveStoragePort();
   const p = harness({ storage, receiveMenu: true });
   await p.controller.start();
@@ -1215,7 +1257,8 @@ test('M3 planting rejects ten seeds, creates six crops and harvest obeys remaini
     await p.controller.save(); await p.controller.load();
     for (let i = 0; i < 4; i++) await p.controller.advanceDay();
     const crops = p.controller.snapshot().menu!.selectable_view_model!.harvestable_crop_options.filter(item => item.enabled);
-    assert.equal(crops.length, 6);
+    const failures = p.controller.snapshot().menu!.selectable_view_model!.crop_status_options!.filter(item => item.lifecycle_status === 'failed').length;
+    assert.equal(crops.length + failures, 6, 'each sown position reveals either one crop or one failure');
     let harvested = 0;
     for (const crop of crops) {
       const beforeHarvest = await capture();
@@ -1226,10 +1269,10 @@ test('M3 planting rejects ten seeds, creates six crops and harvest obeys remaini
         break;
       }
     }
-    assert.ok(harvested > 0 && harvested < 6, 'the current initial storage cannot hold all six harvests');
+    assert.ok(harvested > 0 && harvested < crops.length, 'the current initial storage cannot hold all successful harvests for this fixed seed');
     after = p.controller.snapshot().menu!.selectable_view_model!;
-    assert.equal(after.field_options[0].available_tiles, harvested);
-    assert.equal(after.field_options[0].active_crop_count, 6 - harvested);
+    assert.equal(after.field_options[0].available_tiles, harvested + failures);
+    assert.equal(after.field_options[0].active_crop_count, crops.length - harvested);
     assert.equal(after.splittable_lot_options.filter(item => item.base_id === 'cabbage').reduce((total, item) => total + item.quantity.amount, 0), harvested * 1200);
   } finally { await p.controller.dispose(); }
 });

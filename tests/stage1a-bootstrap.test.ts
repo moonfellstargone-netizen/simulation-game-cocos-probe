@@ -40,7 +40,8 @@ function resources(): Stage1ABootstrapResources & { storage: CountingMemoryStora
     schemas,
     storage: new CountingMemoryStorage(),
     buildId: testBuildId('bootstrap_integration'),
-    nowIso8601: '2026-05-21T00:00:00.000Z'
+    nowIso8601: '2026-05-21T00:00:00.000Z',
+    randomSeed: 'farming-test-23' // Fixed successful farming setup for bootstrap recovery tests.
   };
 }
 
@@ -55,6 +56,31 @@ function assertNotPublished(input: ReturnType<typeof resources>, expected?: RegE
 }
 
 type RecoveryPoint = 'growing' | 'processing' | 'ready' | 'dish' | 'completed';
+
+test('bootstrap explicitly seeds a new game and loading preserves the saved random stream', async () => {
+  const input = resources();
+  input.randomSeed = 'stage1_fixed_seed';
+  const host = createStage1AHost(input);
+  const session = host.requireSession();
+  assert.equal(session.dispatch('plant_crop', { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 1, unit: 'count' } }).success, true);
+  await session.save('probability_checkpoint');
+  const saved = JSON.parse((await input.storage.read('probability_checkpoint'))!) as SaveFile;
+  assert.equal(saved.random_state.seed, 'stage1_fixed_seed');
+  assert.equal(saved.crop_instances[0]!.germination?.outcome, 'failed', 'known fixed failure is persisted before reveal');
+  const differentHost = createStage1AHost({ ...input, randomSeed: 'different-new-game' });
+  await differentHost.requireSession().load('probability_checkpoint');
+  await differentHost.requireSession().save('probability_restored');
+  assert.equal(await input.storage.read('probability_restored'), await input.storage.read('probability_checkpoint'), 'loading never substitutes the fresh host random seed');
+  for (const invalid of ['', ' ', 7, null]) {
+    const bad = resources(); Reflect.set(bad, 'randomSeed', invalid);
+    assertNotPublished(bad, /ERR_BOOTSTRAP_RESOURCE_INVALID:randomSeed/);
+  }
+  const unspecified = resources(); delete unspecified.randomSeed;
+  const defaultHost = createStage1AHost(unspecified);
+  await defaultHost.requireSession().save('default_random_seed');
+  assert.equal(JSON.parse((await unspecified.storage.read('default_random_seed'))!).random_state.seed, 'stage1_fixed_seed');
+  host.destroySession(); differentHost.destroySession(); defaultHost.destroySession();
+});
 
 function recoveryHost(input: Stage1ABootstrapResources) {
   const host = createStage1AHost(input);

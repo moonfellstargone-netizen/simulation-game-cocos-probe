@@ -20,7 +20,7 @@ async function cookingProbe(storage = new InMemorySaveStoragePort(), intercept?:
   const lifetime = new ProbeLifetime({
     loadResources: async () => ({ snapshot, buildId: 'web_cooking_contract', schemas: Object.fromEntries(snapshot.schema_paths.map((path) => [path,
       JSON.parse(readFileSync(`design_snapshot/${path}`, 'utf8'))])) }),
-    createHost: (input) => host = createStage1AHost({ ...input, snapshot: input.snapshot as RuntimeConfigSnapshot, storage, nowIso8601: '2026-11-02T00:00:00.000Z' }),
+    createHost: (input) => host = createStage1AHost({ ...input, snapshot: input.snapshot as RuntimeConfigSnapshot, storage, nowIso8601: '2026-11-02T00:00:00.000Z', randomSeed: 'farming-test-23' }),
     createBinding: (current) => new QinglanUiSceneProbeComponent(current as CocosSessionHost, {
       applyNodeBindingPatch: (patch) => { if (patch.section === 'menu') cooking.refresh(patch.payload as ProbeMenuSnapshot); }
     })

@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 独立微信追踪trace.cocos.wechat-m1覆盖M1基础、M2独立outer存储适配、M3种植/库存首包、库存拆分包及微信加工包，保留原31条/29个current追踪，并新增下述播种追踪；完整M3和M4尚未完成。旧Web交互、SaveFile和正式资源保持；核心加工校验与Session/Queue有本轮受限变更；Node与真实平台证据分别记录。完整AST/symbol自动索引和Nightly仍不是当前实现。
+- 独立微信追踪trace.cocos.wechat-m1覆盖M1基础、M2存储适配和M3既有经营入口；新增播种追踪后共32条/30个current。当前概率修订最小扩展播种参数、成苗保存字段、派生配置与两端输入投影，原始包和正式fixture/expected保持，旧作物兼容；其余旧Web经营入口保留。完整M3和M4尚未完成，Node与真实平台证据分别记录；完整AST/symbol自动索引和Nightly仍不是当前实现。
 
 ## 2. 状态语义
 
@@ -383,4 +383,4 @@ tests/cocos-wechat-m3-ui.test.ts和tests/cocos-wechat-runtime.test.ts沿既有te
 
 ## 播种数量与地块容量
 
-trace.farming.seed-quantity连接FarmingSystem、GameRuntime、公开容量投影、Web/微信页面及核心/预览/Session/readiness/运行回归；每粒1株1格、超量整次拒绝、半满续种与独立收获均需实际测试。新增后共32条/30个current追踪，旧全部追踪保持。
+trace.farming.seed-quantity连接FarmingSystem、GameRuntime、公开容量投影、Web/微信页面及核心/预览/Session/readiness/运行回归；每位1至3粒对应80%/96%/99.2%成苗率、超量整次拒绝、随机保存与预览隔离、早期失败释放位置、旧作物兼容、半满续种与独立收获均需实际测试。新增后共32条/30个current追踪，旧全部追踪保持。

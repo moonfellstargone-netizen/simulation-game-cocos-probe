@@ -12,7 +12,8 @@
     "forms",
     "seed_defaults",
     "source_policy",
-    "storage_footprint_rule"
+    "storage_footprint_rule",
+    "planting_policy"
   ],
   "additionalProperties": false,
   "properties": {
@@ -55,7 +56,9 @@
       "additionalProperties": false,
       "properties": {
         "germination_rate": {
-          "type": "number"
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
         "seed_quality": {
           "type": "string"
@@ -105,6 +108,28 @@
         },
         "footprint": {
           "$ref": "common_defs.schema.json#/$defs/StorageFootprint"
+        }
+      }
+    },
+    "planting_policy": {
+      "type": "object",
+      "required": [
+        "policy_version",
+        "max_seeds_per_tile",
+        "reveal_growth_progress"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "policy_version": {
+          "const": "independent-seeds-v1"
+        },
+        "max_seeds_per_tile": {
+          "const": 3
+        },
+        "reveal_growth_progress": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 100
         }
       }
     }
