@@ -144,3 +144,7 @@ compact重排前通过公开isFocused捕获当前编辑框，缩高/恢复后按
 editor保留原矩阵，新增触摸用Creator原生WebpageFullScreen控件切换并逐实际canvas/frame几何标注，不篡改预览DOM造支持。电脑hasTouch/DPR或缩高恢复不证明vivo X200s真实键盘、安全区或微信触摸。busy/销毁迟到沿既有受控Node回归与浏览器实际可观察窗口分别说明，不伪造同步Storage pending。真实Creator/SDK、built/editor鼠标/触摸和逐图检查独立留证。
 
 正常经营/存读档链console error必须为零，pageerror在全部场景都必须为零；旧missing-resource预期404单独归类。另有且仅有受控touch-native-cancel负例可记录一条SDK/Chrome诊断全文：Ignored attempt to cancel a touchcancel event with cancelable=false, for example because scrolling is in progress and cannot be interrupted. 必须同时证明原生cancel为trusted、cancelable=false、取消0CLICK/0command、世界保持及后续真实保存/推进/读取健康恢复；保留原始console。全文出现于其他case、被伪标missing-resource、次数非一、原生或恢复证据缺失、其他console error/pageerror均失败，不能泛过滤touch页面或报告原始console零error。该归属来自安装SDK原生touch-input回调与实际负例，不修改SDK或架构/门禁策略。
+
+## 批量播种兼容
+
+Web农事读取公开地块capacity_tiles/available_tiles，展示空余格数，保留半满地块选择。种子数量经原正式菜单确认；真实browser断言按所选数量核验扣种、占格和新增作物数，不能沿用扣多粒却仅占1格的旧预期。Web拆分仍保留既有预览交互；本次取消独立预览按钮仅属于微信页面。trace.farming.seed-quantity连接共享核心与两端回归。

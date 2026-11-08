@@ -190,7 +190,9 @@ export class CocosWebProbe extends Component {
       const seed = state.seedOptions.find((item) => item.id === state.selectedSeedId);
       const crop = state.harvestableOptions.find((item) => item.id === state.selectedCropId);
       const free = state.fieldOptions.filter((item) => item.enabled).length;
-      ui.farming.field.string = `地块：${field ? names[field.definition_id] ?? '已选地块' : '请选择'} ｜ 空闲${free}/${state.fieldOptions.length}，占用${state.fieldOptions.length - free}`;
+      ui.farming.field.string = field
+        ? `地块：${names[field.definition_id] ?? '已选地块'} ｜ 空余${field.available_tiles}/${field.capacity_tiles}格`
+        : `地块：请选择 ｜ 可播种${free}/${state.fieldOptions.length}处`;
       ui.farming.seed.string = seed
         ? `种子：${names[seed.base_id] ?? '种子批次'} ｜ 剩余${seed.quantity.amount}${displayUnit(seed.quantity.unit)}`
         : '种子：请选择种子批次';

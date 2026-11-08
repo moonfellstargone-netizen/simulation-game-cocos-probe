@@ -530,7 +530,9 @@ test('selectable view model updates from current state but stays read-only', () 
   const cropId = plant.created_objects.find((item) => item.object_type === 'CropInstance')!.object_id;
 
   let selectable = session.getSelectableViewModel();
-  assert.equal(selectable.field_options.find((option) => option.id === 'field_plot_01')?.enabled, false);
+  assert.equal(selectable.field_options.find((option) => option.id === 'field_plot_01')?.enabled, true);
+  assert.equal(selectable.field_options.find((option) => option.id === 'field_plot_01')?.capacity_tiles, 6);
+  assert.equal(selectable.field_options.find((option) => option.id === 'field_plot_01')?.available_tiles, 5);
   assert.equal(selectable.harvestable_crop_options.some((option) => option.id === cropId), false);
 
   dispatchAndAssert(session.dispatch('advance_time', { minutes: 5400 }), 'advance_time');
@@ -542,6 +544,27 @@ test('selectable view model updates from current state but stays read-only', () 
   selectable = session.getSelectableViewModel();
   assert.equal(selectable.splittable_lot_options.some((option) => option.id === cabbageLotId), true);
   assert.equal(selectable.processable_lot_options.some((option) => option.id === cabbageLotId && option.compatible_method_ids.includes('pickling_cabbage_basic')), true);
+});
+
+test('field options expose configured remaining tiles, allow partial fields and disable only full fields', () => {
+  const { session, configs } = makeSessionFixture();
+  const fieldConfig = configs.requiredDoc<{ field_plot_definitions: Record<string, { capacity_tiles: number }> }>('configs/farming/field_plots.yaml');
+  fieldConfig.field_plot_definitions.field_plot_basic!.capacity_tiles = 3;
+  const current = () => session.getSelectableViewModel().field_options[0]!;
+  assert.equal(current().capacity_tiles, 3);
+  assert.equal(current().available_tiles, 3);
+  const params = (amount: number) => ({ field_plot_id: current().id, seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount, unit: 'count' } });
+  dispatchAndAssert(session.dispatch('plant_crop', params(2)), 'plant_crop');
+  assert.equal(current().available_tiles, 1);
+  assert.equal(current().active_crop_count, 2);
+  assert.equal(current().enabled, true);
+  const detached = current(); detached.available_tiles = 999; detached.capacity_tiles = 999;
+  assert.equal(current().capacity_tiles, 3);
+  assert.equal(current().available_tiles, 1);
+  dispatchAndAssert(session.dispatch('plant_crop', params(1)), 'plant_crop');
+  assert.equal(current().available_tiles, 0);
+  assert.equal(current().enabled, false);
+  assert.equal(current().reason_key, 'ui.reason.field_occupied');
 });
 
 test('CocosActionDraftBuilder converts selected UI values into formal Action parameters without fixture defaults', () => {

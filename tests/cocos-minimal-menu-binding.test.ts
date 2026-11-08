@@ -398,7 +398,8 @@ test('Minimal menu binding runs Stage 1A clicks through selectable -> draft -> p
   assert.equal(snapshot.last_preview_result?.success, true);
   assert.equal(snapshot.last_action_result?.success, true);
   const cropId = required(snapshot.last_action_result?.created_objects.find((item) => item.object_type === 'CropInstance')?.object_id, 'crop id');
-  assert.equal(required(snapshot.selectable_view_model, 'selectable after plant').field_options.find((item) => item.id === field.id)?.enabled, false);
+  assert.equal(required(snapshot.selectable_view_model, 'selectable after plant').field_options.find((item) => item.id === field.id)?.enabled, true);
+  assert.equal(required(snapshot.selectable_view_model, 'selectable after plant').field_options.find((item) => item.id === field.id)?.available_tiles, 5);
 
   snapshot = controller.confirm({ action_type: 'advance_time', minutes: 5400 });
   assert.equal(snapshot.last_action_result?.success, true);

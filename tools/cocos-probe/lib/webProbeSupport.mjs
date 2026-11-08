@@ -247,12 +247,14 @@ export function assertFarmingCommandObservation(observation, expected) {
     const seed = lotQuantity(before.seedOptions, before.selectedSeedId);
     const remaining = lotQuantity(after.seedOptions, before.selectedSeedId);
     assert.ok(field?.enabled && seed, 'planting requires the explicitly selected public field and seed');
-    assert.equal(updatedField?.occupied_tiles, field.occupied_tiles + 1, 'planting must occupy the selected field');
-    assert.equal(updatedField?.active_crop_count, field.active_crop_count + 1);
-    assert.equal(updatedField.enabled, false);
+    assert.equal(updatedField?.occupied_tiles, field.occupied_tiles + before.seedAmount, 'each seed must occupy one tile');
+    assert.equal(updatedField?.active_crop_count, field.active_crop_count + before.seedAmount, 'each seed must create one crop');
+    assert.equal(updatedField.capacity_tiles, field.capacity_tiles);
+    assert.equal(updatedField.available_tiles, field.available_tiles - before.seedAmount);
+    assert.equal(updatedField.enabled, updatedField.available_tiles > 0);
     if (remaining) assert.equal(remaining.unit, seed.unit, 'planting must retain the seed quantity unit');
     assert.equal(remaining?.amount ?? 0, seed.amount - before.seedAmount, 'planting must consume exactly the selected seed quantity');
-    assert.equal(after.selectedFieldId, null, 'an occupied field selection must be cleared');
+    assert.equal(after.selectedFieldId, updatedField.enabled ? field.id : null, 'only a full field selection must be cleared');
     assert.match(observation.after.displayedOperation, /播种成功/);
   } else if (expected.actionType === 'harvest_crop') {
     const crop = before.harvestableOptions.find((item) => item.id === before.selectedCropId);

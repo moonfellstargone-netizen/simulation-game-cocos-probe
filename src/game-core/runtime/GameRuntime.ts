@@ -99,20 +99,20 @@ export class GameRuntime {
         actionType: 'plant_crop',
         execute: (state, request) => {
           if (request.action_type !== 'plant_crop') throw new Error('ERR_HANDLER_ACTION_MISMATCH');
-          const crop = this.farming.plantCrop(state.save_file, request.parameters.field_plot_id, request.parameters.seed_lot_id, request.parameters.seed_quantity);
-          this.appendEvent(state, request, 'farming.crop_planted', {
+          const crops = this.farming.plantCrop(state.save_file, request.parameters.field_plot_id, request.parameters.seed_lot_id, request.parameters.seed_quantity);
+          for (const crop of crops) this.appendEvent(state, request, 'farming.crop_planted', {
             crop_id: crop.crop_id,
             field_plot_id: crop.field_plot_id,
             crop_base_id: crop.crop_base_id
           });
           return this.results.success(request, {
-            created_objects: [{ object_type: 'CropInstance', object_id: crop.crop_id, summary: { status: crop.lifecycle_status } }],
+            created_objects: crops.map(crop => ({ object_type: 'CropInstance', object_id: crop.crop_id, summary: { status: crop.lifecycle_status } })),
             updated_objects: [
               { object_type: 'MaterialLot', object_id: request.parameters.seed_lot_id, summary: { quantity: request.parameters.seed_quantity } },
               { object_type: 'FieldPlotState', object_id: request.parameters.field_plot_id, summary: { status: 'occupied' } }
             ],
             consumed_resources: [{ resource_type: 'MaterialLot', resource_id: request.parameters.seed_lot_id, quantity: request.parameters.seed_quantity }],
-            event_log_entries: [{ message_key: 'event_log.farming.crop_planted', params: [{ key: 'crop_id', value: crop.crop_id }] }]
+            event_log_entries: crops.map(crop => ({ message_key: 'event_log.farming.crop_planted', params: [{ key: 'crop_id', value: crop.crop_id }] }))
           });
         }
       },

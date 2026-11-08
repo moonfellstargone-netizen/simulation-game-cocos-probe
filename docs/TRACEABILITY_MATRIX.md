@@ -19,7 +19,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 独立微信追踪trace.cocos.wechat-m1覆盖M1基础、M2独立outer存储适配、M3种植/库存首包、库存拆分包及微信加工包，保留31条/29个current追踪；完整M3和M4尚未完成。旧Web交互、SaveFile和正式资源保持；核心加工校验与Session/Queue有本轮受限变更；Node与真实平台证据分别记录。完整AST/symbol自动索引和Nightly仍不是当前实现。
+- 独立微信追踪trace.cocos.wechat-m1覆盖M1基础、M2独立outer存储适配、M3种植/库存首包、库存拆分包及微信加工包，保留原31条/29个current追踪，并新增下述播种追踪；完整M3和M4尚未完成。旧Web交互、SaveFile和正式资源保持；核心加工校验与Session/Queue有本轮受限变更；Node与真实平台证据分别记录。完整AST/symbol自动索引和Nightly仍不是当前实现。
 
 ## 2. 状态语义
 
@@ -380,3 +380,7 @@ trace.processing.required-inputs继续连接ProcessingSystem和现有test.stage1
 ## 微信加工分步界面与只读核对追踪
 
 tests/cocos-wechat-m3-ui.test.ts和tests/cocos-wechat-runtime.test.ts沿既有test.cocos-wechat-runtime实际运行：方法/要求/批次/设施/汇总/任务分步、分页及节点交互，明确拒绝保留草稿、开工异常隔离草稿并先只读核对再由玩家重选、领取不确定锁及refreshProcessingView的只读核对、后台/缺失/失败/状态矛盾回执和手动恢复。Queue refresh只读取当前Session公开投影，不读写存档或自动重试；锁在当前界面实例内，不推断跨重启保护。设计视口几何、受控Host行为、实际Creator/微信和手机输入分别留证，不互相替代。
+
+## 播种数量与地块容量
+
+trace.farming.seed-quantity连接FarmingSystem、GameRuntime、公开容量投影、Web/微信页面及核心/预览/Session/readiness/运行回归；每粒1株1格、超量整次拒绝、半满续种与独立收获均需实际测试。新增后共32条/30个current追踪，旧全部追踪保持。

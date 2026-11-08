@@ -99,3 +99,7 @@ InventorySystem.assertCanSplit提供只读正式校验，split与之复用拆分
 ## 微信加工独立校验
 
 ProcessingSystem共用开工和领取只读计划，InventorySystem按既有顺序投影材料，StorageReconciler复用同一占用计算。ActionPipeline与正式Schema、配置和玩法不变；正式提交与预览仍各自经现有管线。
+
+## 播种数量与地块容量
+
+FarmingSystem.plantCrop按正安全整数count创建CropInstance数组，每粒1株、每株1格。地块容量由definition_id对应的正式field_plot_definitions读取，不向SaveFile增加容量或批次规模字段。种子库存/预留与剩余空格校验先于消耗和对象分配；半满地块允许续种，超量整次失败。GameRuntime为每株返回created_objects与领域事件，单株调用兼容。每株收获沿既有default_quantity_g，释放1格；生长阶段读取stage_sequence，避免硬编码阈值。旧档已丢失的历史播种数量不可推断，不自动补偿。trace.farming.seed-quantity连接核心、预览、Session、readiness及两端回归。

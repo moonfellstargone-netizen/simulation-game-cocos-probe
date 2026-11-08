@@ -30,7 +30,8 @@
     "trace.cocos.web-orders-loop",
     "trace.cocos.cross-step-recovery",
     "trace.cocos.touch-small-screen",
-    "trace.cocos.wechat-m1"
+    "trace.cocos.wechat-m1",
+    "trace.farming.seed-quantity"
   ],
   "entries": [
     {
@@ -1096,6 +1097,51 @@
       "designRefs": [
         "docs/SOURCE_DESIGN_PACK.md",
         "design_snapshot/SOURCE_DESIGN_PACK.txt"
+      ]
+    },
+    {
+      "id": "trace.farming.seed-quantity",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": [
+        "game-core",
+        "cocos-app",
+        "cocos-engine-probe",
+        "cocos-wechat-probe",
+        "tools",
+        "tests"
+      ],
+      "sourceRefs": [
+        "src/game-core/farming/FarmingSystem.ts",
+        "src/game-core/runtime/GameRuntime.ts",
+        "src/cocos-app/view-models/CocosSelectableViewModel.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts",
+        "apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts",
+        "tools/cocos-probe/lib/webProbeSupport.mjs"
+      ],
+      "testRefs": [
+        "test.stage1a-contract",
+        "test.action-preview",
+        "test.cocos-session",
+        "test.cocos-ui-readiness",
+        "test.cocos-engine-probe-lifecycle",
+        "test.cocos-wechat-runtime",
+        "test.cocos-web-verification-contracts"
+      ],
+      "docRefs": [
+        "docs/module-cards/game-core.md",
+        "docs/module-cards/cocos-app.md",
+        "docs/module-cards/cocos-wechat-probe.md",
+        "docs/module-cards/cocos-engine-probe.md",
+        "docs/code-index/public-api.md",
+        "docs/maps/runtime-map.md"
+      ],
+      "gateRefs": [
+        "full",
+        "release"
       ]
     }
   ]

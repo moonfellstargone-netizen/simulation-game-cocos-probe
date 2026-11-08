@@ -394,7 +394,8 @@ test('M3 public menu drives planting and storage through the real binding; resto
     assert.equal(p.controller.snapshot().time_label, initial.time_label);
     await p.controller.plant(field.id, seed.id, { amount: 1, unit: seed.quantity.unit });
     const planted = p.controller.snapshot();
-    assert.equal(planted.menu!.selectable_view_model!.field_options.find(item => item.id === field.id)!.enabled, false);
+    assert.equal(planted.menu!.selectable_view_model!.field_options.find(item => item.id === field.id)!.enabled, true);
+    assert.equal(planted.menu!.selectable_view_model!.field_options.find(item => item.id === field.id)!.available_tiles, 5);
     assert.equal(planted.menu!.selectable_view_model!.seed_lot_options.find(item => item.id === seed.id)!.quantity.amount, seed.quantity.amount - 1);
     await p.controller.save();
     await p.controller.advance();
@@ -1184,4 +1185,131 @@ test('M2 explicit first-save cancellation shares the busy lock and suppresses la
   assert.equal(p.controller.snapshot().phase, 'closed');
   assert.equal(p.controller.snapshot().completed_commands, 0);
   assert.equal(p.host().hasSession(), false);
+});
+
+
+test('M3 planting rejects ten seeds, creates six crops and harvest obeys remaining storage capacity', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const p = harness({ storage, receiveMenu: true });
+  await p.controller.start();
+  const capture = async () => { await p.host().requireSession().save('quantity-audit'); return storage.read('quantity-audit'); };
+  try {
+    const menu = p.controller.snapshot().menu!.selectable_view_model!;
+    const field = menu.field_options.find(item => item.enabled)!;
+    const seed = menu.seed_lot_options.find(item => item.enabled)!;
+    assert.equal(field.capacity_tiles, 6); assert.equal(field.available_tiles, 6);
+    const before = await capture();
+    await assert.rejects(p.controller.plant(field.id, seed.id, { amount: 10, unit: seed.quantity.unit }));
+    assert.equal(await capture(), before, 'over-capacity rejection leaves the entire serialized save unchanged');
+    await p.controller.plant(field.id, seed.id, { amount: 2, unit: seed.quantity.unit });
+    let after = p.controller.snapshot().menu!.selectable_view_model!;
+    assert.equal(after.field_options[0].available_tiles, 4);
+    assert.equal(after.field_options[0].active_crop_count, 2);
+    assert.equal(after.field_options[0].enabled, true);
+    await p.controller.plant(field.id, seed.id, { amount: 4, unit: seed.quantity.unit });
+    after = p.controller.snapshot().menu!.selectable_view_model!;
+    assert.equal(after.field_options[0].available_tiles, 0);
+    assert.equal(after.field_options[0].active_crop_count, 6);
+    assert.equal(after.field_options[0].enabled, false);
+    assert.equal(after.seed_lot_options.find(item => item.id === seed.id)!.quantity.amount, seed.quantity.amount - 6);
+    await p.controller.save(); await p.controller.load();
+    for (let i = 0; i < 4; i++) await p.controller.advanceDay();
+    const crops = p.controller.snapshot().menu!.selectable_view_model!.harvestable_crop_options.filter(item => item.enabled);
+    assert.equal(crops.length, 6);
+    let harvested = 0;
+    for (const crop of crops) {
+      const beforeHarvest = await capture();
+      try { await p.controller.harvest(crop.id); harvested++; }
+      catch (error) {
+        assert.match(String(error), /ERR_STORAGE_CAPACITY_OVERFLOW/);
+        assert.equal(await capture(), beforeHarvest, 'full storage never consumes a mature crop or frees its tile');
+        break;
+      }
+    }
+    assert.ok(harvested > 0 && harvested < 6, 'the current initial storage cannot hold all six harvests');
+    after = p.controller.snapshot().menu!.selectable_view_model!;
+    assert.equal(after.field_options[0].available_tiles, harvested);
+    assert.equal(after.field_options[0].active_crop_count, 6 - harvested);
+    assert.equal(after.splittable_lot_options.filter(item => item.base_id === 'cabbage').reduce((total, item) => total + item.quantity.amount, 0), harvested * 1200);
+  } finally { await p.controller.dispose(); }
+});
+
+test('M3 ordinary actions reject receipts belonging to a different command or action', async () => {
+  for (const mode of ['old-action', 'wrong-command', 'missing-request', 'failed-after-preview'] as const) {
+    let previous: WechatCommandResult | null = null;
+    let corrupt = false;
+    const p = harness({ receiveMenu: true, intercept: async (command, execute) => {
+      if (corrupt && mode === 'old-action') return previous!;
+      const result = await execute();
+      if (corrupt) {
+        const copy = structuredClone(result);
+        if (mode === 'wrong-command') Reflect.set(copy.command_result, 'command_name', 'load');
+        else if (mode === 'failed-after-preview') Reflect.set(copy.command_result.snapshot!.menu!.last_action_result!, 'success', false);
+        else Reflect.deleteProperty(copy.command_result.snapshot!.menu!.last_action_result!, 'request_id');
+        return copy;
+      }
+      previous = result; return result;
+    } });
+    await p.controller.start();
+    try {
+      await p.controller.advance();
+      const before = p.controller.snapshot().completed_commands;
+      const menu = p.controller.snapshot().menu!.selectable_view_model!;
+      corrupt = true;
+      await assert.rejects(p.controller.plant(menu.field_options[0].id, menu.seed_lot_options[0].id,
+        { amount: 1, unit: menu.seed_lot_options[0].quantity.unit }), /ERR_WECHAT_ACTION_RESULT_UNCERTAIN/);
+      assert.equal(p.controller.snapshot().completed_commands, before, 'mismatched evidence never reports completed planting');
+    } finally { await p.controller.dispose(); }
+  }
+});
+
+test('M3 a same-action receipt cannot report another planting and load preserves the dispatcher identity scope', async () => {
+  let replay = false;
+  let firstReceipt: WechatCommandResult | null = null;
+  const storage = new InMemorySaveStoragePort();
+  const p = harness({ storage, receiveMenu: true, intercept: async (command, execute) => {
+    if (replay && command.name === 'menu_confirm') return firstReceipt!;
+    const result = await execute();
+    if (command.name === 'menu_confirm' && firstReceipt === null) firstReceipt = result;
+    return result;
+  } });
+  await p.controller.start();
+  try {
+    const initial = p.controller.snapshot().menu!.selectable_view_model!;
+    const field = initial.field_options.find(item => item.enabled)!;
+    const seed = initial.seed_lot_options.find(item => item.enabled)!;
+    const plant = () => p.controller.plant(field.id, seed.id, { amount: 2, unit: seed.quantity.unit });
+    await p.controller.save();
+    await plant();
+    const completed = p.controller.snapshot().completed_commands;
+    await p.host().requireSession().save('receipt-audit');
+    const before = await storage.read('receipt-audit');
+    replay = true;
+    await assert.rejects(plant(), /ERR_WECHAT_ACTION_RESULT_UNCERTAIN/);
+    assert.equal(p.controller.snapshot().completed_commands, completed);
+    assert.equal(p.controller.snapshot().menu!.selectable_view_model!.field_options[0].active_crop_count, 2);
+    await p.host().requireSession().save('receipt-audit');
+    assert.equal(await storage.read('receipt-audit'), before, 'replayed evidence triggers no retry and changes no game state');
+    replay = false;
+    await plant();
+    assert.equal(p.controller.snapshot().menu!.selectable_view_model!.field_options[0].active_crop_count, 4);
+    await p.controller.load();
+    await plant();
+    assert.equal(p.controller.snapshot().menu!.selectable_view_model!.field_options[0].active_crop_count, 2,
+      'normal load keeps the dispatcher sequence and a new request is accepted');
+    replay = true;
+    const afterLoad = p.controller.snapshot().completed_commands;
+    await assert.rejects(plant(), /ERR_WECHAT_ACTION_RESULT_UNCERTAIN/);
+    assert.equal(p.controller.snapshot().completed_commands, afterLoad, 'load does not forget already observed receipts');
+  } finally { await p.controller.dispose(); }
+  const replacement = harness({ storage, receiveMenu: true });
+  await replacement.controller.start();
+  try {
+    await replacement.controller.load();
+    const menu = replacement.controller.snapshot().menu!.selectable_view_model!;
+    await replacement.controller.plant(menu.field_options[0].id, menu.seed_lot_options[0].id,
+      { amount: 2, unit: menu.seed_lot_options[0].quantity.unit });
+    assert.equal(replacement.controller.snapshot().menu!.selectable_view_model!.field_options[0].active_crop_count, 2,
+      'a new controller owns a new Session and can legitimately reuse the initial request sequence');
+  } finally { await replacement.controller.dispose(); }
 });

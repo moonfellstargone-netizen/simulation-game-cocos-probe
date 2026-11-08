@@ -39,6 +39,8 @@ export interface ProbeFieldOption {
   readonly enabled: boolean;
   readonly label_key: string | null;
   readonly occupied_tiles: number;
+  readonly capacity_tiles: number;
+  readonly available_tiles: number;
   readonly active_crop_count: number;
 }
 

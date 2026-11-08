@@ -364,19 +364,28 @@ async function farmingLoop(browser, url, result, recordDir, logs) {
     await physicalClick(page, 'farming-select-seed', result, recordDir, 'SelectSeed', { key: 'selectedSeedId', value: seed.id });
     assert.ok(Number.isSafeInteger(seed.quantity.amount) && seed.quantity.amount > 0 && seed.quantity.amount <= 40, 'the real quantity-rejection case needs a bounded count-unit seed batch');
     assert.equal(seed.quantity.unit, 'count', 'the quantity control test must use the public seed unit');
+    let rejectedCapacity = null;
     // Every quantity change is a real player click. Test bounds prevent an unbounded verification loop.
     for (let amount = initialFarming.seedAmount + 1; amount <= seed.quantity.amount + 1; amount++) {
       await physicalClick(page, 'farming-quantity-increase-' + amount, result, recordDir, 'SeedAmountIncrease', { key: 'seedAmount', value: amount });
+      if (amount === seed.quantity.amount && amount > field.available_tiles) {
+        rejectedCapacity = await physicalClick(page, 'farming-capacity-rejected', result, recordDir, 'PlantCrop', {
+          actionType: 'plant_crop', status: 'failed', timeLabel: initial.timeLabel, errorMessage: 'ERR_FIELD_CAPACITY_EXCEEDED'
+        });
+        assert.match(rejectedCapacity.after.displayedOperation, /土地空位不足/);
+      }
     }
     const rejected = await physicalClick(page, 'farming-resource-rejected', result, recordDir, 'PlantCrop', {
       actionType: 'plant_crop', status: 'failed', timeLabel: initial.timeLabel, errorMessage: 'ERR_NOT_ENOUGH_RESOURCE'
     });
     assert.match(rejected.after.displayedOperation, /资源不足/, 'business rejection must be visible instead of a success message');
-    for (let amount = seed.quantity.amount; amount >= 1; amount--) {
+    assert.ok(rejectedCapacity, 'canonical farming must reject an affordable seed quantity above field capacity');
+    for (let amount = seed.quantity.amount; amount >= 2; amount--) {
       await physicalClick(page, 'farming-quantity-decrease-' + amount, result, recordDir, 'SeedAmountDecrease', { key: 'seedAmount', value: amount });
     }
     const planted = await physicalClick(page, 'farming-plant', result, recordDir, 'PlantCrop', { actionType: 'plant_crop', status: 'completed', timeLabel: initial.timeLabel });
     const savedState = await status(page);
+    assert.equal(savedState.farming.fieldOptions.find(item => item.id === field.id).active_crop_count, 2);
     await physicalClick(page, 'farming-save-planted', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: savedState.timeLabel });
     const saved = await storedSave(page);
     assert.ok(typeof saved.raw === 'string' && saved.raw.length > 0);
@@ -399,16 +408,24 @@ async function farmingLoop(browser, url, result, recordDir, logs) {
     assertFarmingLoadRecovery(savedState, loaded);
     assertStoredSaveUnchanged(saved, await storedSave(page));
     const afterLoadDays = await mature('farming-after-load');
+    assert.equal((await status(page)).farming.harvestableOptions.length, 2, 'both saved crops mature after loading');
     const restoredRipe = (await status(page)).farming.harvestableOptions.find((item) => item.enabled);
     await physicalClick(page, 'farming-select-restored-crop', result, recordDir, 'SelectCrop', { key: 'selectedCropId', value: restoredRipe.id });
     const harvestTime = (await status(page)).timeLabel;
     const harvested = await physicalClick(page, 'farming-harvest', result, recordDir, 'HarvestCrop', { actionType: 'harvest_crop', status: 'completed', timeLabel: harvestTime });
+    const secondCrop = (await status(page)).farming.harvestableOptions.find(item => item.enabled);
+    assert.ok(secondCrop && secondCrop.id !== restoredRipe.id, 'the other planted crop remains available');
+    await physicalClick(page, 'farming-select-second-crop', result, recordDir, 'SelectCrop', { key: 'selectedCropId', value: secondCrop.id });
+    const harvestedSecond = await physicalClick(page, 'farming-harvest-second', result, recordDir, 'HarvestCrop', { actionType: 'harvest_crop', status: 'completed', timeLabel: harvestTime });
+    assert.equal(harvestedSecond.after.farming.fieldOptions.find(item => item.id === field.id).occupied_tiles, 0);
+    const outputs = harvestedSecond.after.farming.materialOptions.filter(item => item.base_id === 'cabbage' && item.current_form === 'fresh');
+    assert.equal(outputs.reduce((total, item) => total + item.quantity.amount, 0), 2400, 'two mature plants yield two configured 1200g harvests');
     assertStoredSaveUnchanged(saved, await storedSave(page));
     await physicalClick(page, 'farming-select-next-field', result, recordDir, 'SelectField', { key: 'selectedFieldId', value: field.id });
     const replanted = await physicalClick(page, 'farming-next-plant', result, recordDir, 'PlantCrop', { actionType: 'plant_crop', status: 'completed', timeLabel: harvestTime });
     const lifecycle = await disposeProbe(page);
     assertStoredSaveUnchanged(saved, await storedSave(page));
-    return { scope: 'real physical controls in an isolated 960x640 BrowserContext; public menu projections only', initial, rejected, planted, saved: storedEvidence(saved), savedState, beforeLoadDays, loaded, afterLoadDays, harvested, replanted, lifecycle };
+    return { scope: 'real physical controls in an isolated 960x640 BrowserContext; public menu projections only', initial, rejected, rejectedCapacity, planted, saved: storedEvidence(saved), savedState, beforeLoadDays, loaded, afterLoadDays, harvested, harvestedSecond, replanted, lifecycle };
   } finally { await context.close(); }
 }
 

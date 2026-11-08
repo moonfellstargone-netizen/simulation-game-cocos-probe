@@ -12,6 +12,8 @@ export interface CocosFieldOption extends CocosSelectableOptionBase {
   location_id: string;
   occupied_tiles: number;
   active_crop_count: number;
+  capacity_tiles: number;
+  available_tiles: number;
 }
 
 export interface CocosMaterialLotOption extends CocosSelectableOptionBase {
@@ -208,18 +210,27 @@ export class CocosSelectableViewModel {
     const activeRecipeIds = this.activeRecipeIds();
     const materialOptions = save.inventory.map((lot) => this.materialLotOption(save, lot.lot_id, processingMethodIds, activeRecipeIds));
     const processingFacilities = this.processingFacilityOptions(save, processingMethodIds);
+    const fieldDefinitions = this.configs.requiredDoc<{ field_plot_definitions: Record<string, { capacity_tiles: number }> }>('configs/farming/field_plots.yaml');
 
     return {
-      field_options: save.fields.map((field) => ({
-        id: field.field_plot_id,
-        label_key: `field.${field.definition_id}.name`,
-        enabled: field.active_crop_ids.length === 0 && field.occupied_tiles === 0,
-        reason_key: field.active_crop_ids.length === 0 && field.occupied_tiles === 0 ? null : 'ui.reason.field_occupied',
-        definition_id: field.definition_id,
-        location_id: field.location_id,
-        occupied_tiles: field.occupied_tiles,
-        active_crop_count: field.active_crop_ids.length
-      })),
+      field_options: save.fields.map((field) => {
+        const capacity = fieldDefinitions.field_plot_definitions[field.definition_id]?.capacity_tiles;
+        const available = Number.isSafeInteger(capacity) && capacity! > 0
+          && Number.isSafeInteger(field.occupied_tiles) && field.occupied_tiles >= 0
+          ? Math.max(0, capacity! - field.occupied_tiles) : 0;
+        return {
+          id: field.field_plot_id,
+          label_key: `field.${field.definition_id}.name`,
+          enabled: available > 0,
+          reason_key: available > 0 ? null : 'ui.reason.field_occupied',
+          definition_id: field.definition_id,
+          location_id: field.location_id,
+          occupied_tiles: field.occupied_tiles,
+          active_crop_count: field.active_crop_ids.length,
+          capacity_tiles: capacity ?? 0,
+          available_tiles: available
+        };
+      }),
       seed_lot_options: materialOptions.filter((option) => option.category === 'seed' || option.current_form.includes('seed') || option.base_id.endsWith('_seed')),
       harvestable_crop_options: save.crop_instances.map((crop) => ({
         id: crop.crop_id,

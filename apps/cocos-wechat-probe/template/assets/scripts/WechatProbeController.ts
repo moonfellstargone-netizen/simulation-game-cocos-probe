@@ -22,7 +22,7 @@ export interface WechatHost {
 }
 
 export interface WechatQuantity { readonly amount: number; readonly unit: string }
-export interface WechatFieldOption { readonly id: string; readonly definition_id: string; readonly enabled: boolean; readonly occupied_tiles: number; readonly active_crop_count: number }
+export interface WechatFieldOption { readonly id: string; readonly definition_id: string; readonly enabled: boolean; readonly occupied_tiles: number; readonly active_crop_count: number; readonly capacity_tiles: number; readonly available_tiles: number }
 export interface WechatMaterialOption {
   readonly id: string; readonly enabled: boolean; readonly base_id: string; readonly current_form: string;
   readonly category?: string; readonly compatible_method_ids?: readonly string[];
@@ -81,7 +81,7 @@ function copyMenu(value: WechatMenuSnapshot): WechatMenuSnapshot {
     storage_ref: { location_id: item.storage_ref.location_id, storage_type: item.storage_ref.storage_type, container_id: item.storage_ref.container_id } });
   return { view_model: value.view_model ? { time_label: value.view_model.time_label } : null,
     selectable_view_model: s ? {
-      field_options: s.field_options.map(item => ({ id: item.id, definition_id: item.definition_id, enabled: item.enabled, occupied_tiles: item.occupied_tiles, active_crop_count: item.active_crop_count })),
+      field_options: s.field_options.map(item => ({ id: item.id, definition_id: item.definition_id, enabled: item.enabled, occupied_tiles: item.occupied_tiles, active_crop_count: item.active_crop_count, capacity_tiles: item.capacity_tiles, available_tiles: item.available_tiles })),
       seed_lot_options: s.seed_lot_options.map(material),
       harvestable_crop_options: s.harvestable_crop_options.map(item => ({ id: item.id, enabled: item.enabled, crop_base_id: item.crop_base_id, field_plot_id: item.field_plot_id })),
       splittable_lot_options: s.splittable_lot_options.map(material),
@@ -118,7 +118,7 @@ export interface WechatCommandResult {
         readonly last_preview_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
         readonly last_split_validation_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
         readonly last_processing_validation_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
-        readonly last_action_result?: { readonly success: boolean; readonly status_code?: string; readonly created_objects?: readonly { readonly object_type: string; readonly object_id: string }[]; readonly updated_objects?: readonly { readonly object_type: string; readonly object_id: string }[]; readonly consumed_resources?: readonly { readonly resource_type: string; readonly resource_id: string; readonly quantity: WechatQuantity }[] } | null;
+        readonly last_action_result?: { readonly success: boolean; readonly request_id?: string; readonly status_code?: string; readonly created_objects?: readonly { readonly object_type: string; readonly object_id: string }[]; readonly updated_objects?: readonly { readonly object_type: string; readonly object_id: string }[]; readonly consumed_resources?: readonly { readonly resource_type: string; readonly resource_id: string; readonly quantity: WechatQuantity }[] } | null;
       };
       readonly save_load?: {
         readonly last_save_result?: { readonly slot_id: string } | null;
@@ -201,6 +201,8 @@ export class WechatProbeController {
   private splitGeneration = 0;
   private splitPreview: WechatSplitPreview | null = null;
   private splitResult: WechatSplitResult | null = null;
+  // This controller owns one Session/dispatcher. Loading replaces state, not its request sequence.
+  private readonly observedMenuRequestIds = new Set<string>();
   private splitCommandInFlight: 'preview' | 'confirm' | null = null;
   private processingGeneration = 0;
   private processingPreview: WechatProcessingPreview | null = null;
@@ -313,6 +315,10 @@ export class WechatProbeController {
     return this.execute({ name: 'refresh' });
   }
 
+  async refreshSplitView(): Promise<WechatProbeSnapshot> {
+    return this.execute({ name: 'refresh' });
+  }
+
   private copyProcessingSelection(selection: WechatProcessingSelection): WechatProcessingSelection {
     if (selection.action_type === 'collect_processing_result') return { action_type: selection.action_type, task_option_id: selection.task_option_id };
     return { action_type: selection.action_type, method_id: selection.method_id, facility_option_id: selection.facility_option_id,
@@ -413,6 +419,10 @@ export class WechatProbeController {
         if (actualCommand.name === 'menu_confirm_processing_direct') {
           const reason = error instanceof Error ? error.message : String(error);
           throw new Error(`ERR_WECHAT_PROCESSING_RESULT_UNCERTAIN:${reason}`);
+        }
+        if (actualCommand.name === 'menu_confirm') {
+          const reason = error instanceof Error ? error.message : String(error);
+          throw new Error(`ERR_WECHAT_ACTION_RESULT_UNCERTAIN:${reason}`);
         }
         throw error;
       }
@@ -516,6 +526,21 @@ export class WechatProbeController {
         if (processingGeneration === this.processingGeneration && this.visible) this.processingResult = { actionType: selection.action_type, taskId, lotId };
       }
       if (actualCommand.name !== 'menu_confirm_split_direct' && actualCommand.name !== 'menu_confirm_processing_direct' && actualCommand.name !== 'refresh') {
+        if (actualCommand.name === 'menu_confirm' && !this.disposed) {
+          const action = current.snapshot?.menu?.last_action_result;
+          if (current.command_name !== actualCommand.name || preview?.action_type !== actualCommand.selection.action_type
+              || typeof preview.success !== 'boolean' || typeof preview.status_code !== 'string' || !preview.status_code) {
+            throw new Error('ERR_WECHAT_ACTION_RESULT_UNCERTAIN');
+          }
+          if (!preview.success && action == null) throw new Error(`ERR_WECHAT_PROBE_ACTION_FAILED:${preview.status_code}`);
+          if (!preview.success || current.status !== 'completed' || typeof action?.success !== 'boolean'
+              || typeof action.status_code !== 'string' || !action.status_code || typeof action.request_id !== 'string' || !action.request_id) {
+            throw new Error('ERR_WECHAT_ACTION_RESULT_UNCERTAIN');
+          }
+          if (this.observedMenuRequestIds.has(action.request_id)) throw new Error('ERR_WECHAT_ACTION_RESULT_UNCERTAIN');
+          this.observedMenuRequestIds.add(action.request_id);
+          if (!action.success) throw new Error(`ERR_WECHAT_ACTION_RESULT_UNCERTAIN:${action.status_code}`);
+        }
         const success = actualCommand.name === 'menu_preview'
           ? previewValid && current.command_name === actualCommand.name
           : actualCommand.name === 'menu_confirm'

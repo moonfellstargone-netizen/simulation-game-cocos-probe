@@ -6,7 +6,7 @@ import { WECHAT_BACKUP_SLOT_ID, WECHAT_SAVE_SLOT_ID, WechatSaveStoragePort } fro
 import { createWechatPriorSaveValidator } from './WechatPriorSaveValidator';
 
 const { ccclass } = _decorator;
-const UNITS: Record<string, string> = { count: '粒', g: '克', ml: '毫升', bundle: '捆', serving: '份' };
+const UNITS: Record<string, string> = { count: '粒', g: '克', ml: '毫升', bundle: '捆', serving: '份', slot_weight: '容量点' };
 const STORAGE: Record<string, string> = { room_temp: '常温储存', cellar: '菜窖' };
 const FORMS: Record<string, string> = { fresh: '鲜材', cut: '切好', cured: '腌腊', pickled: '腌菜' };
 // These definitions have no display_name_key in the current formal resources.
@@ -68,6 +68,9 @@ export class CocosWechatProbe extends Component {
   private stockNode: Node | null = null;
   private splitNode: Node | null = null;
   private splitInput: EditBox | null = null;
+  private splitNeedsReview = false;
+  private splitPendingText: string | null = null;
+  private splitHintGeneration = 0;
   private menuButtons: Record<string, Button> = {};
   private menuHandlers: Record<string, () => void> = {};
   private fieldId: string | null = null;
@@ -199,7 +202,7 @@ export class CocosWechatProbe extends Component {
     const state = this.controller?.snapshot();
     if (state?.phase === 'ready' && !state.busy && state.visible) this.lastCommandWasRead = isRead;
   }
-  private invalidateSplit(): void { this.controller?.invalidateSplitPreview(); this.controller?.invalidateProcessingPreview(); this.processingHintGeneration++; }
+  private invalidateSplit(): void { this.splitHintGeneration++; this.controller?.invalidateSplitPreview(); this.controller?.invalidateProcessingPreview(); this.processingHintGeneration++; }
   private finishSplitEditing(): void { if (this.splitInput?.isFocused()) this.splitInput.blur(); if (this.processingInput?.isFocused()) this.processingInput.blur(); }
   private onProcessingTextChanged(): void {
     this.resetCancelConfirmation();
@@ -210,6 +213,11 @@ export class CocosWechatProbe extends Component {
     if (state && isValid(this.node, true)) this.renderMenu(state);
   }
   private onSplitTextChanged(): void {
+    const current = this.controller?.snapshot();
+    if (!current || current.phase !== 'ready' || current.busy || !current.visible || this.splitNeedsReview) {
+      if (this.splitInput && this.splitPendingText !== null) this.splitInput.string = this.splitPendingText;
+      return;
+    }
     this.resetCancelConfirmation();
     this.invalidateSplit();
     const state = this.controller?.snapshot();
@@ -217,6 +225,7 @@ export class CocosWechatProbe extends Component {
   }
   private onHide(): void {
     if (this.processingActionsPending > 0) this.processingActionInterrupted = true;
+    if (this.splitPendingText !== null) this.splitNeedsReview = true;
     this.finishSplitEditing(); this.resetCancelConfirmation(); this.invalidateSplit(); this.controller?.setVisible(false);
   }
   private onShow(): void {
@@ -258,34 +267,20 @@ export class CocosWechatProbe extends Component {
         const target = options?.storage_target_options.find(x => x.id === this.targetId && x.enabled);
         let action: Promise<WechatProbeSnapshot> | null = null;
         let done = '';
-        if (name === 'SplitPreview' && lot) {
-          this.lastCommandWasRead = false;
-          const amount = this.splitAmount();
-          if (amount === null) this.labels.hint.string = '请输入大于零的有效数量';
-          else void this.controller!.previewSplit(lot.id, { amount, unit: lot.quantity.unit })
-            .catch(error => { if (isValid(this.node, true)) this.labels.hint.string = '预览未完成，请重试'; console.error('[wechat-m3] split-preview-failed', String(error)); });
-        } else if (name === 'SplitConfirm' && lot) {
-          this.lastCommandWasRead = false;
-          const amount = this.splitAmount();
-          if (amount === null) this.labels.hint.string = '请输入大于零的有效数量';
-          else {
-            void this.controller!.confirmSplit(lot.id, { amount, unit: lot.quantity.unit }).catch(error => {
-              const reason = String(error);
-              const rejection = reason.match(/ERR_WECHAT_PROBE_ACTION_FAILED:([^\s]+)/);
-              if (isValid(this.node, true)) this.labels.hint.string = reason.includes('ERR_WECHAT_SPLIT_RESULT_UNCERTAIN')
-                ? '拆分结果待确认，请查看库存核实' : rejection ? `拆分未通过：${this.splitRejection(rejection[1])}` : '拆分未完成，请查看状态';
-              console.error('[wechat-m3] split-confirm-failed', String(error));
-            });
-          }
-        }
+        if (name === 'SplitRefresh') this.refreshSplit();
+        else if (name === 'SplitConfirm' && lot) this.confirmSplit(lot);
         if (name === 'AdvanceDay') { action = this.controller!.advanceDay(); done = '已推进一天'; }
         else if (name === 'FarmPlant' && field && seed) { action = this.controller!.plant(field.id, seed.id, { amount: this.seedAmount, unit: seed.quantity.unit }); done = '播种完成'; }
         else if (name === 'FarmHarvest' && crop) { action = this.controller!.harvest(crop.id); done = '收获完成'; }
         else if (name === 'StockMove' && lot && target && target.id !== lot.storage_ref.container_id) { action = this.controller!.move(lot.id, target.id); done = '转移完成'; }
         if (action) {
           this.lastCommandWasRead = false;
-          void action.then(() => { if (isValid(this.node, true) && this.controller?.snapshot().phase === 'ready') this.labels.hint.string = done; })
-            .catch(error => { if (isValid(this.node, true)) this.labels.hint.string = '操作未完成，请核对选择'; console.error('[wechat-m3] action-failed', String(error)); });
+          const generation = this.splitHintGeneration;
+          void action.then(() => { if (isValid(this.node, true) && this.controller?.snapshot().phase === 'ready'
+              && this.controller.snapshot().visible && generation === this.splitHintGeneration) this.labels.hint.string = done; })
+            .catch(error => { if (isValid(this.node, true) && this.controller?.snapshot().visible && generation === this.splitHintGeneration)
+              this.labels.hint.string = this.errorText(String(error));
+              console.error('[wechat-m3] action-failed', String(error)); });
         }
       }
       this.renderMenu(this.controller!.snapshot());
@@ -603,10 +598,63 @@ export class CocosWechatProbe extends Component {
   }
 
   private splitAmount(): number | null {
-    const text = this.splitInput?.string.trim() ?? '';
+    const text = this.splitInput?.string?.trim() ?? '';
     if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(text)) return null;
     const value = Number(text);
     return Number.isFinite(value) && value > 0 ? value : null;
+  }
+
+  private splitInputProblem(lot: { quantity: { amount: number; unit: string } } | undefined): string | null {
+    const amount = this.splitAmount();
+    if (!lot) return '请返回库存选择材料批次';
+    if (amount === null) return '请输入大于零的有效数量';
+    if (lot.quantity.unit === 'count' && !Number.isInteger(amount)) return '种子数量须为整数';
+    if (amount > lot.quantity.amount) return '数量超过当前库存';
+    return null;
+  }
+
+  private confirmSplit(lot: { id: string; quantity: { amount: number; unit: string } }): void {
+    if (this.splitNeedsReview || this.splitPendingText !== null) return;
+    const problem = this.splitInputProblem(lot);
+    if (problem) { this.labels.hint.string = problem; return; }
+    const amount = this.splitAmount()!;
+    const generation = this.splitHintGeneration;
+    this.lastCommandWasRead = false;
+    this.splitPendingText = this.splitInput!.string;
+    void this.controller!.confirmSplit(lot.id, { amount, unit: lot.quantity.unit }).then(state => {
+      if (!state.split_result || state.split_result.sourceLotId !== lot.id || generation !== this.splitHintGeneration || !state.visible) {
+        this.splitNeedsReview = true;
+        return;
+      }
+      this.splitInput!.string = '';
+    }).catch(error => {
+      const reason = error instanceof Error ? error.message : String(error);
+      const rejection = reason.match(/^ERR_WECHAT_PROBE_ACTION_FAILED:([^\s]+)$/);
+      if (!rejection) this.splitNeedsReview = true;
+      if (isValid(this.node, true) && generation === this.splitHintGeneration && this.controller?.snapshot().visible) {
+        this.labels.hint.string = rejection ? `拆分未通过：${this.splitRejection(rejection[1])}` : '拆分结果待确认，请先核对库存';
+      }
+      console.error('[wechat-m3] split-confirm-failed', String(error));
+    }).finally(() => {
+      this.splitPendingText = null;
+      if (isValid(this.node, true) && this.controller) this.renderMenu(this.controller.snapshot());
+    });
+  }
+
+  private refreshSplit(): void {
+    if (!this.splitNeedsReview) return;
+    const generation = this.splitHintGeneration;
+    void this.controller!.refreshSplitView().then(state => {
+      if (generation !== this.splitHintGeneration || !state.visible || state.phase !== 'ready') return;
+      this.splitNeedsReview = false;
+      this.splitInput!.string = '';
+      this.labels.hint.string = '库存已更新，请核对数量后重新输入';
+    }).catch(error => {
+      if (isValid(this.node, true) && generation === this.splitHintGeneration && this.controller?.snapshot().visible) this.labels.hint.string = '库存核对未完成，请稍后重新核对';
+      console.error('[wechat-m3] split-refresh-failed', String(error));
+    }).finally(() => {
+      if (isValid(this.node, true) && this.controller) this.renderMenu(this.controller.snapshot());
+    });
   }
 
   private splitRejection(code: string): string {
@@ -650,30 +698,34 @@ export class CocosWechatProbe extends Component {
     this.splitNode.active = this.page === 'split';
     if (this.processingNode) this.processingNode.active = inProcessing;
     for (const [page, node] of Object.entries(this.processingPages)) node.active = this.page === page;
-    this.labels.farmField.string = field ? `地块${fields.findIndex(x => x.id === field.id) + 1}/${fields.length}：${this.names[field.definition_id] ?? '已选地块'} · 可用${fields.filter(x => x.enabled).length}` : `地块：请选择（可用${fields.filter(x => x.enabled).length}/${fields.length}）`;
-    this.labels.farmSeed.string = seed ? `种子${seeds.findIndex(x => x.id === seed.id) + 1}/${seeds.length}：${this.names[seed.base_id] ?? '种子批次'} · 现有${seed.quantity.amount}${unit(seed.quantity.unit)} · 播种${this.seedAmount}${unit(seed.quantity.unit)}` : '种子：请选择种子批次';
+    this.labels.farmField.string = field ? `地块：${this.names[field.definition_id] ?? '已选地块'} · 空余${field.available_tiles}/${field.capacity_tiles}格` : `地块：请选择（可用${fields.filter(x => x.enabled).length}/${fields.length}）`;
+    const plantProblem = seed && field ? this.seedAmount > seed.quantity.amount ? '种子不足' : this.seedAmount > field.available_tiles ? '土地空间不足' : null : null;
+    this.labels.farmSeed.string = seed ? `${this.names[seed.base_id] ?? '种子'}${seed.quantity.amount}${unit(seed.quantity.unit)} · 播${this.seedAmount}粒 → ${this.seedAmount}株/占${this.seedAmount}格${plantProblem ? ` · ${plantProblem}` : ''}` : '种子：请选择种子批次';
     this.labels.farmCrop.string = crop ? `作物${crops.findIndex(x => x.id === crop.id) + 1}/${crops.length}：${this.names[crop.crop_base_id] ?? '已选作物'} · 可收获${crops.filter(x => x.enabled).length}株` : `作物：可收获${crops.filter(x => x.enabled).length}株`;
     this.labels.stockLot.string = lot ? `批次${lots.findIndex(x => x.id === lot.id) + 1}/${lots.length}：${this.names[lot.base_id] ?? '材料'} ${lot.quantity.amount}${unit(lot.quantity.unit)} · ${place(lot.storage_ref.storage_type)}${lot.enabled ? '' : ' · 不可用'}` : `库存：${lots.length}批，请选择材料`;
-    this.labels.stockTarget.string = target ? `目标${targets.findIndex(x => x.id === target.id) + 1}/${targets.length}：${place(target.storage_type)} · 已用${target.used_capacity}/${target.capacity.amount}${unit(target.capacity.unit)}${target.enabled ? '' : ' · 不可用'}` : `目标：${targets.length}处，请选择储存位置`;
+    this.labels.stockTarget.string = target ? `目标：${place(target.storage_type)} · 空间占用${target.used_capacity}/${target.capacity.amount}${unit(target.capacity.unit)}${target.enabled ? '' : ' · 不可用'}` : `目标：${targets.length}处，请选择储存位置`;
     this.labels.stockHelp.string = lot ? `形态：${this.names[`${lot.base_id}:${lot.current_form}`] ?? FORMS[lot.current_form] ?? lot.current_form} · 目标支持：${target?.supported_forms.map(form => FORMS[form] ?? form).join('/') || '未列出'} · 整批转移` : '选择材料批次与目标后可整批转移';
     this.labels.splitLot.string = lot ? `拆分：${this.names[lot.base_id] ?? '材料'} · 当前${lot.quantity.amount}${unit(lot.quantity.unit)}` : '请返回库存选择材料批次';
     this.labels.splitUnit.string = lot ? `数量单位：${unit(lot.quantity.unit)}` : '数量单位：—';
-    const preview = state.split_preview;
     const result = state.split_result;
     const resultIndex = result ? lots.findIndex(x => x.id === result.newLotId) : -1;
-    this.labels.splitPreview.string = result ? `${resultIndex < 0 ? '新增批次' : `新增第${resultIndex + 1}批`}：${result.quantity.amount}${unit(result.quantity.unit)} · ${result.remainingQuantity ? `来源剩余${result.remainingQuantity.amount}${unit(result.remainingQuantity.unit)}` : '来源已全部拆出'}`
-      : preview ? preview.success ? '校验通过，尚未执行' : `校验未通过：${this.splitRejection(preview.statusCode)}` : '填写数量后可直接拆分，也可先预览';
+    const splitProblem = this.splitInputProblem(lot);
+    const splitAmount = this.splitAmount();
+    this.labels.splitSummary.string = this.splitNeedsReview ? '拆分结果待确认，请先核对库存' : result ? `${resultIndex < 0 ? '新增批次' : `新增第${resultIndex + 1}批`}：${result.quantity.amount}${unit(result.quantity.unit)} · ${result.remainingQuantity ? `来源剩余${result.remainingQuantity.amount}${unit(result.remainingQuantity.unit)}` : '来源已全部拆出'}`
+      : splitProblem ?? `拆出${splitAmount}${unit(lot!.quantity.unit)} · 原批次剩${lot!.quantity.amount - splitAmount!}${unit(lot!.quantity.unit)}`;
     const enabled = state.phase === 'ready' && state.visible && !state.busy;
-    this.splitInput.enabled = enabled && this.page === 'split' && !!lot?.enabled;
+    this.splitInput.enabled = enabled && this.page === 'split' && !!lot?.enabled && !this.splitNeedsReview;
     const set = (name: string, value: boolean) => { const button = this.menuButtons[name]; if (button && isValid(button.node, true)) button.interactable = enabled && value; };
     set('PageFarm', true); set('PageStock', true); set('PageProcessing', true); set('AdvanceDay', true);
     set('FarmField', fields.some(x => x.enabled)); set('FarmSeed', seeds.some(x => x.enabled)); set('FarmCrop', crops.some(x => x.enabled));
     set('FarmMinus', !!seed && this.seedAmount > 1); set('FarmPlus', !!seed && Number.isSafeInteger(this.seedAmount + 1));
-    set('FarmPlant', !!field && !!seed); set('FarmHarvest', !!crop);
+    set('FarmPlant', !!field && !!seed && !plantProblem); set('FarmHarvest', !!crop);
     set('StockLot', lots.length > 0); set('StockTarget', targets.length > 0);
     set('StockMove', !!lot?.enabled && !!target?.enabled && target.id !== lot.storage_ref.container_id);
-    set('StockSplit', !!lot?.enabled); set('SplitBack', true); set('SplitPreview', !!lot?.enabled);
-    set('SplitConfirm', !!lot?.enabled);
+    set('StockSplit', !!lot?.enabled || this.splitNeedsReview); set('SplitBack', true);
+    this.menuButtons.SplitRefresh.node.active = this.splitNeedsReview;
+    set('SplitRefresh', this.splitNeedsReview);
+    set('SplitConfirm', !!lot?.enabled && !splitProblem && !this.splitNeedsReview && this.splitPendingText === null);
     if (this.processingNode && this.processingInput && inProcessing) this.renderProcessingSteps(state, enabled, set);
   }
 
@@ -855,6 +907,11 @@ export class CocosWechatProbe extends Component {
   }
 
   private errorText(error: string): string {
+    if (error.includes('ERR_WECHAT_ACTION_RESULT_UNCERTAIN')) return '操作结果待确认，请查看土地和库存核实';
+    if (error.includes('ERR_FIELD_CAPACITY_EXCEEDED')) return '土地空间不足，请减少播种数量';
+    if (error.includes('ERR_PLANT_QUANTITY_INVALID')) return '播种数量须为正整数';
+    if (error.includes('ERR_STORAGE_CAPACITY_OVERFLOW')) return '储存空间不足，请整理库存后再操作';
+    if (error.includes('ERR_NOT_ENOUGH_RESOURCE')) return '材料数量不足，请核对当前库存';
     if (error.includes('ERR_WECHAT_PROCESSING_RESULT_UNCERTAIN')) return '结果待确认，请查看加工任务和库存核实';
     if (error.includes('ERR_WECHAT_SPLIT_RESULT_UNCERTAIN')) return '拆分结果待确认，请查看库存核实';
     if (error.includes('ERR_WECHAT_BACKUP_RECOVERY_INCOMPLETE')) return '存储恢复未完成，当前游戏未变';
@@ -934,9 +991,9 @@ export class CocosWechatProbe extends Component {
     this.labels.splitLot = this.menuLabel(this.splitNode, 'splitLot', 0, 25);
     this.splitInput = this.quantityInput(this.splitNode, -300, -30);
     this.labels.splitUnit = this.menuLabel(this.splitNode, 'splitUnit', 140, -30);
-    this.labels.splitPreview = this.menuLabel(this.splitNode, 'splitPreview', 0, -85);
+    this.labels.splitSummary = this.menuLabel(this.splitNode, 'splitSummary', 0, -85);
     this.menuButtons.SplitBack = this.smallButton(this.splitNode, 'SplitBack', '返回库存', -330, -140);
-    this.menuButtons.SplitPreview = this.smallButton(this.splitNode, 'SplitPreview', '预览拆分', -110, -140);
+    this.menuButtons.SplitRefresh = this.smallButton(this.splitNode, 'SplitRefresh', '核对库存', -110, -140);
     this.menuButtons.SplitConfirm = this.smallButton(this.splitNode, 'SplitConfirm', '确认拆分', 110, -140);
 
     this.saveButton = this.smallButton(root, 'Save', '保存', -330, -197);

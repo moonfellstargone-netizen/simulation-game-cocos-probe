@@ -90,12 +90,15 @@ test('explicit public selections plant, advance and harvest through the real com
   const afterPlant = p.farming.status();
   assert.equal(afterPlant.seedOptions.find((option) => option.id === seedId)?.quantity.amount, seedBefore.quantity.amount - 2);
   assert.equal(afterPlant.seedOptions.find((option) => option.id === seedId)?.quantity.unit, seedBefore.quantity.unit);
-  assert.equal(afterPlant.fieldOptions.find((option) => option.id === fieldId)?.enabled, false);
-  assert.equal(afterPlant.fieldOptions.find((option) => option.id === fieldId)?.occupied_tiles, 1);
-  assert.equal(afterPlant.selectedFieldId, null, 'a newly occupied selection is invalidated');
+  assert.equal(afterPlant.fieldOptions.find((option) => option.id === fieldId)?.enabled, true);
+  assert.equal(afterPlant.fieldOptions.find((option) => option.id === fieldId)?.occupied_tiles, 2);
+  assert.equal(afterPlant.fieldOptions.find((option) => option.id === fieldId)?.available_tiles, 4);
+  assert.equal(afterPlant.fieldOptions.find((option) => option.id === fieldId)?.active_crop_count, 2);
+  assert.equal(afterPlant.selectedFieldId, fieldId, 'a partially occupied field remains available');
   assert.equal(afterPlant.selectedSeedId, seedId);
   assert.equal(p.farming.harvestCommand(), null, 'a growing crop is not a fabricated ready option');
   await growUntilPubliclyHarvestable(p);
+  assert.equal(p.farming.status().harvestableOptions.length, 2, 'both planted seeds grow into separate crops');
   p.farming.selectNextCrop();
   const ready = p.farming.status();
   const cropId = ready.selectedCropId;
@@ -115,7 +118,9 @@ test('explicit public selections plant, advance and harvest through the real com
     assert.equal(before, undefined, 'the produced lot was absent before harvesting');
   }
   assert.equal(current.fieldOptions.find((option) => option.id === fieldId)?.enabled, true);
-  assert.equal(current.fieldOptions.find((option) => option.id === fieldId)?.occupied_tiles, 0);
+  assert.equal(current.fieldOptions.find((option) => option.id === fieldId)?.occupied_tiles, 1);
+  assert.equal(current.fieldOptions.find((option) => option.id === fieldId)?.available_tiles, 5);
+  assert.equal(current.harvestableOptions.length, 1, 'harvesting one crop preserves the other');
   assert.equal(current.selectedCropId, null);
   assert.ok(!current.harvestableOptions.some((option) => option.id === cropId));
   p.farming.selectNextField();
@@ -149,7 +154,7 @@ test('loading a growing save invalidates a formerly ready crop and can continue 
   p.farming.selectNextField();
   assert.ok(p.farming.status().selectedFieldId);
   await p.interaction.execute(LOAD);
-  assert.equal(p.farming.status().selectedFieldId, null, 'restored occupancy invalidates the current field selection');
+  assert.equal(p.farming.status().selectedFieldId, saved.selectedFieldId, 'a restored partially occupied field remains selectable');
   assert.deepEqual(p.farming.status().seedOptions, saved.seedOptions);
   assert.deepEqual(p.farming.status().materialOptions, saved.materialOptions);
   assert.equal(p.interaction.status().operation.message, '已恢复本地存档', 'old menu results do not replace this load feedback');

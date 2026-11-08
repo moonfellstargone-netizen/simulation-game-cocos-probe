@@ -245,3 +245,9 @@ ProcessingSystem.assertCanStartProcessing和assertCanCollect执行只读正式�
 ## 加工只读核对
 
 WechatProbeController.refreshProcessingView(): Promise<WechatProbeSnapshot>经既有refresh读取当前会话公开投影；不读取或写入存档，不发正式动作，不自动重试。请求结果须当前可见且任务状态、可领取列表一致，界面实例才能解除领取不确定锁并根据最新任务状态开放玩家手动操作；开工不确定须先刷新并查看最新任务与库存，再由玩家重新选材；不存在跨重启持久保证。
+
+## 农事数量与容量
+
+FarmingSystem.plantCrop返回CropInstance[]；正式plant_crop的created_objects覆盖本次创建的全部作物。FieldOption公开capacity_tiles/available_tiles，分别取定义容量与剩余空位；微信WechatFieldOption和Web ProbeFieldOption消费相同字段，不拥有SaveFile写入口。每株独立收获、释放占格，单株既有动作参数和存档形状保持。
+
+WechatProbeController.refreshSplitView()复用严格只读当前会话refresh，成功后由界面重新输入拆分数量；不读取/写入存档、不提交拆分或自动重试。previewSplit兼容API保留，微信页面不再显示独立预览按钮。

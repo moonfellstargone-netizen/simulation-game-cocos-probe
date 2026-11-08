@@ -6,10 +6,14 @@
 
 项目地图与 GitHub 工作流继续规定分层读取、版本传播、测试和交付方法，不新增玩法规则。
 
-v0.0.3.0复用正式Stage1A全部九种Action和既有运行时；本轮为M3微信加工包，在M3库存拆分候选上，独立微信outer经公共Host/Binding/Queue接入播种、时间推进、收获、整批存储、支持独立校验的正式拆分确认及加工开工/领取，拆分预览可选，并保留M2手动保存、读取和只读候选身份。真实微信平台和手机验收分别留证；M3完整经营和M4尚未完成。trace.cocos.wechat-m1连接最小平台源与受控测试，旧Web及五点恢复/触摸追踪保持；core及Session/Queue增加拆分和加工独立校验及限定动作的专用确认路径；SaveFile、正式Schema/config/fixture/expected及业务规则不变，电脑工具结果不作为手机证据。
+v0.0.3.0复用正式Stage1A全部九种Action和既有运行时；本轮为M3微信加工包，在M3库存拆分候选上，独立微信outer经公共Host/Binding/Queue接入播种、时间推进、收获、整批存储、支持独立校验的正式拆分确认及加工开工/领取，微信拆分直接确认并实时说明数量，并保留M2手动保存、读取和只读候选身份。真实微信平台和手机验收分别留证；M3完整经营和M4尚未完成。trace.cocos.wechat-m1连接最小平台源与受控测试，旧Web及五点恢复/触摸追踪保持；core及Session/Queue增加拆分和加工独立校验及限定动作的专用确认路径；SaveFile、正式Schema/config/fixture/expected保持；播种多粒语义补充见下节，电脑工具结果不作为手机证据。
 
 code package version: `v0.0.3.0`
 
 版本名称：WeChat Stage1A Pilot / 微信真机Stage1A试水版。
 
 本轮包含独立微信M2引擎外层及配套代码包内部检查体系治理，不改变正式包设定。旧game-core、cocos-app、cocos-creator-adapter仍不接真实 Cocos、不接 wx或fs；已登记Web与微信outer可导入cc，并受单向公开runtime边界约束。不进入 Stage 1B，不改变 ActionPipeline，不改变 SaveFile，不改变正式 fixture，不新增玩法或资源热更新；M2通过微信outer接入平台存储，正式Schema保留构建期预编译兼容，其他AOT不在当前范围。不把日志包或规划对话作为正式设计来源。
+
+## 本候选明确补充的播种语义
+
+原v1.5.2.2正式包只有单粒种植样例，未规定多粒到株数的换算。当前代码按用户明确确认补充：每粒创建1株、每株占1格，多粒在同一正式Action原子执行，超过地块定义容量整次拒绝。此项是明确补充，不能表述为原包已规定或所有业务规则完全不变；原包快照、Schema、参数和单株产量定义保持原来源，不据此自动加入发芽损失/间苗等真实农业机制。

@@ -87,3 +87,7 @@ CocosAppRuntimeSession.validateSplit(sourceLotId, quantity)委托正式Inventory
 ## 微信加工Session边界
 
 CocosAppRuntimeSession的validateStartProcessing与validateCollectProcessing调用正式只读校验，不改变会话或分配领域对象ID；正式Action仍经dispatch。
+
+## 农事容量只读投影
+
+field_options增加capacity_tiles和available_tiles，来源为地块定义及当前occupied_tiles；部分占用仍enabled，容量耗尽才禁用。字段只属于公开视图，不改变SaveFile。批量正式Action回执包含全部CropInstance，预览保持只读；tests/cocos-ui-readiness.test.ts与核心/Session回归经trace.farming.seed-quantity追踪。

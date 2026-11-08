@@ -52,6 +52,36 @@ async function makeOrderPreviewSource() {
   return { save: JSON.parse(serialized) as SaveFile, dishId: cooked.created_objects[0]!.object_id };
 }
 
+test('batch planting preview reports all crops without changing state and agrees with capacity failures', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const session = makeSession(storage);
+  const params = (amount: number) => ({ field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount, unit: 'count' } });
+  await session.save('before_batch_preview');
+  const before = await storage.read('before_batch_preview');
+  const choicesBefore = session.getSelectableViewModel();
+  for (const amount of [2, 6, 10]) {
+    const preview = session.preview('plant_crop', params(amount));
+    assert.equal(preview.success, amount <= 6);
+    assert.equal(preview.effect_counts.created_objects, amount <= 6 ? amount : 0);
+    if (amount === 10) assert.equal(preview.status_code, 'ERR_FIELD_CAPACITY_EXCEEDED');
+    assert.deepEqual(session.getSelectableViewModel(), choicesBefore);
+    await session.save('after_batch_preview');
+    assert.equal(await storage.read('after_batch_preview'), before);
+  }
+  assert.equal(session.dispatch('plant_crop', params(10)).status_code, 'ERR_FIELD_CAPACITY_EXCEEDED');
+  const actual = session.dispatch('plant_crop', params(2));
+  assert.equal(actual.success, true, actual.status_code);
+  assert.deepEqual(actual.created_objects.map(item => item.object_id), ['crop_000001', 'crop_000002']);
+  assert.equal(session.getSelectableViewModel().field_options[0]!.available_tiles, 4);
+  const previewFill = session.preview('plant_crop', params(4));
+  assert.equal(previewFill.success, true);
+  assert.equal(previewFill.effect_counts.created_objects, 4);
+  const fill = session.dispatch('plant_crop', params(4));
+  assert.equal(fill.success, true, fill.status_code);
+  assert.equal(session.getSelectableViewModel().field_options[0]!.available_tiles, 0);
+  assert.equal(session.preview('plant_crop', params(1)).status_code, 'ERR_FIELD_CAPACITY_EXCEEDED');
+});
+
 test('order previews agree with formal state and deadline eligibility without mutating saves, event history or real IDs', async () => {
   const source = await makeOrderPreviewSource();
   const cases = [

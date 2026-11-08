@@ -22,6 +22,44 @@ function makeSession(storage: SaveStoragePort = new InMemorySaveStoragePort()) {
   };
 }
 
+test('batch planted crops retain their count across saves and harvest independently after a fresh session', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const session = makeSession(storage).session;
+  const planted = session.dispatch('plant_crop', { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 3, unit: 'count' } });
+  assert.equal(planted.success, true, planted.status_code);
+  const cropIds = planted.created_objects.map(item => item.object_id);
+  assert.equal(cropIds.length, 3);
+  await session.save('batch_crops');
+  const restored = makeSession(storage).session;
+  await restored.load('batch_crops');
+  const field = restored.getSelectableViewModel().field_options[0]!;
+  assert.equal(field.active_crop_count, 3);
+  assert.equal(field.occupied_tiles, 3);
+  assert.equal(field.available_tiles, 3);
+  assert.equal(field.enabled, true);
+  assert.equal(restored.dispatch('advance_time', { minutes: 5400 }).success, true);
+  assert.deepEqual(restored.getSelectableViewModel().harvestable_crop_options.map(crop => crop.id), cropIds);
+  const harvestedIds: string[] = [];
+  for (const crop_id of cropIds) {
+    const result = restored.dispatch('harvest_crop', { crop_id });
+    assert.equal(result.success, true, result.status_code);
+    harvestedIds.push(result.created_objects[0]!.object_id);
+  }
+  assert.equal(new Set(harvestedIds).size, 3);
+  const harvests = restored.getSelectableViewModel().splittable_lot_options.filter(lot => harvestedIds.includes(lot.id));
+  assert.equal(harvests.length, 3);
+  assert.equal(harvests.reduce((sum, lot) => sum + lot.quantity.amount, 0), 3600);
+  assert.equal(restored.getSelectableViewModel().field_options[0]!.available_tiles, 6);
+  await restored.save('batch_harvested');
+  const reloaded = makeSession(storage).session;
+  await reloaded.load('batch_harvested');
+  assert.equal(reloaded.getSelectableViewModel().harvestable_crop_options.length, 0);
+  assert.equal(reloaded.dispatch('harvest_crop', { crop_id: cropIds[0] }).success, false);
+  const next = reloaded.dispatch('plant_crop', { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 2, unit: 'count' } });
+  assert.equal(next.success, true, next.status_code);
+  assert.ok(next.created_objects.every(item => !cropIds.includes(item.object_id)));
+});
+
 test('a loaded accepted order preserves rejected submissions, recovers legally and remains settled across a fresh session', async () => {
   const storage = new InMemorySaveStoragePort();
   const seed = makeSession(storage);

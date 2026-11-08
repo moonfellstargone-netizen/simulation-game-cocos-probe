@@ -369,6 +369,155 @@ test('plant_crop creates schema-valid DomainEvent and ActionResult mutation summ
   new StorageAudit().assertReconciled(state.save_file);
 });
 
+test('batch planting creates one independent crop per seed and supports partially occupied fields', () => {
+  const { runtime, state, contracts } = buildRuntime();
+  const plant = (amount: number, suffix: string) => dispatch(runtime, state, 'plant_crop', {
+    field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount, unit: 'count' }
+  }, suffix);
+  const first = plant(3, 'batch_first');
+  assert.equal(first.success, true, first.status_code);
+  assert.equal(first.created_objects.length, 3);
+  assert.equal(first.domain_events.length, 3);
+  assert.deepEqual(first.consumed_resources[0]!.quantity, { amount: 3, unit: 'count' });
+  const second = plant(3, 'batch_fill');
+  assert.equal(second.success, true, second.status_code);
+  const ids = [...first.created_objects, ...second.created_objects].map(item => item.object_id);
+  assert.equal(new Set(ids).size, 6);
+  assert.deepEqual(state.save_file.fields[0]!.active_crop_ids, ids);
+  assert.equal(state.save_file.fields[0]!.occupied_tiles, 6);
+  assert.equal(state.save_file.inventory.find(lot => lot.lot_id === 'seed_cabbage_initial_001')!.quantity.amount, 4);
+  const full = cloneForCompare(state);
+  const rejected = plant(1, 'batch_full_refused');
+  assert.equal(rejected.status_code, 'ERR_FIELD_CAPACITY_EXCEEDED');
+  assert.deepEqual(state, full);
+  assert.equal(dispatch(runtime, state, 'advance_time', { minutes: 5400 }, 'batch_grow').success, true);
+  assert.equal(state.save_file.crop_instances.filter(crop => crop.lifecycle_status === 'ready_to_harvest').length, 6);
+  const harvest = dispatch(runtime, state, 'harvest_crop', { crop_id: ids[0] }, 'batch_harvest_one');
+  assert.equal(harvest.success, true, harvest.status_code);
+  assert.equal(state.save_file.fields[0]!.occupied_tiles, 5);
+  assert.deepEqual(state.save_file.fields[0]!.active_crop_ids, ids.slice(1));
+  assert.deepEqual(state.save_file.inventory.find(lot => lot.lot_id === harvest.created_objects[0]!.object_id)!.quantity, { amount: 1200, unit: 'g' });
+  const afterHarvest = cloneForCompare(state);
+  assert.equal(dispatch(runtime, state, 'harvest_crop', { crop_id: ids[0] }, 'batch_duplicate_harvest').success, false);
+  assert.deepEqual(state, afterHarvest);
+  assert.equal(plant(1, 'batch_replant').success, true);
+  assert.equal(state.save_file.fields[0]!.occupied_tiles, 6);
+  contracts.assertSaveFile(state.save_file);
+  new StorageAudit().assertReconciled(state.save_file);
+});
+
+test('batch harvest preserves the crop and field when storage fills and can recover after moving a prior harvest', () => {
+  const { runtime, state, contracts } = buildRuntime();
+  const planted = dispatch(runtime, state, 'plant_crop', {
+    field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 6, unit: 'count' }
+  }, 'six_for_storage');
+  assert.equal(planted.success, true, planted.status_code);
+  assert.equal(dispatch(runtime, state, 'advance_time', { minutes: 5400 }, 'six_mature').success, true);
+  const crops = planted.created_objects.map(item => item.object_id);
+  const lots: string[] = [];
+  for (const crop_id of crops.slice(0, 3)) {
+    const harvested = dispatch(runtime, state, 'harvest_crop', { crop_id }, crop_id);
+    assert.equal(harvested.success, true, harvested.status_code);
+    lots.push(harvested.created_objects[0]!.object_id);
+  }
+  const before = cloneForCompare(state);
+  const rejected = dispatch(runtime, state, 'harvest_crop', { crop_id: crops[3] }, 'fourth_full_storage');
+  assert.equal(rejected.success, false);
+  assert.equal(rejected.status_code, 'ERR_STORAGE_CAPACITY_OVERFLOW');
+  assert.deepEqual(state, before);
+  const moved = dispatch(runtime, state, 'store_item', {
+    object_ref: { object_type: 'MaterialLot', object_id: lots[0] },
+    storage_ref: { location_id: 'home', storage_type: 'cellar', container_id: 'home_cellar_01' }
+  }, 'make_harvest_space');
+  assert.equal(moved.success, true, moved.status_code);
+  const recovered = dispatch(runtime, state, 'harvest_crop', { crop_id: crops[3] }, 'fourth_retry');
+  assert.equal(recovered.success, true, recovered.status_code);
+  assert.equal(state.save_file.fields[0]!.occupied_tiles, 2);
+  assert.equal(state.save_file.crop_instances.filter(crop => crop.lifecycle_status === 'ready_to_harvest').length, 2);
+  assert.equal(state.save_file.inventory.filter(lot => lot.base_id === 'cabbage').reduce((total, lot) => total + lot.quantity.amount, 0), 4800);
+  contracts.assertSaveFile(state.save_file);
+});
+
+test('batch planting rejects invalid quantities, capacity and reserved seeds before consumption or ID allocation', () => {
+  const cases = [
+    { amount: 0, unit: 'count', code: 'ERR_PLANT_QUANTITY_INVALID' },
+    { amount: -1, unit: 'count', code: 'ERR_SCHEMA_VALIDATION_FAILED' },
+    { amount: 0.5, unit: 'count', code: 'ERR_PLANT_QUANTITY_INVALID' },
+    { amount: Number.MAX_SAFE_INTEGER + 1, unit: 'count', code: 'ERR_PLANT_QUANTITY_INVALID' },
+    { amount: 1, unit: 'g', code: 'ERR_PLANT_QUANTITY_INVALID' },
+    { amount: 10, unit: 'count', code: 'ERR_FIELD_CAPACITY_EXCEEDED' },
+    { amount: 11, unit: 'count', code: 'ERR_NOT_ENOUGH_RESOURCE' },
+    { amount: 1, unit: 'count', code: 'ERR_ALREADY_RESERVED', reserved: true }
+  ];
+  for (const example of cases) {
+    const { runtime, state } = buildRuntime();
+    const reserved = example.reserved ? injectTestReservation(state, 'seed_cabbage_initial_001', 1, 'batch_seed') : null;
+    const before = cloneForCompare(state);
+    const result = dispatch(runtime, state, 'plant_crop', {
+      field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: example.amount, unit: example.unit }
+    }, 'invalid_batch');
+    assert.equal(result.success, false);
+    assert.equal(result.status_code, example.code, `${example.amount} ${example.unit}`);
+    assert.deepEqual(result.created_objects, []);
+    assert.deepEqual(result.domain_events, []);
+    assert.deepEqual(state, before);
+    if (reserved) releaseTestReservation(state, reserved);
+    const healthy = dispatch(runtime, state, 'plant_crop', {
+      field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 2, unit: 'count' }
+    }, 'healthy_after_invalid_batch');
+    assert.equal(healthy.success, true, healthy.status_code);
+    assert.deepEqual(healthy.created_objects.map(item => item.object_id), ['crop_000001', 'crop_000002']);
+  }
+});
+
+test('plant capacity comes from the configured field definition and inconsistent occupancy is rejected', () => {
+  const { runtime, state, configs } = buildRuntime();
+  const fieldConfig = configs.requiredDoc<{ field_plot_definitions: Record<string, { capacity_tiles: number }> }>('configs/farming/field_plots.yaml');
+  fieldConfig.field_plot_definitions.field_plot_basic!.capacity_tiles = 2;
+  const params = { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 3, unit: 'count' } };
+  const before = cloneForCompare(state);
+  assert.equal(dispatch(runtime, state, 'plant_crop', params, 'configured_capacity').status_code, 'ERR_FIELD_CAPACITY_EXCEEDED');
+  assert.deepEqual(state, before);
+  state.save_file.fields[0]!.occupied_tiles = 1;
+  const inconsistent = cloneForCompare(state);
+  assert.equal(dispatch(runtime, state, 'plant_crop', { ...params, seed_quantity: { amount: 1, unit: 'count' } }, 'inconsistent_field').status_code, 'ERR_FIELD_STATE_INVALID');
+  assert.deepEqual(state, inconsistent);
+});
+
+test('crop growth uses configured 50 percent stage and invalid growth configuration preserves formal state', () => {
+  const { runtime, state, configs } = buildRuntime();
+  const profile = configs.requiredDoc<{ base_growth_duration_minutes: number; stage_sequence: Array<{ min_progress: number; growth_stage: string }> }>('configs/farming/growth_profiles/cabbage_growth_basic.yaml');
+  const parameters = { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 1, unit: 'count' } };
+  const duration = profile.base_growth_duration_minutes;
+  for (const invalid of [0, -1, NaN, Infinity, Number.MAX_SAFE_INTEGER]) {
+    profile.base_growth_duration_minutes = invalid;
+    const before = cloneForCompare(state);
+    assert.equal(dispatch(runtime, state, 'plant_crop', parameters, 'invalid_growth_duration').status_code, 'ERR_CROP_GROWTH_DURATION_INVALID');
+    assert.deepEqual(state, before);
+  }
+  profile.base_growth_duration_minutes = duration;
+  const originalStages = structuredClone(profile.stage_sequence);
+  profile.stage_sequence = [];
+  const beforeInvalidStages = cloneForCompare(state);
+  assert.equal(dispatch(runtime, state, 'plant_crop', parameters, 'invalid_growth_stages').status_code, 'ERR_CROP_GROWTH_STAGE_INVALID');
+  assert.deepEqual(state, beforeInvalidStages);
+  profile.stage_sequence = originalStages;
+  const planted = dispatch(runtime, state, 'plant_crop', parameters, 'stages_plant');
+  assert.equal(planted.success, true, planted.status_code);
+  assert.equal(planted.created_objects[0]!.object_id, 'crop_000001');
+  const crop = state.save_file.crop_instances[0]!;
+  const untilHalf = Math.ceil((crop.expected_harvest_minute - crop.planted_time) / 2);
+  assert.equal(dispatch(runtime, state, 'advance_time', { minutes: untilHalf - 1 }, 'before_half').success, true);
+  assert.equal(state.save_file.crop_instances[0]!.growth_stage, 'sprout');
+  assert.equal(dispatch(runtime, state, 'advance_time', { minutes: 1 }, 'at_half').success, true);
+  assert.equal(state.save_file.crop_instances[0]!.growth_progress, 50);
+  assert.equal(state.save_file.crop_instances[0]!.growth_stage, 'growing');
+  profile.stage_sequence = [];
+  const beforeAdvance = cloneForCompare(state);
+  assert.equal(dispatch(runtime, state, 'advance_time', { minutes: 1 }, 'invalid_stage_advance').status_code, 'ERR_CROP_GROWTH_STAGE_INVALID');
+  assert.deepEqual(state, beforeAdvance);
+});
+
 test('split_lot creates a new lot and leaves storage used_capacity reconciled', () => {
   const { contracts, runtime, state } = buildRuntime();
   const lotId = prepareHarvestedCabbage(runtime, state);

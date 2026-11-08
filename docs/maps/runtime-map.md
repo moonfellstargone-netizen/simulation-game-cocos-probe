@@ -178,3 +178,7 @@ M3微信库存拆分支持可选预览；玩家可直接确认当前批次和数
 ## 加工只读核对路径
 
 WechatProbeController.refreshProcessingView→既有Queue refresh→当前Session公开菜单投影；该路径不读写存档、不提交正式Action，不自动领取。UI实例锁定疑似重复领取，失败、缺任务、后台或过期回执不能解除；开工不确定须先只读刷新并查看当前任务/库存，再由玩家重新选材；领取只在任务状态与可领取列表一致时解除锁，依最新任务状态开放手动操作。
+
+## 播种数量闭合
+
+plant_crop→FarmingSystem预检查库存/预留/配置容量→单事务创建N株/扣N粒/占N格→Runtime逐株回执与事件→SelectableVM剩余格投影→Web/微信农事页面。harvest_crop仍逐株收获及释放1格。trace.farming.seed-quantity连接核心/预览/Session/readiness和真实两端消费。
