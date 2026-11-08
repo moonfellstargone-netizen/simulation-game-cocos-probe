@@ -13,7 +13,8 @@ function makeSessionFixture(storage = new InMemorySaveStoragePort()) {
   const { configs, contracts } = buildRuntimeWithoutState();
   const session = new CocosAppRuntimeSession(configs, contracts, storage, {
     buildId: testBuildId('cocos_ui_readiness_test'),
-    nowIso8601: '2026-05-19T00:00:00.000Z'
+    nowIso8601: '2026-05-19T00:00:00.000Z',
+    randomSeed: 'farming-test-23' // Fixed successful farming setup; not a production guarantee.
   });
   return { session, storage, configs };
 }
@@ -21,6 +22,64 @@ function makeSessionFixture(storage = new InMemorySaveStoragePort()) {
 function makeSession() {
   return makeSessionFixture().session;
 }
+
+test('physical capacity display ignores legacy slot fullness, stays read-only and keeps legacy saves distinct', async () => {
+  const { session, storage } = makeSessionFixture();
+  await session.save('physical_display_before');
+  const raw = (await storage.read('physical_display_before'))!;
+  const initial = session.getSelectableViewModel();
+  const salt = initial.splittable_lot_options.find(lot => lot.base_id === 'salt')!;
+  const room = initial.storage_target_options.find(item => item.id === salt.storage_ref.container_id)!;
+  const availableSlots = room.capacity.amount - room.used_capacity;
+  for (let i = 0; i < availableSlots; i++) assert.equal(session.dispatch('split_lot', { source_lot_id: salt.id, quantity: { amount: 1, unit: 'g' } }).success, true);
+  const physicalTarget = session.getSelectableViewModel().storage_target_options.find(item => item.id === room.id)!;
+  assert.equal(physicalTarget.used_capacity, physicalTarget.capacity.amount, 'legacy slot counter is full');
+  assert.equal(physicalTarget.enabled, true, 'physical capacity does not use the legacy slot limit');
+  await session.save('physical_display_current');
+  const before = await storage.read('physical_display_current');
+  const display = session.getStorageCapacityDisplay(room.id, null, 4);
+  assert.equal(display.model, 'physical');
+  if (display.model !== 'physical' || display.status !== 'ready') throw new Error('physical display unavailable');
+  assert.equal(display.volume_grid.length, 4);
+  assert.equal(display.selection.status, 'unknown', 'no selected cabbage must not invent a count');
+  await session.save('physical_display_after');
+  assert.equal(await storage.read('physical_display_after'), before, 'display calculation does not mutate the saved session');
+
+  const legacy = JSON.parse(raw);
+  delete legacy.physical_capacity_policy_id;
+  for (const container of legacy.storage_containers) { delete container.capacity_limits; delete container.used_capacity_limits; }
+  await storage.write('legacy_display_fixture', JSON.stringify(legacy));
+  const restored = makeSessionFixture(storage).session;
+  await restored.load('legacy_display_fixture');
+  const oldDisplay = restored.getStorageCapacityDisplay(room.id, null, 4);
+  assert.deepEqual(oldDisplay, { model: 'legacy_slot', used: room.used_capacity, maximum: room.capacity.amount });
+});
+
+test('farming choices expose configured chance and visible crop stages without revealing random outcomes', async () => {
+  const { session, storage, configs } = makeSessionFixture();
+  const before = session.getSelectableViewModel();
+  const seed = before.seed_lot_options[0]!;
+  assert.deepEqual(seed.planting_policy, { max_seeds_per_tile: 3, per_seed_success_rate: 0.8 });
+  seed.planting_policy!.per_seed_success_rate = 0;
+  assert.equal(session.getSelectableViewModel().seed_lot_options[0]!.planting_policy!.per_seed_success_rate, 0.8, 'UI policy is detached');
+  assert.equal(session.dispatch('plant_crop', { field_plot_id: before.field_options[0]!.id, seed_lot_id: seed.id,
+    seed_quantity: { amount: 6, unit: 'count' }, seeds_per_tile: 3 }).success, true);
+  await session.save('projection_probability');
+  const save = JSON.parse((await storage.read('projection_probability'))!) as SaveFile;
+  assert.equal(save.crop_instances.length, 2);
+  const projector = new CocosSelectableViewModel(configs);
+  const publicBefore = projector.build(save);
+  assert.equal(publicBefore.crop_status_options!.length, 2);
+  for (const crop of publicBefore.crop_status_options!) {
+    assert.deepEqual(Object.keys(crop).sort(), ['field_plot_id', 'growth_stage', 'id', 'lifecycle_status']);
+    assert.equal(crop.growth_stage, 'seed');
+    assert.equal(crop.lifecycle_status, 'active');
+  }
+  save.crop_instances[0]!.germination!.outcome = 'failed';
+  assert.deepEqual(projector.build(save), publicBefore, 'pending success/failure samples yield identical public state');
+  publicBefore.crop_status_options![0]!.lifecycle_status = 'tampered';
+  assert.equal(projector.build(save).crop_status_options![0]!.lifecycle_status, 'active');
+});
 
 test('v44 order projection exposes configured demand, signed deadline and actual nullable settlement without inventing matching rules', async () => {
   const { session, storage, configs } = makeSessionFixture();
@@ -530,7 +589,9 @@ test('selectable view model updates from current state but stays read-only', () 
   const cropId = plant.created_objects.find((item) => item.object_type === 'CropInstance')!.object_id;
 
   let selectable = session.getSelectableViewModel();
-  assert.equal(selectable.field_options.find((option) => option.id === 'field_plot_01')?.enabled, false);
+  assert.equal(selectable.field_options.find((option) => option.id === 'field_plot_01')?.enabled, true);
+  assert.equal(selectable.field_options.find((option) => option.id === 'field_plot_01')?.capacity_tiles, 6);
+  assert.equal(selectable.field_options.find((option) => option.id === 'field_plot_01')?.available_tiles, 5);
   assert.equal(selectable.harvestable_crop_options.some((option) => option.id === cropId), false);
 
   dispatchAndAssert(session.dispatch('advance_time', { minutes: 5400 }), 'advance_time');
@@ -544,12 +605,37 @@ test('selectable view model updates from current state but stays read-only', () 
   assert.equal(selectable.processable_lot_options.some((option) => option.id === cabbageLotId && option.compatible_method_ids.includes('pickling_cabbage_basic')), true);
 });
 
+test('field options expose configured remaining tiles, allow partial fields and disable only full fields', () => {
+  const { session, configs } = makeSessionFixture();
+  const fieldConfig = configs.requiredDoc<{ field_plot_definitions: Record<string, { capacity_tiles: number }> }>('configs/farming/field_plots.yaml');
+  fieldConfig.field_plot_definitions.field_plot_basic!.capacity_tiles = 3;
+  const current = () => session.getSelectableViewModel().field_options[0]!;
+  assert.equal(current().capacity_tiles, 3);
+  assert.equal(current().available_tiles, 3);
+  const params = (amount: number) => ({ field_plot_id: current().id, seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount, unit: 'count' } });
+  dispatchAndAssert(session.dispatch('plant_crop', params(2)), 'plant_crop');
+  assert.equal(current().available_tiles, 1);
+  assert.equal(current().active_crop_count, 2);
+  assert.equal(current().enabled, true);
+  const detached = current(); detached.available_tiles = 999; detached.capacity_tiles = 999;
+  assert.equal(current().capacity_tiles, 3);
+  assert.equal(current().available_tiles, 1);
+  dispatchAndAssert(session.dispatch('plant_crop', params(1)), 'plant_crop');
+  assert.equal(current().available_tiles, 0);
+  assert.equal(current().enabled, false);
+  assert.equal(current().reason_key, 'ui.reason.field_occupied');
+});
+
 test('CocosActionDraftBuilder converts selected UI values into formal Action parameters without fixture defaults', () => {
   const drafts = new CocosActionDraftBuilder();
 
   assert.deepEqual(drafts.plantCrop('selected_field', 'selected_seed', { amount: 2, unit: 'count' }), {
     action_type: 'plant_crop',
     parameters: { field_plot_id: 'selected_field', seed_lot_id: 'selected_seed', seed_quantity: { amount: 2, unit: 'count' } }
+  });
+  assert.deepEqual(drafts.plantCrop('selected_field', 'selected_seed', { amount: 6, unit: 'count' }, 3), {
+    action_type: 'plant_crop',
+    parameters: { field_plot_id: 'selected_field', seed_lot_id: 'selected_seed', seed_quantity: { amount: 6, unit: 'count' }, seeds_per_tile: 3 }
   });
   assert.deepEqual(drafts.splitLot('selected_lot', { amount: 120, unit: 'g' }), {
     action_type: 'split_lot',

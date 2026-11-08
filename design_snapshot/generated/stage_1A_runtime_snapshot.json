@@ -2,7 +2,7 @@
   "snapshot_id": "stage_1A_runtime_snapshot",
   "source_formal_design_version": "v1.5.2.2",
   "source_config_profile": "configs/active_stage_1A/load_order.yaml",
-  "source_config_hash_sha256": "5a93d61d8af809fdf37495221fe359f12841adcbe794e0eee583fb2134260516",
+  "source_config_hash_sha256": "36ed839c614e12801ed8c2899d88ff49c9e0479d4f7d5c69f5b5683bdff92d75",
   "loaded_documents": {
     "configs/core/rule_versions.yaml": {
       "version_bundle": {
@@ -1154,7 +1154,7 @@
       "cooking_views": {
         "seasoning": {
           "role": "seasoning",
-          "saltiness_power": 1.0
+          "saltiness_power": 1
         }
       },
       "processing_views": {
@@ -1211,7 +1211,7 @@
       "cooking_views": {
         "stir_fry": {
           "role": "oil",
-          "oiliness_power": 1.0,
+          "oiliness_power": 1,
           "heat_transfer": "medium"
         }
       },
@@ -1368,13 +1368,18 @@
         }
       },
       "seed_defaults": {
-        "germination_rate": 0.92,
+        "germination_rate": 0.8,
         "seed_quality": "normal",
         "genetic_summary": {
           "growth_tendency": "normal",
           "storage_tendency": "normal",
           "medicinal_tendency": "low"
         }
+      },
+      "planting_policy": {
+        "policy_version": "independent-seeds-v1",
+        "max_seeds_per_tile": 3,
+        "reveal_growth_progress": 20
       },
       "source_policy": {
         "default_source": "npc_trade",
@@ -2219,6 +2224,7 @@
             "dry",
             "cured",
             "liquid",
+            "pickled",
             "cooked_dish",
             "dish",
             "dry_seed"
@@ -2249,7 +2255,57 @@
           "container_id": "home_cellar_01",
           "location_id": "home",
           "storage_type": "cellar",
-          "container_type": "cellar_container",
+          "container_type": "cellar_jar",
+          "capacity": {
+            "amount": 20,
+            "unit": "slot_weight"
+          },
+          "used_capacity": 0,
+          "temperature_state": "cool",
+          "humidity_state": "humid",
+          "ventilation": "low",
+          "cleanliness": 60,
+          "supported_forms": [
+            "fresh",
+            "cut",
+            "cured",
+            "pickled"
+          ],
+          "flags": [
+            "worn"
+          ],
+          "active_object_refs": []
+        },
+        {
+          "container_id": "home_cellar_jar_02",
+          "location_id": "home",
+          "storage_type": "cellar",
+          "container_type": "cellar_jar",
+          "capacity": {
+            "amount": 20,
+            "unit": "slot_weight"
+          },
+          "used_capacity": 0,
+          "temperature_state": "cool",
+          "humidity_state": "humid",
+          "ventilation": "low",
+          "cleanliness": 60,
+          "supported_forms": [
+            "fresh",
+            "cut",
+            "cured",
+            "pickled"
+          ],
+          "flags": [
+            "worn"
+          ],
+          "active_object_refs": []
+        },
+        {
+          "container_id": "home_cellar_jar_03",
+          "location_id": "home",
+          "storage_type": "cellar",
+          "container_type": "cellar_jar",
           "capacity": {
             "amount": 20,
             "unit": "slot_weight"
@@ -2381,7 +2437,7 @@
             "canonical_id": "base:salt"
           },
           "storage_footprint": {
-            "amount": 2.0,
+            "amount": 2,
             "unit": "slot_weight"
           }
         },
@@ -2430,7 +2486,7 @@
             "canonical_id": "base:bacon"
           },
           "storage_footprint": {
-            "amount": 2.0,
+            "amount": 2,
             "unit": "slot_weight"
           }
         },
@@ -3625,6 +3681,220 @@
         "player_shop_enabled": false,
         "npc_trade_enabled": false
       }
+    },
+    "configs/storage/physical_capacity_policies.yaml": {
+      "default_policy_id": "physical-stage1a-v1",
+      "initial_container_limits": {
+        "home_room_temp_01": {
+          "mass_g": 50000,
+          "volume_ml": 100000
+        },
+        "home_cellar_01": {
+          "mass_g": 12000,
+          "volume_ml": 20000
+        },
+        "home_cellar_jar_02": {
+          "mass_g": 12000,
+          "volume_ml": 20000
+        },
+        "home_cellar_jar_03": {
+          "mass_g": 12000,
+          "volume_ml": 20000
+        },
+        "pickling_jar_basic_01": {
+          "mass_g": 10000,
+          "volume_ml": 10000
+        }
+      },
+      "policies": [
+        {
+          "id": "physical-stage1a-v1",
+          "rules": [
+            {
+              "kind": "MaterialLot",
+              "definition_id": "cabbage",
+              "form": "fresh",
+              "quantity_unit": "g",
+              "mass_mg_per_unit": {
+                "numerator": 1000,
+                "denominator": 1
+              },
+              "volume_ul_per_unit": {
+                "numerator": 1600,
+                "denominator": 1
+              }
+            },
+            {
+              "kind": "MaterialLot",
+              "definition_id": "cabbage",
+              "form": "cut",
+              "quantity_unit": "g",
+              "mass_mg_per_unit": {
+                "numerator": 1000,
+                "denominator": 1
+              },
+              "volume_ul_per_unit": {
+                "numerator": 1250,
+                "denominator": 1
+              }
+            },
+            {
+              "kind": "MaterialLot",
+              "definition_id": "cabbage",
+              "form": "slightly_wilted",
+              "quantity_unit": "g",
+              "mass_mg_per_unit": {
+                "numerator": 1000,
+                "denominator": 1
+              },
+              "volume_ul_per_unit": {
+                "numerator": 1500,
+                "denominator": 1
+              }
+            },
+            {
+              "kind": "MaterialLot",
+              "definition_id": "cabbage",
+              "form": "pickling",
+              "quantity_unit": "g",
+              "mass_mg_per_unit": {
+                "numerator": 1000,
+                "denominator": 1
+              },
+              "volume_ul_per_unit": {
+                "numerator": 1100,
+                "denominator": 1
+              }
+            },
+            {
+              "kind": "MaterialLot",
+              "definition_id": "cabbage",
+              "form": "pickled",
+              "quantity_unit": "g",
+              "mass_mg_per_unit": {
+                "numerator": 1000,
+                "denominator": 1
+              },
+              "volume_ul_per_unit": {
+                "numerator": 1000,
+                "denominator": 1
+              }
+            },
+            {
+              "kind": "MaterialLot",
+              "definition_id": "cabbage",
+              "form": "pickled_risky",
+              "quantity_unit": "g",
+              "mass_mg_per_unit": {
+                "numerator": 1000,
+                "denominator": 1
+              },
+              "volume_ul_per_unit": {
+                "numerator": 1000,
+                "denominator": 1
+              }
+            },
+            {
+              "kind": "MaterialLot",
+              "definition_id": "salt",
+              "form": "dry",
+              "quantity_unit": "g",
+              "mass_mg_per_unit": {
+                "numerator": 1000,
+                "denominator": 1
+              },
+              "volume_ul_per_unit": {
+                "numerator": 800,
+                "denominator": 1
+              }
+            },
+            {
+              "kind": "MaterialLot",
+              "definition_id": "bacon",
+              "form": "cured",
+              "quantity_unit": "g",
+              "mass_mg_per_unit": {
+                "numerator": 1000,
+                "denominator": 1
+              },
+              "volume_ul_per_unit": {
+                "numerator": 1200,
+                "denominator": 1
+              }
+            },
+            {
+              "kind": "MaterialLot",
+              "definition_id": "ginger",
+              "form": "fresh",
+              "quantity_unit": "g",
+              "mass_mg_per_unit": {
+                "numerator": 1000,
+                "denominator": 1
+              },
+              "volume_ul_per_unit": {
+                "numerator": 1400,
+                "denominator": 1
+              }
+            },
+            {
+              "kind": "MaterialLot",
+              "definition_id": "cooking_oil",
+              "form": "liquid",
+              "quantity_unit": "ml",
+              "mass_mg_per_unit": {
+                "numerator": 920,
+                "denominator": 1
+              },
+              "volume_ul_per_unit": {
+                "numerator": 1000,
+                "denominator": 1
+              }
+            },
+            {
+              "kind": "MaterialLot",
+              "definition_id": "cabbage_seed",
+              "form": "dry_seed",
+              "quantity_unit": "count",
+              "mass_mg_per_unit": {
+                "numerator": 3,
+                "denominator": 1
+              },
+              "volume_ul_per_unit": {
+                "numerator": 100,
+                "denominator": 1
+              }
+            },
+            {
+              "kind": "DishLot",
+              "definition_id": "bacon_cabbage",
+              "form": "cooked_dish",
+              "quantity_unit": "g",
+              "mass_mg_per_unit": {
+                "numerator": 1000,
+                "denominator": 1
+              },
+              "volume_ul_per_unit": {
+                "numerator": 1200,
+                "denominator": 1
+              }
+            },
+            {
+              "kind": "DishLot",
+              "definition_id": "bacon_cabbage",
+              "form": "dish",
+              "quantity_unit": "g",
+              "mass_mg_per_unit": {
+                "numerator": 1000,
+                "denominator": 1
+              },
+              "volume_ul_per_unit": {
+                "numerator": 1200,
+                "denominator": 1
+              }
+            }
+          ]
+        }
+      ]
     }
   },
   "schema_paths": [

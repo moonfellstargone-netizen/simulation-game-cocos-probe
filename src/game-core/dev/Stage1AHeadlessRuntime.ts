@@ -3,6 +3,7 @@ import type { GameState } from '../domain/types';
 import { GameRuntime } from '../runtime/GameRuntime';
 import { NewGameBuilder } from '../save/NewGameBuilder';
 import { StorageAudit } from '../storage/StorageAudit';
+import { loadPhysicalPolicyRegistry } from '../config/PhysicalPolicyLoader';
 import type { RuntimeContractValidator } from '../validation/RuntimeContractValidator';
 import type { ActionRequest, ActionResult, FormalStage1AActionType } from '../action/ActionTypes';
 import { ActionRequestBuilder } from '../action/ActionRequestBuilder';
@@ -12,6 +13,7 @@ export interface Stage1AHeadlessRuntimeOptions {
   buildId?: string;
   nowIso8601?: string;
   actorId?: string;
+  randomSeed?: string;
 }
 
 export interface HeadlessDispatchResult {
@@ -25,18 +27,20 @@ export class Stage1AHeadlessRuntime {
   readonly state: GameState;
   readonly requests: ActionRequestBuilder;
   readonly summaries = new RuntimeStateSummary();
-  private readonly audit = new StorageAudit();
+  private readonly audit: StorageAudit;
 
   constructor(
     private readonly configs: ConfigRepository,
     private readonly contracts: RuntimeContractValidator,
     private readonly options: Stage1AHeadlessRuntimeOptions = {}
   ) {
+    this.audit = new StorageAudit(loadPhysicalPolicyRegistry(this.configs));
     this.requests = new ActionRequestBuilder({ defaultActorId: this.options.actorId ?? 'player' });
     this.runtime = new GameRuntime(this.configs, this.contracts);
     this.state = new NewGameBuilder(this.configs).buildStage1A({
       buildId: this.options.buildId ?? 'headless_runtime_default',
-      nowIso8601: this.options.nowIso8601 ?? '2026-05-19T00:00:00.000Z'
+      nowIso8601: this.options.nowIso8601 ?? '2026-05-19T00:00:00.000Z',
+      ...(this.options.randomSeed === undefined ? {} : { randomSeed: this.options.randomSeed })
     });
     this.validateCurrentState();
   }

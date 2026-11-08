@@ -2,6 +2,33 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "common_defs.schema.json",
   "$defs": {
+    "OperationRequestSummary": {
+      "type": "object",
+      "required": ["actor_id", "action_type", "created_time", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "actor_id": { "type": "string" },
+        "action_type": { "type": "string" },
+        "created_time": { "type": "integer" },
+        "target_refs": { "type": "array", "items": { "$ref": "#/$defs/ObjectRef" } },
+        "context_ref": { "$ref": "#/$defs/ActionContextRef" },
+        "desired_outcome": { "$ref": "#/$defs/DesiredOutcome" },
+        "preview_only": { "type": "boolean" },
+        "parameters": { "type": "object" }
+      },
+      "oneOf": [
+        { "$ref": "formal_stage_1A_action_request.schema.json#/oneOf/0" },
+        { "$ref": "formal_stage_1A_action_request.schema.json#/oneOf/1" },
+        { "$ref": "formal_stage_1A_action_request.schema.json#/oneOf/2" },
+        { "$ref": "formal_stage_1A_action_request.schema.json#/oneOf/3" },
+        { "$ref": "formal_stage_1A_action_request.schema.json#/oneOf/4" },
+        { "$ref": "formal_stage_1A_action_request.schema.json#/oneOf/5" },
+        { "$ref": "formal_stage_1A_action_request.schema.json#/oneOf/6" },
+        { "$ref": "formal_stage_1A_action_request.schema.json#/oneOf/7" },
+        { "$ref": "formal_stage_1A_action_request.schema.json#/oneOf/8" },
+        { "$ref": "formal_stage_1A_action_request.schema.json#/oneOf/9" }
+      ]
+    },
     "Quantity": {
       "type": "object",
       "required": [
@@ -283,6 +310,48 @@
         }
       }
     },
+    "SeedLotSnapshot": {
+      "allOf": [
+        { "$ref": "material_lot.schema.json" },
+        { "properties": { "base_id": { "const": "cabbage_seed" }, "quantity": { "properties": { "unit": { "const": "count" } } },
+          "definition_ref": { "properties": { "type": { "const": "seed" } } } }, "not": { "required": ["cabbage_pieces"] } }
+      ]
+    },
+    "MaterialInputSourceSnapshot": {
+      "type": "object", "required": ["source_ref"], "additionalProperties": false,
+      "properties": {
+        "source_ref": { "$ref": "#/$defs/SourceRef" },
+        "lineage_summary": { "$ref": "#/$defs/LineageSummary" },
+        "piece_portions": { "type": "array", "minItems": 1, "items": {
+          "type": "object", "required": ["piece_id", "original_weight_g", "taken_weight_g", "source_ref"], "additionalProperties": false,
+          "properties": {
+            "piece_id": { "type": "string", "minLength": 1 },
+            "original_weight_g": { "type": "number", "exclusiveMinimum": 0 },
+            "taken_weight_g": { "type": "number", "exclusiveMinimum": 0 },
+            "source_ref": { "$ref": "#/$defs/SourceRef" },
+            "seed_lot_snapshot": { "$ref": "#/$defs/SeedLotSnapshot" }
+          }
+        } }
+      }
+    },
+    "LegacyLineageSummary": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "key_origins": { "type": "array", "items": { "$ref": "#/$defs/LineageOriginEntry" } },
+        "important_flags": { "type": "array", "items": { "type": "string" } },
+        "lineage_depth": { "type": "integer", "minimum": 0 }, "compressed": { "type": "boolean" },
+        "summary_text_key": { "type": ["string", "null"] }, "debug_trace_ref": { "type": ["string", "null"] }
+      }
+    },
+    "OrdinarySourceGroup": {
+      "type": "object", "required": ["group_id", "origin_lot_id", "source_ref", "created_time", "last_update_time"], "additionalProperties": false,
+      "properties": {
+        "group_id": { "type": "string", "pattern": "^source_group_[0-9]{6,}$" },
+        "origin_lot_id": { "type": "string", "minLength": 1 }, "source_ref": { "$ref": "#/$defs/SourceRef" },
+        "created_time": { "type": "integer" }, "last_update_time": { "type": "integer" },
+        "legacy_lineage": { "$ref": "#/$defs/LegacyLineageSummary" }
+      }
+    },
     "LineageSummary": {
       "type": "object",
       "additionalProperties": false,
@@ -294,6 +363,7 @@
           },
           "default": []
         },
+        "ordinary_source_groups": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/OrdinarySourceGroup" } },
         "important_flags": {
           "type": "array",
           "items": {
@@ -403,6 +473,8 @@
         "origin_id": {
           "type": "string"
         },
+        "created_time": { "type": "integer" },
+        "last_update_time": { "type": "integer" },
         "source_ref": {
           "$ref": "#/$defs/SourceRef"
         },

@@ -35,6 +35,16 @@ export class ProbeInteraction {
     return { busy: this.busy, operation: { ...this.operation } };
   }
 
+  clearStaleSplitRejection(): void {
+    const correctable = new Set(['ERR_SPLIT_QUANTITY_INVALID', 'ERR_SPLIT_QUANTITY_NOT_REPRESENTABLE',
+      'ERR_NOT_ENOUGH_RESOURCE', 'ERR_STORAGE_CAPACITY_OVERFLOW', 'ERR_QUANTITY_UNIT_MISMATCH']);
+    if (this.busy || this.operation.name !== 'menu_confirm_split_direct' || this.operation.status !== 'failed'
+      || !this.operation.errorMessage || !correctable.has(this.operation.errorMessage)) return;
+    this.operation = { ...this.operation, name: null, status: 'idle', message: '输入已更新，可直接确认',
+      errorMessage: null, slotId: null, worldMinute: null };
+    this.publish();
+  }
+
   async execute(command: ProbeCommand): Promise<ProbeCommandResult | null> {
     if (this.busy || !this.options.isAvailable()) return null;
     this.busy = true;
@@ -61,6 +71,18 @@ export class ProbeInteraction {
         throw new Error('ERR_COCOS_PROBE_SAVE_LOAD_SUMMARY_MISSING');
       }
       let errorMessage = outcome.status === 'failed' ? outcome.error_message ?? '操作未完成' : null;
+      if (command.name === 'menu_confirm_split_direct') {
+        const validation = outcome.snapshot?.menu?.last_split_validation_result;
+        const action = outcome.snapshot?.menu?.last_action_result;
+        if (outcome.status !== 'completed' || outcome.command_name !== command.name || validation?.action_type !== 'split_lot'
+          || typeof validation.success !== 'boolean' || typeof validation.status_code !== 'string' || !validation.status_code) throw new Error('ERR_WEB_SPLIT_RESULT_UNCERTAIN');
+        if (!validation.success) {
+          if (action !== null) throw new Error('ERR_WEB_SPLIT_RESULT_UNCERTAIN');
+          errorMessage = validation.status_code;
+        } else if (!action || !validBusinessResult(action) || !action.success || !action.request_id) {
+          throw new Error('ERR_WEB_SPLIT_RESULT_UNCERTAIN');
+        }
+      }
       if (outcome.status === 'completed' && (command.name === 'menu_preview' || command.name === 'menu_confirm')) {
         const menu = outcome.snapshot?.menu;
         const preview = menu?.last_preview_result;
@@ -86,7 +108,7 @@ export class ProbeInteraction {
       return result;
     } catch (error) {
       this.operation = {
-        ...this.operation, status: 'failed', message: '操作异常，请重试',
+        ...this.operation, status: 'failed', message: error instanceof Error && error.message.startsWith('ERR_WEB_SPLIT_RESULT_UNCERTAIN') ? '拆分结果待确认，请先核对库存' : '操作异常，请重试',
         errorMessage: error instanceof Error ? error.message : String(error), worldMinute: null
       };
       throw error;
@@ -106,6 +128,7 @@ function validBusinessResult(result: ProbeBusinessResult): boolean {
 }
 
 function runningMessage(command: ProbeCommand): string {
+  if (command.name === 'refresh') return '正在核对库存';
   if (command.name === 'save') return '正在本地保存';
   if (command.name === 'load') return '正在读取本地存档';
   if (command.name === 'menu_preview') return command.selection.action_type === 'cook_dish' ? '正在校验烹饪选择'
@@ -115,6 +138,7 @@ function runningMessage(command: ProbeCommand): string {
 }
 
 function completedMessage(command: ProbeCommand): string {
+  if (command.name === 'refresh') return '库存已核对，请检查后重新选择';
   if (command.name === 'save') return '本地保存成功';
   if (command.name === 'load') return '已恢复本地存档';
   if (command.name === 'menu_preview') return '本次校验通过，尚未执行';
@@ -139,6 +163,9 @@ function failureMessage(code: string): string {
   if (code.startsWith('ERR_SAVE_SLOT_NOT_FOUND:')) return '暂无本地存档，请先保存';
   if (code === 'ERR_NOT_ENOUGH_RESOURCE') return '资源不足，请调整数量';
   if (code === 'ERR_FIELD_OCCUPIED') return '地块已占用，请重新选择';
+  if (code === 'ERR_FIELD_CAPACITY_EXCEEDED') return '土地空位不足，请减少播种数量';
+  if (code === 'ERR_PLANT_QUANTITY_INVALID') return '播种数量须为正整数粒';
+  if (code === 'ERR_SEEDS_PER_TILE_INVALID') return '每位须为1至3粒，总粒数须与播种位数对应';
   if (code === 'ERR_CROP_NOT_MATURE') return '作物尚未成熟';
   if (code.startsWith('ERR_STORAGE_FORM_NOT_SUPPORTED')) return '该位置不支持这种物料形态';
   if (code.startsWith('ERR_STORAGE_CAPACITY_OVERFLOW')) return '储存容量不足，请选择其他位置';

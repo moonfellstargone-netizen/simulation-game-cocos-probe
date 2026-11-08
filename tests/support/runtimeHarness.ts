@@ -25,12 +25,14 @@ export function buildContracts(): RuntimeContractValidator {
   return new RuntimeContractValidator(RuntimeSchemaValidator.fromSnapshotSchemas(collectJsonSchemas(join(root, 'design_snapshot/schemas'))));
 }
 
-export function buildRuntime() {
+// Existing success-path regressions select a reproducible success scenario explicitly.
+// Probability tests pass independent success/failure seeds instead of changing the algorithm.
+export function buildRuntime(randomSeed = 'farming-test-23') {
   const snapshot = readJson<RuntimeConfigSnapshot>(join(root, 'design_snapshot/generated/stage_1A_runtime_snapshot.json'));
   const configs = new ConfigRepository(snapshot);
   const contracts = buildContracts();
   const runtime = new GameRuntime(configs, contracts);
-  const state = new NewGameBuilder(configs).buildStage1A({ buildId: testBuildId('test_build'), nowIso8601: '2026-05-18T00:00:00.000Z' });
+  const state = new NewGameBuilder(configs).buildStage1A({ buildId: testBuildId('test_build'), nowIso8601: '2026-05-18T00:00:00.000Z', randomSeed });
   return { snapshot, configs, contracts, runtime, state };
 }
 

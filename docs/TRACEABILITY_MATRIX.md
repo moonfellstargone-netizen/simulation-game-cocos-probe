@@ -9,9 +9,11 @@ related:
   - tools/quality/test-registry.json
 ---
 
-# TRACEABILITY_MATRIX — v0.0.2.46
+# TRACEABILITY_MATRIX — v0.0.3.0
 
-**Touch Interaction & Small-screen Readiness / 触摸交互与小屏操作收口版**
+用户授权库存修订：新局双维容量、整棵颗数与重量、切开按重量和保守合并；旧档无颗数不反推，旧制容量不换算。事务失败恢复状态、事件及ID；下方旧阶段单维与ID描述保留历史时点。实际测试覆盖和运行状态以登记及候选报告为准。
+
+**WeChat Stage1A Pilot / 微信真机Stage1A试水版**
 
 ## 1. 定位
 
@@ -19,7 +21,7 @@ related:
 
 - **不替代**源码、正式三包 v1.5.2.2、module-card 或 `test-registry.json`。
 - **不替代** `tools/quality/rules/traceability-map.json`（机器可读权威）；人工矩阵须与其 active entries 对齐。
-- 本轮沿用**轻量追踪地基**，新增触摸与小屏追踪，保留全部既有29条追踪/27个current ID；新增后为30条/28个current。纯几何和输入负例由Node实际执行，真实Creator/SDK、built/editor鼠标/触摸与截图独立验收，全部五页经营/手动恢复/故障和销毁保护保持；旧三层仍不接真实 Cocos。完整AST/symbol自动索引、Nightly和wx storage均不是当前实现。
+- 独立微信追踪trace.cocos.wechat-m1覆盖M1基础、M2存储适配和M3既有经营入口；新增播种追踪后共32条/30个current。当前概率修订最小扩展播种参数、成苗保存字段、派生配置与两端输入投影，原始包和正式fixture/expected保持，旧作物兼容；其余旧Web经营入口保留。完整M3和M4尚未完成，Node与真实平台证据分别记录；完整AST/symbol自动索引和Nightly仍不是当前实现。
 
 ## 2. 状态语义
 
@@ -321,3 +323,66 @@ trace.cocos.cross-step-recovery：五个独立保存点为生长中、加工中�
 ### trace.cocos.touch-small-screen
 
 sourceRefs为ProbeLayout、CocosWebProbe/ProbeInteraction、Web模板及verify-web/support；testRefs复用prepare/lifecycle/web-verification三项full/blocker。布局测试必须在lifecycle实际args/package脚本内，helper/.meta和测试纳入files/covers与单文件affected。旧29条entry/27个current ID保留，新增后30/28。Node负例与真实Creator/SDK、built/editor鼠标/触摸分列，约定尺寸及手机边界见engine模块卡。
+
+## trace.cocos.wechat-m1
+
+active Stage1A追踪连接cocos-wechat-probe/tools/tests，准备与运行任务实际登记full/blocker，并连接authoritative架构负例。sourceRefs包含独立最小outer、共享prepareProject、微信prepare/build/source/sourceProvenance；docRefs连接module-card、ADR-0005、cocos/runtime/quality地图及公共API索引。
+
+候选身份在生成资源内只读，不从SaveFile取得；新构建新身份/空目录，固定commit与dirty边界、工具/配置及产物摘要范围均包外可追溯。M1时临时内存新局不表示微信持久化；M2平台读档与身份隔离的实现及真实工具证据见本节后M2说明与包外记录。Stage1B wx-storage-port仍planned；M3全链与M4手机/二维码未完成。Node不证明Creator、微信输入/日志/重载或真机通过。
+
+## 微信正式Schema预编译补充覆盖
+
+trace.cocos.wechat-m1扩展sourceRefs至RuntimeSchemaValidator、Stage1ABootstrap和precompiledSchemas编译器，testRefs包含原test.stage1a-bootstrap。新增runtime-precompiled-schema测试进入该任务实际args/files；moduleRefs包含game-core和creator-adapter。
+
+正式Schema构建期预编译最初用于微信M1的动态编译兼容：微信prepare使用当前锁定Ajv standalone，沿既有strict=false、allErrors=true、allowUnionTypes=true校验选项编译全部58项正式Schema，并生成安全ESM导出及明确ID映射。不改正式Schema或业务校验语义，不新增依赖，不猴补Function/eval或使用恒true替代校验器；其他AOT仍不在当前范围。
+
+M2包体修复在微信预编译增加loopRequired=1并保留inlineRefs默认值；M1历史生成未使用该参数。tests/cocos-wechat-schema-optimization.test.mjs由现有test.cocos-wechat-runtime实际执行并登记full/blocker，比较58项Schema的动态与standalone校验结果及完整errors，并校验来源拒绝路径；微信debug=false与engine模板精简由preparation契约覆盖。受控测试不代表真实构建或设备验收。
+
+tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / registry test.stage1a-bootstrap实际args/files/covers，沿用full/blocker，不新增任务或降低门禁。该测试覆盖禁用动态Function后的正式启动/合法动作及坏请求、集合/内容拒绝；微信preparation契约覆盖实际facade、全部Schema、来源与生成物篡改，资源预检标记为node-aot-public-bootstrap-passed。Web旧resourcePreflight和默认动态路径保持。Node不替代新提交的Creator/SDK、微信真实输入/日志/重载、Web回归或审查/CI。
+
+## 微信DTO复制适配覆盖
+
+trace.cocos.wechat-m1的sourceRefs新增WechatDataClone.ts；原test.cocos-wechat-runtime实际执行DTO原生对比与拒绝测试，preparation登记其源/测试并核完整来源。
+
+WechatDataClone.ts提供微信目标内的纯DTO复制适配，导出structuredClone供wechat profile的esbuild inject局部绑定runtime中的标准自由标识符。不修改globalThis或Cocos引擎，不在src中新增指向apps的源import，也不改变默认Node/Web路径；它不是通用Web API polyfill。支持数组、普通对象/空原型DTO输入及原始值，保留undefined、数组空位、共享引用/别名、循环和特殊属性键；非DTO对象、函数、Symbol与options（包括transfer）明确DataCloneError拒绝，不用JSON往返静默丢失数据。
+
+不增加质量门禁任务或开放后续里程碑；Node/原生DTO对比不代表微信UI或通用Web API兼容。
+
+## M2微信存储与生命周期
+
+M2运行时改动集中于独立微信outer，并同步构建来源、测试和文档：手动单逻辑槽经Creator sys.localStorage接入平台存储，保存与读取沿既有Session/SaveManager及校验；前后台事件只限制输入与维护会话，不自动存档或补算时间。旧三层及outer直接wx/fs禁令保持，正式SaveFile和玩法不变。
+
+恢复链区分隔离Session备份校验、port内部二次校验及字节复核、持久提升和Binding读取主槽。准备/提升失败和Session读档校验失败由受控场景核会话保护；Binding的UI补丁可能在Session已提交后失败，不能将所有Binding错误称作原会话未改变。具体测试及平台证据各自留存。
+
+备份与中断保护须同时考虑失败前后可能发生写入：备份、主档与恢复信息分开；读取、恢复和失败路径以源码及针对性测试为准，不能将异常等同于未落盘。故障保护依赖存储键相互独立和可读回一致的有限模型，真实微信断电、设备故障及底层原子性未证明。备份恢复不等于跨平台导入或自动存档。
+
+tests/cocos-wechat-storage.test.ts登记进既有test:cocos-wechat-runtime的args/files，相关源及meta也进入preparation/runtime登记和trace.cocos.wechat-m1。受控Node契约不替代真实Creator、官方微信工具输入/存储/生命周期、最终提交CI或手机验收；具体结果以仓库外证据为准。
+
+## M3种植与库存首包追踪
+
+trace.cocos.wechat-m1继续指向既有微信outer、控制器、test.cocos-wechat-runtime及test.cocos-wechat-preparation。种植和库存入口复用公开菜单与既有正式Action，存读档、候选身份、busy和前后台边界沿用M2；核心和正式设定不因界面接入改变。微信运行任务应实际执行新增场景测试，并保留既有Web经营与存储回归。
+
+tests/cocos-wechat-m3-ui.test.ts经既有test.cocos-wechat-runtime的args/files实际执行，使用受控cc和平台存储、真实outer/controller/Session/Binding/ActionPipeline，测试播种、时间推进、收获、库存浏览、整批转移、busy/后台及读档后失效选择重建。当时拆分、加工、烹饪和订单的微信界面仍为后续M3范围。Node受控测试、真实Creator构建、微信工具输入、Web回归、对应提交CI和手机验证分别留证，不以任务登记或旧提交结果替代实际执行。
+
+## M3微信库存拆分包追踪
+
+trace.cocos.wechat-m1继续关联微信outer、控制器及现有preparation/runtime质量任务。tests/cocos-wechat-runtime.test.ts和tests/cocos-wechat-m3-ui.test.ts覆盖控制器与真实outer的拆分链，沿用既有full/blocker，不新增正式规则或降低门禁。具体通过情况以本轮实际测试与对应提交的证据为准。
+
+M3微信库存拆分支持可选预览；玩家可直接确认当前批次和数量。共享队列以menu_confirm_split_direct调用独立只读校验，通过后才同步提交正式split_lot，校验与执行共用正式数量、预留、定义及容量规则，不依赖preview。切换材料、数量或会话使旧预览失效，预览不成为确认的前置条件；提交后异常或无法核实回执提示结果待确认，不自动重试。原Web菜单确认仍先预览。M2存读档与M3种植库存能力继续保留；不修改SaveFile、正式Schema、配置或玩法规则。PR25、PR26、PR27依赖须随候选核对，本包不包含M3完整经营、M4或Stage1B。
+
+
+拆分独立校验与共享直接确认还涉及InventorySystem、StorageReconciler、CocosAppRuntimeSession、MinimalMenuInteractionController及CocosUiCommandQueue。tests/stage1a-contract.test.ts、tests/cocos-runtime-session.test.ts、tests/cocos-ui-command-queue.test.ts和tests/cocos-scene-binding-application.test.ts分别覆盖只读规则、Session、队列及绑定；原Web交互及测试追踪保留，具体验收不以登记替代。
+
+## M3微信加工包追踪
+
+trace.processing.required-inputs继续连接ProcessingSystem和现有test.stage1a-contract、test.action-preview、test.cocos-session及test.cocos-menu；test.cocos-ui-command-queue和test.cocos-scene-binding登记共享队列路径；trace.cocos.wechat-m1连接既有微信preparation/runtime，tests/cocos-wechat-runtime.test.ts和tests/cocos-wechat-m3-ui.test.ts覆盖实际outer与队列。具体通过状态以固定提交的实际测试和平台证据为准，不由登记推断。
+
+独立开工/领取计划复用正式规则及StorageReconciler计算；序列输入沿原顺序，不定义重复lot新语义。menu_confirm_processing_direct不调用preview，预览仅供可选查看；确认依据本次只读校验与正式结果。缺料、容量、异常回执和既有存读/生命周期分别验证；Web原菜单行为不改。
+
+## 微信加工分步界面与只读核对追踪
+
+tests/cocos-wechat-m3-ui.test.ts和tests/cocos-wechat-runtime.test.ts沿既有test.cocos-wechat-runtime实际运行：方法/要求/批次/设施/汇总/任务分步、分页及节点交互，明确拒绝保留草稿、开工异常隔离草稿并先只读核对再由玩家重选、领取不确定锁及refreshProcessingView的只读核对、后台/缺失/失败/状态矛盾回执和手动恢复。Queue refresh只读取当前Session公开投影，不读写存档或自动重试；锁在当前界面实例内，不推断跨重启保护。设计视口几何、受控Host行为、实际Creator/微信和手机输入分别留证，不互相替代。
+
+## 播种数量与地块容量
+
+trace.farming.seed-quantity连接FarmingSystem、GameRuntime、公开容量投影、Web/微信页面及核心/预览/Session/readiness/运行回归；每位1至3粒对应80%/96%/99.2%成苗率、超量整次拒绝、随机保存与预览隔离、早期失败释放位置、旧作物兼容、半满续种与独立收获均需实际测试。新增后共32条/30个current追踪，旧全部追踪保持。

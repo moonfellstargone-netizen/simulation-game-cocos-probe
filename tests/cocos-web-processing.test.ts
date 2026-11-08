@@ -21,7 +21,7 @@ async function processingProbe(storage = new InMemorySaveStoragePort(), intercep
   const lifetime = new ProbeLifetime({
     loadResources: async () => ({ snapshot, buildId: 'web_processing_contract', schemas: Object.fromEntries(snapshot.schema_paths.map((path) => [path,
       JSON.parse(readFileSync(`design_snapshot/${path}`, 'utf8'))])) }),
-    createHost: (input) => host = createStage1AHost({ ...input, snapshot: input.snapshot as RuntimeConfigSnapshot, storage, nowIso8601: '2026-11-01T00:00:00.000Z' }),
+    createHost: (input) => host = createStage1AHost({ ...input, snapshot: input.snapshot as RuntimeConfigSnapshot, storage, nowIso8601: '2026-11-01T00:00:00.000Z', randomSeed: 'farming-test-23' }),
     createBinding: (current) => new QinglanUiSceneProbeComponent(current as CocosSessionHost, {
       applyNodeBindingPatch: (patch) => { if (patch.section === 'menu') { menu = patch.payload as ProbeMenuSnapshot; processing.refresh(menu); } }
     })

@@ -36,6 +36,7 @@
           "lot_id": {
             "type": "string"
           },
+          "source_snapshot": { "$ref": "common_defs.schema.json#/$defs/MaterialInputSourceSnapshot" },
           "quantity": {
             "$ref": "common_defs.schema.json#/$defs/Quantity"
           },

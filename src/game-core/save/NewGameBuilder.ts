@@ -3,6 +3,7 @@ import type { GameState, SaveFile } from '../domain/types';
 import { deepClone } from '../shared/deepClone';
 import { FeatureFlagService } from '../feature/FeatureFlagService';
 import { StorageReconciler } from '../storage/StorageReconciler';
+import { loadPhysicalCapacityConfig, loadPhysicalPolicyRegistry } from '../config/PhysicalPolicyLoader';
 
 export interface NewGameBuilderOptions {
   buildId: string;
@@ -12,22 +13,25 @@ export interface NewGameBuilderOptions {
 
 export class NewGameBuilder {
   private readonly featureFlags: FeatureFlagService;
-  private readonly storageReconciler = new StorageReconciler();
+  private readonly storageReconciler: StorageReconciler;
 
   constructor(private readonly configs: ConfigRepository) {
     this.featureFlags = new FeatureFlagService(configs);
+    this.storageReconciler = new StorageReconciler(loadPhysicalPolicyRegistry(configs));
   }
 
   buildStage1A(options: NewGameBuilderOptions): GameState {
     const stage = this.configs.loadStage1A();
     const versions = this.versionBundle();
     const initial = stage.initialWorld;
+    const physical = loadPhysicalCapacityConfig(this.configs);
     const save: SaveFile = {
       save_version: 'save.stage1.v1',
       game_version: String(versions.game_version),
       schema_version: String(initial.schema_version),
       rules_version: String(initial.rules_version),
       config_version: String(initial.config_version),
+      physical_capacity_policy_id: physical.default_policy_id,
       content_pack_versions: deepClone(versions.content_pack_versions as Record<string, string>),
       created_with_build: options.buildId,
       last_saved_with_build: options.buildId,
@@ -68,6 +72,15 @@ export class NewGameBuilder {
       crop_instances: [],
       reservations: []
     };
+    for (const container of save.storage_containers) {
+      const limits = physical.initial_container_limits[container.container_id];
+      if (!limits || !Number.isFinite(limits.mass_g) || limits.mass_g <= 0
+          || !Number.isFinite(limits.volume_ml) || limits.volume_ml <= 0) {
+        throw new Error(`ERR_PHYSICAL_INITIAL_LIMITS_INVALID:${container.container_id}`);
+      }
+      container.capacity_limits = { ...limits };
+      container.used_capacity_limits = { mass_g: 0, volume_ml: 0 };
+    }
     this.storageReconciler.reconcile(save);
     return { save_file: save, domain_events: [] };
   }

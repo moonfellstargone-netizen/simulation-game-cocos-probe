@@ -11,8 +11,12 @@ const DAY = { name: 'menu_confirm', selection: { action_type: 'advance_time', mi
 const SAVE = { name: 'save', selection: { slot_id: 'web_probe' } } as const;
 const LOAD = { name: 'load', selection: { slot_id: 'web_probe' } } as const;
 
-async function publicInventory() {
+async function publicInventory(cellarMassLimitG?: number) {
   const snapshot = JSON.parse(readFileSync('design_snapshot/generated/stage_1A_runtime_snapshot.json', 'utf8')) as RuntimeConfigSnapshot;
+  if (cellarMassLimitG !== undefined) {
+    const physical = snapshot.loaded_documents['configs/storage/physical_capacity_policies.yaml'] as { initial_container_limits: Record<string, { mass_g: number; volume_ml: number }> };
+    physical.initial_container_limits.home_cellar_01 = { mass_g: cellarMassLimitG, volume_ml: 300000 };
+  }
   const inventory = new ProbeInventory();
   let host: CocosSessionHost | null = null;
   let lastMenu: ProbeMenuSnapshot | null = null;
@@ -22,7 +26,7 @@ async function publicInventory() {
       JSON.parse(readFileSync(`design_snapshot/${path}`, 'utf8'))])) }),
     createHost: (input) => {
       host = createStage1AHost({ ...input, snapshot: input.snapshot as RuntimeConfigSnapshot,
-        storage: new InMemorySaveStoragePort(), nowIso8601: '2026-10-31T00:00:00.000Z' });
+        storage: new InMemorySaveStoragePort(), nowIso8601: '2026-10-31T00:00:00.000Z', randomSeed: 'farming-test-23' });
       return host;
     },
     createBinding: (current) => new QinglanUiSceneProbeComponent(current as CocosSessionHost, {
@@ -164,8 +168,8 @@ test('manual loading restores moved location and current choices, and clears a l
   assert.equal(p.interaction.status().operation.message, '已恢复本地存档', 'old menu success must not replace the load-specific result');
 });
 
-test('ordinary harvests naturally reach a partially free target that rejects an oversized whole lot without mutation', async (t) => {
-  const p = await publicInventory(); t.after(() => p.lifetime.dispose());
+test('ordinary harvests reach a controlled physical weight limit and reject an oversized whole lot without mutation', async (t) => {
+  const p = await publicInventory(2000); t.after(() => p.lifetime.dispose());
   let targetId: string | null = null; let successes = 0; let rejected = false;
   for (let cycle = 0; cycle < 5; cycle++) {
     const lotId = await harvestOne(p); const view = p.inventory.status();
@@ -189,7 +193,7 @@ test('ordinary harvests naturally reach a partially free target that rejects an 
     }
     successes++;
   }
-  assert.equal(rejected, true, 'the canonical new game can reach real capacity refusal without changing config or fixtures');
+  assert.equal(rejected, true, 'the explicit 2000g test limit reaches real capacity refusal');
   const current = p.inventory.status(); const destination = current.targetOptions.find((item) => item.id === targetId)!;
   const smallLot = current.lotOptions.find((item) => item.enabled && item.storage_ref.container_id !== targetId && destination.supported_forms.includes(item.current_form));
   assert.ok(smallLot);
@@ -220,5 +224,5 @@ test('detached inventory views keep disabled choices readable, prevent invalid m
   p.inventory.refresh({ selectable_view_model: null });
   assert.deepEqual(p.inventory.status(), { lotOptions: [], targetOptions: [], selectedLotId: null, selectedTargetId: null, canMove: false,
     splitQuantityText: '', splitUnit: null, splitInputError: '请选择来源批次', canPreviewSplit: false, canConfirmSplit: false,
-    splitPreview: null, splitResult: null });
+    splitPreview: null, splitResult: null, splitNeedsReview: false });
 });

@@ -34,7 +34,7 @@ async function readyProbe(intercept?: (
     createHost: (input) => {
       host = createStage1AHost({
         ...input, snapshot: input.snapshot as RuntimeConfigSnapshot,
-        storage: new InMemorySaveStoragePort(), nowIso8601: '2026-10-31T00:00:00.000Z'
+        storage: new InMemorySaveStoragePort(), nowIso8601: '2026-10-31T00:00:00.000Z', randomSeed: 'farming-test-23'
       });
       return host;
     },

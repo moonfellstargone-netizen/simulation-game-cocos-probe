@@ -4,6 +4,7 @@ import type {
   CookDishParams,
   FormalStage1AActionType,
   HarvestCropParams,
+  MergeLotParams,
   PlantCropParams,
   Quantity,
   SplitLotParams,
@@ -21,11 +22,12 @@ export interface CocosActionDraft<TType extends FormalStage1AActionType, TParams
 }
 
 export class CocosActionDraftBuilder {
-  plantCrop(field_plot_id: string, seed_lot_id: string, seed_quantity: Quantity): CocosActionDraft<'plant_crop', PlantCropParams> {
+  plantCrop(field_plot_id: string, seed_lot_id: string, seed_quantity: Quantity, seeds_per_tile?: number): CocosActionDraft<'plant_crop', PlantCropParams> {
     this.assertId(field_plot_id, 'field_plot_id');
     this.assertId(seed_lot_id, 'seed_lot_id');
     this.assertPositiveQuantity(seed_quantity, 'seed_quantity');
-    return { action_type: 'plant_crop', parameters: { field_plot_id, seed_lot_id, seed_quantity: { ...seed_quantity } } };
+    return { action_type: 'plant_crop', parameters: { field_plot_id, seed_lot_id, seed_quantity: { ...seed_quantity },
+      ...(seeds_per_tile === undefined ? {} : { seeds_per_tile }) } };
   }
 
   advanceTime(minutes: number): CocosActionDraft<'advance_time', AdvanceTimeParams> {
@@ -48,6 +50,12 @@ export class CocosActionDraftBuilder {
     this.assertId(source_lot_id, 'source_lot_id');
     this.assertPositiveQuantity(quantity, 'quantity');
     return { action_type: 'split_lot', parameters: { source_lot_id, quantity: { ...quantity } } };
+  }
+
+  mergeLot(source_lot_id: string, target_lot_id: string): CocosActionDraft<'merge_lot', MergeLotParams> {
+    this.assertId(source_lot_id, 'source_lot_id');
+    this.assertId(target_lot_id, 'target_lot_id');
+    return { action_type: 'merge_lot', parameters: { source_lot_id, target_lot_id } };
   }
 
   startProcessing(method_id: string, input_lots: StartProcessingParams['input_lots'], facility_ref: StartProcessingParams['facility_ref']): CocosActionDraft<'start_processing', StartProcessingParams> {

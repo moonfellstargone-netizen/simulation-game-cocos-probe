@@ -20,7 +20,7 @@ async function cookingProbe(storage = new InMemorySaveStoragePort(), intercept?:
   const lifetime = new ProbeLifetime({
     loadResources: async () => ({ snapshot, buildId: 'web_cooking_contract', schemas: Object.fromEntries(snapshot.schema_paths.map((path) => [path,
       JSON.parse(readFileSync(`design_snapshot/${path}`, 'utf8'))])) }),
-    createHost: (input) => host = createStage1AHost({ ...input, snapshot: input.snapshot as RuntimeConfigSnapshot, storage, nowIso8601: '2026-11-02T00:00:00.000Z' }),
+    createHost: (input) => host = createStage1AHost({ ...input, snapshot: input.snapshot as RuntimeConfigSnapshot, storage, nowIso8601: '2026-11-02T00:00:00.000Z', randomSeed: 'farming-test-23' }),
     createBinding: (current) => new QinglanUiSceneProbeComponent(current as CocosSessionHost, {
       applyNodeBindingPatch: (patch) => { if (patch.section === 'menu') cooking.refresh(patch.payload as ProbeMenuSnapshot); }
     })
@@ -249,4 +249,24 @@ test('a committed cooking completion cannot claim an unrelated existing DishLot 
   assert.equal(p.session().getSelectableViewModel().cookable_recipe_options[0]!.fuel!.current_quantity.amount, 13);
   wrongDish = null; await p.send(SAVE);
   assert.equal(p.session().getSelectableViewModel().submittable_dish_lot_options.length, 2, 'healthy later commands must not replay cooking');
+});
+
+test('formal DishLot transfer uses the menu binding, preserves servings and rejects incompatible jars', async (t) => {
+  const p=await cookingProbe(); t.after(()=>p.lifetime.dispose()); await p.harvest(); setup(p); await preview(p); await cook(p);
+  const original=JSON.parse((await p.capture())!) as SaveFile;
+  const dish=original.dish_lots[0]!; const room=original.storage_containers.find(item=>item.container_id===dish.storage_ref.container_id)!;
+  // Isolated legacy save with a second compatible storage container; no raw fixture is changed.
+  delete original.physical_capacity_policy_id;
+  for (const container of original.storage_containers) { delete container.capacity_limits; delete container.used_capacity_limits; }
+  const second=structuredClone(room); second.container_id='controlled_dish_room'; second.active_object_refs=[]; second.used_capacity=0;
+  original.storage_containers.push(second); await p.storage.write('web_probe',JSON.stringify(original)); await p.send(LOAD);
+  const command={name:'menu_confirm',selection:{action_type:'store_item',source_dish_lot_option_id:dish.dish_lot_id,target_storage_option_id:second.container_id}} as const;
+  const moved=await p.lifetime.execute(command as any); const action=moved.command_result.snapshot!.menu!.last_action_result!;
+  assert.equal(action.success,true); assert.deepEqual(action.updated_objects.map(item=>({object_type:item.object_type,object_id:item.object_id})),[{object_type:'DishLot',object_id:dish.dish_lot_id}]);
+  let current=p.session().getSelectableViewModel().submittable_dish_lot_options.find(item=>item.id===dish.dish_lot_id)!;
+  assert.equal(current.storage_ref.container_id,second.container_id); assert.equal(current.serving_count,dish.serving_count);
+  const before=await p.capture(); const bad=await p.lifetime.execute({name:'menu_confirm',selection:{...command.selection,target_storage_option_id:'home_cellar_01'}} as any);
+  assert.equal(bad.command_result.snapshot!.menu!.last_preview_result!.success,false); assert.equal(await p.capture(),before);
+  current=p.session().getSelectableViewModel().submittable_dish_lot_options.find(item=>item.id===dish.dish_lot_id)!;
+  assert.equal(current.storage_ref.container_id,second.container_id);
 });

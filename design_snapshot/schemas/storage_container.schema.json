@@ -12,6 +12,10 @@
     "supported_forms",
     "active_object_refs"
   ],
+  "dependentRequired": {
+    "capacity_limits": ["used_capacity_limits"],
+    "used_capacity_limits": ["capacity_limits"]
+  },
   "additionalProperties": false,
   "properties": {
     "container_id": {
@@ -52,6 +56,24 @@
     "used_capacity": {
       "type": "number",
       "minimum": 0
+    },
+    "capacity_limits": {
+      "type": "object",
+      "required": ["mass_g", "volume_ml"],
+      "additionalProperties": false,
+      "properties": {
+        "mass_g": { "type": "number", "exclusiveMinimum": 0 },
+        "volume_ml": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "used_capacity_limits": {
+      "type": "object",
+      "required": ["mass_g", "volume_ml"],
+      "additionalProperties": false,
+      "properties": {
+        "mass_g": { "type": "number", "minimum": 0 },
+        "volume_ml": { "type": "number", "minimum": 0 }
+      }
     },
     "temperature_state": {
       "type": "string"

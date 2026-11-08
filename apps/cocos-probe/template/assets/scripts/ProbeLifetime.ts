@@ -12,7 +12,7 @@ export interface ProbeHost {
 
 export type ProbeMenuSelection =
     | { action_type: 'advance_time'; minutes: number }
-    | { action_type: 'plant_crop'; field_option_id: string; seed_lot_option_id: string; seed_quantity: ProbeQuantity }
+    | { action_type: 'plant_crop'; field_option_id: string; seed_lot_option_id: string; seed_quantity: ProbeQuantity; seeds_per_tile?: number }
     | { action_type: 'harvest_crop'; crop_option_id: string }
     | { action_type: 'store_item'; source_lot_option_id: string; target_storage_option_id: string }
     | { action_type: 'split_lot'; source_lot_option_id: string; quantity: ProbeQuantity }
@@ -23,6 +23,8 @@ export type ProbeMenuSelection =
         operation_profile: { heat_level: string; active_minutes: number }; target_storage_option_id: string };
 
 export type ProbeCommand =
+  | { name: 'refresh' }
+  | { name: 'menu_confirm_split_direct'; selection: Extract<ProbeMenuSelection, { action_type: 'split_lot' }> }
   | { name: 'menu_preview'; selection: ProbeMenuSelection }
   | { name: 'menu_confirm'; selection: ProbeMenuSelection }
   | { name: 'save'; selection: { slot_id: string } }
@@ -39,6 +41,8 @@ export interface ProbeFieldOption {
   readonly enabled: boolean;
   readonly label_key: string | null;
   readonly occupied_tiles: number;
+  readonly capacity_tiles: number;
+  readonly available_tiles: number;
   readonly active_crop_count: number;
 }
 
@@ -50,9 +54,18 @@ export interface ProbeMaterialOption {
   readonly category: string;
   readonly current_form: string;
   readonly quantity: ProbeQuantity;
+  readonly cabbage_pieces?: { readonly kind: 'whole'; readonly pieces: readonly { readonly id: string; readonly weight_g: number; readonly source_ref: { readonly source_type: string; readonly source_id: string; readonly source_time: number; readonly source_actor?: string; readonly source_location?: string | null; readonly summary_key?: string | null } }[] } | { readonly kind: 'cut' };
   readonly storage_ref: ProbeStorageRef;
   readonly reason_key?: string | null;
   readonly active_reservation_count?: number;
+  readonly planting_policy?: { readonly max_seeds_per_tile: number; readonly per_seed_success_rate: number };
+}
+
+export interface ProbeCropStatusOption {
+  readonly id: string;
+  readonly field_plot_id: string;
+  readonly growth_stage: string;
+  readonly lifecycle_status: string;
 }
 
 export interface ProbeStorageRef {
@@ -70,6 +83,8 @@ export interface ProbeStorageTargetOption {
   readonly storage_type: string;
   readonly capacity: ProbeQuantity;
   readonly used_capacity: number;
+  readonly capacity_limits?: { readonly mass_g: number; readonly volume_ml: number };
+  readonly used_capacity_limits?: { readonly mass_g: number; readonly volume_ml: number };
   readonly supported_forms: readonly string[];
 }
 
@@ -182,12 +197,14 @@ export interface ProbeOrderOption {
 }
 
 export interface ProbeMenuSnapshot {
+  readonly last_split_validation_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
   readonly view_model?: { readonly time_label: string; readonly money?: number; readonly reputation?: Readonly<Record<string, unknown>>;
     readonly orders?: readonly { readonly id: string; readonly status: string; readonly reward: number | null }[] } | null;
   readonly selectable_view_model?: {
     readonly field_options: readonly ProbeFieldOption[];
     readonly seed_lot_options: readonly ProbeMaterialOption[];
     readonly harvestable_crop_options: readonly ProbeHarvestableOption[];
+    readonly crop_status_options?: readonly ProbeCropStatusOption[];
     readonly splittable_lot_options: readonly ProbeMaterialOption[];
     readonly storage_target_options: readonly ProbeStorageTargetOption[];
     readonly processable_lot_options?: readonly ProbeMaterialOption[];
@@ -202,12 +219,12 @@ export interface ProbeMenuSnapshot {
   readonly last_preview_result?: (ProbeBusinessResult & { readonly action_type: string }) | null;
   readonly last_action_result?: (ProbeBusinessResult & {
     readonly request_id: string;
-    readonly updated_objects?: readonly { readonly object_type: string; readonly object_id: string }[];
+    readonly updated_objects?: readonly { readonly object_type: string; readonly object_id: string; readonly summary?: { readonly quantity?: ProbeQuantity; readonly status?: string; readonly split_role?: 'taken' | 'remaining'; readonly piece_count?: number } | null }[];
     readonly consumed_resources?: readonly { readonly resource_type: string; readonly resource_id: string }[];
     readonly created_objects: readonly {
       readonly object_type: string;
       readonly object_id: string;
-      readonly summary?: { readonly quantity?: ProbeQuantity } | null;
+      readonly summary?: { readonly quantity?: ProbeQuantity; readonly split_role?: 'taken' | 'remaining'; readonly piece_count?: number } | null;
     }[];
   }) | null;
 }
@@ -219,6 +236,7 @@ export interface ProbeCommandResult {
     readonly status: string;
     readonly error_message?: string | null;
     readonly snapshot?: {
+      readonly lifecycle?: { readonly has_session: boolean };
       readonly menu?: ProbeMenuSnapshot;
       readonly save_load?: {
         readonly last_save_result?: { readonly slot_id: string; readonly world_minute: number } | null;

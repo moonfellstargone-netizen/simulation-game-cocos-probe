@@ -16,11 +16,94 @@ function makeSession(storage: SaveStoragePort = new InMemorySaveStoragePort()) {
     configs,
     session: new CocosAppRuntimeSession(configs, contracts, storage, {
       buildId: testBuildId('cocos_session_test'),
-      nowIso8601: '2026-05-19T00:00:00.000Z'
+      nowIso8601: '2026-05-19T00:00:00.000Z',
+      randomSeed: 'farming-test-23' // Fixed success scenario; probability failures have separate coverage.
     }),
     storage
   };
 }
+
+test('field controller keeps total seeds separate from planted positions', () => {
+  const { session } = makeSession();
+  const field = new FieldMenuController(session);
+  const result = field.requestPlantCabbage('field_plot_01', 'seed_cabbage_initial_001', { amount: 6, unit: 'count' }, 3);
+  assert.equal(result.success, true, result.status_code);
+  assert.equal(result.created_objects.length, 2);
+  assert.equal(session.getSelectableViewModel().field_options[0]!.occupied_tiles, 2);
+  assert.equal(session.getSelectableViewModel().seed_lot_options[0]!.quantity.amount, 4);
+});
+
+test('pending germination and random stream resume identically across load before and after sprouting', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const { configs, contracts } = buildRuntimeWithoutState();
+  const create = () => new CocosAppRuntimeSession(configs, contracts, storage, {
+    buildId: testBuildId('cocos_session_probability'), nowIso8601: '2026-05-19T00:00:00.000Z', randomSeed: 'farming-test-28'
+  });
+  const original = create();
+  const parameters = { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 3, unit: 'count' }, seeds_per_tile: 3 };
+  assert.equal(original.dispatch('plant_crop', parameters).success, true);
+  await original.save('germination_pending');
+  const pendingText = (await storage.read('germination_pending'))!;
+  const pending = JSON.parse(pendingText) as SaveFile;
+  assert.equal(pending.crop_instances[0]!.germination!.outcome, 'failed');
+  assert.equal(pending.crop_instances[0]!.germination!.revealed, false);
+  const restored = create();
+  await restored.load('germination_pending');
+  assert.equal(original.dispatch('advance_time', { minutes: 1100 }).success, true);
+  assert.equal(restored.dispatch('advance_time', { minutes: 1100 }).success, true);
+  await original.save('germination_original'); await restored.save('germination_restored');
+  assert.equal(await storage.read('germination_original'), await storage.read('germination_restored'));
+  const resolved = JSON.parse((await storage.read('germination_restored'))!) as SaveFile;
+  assert.equal(resolved.crop_instances[0]!.lifecycle_status, 'failed');
+  assert.equal(resolved.fields[0]!.occupied_tiles, 0);
+  assert.deepEqual(resolved.random_state, pending.random_state);
+  assert.equal(original.dispatch('plant_crop', parameters).success, true);
+  assert.equal(restored.dispatch('plant_crop', parameters).success, true);
+  await original.save('germination_original_next'); await restored.save('germination_restored_next');
+  assert.equal(await storage.read('germination_original_next'), await storage.read('germination_restored_next'));
+  const resolvedLoad = create(); await resolvedLoad.load('germination_restored');
+  assert.equal(resolvedLoad.dispatch('harvest_crop', { crop_id: resolved.crop_instances[0]!.crop_id }).success, false);
+  await resolvedLoad.save('germination_failed_retry');
+  assert.equal(await storage.read('germination_failed_retry'), await storage.read('germination_restored'));
+});
+
+test('batch planted crops retain their count across saves and harvest independently after a fresh session', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const session = makeSession(storage).session;
+  const planted = session.dispatch('plant_crop', { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 3, unit: 'count' } });
+  assert.equal(planted.success, true, planted.status_code);
+  const cropIds = planted.created_objects.map(item => item.object_id);
+  assert.equal(cropIds.length, 3);
+  await session.save('batch_crops');
+  const restored = makeSession(storage).session;
+  await restored.load('batch_crops');
+  const field = restored.getSelectableViewModel().field_options[0]!;
+  assert.equal(field.active_crop_count, 3);
+  assert.equal(field.occupied_tiles, 3);
+  assert.equal(field.available_tiles, 3);
+  assert.equal(field.enabled, true);
+  assert.equal(restored.dispatch('advance_time', { minutes: 5400 }).success, true);
+  assert.deepEqual(restored.getSelectableViewModel().harvestable_crop_options.map(crop => crop.id), cropIds);
+  const harvestedIds: string[] = [];
+  for (const crop_id of cropIds) {
+    const result = restored.dispatch('harvest_crop', { crop_id });
+    assert.equal(result.success, true, result.status_code);
+    harvestedIds.push(result.created_objects[0]!.object_id);
+  }
+  assert.equal(new Set(harvestedIds).size, 3);
+  const harvests = restored.getSelectableViewModel().splittable_lot_options.filter(lot => harvestedIds.includes(lot.id));
+  assert.equal(harvests.length, 3);
+  assert.equal(harvests.reduce((sum, lot) => sum + lot.quantity.amount, 0), 3600);
+  assert.equal(restored.getSelectableViewModel().field_options[0]!.available_tiles, 6);
+  await restored.save('batch_harvested');
+  const reloaded = makeSession(storage).session;
+  await reloaded.load('batch_harvested');
+  assert.equal(reloaded.getSelectableViewModel().harvestable_crop_options.length, 0);
+  assert.equal(reloaded.dispatch('harvest_crop', { crop_id: cropIds[0] }).success, false);
+  const next = reloaded.dispatch('plant_crop', { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 2, unit: 'count' } });
+  assert.equal(next.success, true, next.status_code);
+  assert.ok(next.created_objects.every(item => !cropIds.includes(item.object_id)));
+});
 
 test('a loaded accepted order preserves rejected submissions, recovers legally and remains settled across a fresh session', async () => {
   const storage = new InMemorySaveStoragePort();
@@ -197,9 +280,17 @@ test('split quantity failures preserve saved state and full splits survive a fre
   assert.equal(remaining.storage_footprint.amount, 2);
 });
 
-test('split capacity overflow restores the entire public session and moving a batch permits healthy splitting', async () => {
+test('legacy slot split capacity overflow restores the entire public session and moving a batch permits healthy splitting', async () => {
   const storage = new InMemorySaveStoragePort();
   const session = makeSession(storage).session;
+  // Exercise an explicit legacy in-memory save: physical-capacity saves no longer
+  // use per-batch slot rounding as their capacity limit.
+  await session.save('legacy_split_fixture');
+  const legacy = JSON.parse((await storage.read('legacy_split_fixture'))!);
+  delete legacy.physical_capacity_policy_id;
+  for (const container of legacy.storage_containers) { delete container.capacity_limits; delete container.used_capacity_limits; }
+  await storage.write('legacy_split_fixture', JSON.stringify(legacy));
+  await session.load('legacy_split_fixture');
   const initial = session.getSelectableViewModel();
   const salt = initial.splittable_lot_options.find((lot) => lot.base_id === 'salt')!;
   const room = initial.storage_target_options.find((target) => target.id === salt.storage_ref.container_id)!;
@@ -225,6 +316,9 @@ test('split capacity overflow restores the entire public session and moving a ba
   assert.deepEqual(session.getViewModel(), beforeView);
   assert.deepEqual(session.getSelectableViewModel(), beforeSelectable);
   assert.equal(await captureSerializedSession(session, storage, 'split_capacity_after_failure'), before);
+  const failedAgain = session.dispatch('split_lot', parameters);
+  assert.equal(failedAgain.status_code, 'ERR_STORAGE_CAPACITY_OVERFLOW');
+  assert.equal(await captureSerializedSession(session, storage, 'split_capacity_after_second_failure'), before);
   const movable = full.splittable_lot_options.find((lot) => lot.storage_ref.container_id === room.id
     && full.storage_target_options.some((target) => target.id !== room.id && target.enabled && target.supported_forms.includes(lot.current_form)))!;
   assert.ok(movable);
@@ -235,6 +329,8 @@ test('split capacity overflow restores the entire public session and moving a ba
   assert.equal(session.preview('split_lot', parameters).success, true);
   const recovered = session.dispatch('split_lot', parameters);
   assert.equal(recovered.success, true);
+  assert.equal(recovered.created_objects[0]!.object_id, `lot_split_${String(availableSlots + 1).padStart(6, '0')}`,
+    'capacity refusals must not allocate IDs even without a preceding preview');
   const created = session.getSelectableViewModel().splittable_lot_options.find((lot) => lot.id === recovered.created_objects[0]!.object_id)!;
   assert.deepEqual(created.quantity, parameters.quantity);
   await session.save('split_capacity_recovered');

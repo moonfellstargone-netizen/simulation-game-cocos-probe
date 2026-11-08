@@ -191,14 +191,15 @@
       ]
     },
     "docs/SOURCE_DESIGN_PACK.md": {
-      "why": "设计来源文档必须说明正式包仍是权威，本轮只是代码包检查体系治理。",
+      "why": "必须保留原始正式包权威和治理来源，并明确本次用户批准的概率修订与未改写的原始资料边界。",
       "required": [
         "${codePackageVersion}",
         "${versionName}",
         "${chineseVersionName}",
         "正式包 v1.5.2.2",
         "项目地图与 GitHub 工作流",
-        "不改变正式包设定",
+        "原始资料包与历史固定快照保持原文",
+        "用户明确批准的概率播种修订",
         "不把日志包或规划对话作为正式设计来源"
       ],
       "forbiddenCurrent": [

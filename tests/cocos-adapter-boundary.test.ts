@@ -7,6 +7,7 @@ import { CocosRuntimeFacade } from '../src/cocos-app/adapters/CocosRuntimeFacade
 import { FieldMenuController } from '../src/cocos-app/controllers/FieldMenuController';
 import { InventoryMenuController } from '../src/cocos-app/controllers/InventoryMenuController';
 import { StorageAudit } from '../src/game-core';
+import { loadPhysicalPolicyRegistry } from '../src/game-core/config/PhysicalPolicyLoader';
 import type { ActionResult, GameState } from '../src/game-core';
 import { buildRuntime, cloneForCompare } from './support/runtimeHarness';
 
@@ -78,11 +79,11 @@ function runCoreLoopThroughCocosAdapter() {
     submitted_object_refs: [{ object_type: 'DishLot', object_id: refs.dish_lot }]
   }), 'submit_order');
 
-  return { runtime, state, contracts, dispatcher, facade, refs, submit };
+  return { runtime, state, configs, contracts, dispatcher, facade, refs, submit };
 }
 
 test('Cocos adapter can run the Stage 1A formal core loop and returns ActionResult without direct SaveFile writes', () => {
-  const { state, contracts, refs } = runCoreLoopThroughCocosAdapter();
+  const { state, configs, contracts, refs } = runCoreLoopThroughCocosAdapter();
   const order = state.save_file.orders.find((item) => item.order_id === 'tavern_home_dish_001');
 
   assert.equal(order?.status, 'completed');
@@ -91,7 +92,7 @@ test('Cocos adapter can run the Stage 1A formal core loop and returns ActionResu
   assert.equal(state.save_file.dish_lots.some((item) => item.dish_lot_id === refs.dish_lot), false);
   assert.equal(state.save_file.storage_containers.some((container) => container.active_object_refs.some((ref) => ref.object_type === 'DishLot' && ref.object_id === refs.dish_lot)), false);
   contracts.assertSaveFile(state.save_file);
-  new StorageAudit().assertReconciled(state.save_file);
+  new StorageAudit(loadPhysicalPolicyRegistry(configs)).assertReconciled(state.save_file);
 });
 
 test('Cocos adapter rejects system and non-formal actions before dispatching into ActionPipeline', () => {

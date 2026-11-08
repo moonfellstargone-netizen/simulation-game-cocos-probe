@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { StorageAudit } from '../src/game-core/index';
+import { loadPhysicalPolicyRegistry } from '../src/game-core/config/PhysicalPolicyLoader';
 import { Stage1AFixtureRunner } from '../src/game-core/testing-api';
 import type { Stage1AFixtureDocument } from '../src/game-core/testing-api';
 import { buildRuntimeWithoutState } from './support/runtimeHarness';
@@ -9,7 +10,7 @@ import { testBuildId } from './support/buildId.mjs';
 test('Stage1AFixtureRunner executes the formal fixture through T20_release_injected_reservation without system reservation steps entering ActionPipeline', () => {
   const { snapshot, configs, contracts, runtime } = buildRuntimeWithoutState();
   const fixture = snapshot.loaded_documents['tests/fixtures/stage_1A_action_sequence.yaml'] as Stage1AFixtureDocument;
-  const runner = new Stage1AFixtureRunner(runtime.pipeline, { configs, buildId: testBuildId('fixture_runner'), nowIso8601: '2026-05-19T00:00:00.000Z' });
+  const runner = new Stage1AFixtureRunner(runtime.pipeline, { configs, buildId: testBuildId('fixture_runner'), nowIso8601: '2026-05-19T00:00:00.000Z', randomSeed: 'farming-test-23' });
   const report = runner.runFixtureThroughStepId(fixture, 'T20_release_injected_reservation');
 
   assert.equal(report.fixture_id, 'stage_1A_action_sequence');
@@ -91,5 +92,5 @@ test('Stage1AFixtureRunner executes the formal fixture through T20_release_injec
     for (const event of result.domain_events) contracts.assertDomainEvent(event);
   }
   contracts.assertSaveFile(report.state.save_file);
-  new StorageAudit().assertReconciled(report.state.save_file);
+  new StorageAudit(loadPhysicalPolicyRegistry(configs)).assertReconciled(report.state.save_file);
 });

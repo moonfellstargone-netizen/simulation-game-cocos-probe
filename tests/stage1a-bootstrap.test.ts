@@ -10,7 +10,8 @@ import {
   type MenuActionSelection,
   type Stage1ABootstrapResources
 } from '../src/cocos-creator-adapter';
-import { InMemorySaveStoragePort, RuntimeContractValidator, RuntimeSchemaValidator, StorageAudit, type ActionResult, type RuntimeConfigSnapshot, type SaveFile } from '../src/game-core';
+import { ConfigRepository, InMemorySaveStoragePort, RuntimeContractValidator, RuntimeSchemaValidator, StorageAudit, type ActionResult, type RuntimeConfigSnapshot, type SaveFile } from '../src/game-core';
+import { loadPhysicalPolicyRegistry } from '../src/game-core/config/PhysicalPolicyLoader';
 import { testBuildId } from './support/buildId.mjs';
 import { ControlledSaveStoragePort } from './support/controlledSaveStoragePort';
 
@@ -40,7 +41,8 @@ function resources(): Stage1ABootstrapResources & { storage: CountingMemoryStora
     schemas,
     storage: new CountingMemoryStorage(),
     buildId: testBuildId('bootstrap_integration'),
-    nowIso8601: '2026-05-21T00:00:00.000Z'
+    nowIso8601: '2026-05-21T00:00:00.000Z',
+    randomSeed: 'farming-test-23' // Fixed successful farming setup for bootstrap recovery tests.
   };
 }
 
@@ -55,6 +57,31 @@ function assertNotPublished(input: ReturnType<typeof resources>, expected?: RegE
 }
 
 type RecoveryPoint = 'growing' | 'processing' | 'ready' | 'dish' | 'completed';
+
+test('bootstrap explicitly seeds a new game and loading preserves the saved random stream', async () => {
+  const input = resources();
+  input.randomSeed = 'stage1_fixed_seed';
+  const host = createStage1AHost(input);
+  const session = host.requireSession();
+  assert.equal(session.dispatch('plant_crop', { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 1, unit: 'count' } }).success, true);
+  await session.save('probability_checkpoint');
+  const saved = JSON.parse((await input.storage.read('probability_checkpoint'))!) as SaveFile;
+  assert.equal(saved.random_state.seed, 'stage1_fixed_seed');
+  assert.equal(saved.crop_instances[0]!.germination?.outcome, 'failed', 'known fixed failure is persisted before reveal');
+  const differentHost = createStage1AHost({ ...input, randomSeed: 'different-new-game' });
+  await differentHost.requireSession().load('probability_checkpoint');
+  await differentHost.requireSession().save('probability_restored');
+  assert.equal(await input.storage.read('probability_restored'), await input.storage.read('probability_checkpoint'), 'loading never substitutes the fresh host random seed');
+  for (const invalid of ['', ' ', 7, null]) {
+    const bad = resources(); Reflect.set(bad, 'randomSeed', invalid);
+    assertNotPublished(bad, /ERR_BOOTSTRAP_RESOURCE_INVALID:randomSeed/);
+  }
+  const unspecified = resources(); delete unspecified.randomSeed;
+  const defaultHost = createStage1AHost(unspecified);
+  await defaultHost.requireSession().save('default_random_seed');
+  assert.equal(JSON.parse((await unspecified.storage.read('default_random_seed'))!).random_state.seed, 'stage1_fixed_seed');
+  host.destroySession(); differentHost.destroySession(); defaultHost.destroySession();
+});
 
 function recoveryHost(input: Stage1ABootstrapResources) {
   const host = createStage1AHost(input);
@@ -99,7 +126,7 @@ async function confirm(p: RecoveryHost, selection: MenuActionSelection): Promise
   assert.equal(new Set(createdIds).size, createdIds.length, 'created objects have distinct IDs');
   assert.equal(new Set(eventIds).size, eventIds.length, 'new domain events have distinct IDs');
   for (const id of [...createdIds, ...eventIds]) assert.equal(before.has(id), false, `creation must not reuse an ID retained anywhere in SaveFile: ${id}`);
-  new StorageAudit().assertReconciled(JSON.parse(await capture(p)) as SaveFile);
+  new StorageAudit(loadPhysicalPolicyRegistry(new ConfigRepository(p.input.snapshot))).assertReconciled(JSON.parse(await capture(p)) as SaveFile);
   return result;
 }
 
@@ -221,7 +248,7 @@ for (const point of ['growing', 'processing', 'ready', 'dish', 'completed'] as c
     assert.deepEqual(selectable(fresh), savedOptions);
     // Domain events are transient; SaveManager restores SaveFile and starts a fresh event queue.
     assert.deepEqual(fresh.host.requireSession().getViewModel(), { ...savedView, recent_events: [] });
-    new StorageAudit().assertReconciled(state);
+    new StorageAudit(loadPhysicalPolicyRegistry(new ConfigRepository(input.snapshot))).assertReconciled(state);
 
     if (point === 'growing') {
       progress.sourceId = await matureAndHarvest(fresh, progress.cropId);
@@ -293,7 +320,8 @@ for (const failure of ['malformed JSON', 'Schema rejection', 'StorageAudit rejec
       const invalid = JSON.parse(checkpoint) as SaveFile;
       invalid.storage_containers[0]!.used_capacity += 1;
       new RuntimeContractValidator(RuntimeSchemaValidator.fromSnapshotSchemas(base.schemas)).assertSaveFile(invalid);
-      assert.equal(new StorageAudit().audit(invalid).ok, false, 'candidate is Schema-valid but violates storage reconciliation');
+      const audit = new StorageAudit(loadPhysicalPolicyRegistry(new ConfigRepository(base.snapshot)));
+      assert.ok(audit.audit(invalid).issues.some(issue => issue.code === 'ERR_STORAGE_USED_CAPACITY_MISMATCH'), 'candidate is Schema-valid but violates storage reconciliation');
       await storage.write('web_probe', JSON.stringify(invalid));
       rejection = /ERR_STORAGE_AUDIT_FAILED/;
     } else {

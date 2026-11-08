@@ -24,7 +24,7 @@ interface ProbeView {
   readonly operation: Label;
   readonly buttons: readonly Button[];
   readonly controls: Record<string, Button>;
-  readonly farming: { field: Label; seed: Label; crop: Label; inventory: Label; amount: Label };
+  readonly farming: { field: Label; seed: Label; crop: Label; inventory: Label; amount: Label; planting: Label };
   readonly panels: { farming: Node; inventory: Node; processing: Node; cooking: Node; orders: Node };
   readonly orders: { order: Label; state: Label; deadline: Label; quantity: Label; demand: Label; history: Label; dish: Label; detail: Label; money: Label; reputation: Label; preview: Label; result: Label };
   readonly inventory: { lot: Label; form: Label; quantity: Label; location: Label; target: Label; capacity: Label; hint: Label };
@@ -130,17 +130,23 @@ export class CocosWebProbe extends Component {
       setEnabled('SelectField', farmEnabled && state.fieldOptions.some((option) => option.enabled));
       setEnabled('SelectSeed', farmEnabled && state.seedOptions.some((option) => option.enabled));
       setEnabled('SelectCrop', farmEnabled && state.harvestableOptions.some((option) => option.enabled));
-      setEnabled('SeedAmountDecrease', farmEnabled && state.selectedSeedId !== null && state.seedAmount > 1);
+      setEnabled('SeedAmountDecrease', farmEnabled && state.selectedSeedId !== null && state.plantingTiles > 1);
       setEnabled('SeedAmountIncrease', farmEnabled && state.selectedSeedId !== null);
+      setEnabled('SeedsPerTile', farmEnabled && state.selectedSeedId !== null);
       setEnabled('PlantCrop', farmEnabled && state.canPlant);
       setEnabled('HarvestCrop', farmEnabled && state.canHarvest);
       const stock = inventory.status();
+      if (stock.splitNeedsReview) {
+        for (const name of ['SaveLocal', 'LoadLocal', 'AdvanceOneHour', 'AdvanceOneDay', 'PlantCrop', 'HarvestCrop']) setEnabled(name, false);
+      }
       setEnabled('SelectInventoryLot', enabled && panel === 'inventory' && stock.lotOptions.length > 0);
       setEnabled('SelectStorageTarget', enabled && panel === 'inventory' && stock.targetOptions.length > 0);
-      setEnabled('MoveInventoryLot', enabled && panel === 'inventory' && stock.canMove);
+      setEnabled('MoveInventoryLot', enabled && !stock.splitNeedsReview && panel === 'inventory' && stock.canMove);
       setEnabled('SplitPreview', enabled && panel === 'inventory' && stock.canPreviewSplit);
       setEnabled('SplitConfirm', enabled && panel === 'inventory' && stock.canConfirmSplit);
-      const splitInputEnabled = enabled && panel === 'inventory' && stock.lotOptions.some((lot) => lot.id === stock.selectedLotId && lot.enabled);
+      const splitPreviewCaption = ui.controls.SplitPreview.node.children.find(child => child.name === 'Caption')?.getComponent(Label);
+      if (splitPreviewCaption) splitPreviewCaption.string = stock.splitNeedsReview ? '核对库存' : '预览拆分';
+      const splitInputEnabled = enabled && panel === 'inventory' && !stock.splitNeedsReview && stock.lotOptions.some((lot) => lot.id === stock.selectedLotId && lot.enabled);
       if (ui.split.input.enabled !== splitInputEnabled) ui.split.input.enabled = splitInputEnabled;
       setEnabled('OpenFarming', enabled && panel !== 'farming');
       setEnabled('OpenInventory', enabled && panel !== 'inventory');
@@ -151,7 +157,7 @@ export class CocosWebProbe extends Component {
       setEnabled('SelectOrder', enabled && panel === 'orders' && orderView.orderOptions.length > 0);
       setEnabled('SelectOrderDish', enabled && panel === 'orders' && orderView.dishOptions.some(item => item.enabled));
       setEnabled('OrderPreview', enabled && panel === 'orders' && orderView.canPreview);
-      setEnabled('SubmitOrder', enabled && panel === 'orders' && orderView.canSubmit);
+      setEnabled('SubmitOrder', enabled && !stock.splitNeedsReview && panel === 'orders' && orderView.canSubmit);
       const process = processing.status();
       const method = process.methodOptions.find((item) => item.id === process.selectedMethodId);
       const processEnabled = enabled && panel === 'processing';
@@ -160,9 +166,9 @@ export class CocosWebProbe extends Component {
       setEnabled('SelectProcessingLot', processEnabled && process.currentInputLotOptions.some((item) => item.enabled));
       setEnabled('SelectProcessingFacility', processEnabled && process.facilityOptions.some((item) => item.enabled && method?.compatible_facility_ids.includes(item.id)));
       setEnabled('ProcessingPreview', processEnabled && process.canPreview);
-      setEnabled('StartProcessing', processEnabled && process.canStart);
+      setEnabled('StartProcessing', processEnabled && !stock.splitNeedsReview && process.canStart);
       setEnabled('SelectProcessingTask', processEnabled && process.taskOptions.length > 0);
-      setEnabled('CollectProcessing', processEnabled && process.canCollect);
+      setEnabled('CollectProcessing', processEnabled && !stock.splitNeedsReview && process.canCollect);
       const currentInput = process.inputSelections.find((item) => item.requirementIndex === process.selectedRequirementIndex);
       const processInputEnabled = processEnabled && process.currentInputLotOptions.some((item) => item.id === currentInput?.lotId && item.enabled);
       if (ui.processing.input.enabled !== processInputEnabled) ui.processing.input.enabled = processInputEnabled;
@@ -175,7 +181,7 @@ export class CocosWebProbe extends Component {
       setEnabled('SelectCookingHeat', cookEnabled && (recipe?.operation_constraints.heat_levels.length ?? 0) > 0);
       setEnabled('SelectCookingStorage', cookEnabled && cook.targetOptions.some((item) => item.enabled));
       setEnabled('CookingPreview', cookEnabled && cook.canPreview);
-      setEnabled('CookDish', cookEnabled && cook.canCook);
+      setEnabled('CookDish', cookEnabled && !stock.splitNeedsReview && cook.canCook);
       const cookInput = cook.inputSelections.find((item) => item.role === cook.selectedRole);
       const cookInputEnabled = cookEnabled && cook.currentInputLotOptions.some((item) => item.id === cookInput?.lotId && item.enabled);
       if (ui.cooking.input.enabled !== cookInputEnabled) ui.cooking.input.enabled = cookInputEnabled;
@@ -190,13 +196,22 @@ export class CocosWebProbe extends Component {
       const seed = state.seedOptions.find((item) => item.id === state.selectedSeedId);
       const crop = state.harvestableOptions.find((item) => item.id === state.selectedCropId);
       const free = state.fieldOptions.filter((item) => item.enabled).length;
-      ui.farming.field.string = `地块：${field ? names[field.definition_id] ?? '已选地块' : '请选择'} ｜ 空闲${free}/${state.fieldOptions.length}，占用${state.fieldOptions.length - free}`;
+      ui.farming.field.string = field
+        ? `地块：${names[field.definition_id] ?? '已选地块'} ｜ 空余${field.available_tiles}/${field.capacity_tiles}格`
+        : `地块：请选择 ｜ 可播种${free}/${state.fieldOptions.length}处`;
       ui.farming.seed.string = seed
         ? `种子：${names[seed.base_id] ?? '种子批次'} ｜ 剩余${seed.quantity.amount}${displayUnit(seed.quantity.unit)}`
         : '种子：请选择种子批次';
-      ui.farming.crop.string = state.harvestableOptions.length === 0 ? '暂无可收获作物'
-        : `可收获${state.harvestableOptions.length}株 ｜ ${crop ? names[crop.crop_base_id] ?? '已选作物' : '请选择作物'}`;
-      ui.farming.amount.string = `${state.seedAmount}${seed ? displayUnit(seed.quantity.unit) : '粒'}`;
+      const failed = state.cropStatusOptions.filter(item => item.lifecycle_status === 'failed').length;
+      const pending = state.cropStatusOptions.filter(item => item.lifecycle_status === 'active' && item.growth_stage === 'seed').length;
+      const growing = state.cropStatusOptions.filter(item => item.lifecycle_status === 'active' && item.growth_stage !== 'seed').length;
+      ui.farming.crop.string = `待成苗${pending}位 ｜ 生长中${growing}株 ｜ 成苗失败${failed}位 ｜ 可收获${state.harvestableOptions.length}株` + (crop ? ` ｜ ${names[crop.crop_base_id] ?? '已选作物'}` : '');
+      ui.farming.amount.string = `${state.plantingTiles}位`;
+      ui.controls.SeedsPerTile.node.getComponentInChildren(Label)!.string = `每位${state.seedsPerTile}粒 ↻`;
+      const probability = state.successProbability === null ? '请选择种子' : `每位成苗率${Number((state.successProbability * 100).toFixed(1))}%`;
+      const shortage = field && state.plantingTiles > field.available_tiles ? '；土地空位不足'
+        : seed && state.seedAmount > seed.quantity.amount ? '；种子不足' : '';
+      ui.farming.planting.string = `${state.plantingTiles}位 × 每位${state.seedsPerTile}粒 = 共耗种${state.seedAmount}粒 ｜ ${probability}${shortage}`;
       ui.farming.inventory.string = state.materialOptions.length === 0 ? '暂无库存'
         : '库存末3批：' + state.materialOptions.slice(-3).map((item) => `${names[item.base_id] ?? '物料'} ${item.quantity.amount}${displayUnit(item.quantity.unit)}`).join(' / ');
       updateButtons();
@@ -213,21 +228,21 @@ export class CocosWebProbe extends Component {
       };
       ui.inventory.lot.string = lot ? `材料批次${index + 1}/${stock.lotOptions.length}：${names[lot.base_id] ?? '物料'}` : `请选择材料批次（共${stock.lotOptions.length}批）`;
       ui.inventory.form.string = lot ? `形态：${names[`${lot.base_id}:${lot.current_form}`] ?? lot.current_form}` : '形态：—';
-      ui.inventory.quantity.string = lot ? `数量：${lot.quantity.amount}${displayUnit(lot.quantity.unit)}` : '数量：—';
+      ui.inventory.quantity.string = lot ? `数量：${lot.cabbage_pieces?.kind === 'whole' ? `${lot.cabbage_pieces.pieces.length}颗 / ` : lot.base_id === 'cabbage' && !lot.cabbage_pieces ? '颗数未知 / ' : ''}${lot.quantity.amount}${displayUnit(lot.quantity.unit)}` : '数量：—';
       ui.inventory.location.string = lot ? `当前位置：${locationName(lot.storage_ref.container_id)}` : '当前位置：—';
       ui.inventory.target.string = target ? `目标位置：${locationName(target.id)}` : '目标位置：请选择';
-      ui.inventory.capacity.string = target ? `目标容量占用：${target.used_capacity}/${target.capacity.amount}` : '目标容量占用：—';
+      ui.inventory.capacity.string = target ? '目标空间将在操作时校验' : '请选择目标位置';
       ui.inventory.hint.string = !lot || !target ? '先选择材料批次和目标位置'
         : lot.storage_ref.container_id === target.id ? '材料已在这个位置'
         : !lot.enabled ? '这批材料暂不可移动'
         : !target.enabled ? '目标当前不可用'
         : '移动整批材料，数量保持不变';
       if (ui.split.input.string !== stock.splitQuantityText) ui.split.input.string = stock.splitQuantityText;
-      ui.split.unit.string = stock.splitUnit ? displayUnit(stock.splitUnit) : '—';
+      ui.split.unit.string = lot?.cabbage_pieces?.kind === 'whole' ? '颗' : stock.splitUnit ? displayUnit(stock.splitUnit) : '—';
       ui.split.selection.string = !lot ? '请选择要拆分的材料批次'
         : !lot.enabled ? '这批材料当前不可拆分'
-        : stock.splitInputError ?? `本次选择：${stock.splitQuantityText}${displayUnit(stock.splitUnit!)}`;
-      ui.split.preview.string = stock.splitPreview === null ? '填写数量后先预览，再确认'
+        : stock.splitInputError ?? `本次选择：${stock.splitQuantityText}${lot?.cabbage_pieces?.kind === 'whole' ? '颗' : displayUnit(stock.splitUnit!)}`;
+      ui.split.preview.string = stock.splitNeedsReview ? '结果待确认，请先核对库存' : stock.splitPreview === null ? '可直接确认，也可先预览'
         : stock.splitPreview.success ? '校验通过，尚未执行'
         : `本次校验未通过：${splitRejection(stock.splitPreview.statusCode)}`;
       const splitResult = stock.splitResult;
@@ -314,7 +329,7 @@ export class CocosWebProbe extends Component {
         + `\n偏好${preference?.ideal_min ?? '—'}—${preference?.ideal_max ?? '—'}分钟；设施/工具：${recipe!.facility_requirements.map((id) => names[id] ?? (id === 'basic_stove' ? '基础炉灶' : id)).concat(recipe!.tool_requirements.map((id) => names[id] ?? TOOL_LABELS[id] ?? id)).join('/')}`
         : '操作：选择配方，再明确选择火候和分钟数';
       ui.controls.SelectCookingHeat.node.getChildByName('Caption')!.getComponent(Label)!.string = state.heatLevel ? `火候：${HEAT_LABELS[state.heatLevel] ?? state.heatLevel}` : '选择火候';
-      ui.cooking.target.string = target ? `目标：${STORAGE_LABELS[target.storage_type] ?? target.storage_type} · 占用${target.used_capacity}/${target.capacity.amount}` : '目标：请选择储存位置';
+      ui.cooking.target.string = target ? `目标：${STORAGE_LABELS[target.storage_type] ?? target.storage_type}` : '目标：请选择';
       const fuel = recipe?.fuel;
       ui.cooking.fuel.string = fuel ? `燃料：当前${fuel.current_quantity.amount}${displayUnit(fuel.current_quantity.unit)} / 每次${fuel.cost.amount}${displayUnit(fuel.cost.unit)}${fuel.enabled ? '' : '（未启用消耗）'}` : '燃料：当前配方无消耗要求';
       ui.cooking.preview.string = state.preview ? state.preview.success ? '本次校验通过，尚未烹饪' : '本次拒绝，请调整：' + this.cookingRejection(state.preview.statusCode)
@@ -357,7 +372,7 @@ export class CocosWebProbe extends Component {
       errors.push(message);
       if (alive()) {
         if (startup) ui.phase.string = '启动失败';
-        else ui.operation.string = '操作异常，请重试';
+        else ui.operation.string = message.startsWith('ERR_WEB_SPLIT_RESULT_UNCERTAIN') ? '拆分结果待确认，请先核对库存' : '操作异常，请重试';
       }
       console.error('[CocosWebProbe]', message, error);
     };
@@ -377,7 +392,8 @@ export class CocosWebProbe extends Component {
       }),
       createHost: (input) => {
         names = presentationNames(input);
-        return createStage1AHost({ ...input, storage: new BrowserSaveStoragePort(), nowIso8601: new Date().toISOString() });
+        const nowIso8601 = new Date().toISOString();
+        return createStage1AHost({ ...input, storage: new BrowserSaveStoragePort(), nowIso8601, randomSeed: `new_game:${nowIso8601}` });
       },
       createBinding: (host) => new QinglanUiSceneProbeComponent(host, {
         applyNodeBindingPatch: (patch) => {
@@ -411,9 +427,19 @@ export class CocosWebProbe extends Component {
     interaction = new ProbeInteraction({
       isAvailable: () => alive() && !lifetime.isDisposed() && lifetime.status().phase === 'ready',
       execute: async (command) => {
-        const result = await lifetime.execute(command);
-        if (alive() && !lifetime.isDisposed()) { cooking.acceptCookingResult(command, result); orders.acceptOrderResult(command, result); }
-        return result;
+        try {
+          const result = await lifetime.execute(command);
+          if (command.name === 'menu_confirm_split_direct') {
+            inventory.acceptSplitResult(command, result);
+            if (inventory.status().splitNeedsReview) throw new Error('ERR_WEB_SPLIT_RESULT_UNCERTAIN');
+          }
+          if (command.name === 'refresh' && !inventory.acceptSplitReview(result)) throw new Error('ERR_WEB_SPLIT_RESULT_UNCERTAIN');
+          if (alive() && !lifetime.isDisposed()) { cooking.acceptCookingResult(command, result); orders.acceptOrderResult(command, result); }
+          return result;
+        } catch (error) {
+          if (command.name === 'menu_confirm_split_direct') inventory.markSplitUncertain();
+          throw error;
+        }
       },
       onChange: (state) => {
         ui.operation.string = state.operation.message;
@@ -426,10 +452,12 @@ export class CocosWebProbe extends Component {
     const commands = interaction;
     const executeButton = (command: ProbeCommand) => {
       if (commands.status().busy || !alive() || lifetime.status().phase !== 'ready' || lifetime.isDisposed()) return;
-      const splitCommand = (command.name === 'menu_preview' || command.name === 'menu_confirm') && command.selection.action_type === 'split_lot';
+      if (inventory.status().splitNeedsReview && command.name !== 'refresh') return;
+      const splitCommand = command.name === 'menu_confirm_split_direct' || (command.name === 'menu_preview' && command.selection.action_type === 'split_lot');
       const processingCommand = (command.name === 'menu_preview' || command.name === 'menu_confirm')
         && (command.selection.action_type === 'start_processing' || command.selection.action_type === 'collect_processing_result');
-      if (!splitCommand) inventory.invalidateSplitPreview();
+      if (command.name === 'load') inventory.resetSplitDraft();
+      else if (!splitCommand) inventory.invalidateSplitPreview();
       if (!processingCommand) processing.invalidatePreview();
       const cookingCommand = (command.name === 'menu_preview' || command.name === 'menu_confirm') && command.selection.action_type === 'cook_dish';
       if (!cookingCommand) cooking.invalidatePreview();
@@ -437,7 +465,7 @@ export class CocosWebProbe extends Component {
       if (!orderCommand) orders.invalidatePreview();
       void commands.execute(command).then((result) => {
         if (!result || !alive() || lifetime.isDisposed()) return;
-        inventory.acceptSplitResult(command, result);
+        if (command.name === 'menu_preview') inventory.acceptSplitResult(command, result);
         processing.acceptProcessingResult(command, result);
         renderInventory();
         renderProcessing();
@@ -474,6 +502,7 @@ export class CocosWebProbe extends Component {
     localSelection('SelectCrop', () => farming.selectNextCrop());
     localSelection('SeedAmountDecrease', () => farming.adjustSeedAmount(-1));
     localSelection('SeedAmountIncrease', () => farming.adjustSeedAmount(1));
+    localSelection('SeedsPerTile', () => farming.cycleSeedsPerTile());
     const switchPanel = (next: 'farming' | 'inventory' | 'processing' | 'cooking' | 'orders') => {
       inventory.invalidateSplitPreview();
       ui.split.input.blur();
@@ -529,10 +558,13 @@ export class CocosWebProbe extends Component {
     ] as const) ui.controls[name].node.on(Button.EventType.CLICK, () => { const next = command(); if (next) executeButton(next); });
     ui.split.input.node.on(EditBox.EventType.TEXT_CHANGED, () => {
       if (commands.status().busy || !alive() || panel !== 'inventory' || lifetime.status().phase !== 'ready' || lifetime.isDisposed()) return;
+      const changed = inventory.status().splitQuantityText !== ui.split.input.string;
       inventory.setSplitQuantity(ui.split.input.string);
+      if (changed && !inventory.status().splitNeedsReview) commands.clearStaleSplitRejection();
       renderInventory();
     });
     ui.controls.SplitPreview.node.on(Button.EventType.CLICK, () => {
+      if (inventory.status().splitNeedsReview) { executeButton({ name: 'refresh' }); return; }
       const command = inventory.splitPreviewCommand();
       if (command) executeButton(command);
     });
@@ -590,7 +622,7 @@ export class CocosWebProbe extends Component {
         } : null,
         displayedFarming: alive() ? {
           field: ui.farming.field.string, seed: ui.farming.seed.string, crop: ui.farming.crop.string,
-          inventory: ui.farming.inventory.string, amount: ui.farming.amount.string
+          inventory: ui.farming.inventory.string, amount: ui.farming.amount.string, planting: ui.farming.planting.string
         } : null,
         nodeValid: alive(), errors: [...errors]
       }),
@@ -643,10 +675,11 @@ export class CocosWebProbe extends Component {
       seed: this.makeLabel(panels.farming, 'SeedSummary', '种子：等待启动', 125, 18),
       crop: this.makeLabel(panels.farming, 'CropSummary', '暂无可收获作物', 95, 18),
       inventory: this.makeLabel(panels.farming, 'InventorySummary', '等待库存', 65, 17),
-      amount: this.makeLabel(panels.farming, 'SeedAmount', '1粒', -44, 21)
+      amount: this.makeLabel(panels.farming, 'SeedAmount', '1位', -44, 21),
+      planting: this.makeLabel(panels.farming, 'PlantingSummary', '请选择种子查看成苗率', -80, 15)
     };
-    farming.amount.node.setPosition(-140, -44, 0);
-    farming.amount.node.getComponent(UITransform)!.setContentSize(110, 44);
+    farming.amount.node.setPosition(-240, -44, 0);
+    farming.amount.node.getComponent(UITransform)!.setContentSize(100, 44);
     const inventory = {
       lot: this.makeLabel(panels.inventory, 'InventoryLot', '请选择材料批次', 160, 20),
       form: this.makeSectionLabel(panels.inventory, 'InventoryForm', '形态：—', -235, 130, 410, 18),
@@ -729,11 +762,12 @@ export class CocosWebProbe extends Component {
       SelectField: this.makeButton(panels.farming, 'SelectField', '选择地块', -300, 20, 260),
       SelectSeed: this.makeButton(panels.farming, 'SelectSeed', '选择种子', 0, 20, 260),
       SelectCrop: this.makeButton(panels.farming, 'SelectCrop', '选择收获作物', 300, 20, 260),
-      SeedAmountDecrease: this.makeButton(panels.farming, 'SeedAmountDecrease', '−', -370, -44, 90),
-      SeedAmountIncrease: this.makeButton(panels.farming, 'SeedAmountIncrease', '＋', -260, -44, 90),
-      PlantCrop: this.makeButton(panels.farming, 'PlantCrop', '播种', 55, -44, 220),
+      SeedAmountDecrease: this.makeButton(panels.farming, 'SeedAmountDecrease', '位−', -400, -44, 60),
+      SeedAmountIncrease: this.makeButton(panels.farming, 'SeedAmountIncrease', '位＋', -330, -44, 60),
+      SeedsPerTile: this.makeButton(panels.farming, 'SeedsPerTile', '每位1粒 ↻', -85, -44, 180),
+      PlantCrop: this.makeButton(panels.farming, 'PlantCrop', '播种', 105, -44, 160),
       AdvanceOneDay: this.makeButton(canvasNode, 'AdvanceOneDay', '推进一天', 155, -120),
-      HarvestCrop: this.makeButton(panels.farming, 'HarvestCrop', '收获', 310, -44, 230),
+      HarvestCrop: this.makeButton(panels.farming, 'HarvestCrop', '收获', 310, -44, 210),
       SelectInventoryLot: this.makeButton(panels.inventory, 'SelectInventoryLot', '下一批材料', -235, 43, 390),
       SelectStorageTarget: this.makeButton(panels.inventory, 'SelectStorageTarget', '选择目标位置', -345, -74, 190),
       MoveInventoryLot: this.makeButton(panels.inventory, 'MoveInventoryLot', '移动整批', -125, -74, 190),

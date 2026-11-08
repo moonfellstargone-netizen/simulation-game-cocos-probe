@@ -86,6 +86,7 @@ storage_containers:
   - dry
   - cured
   - liquid
+  - pickled
   - cooked_dish
   - dish
   - dry_seed
@@ -103,7 +104,47 @@ storage_containers:
 - container_id: home_cellar_01
   location_id: home
   storage_type: cellar
-  container_type: cellar_container
+  container_type: cellar_jar
+  capacity:
+    amount: 20
+    unit: slot_weight
+  used_capacity: 0
+  temperature_state: cool
+  humidity_state: humid
+  ventilation: low
+  cleanliness: 60
+  supported_forms:
+  - fresh
+  - cut
+  - cured
+  - pickled
+  flags:
+  - worn
+  active_object_refs: []
+- container_id: home_cellar_jar_02
+  location_id: home
+  storage_type: cellar
+  container_type: cellar_jar
+  capacity:
+    amount: 20
+    unit: slot_weight
+  used_capacity: 0
+  temperature_state: cool
+  humidity_state: humid
+  ventilation: low
+  cleanliness: 60
+  supported_forms:
+  - fresh
+  - cut
+  - cured
+  - pickled
+  flags:
+  - worn
+  active_object_refs: []
+- container_id: home_cellar_jar_03
+  location_id: home
+  storage_type: cellar
+  container_type: cellar_jar
   capacity:
     amount: 20
     unit: slot_weight

@@ -1,5 +1,5 @@
 import type {
-  ProbeCommand, ProbeFieldOption, ProbeHarvestableOption, ProbeMaterialOption, ProbeMenuSnapshot
+  ProbeCommand, ProbeFieldOption, ProbeHarvestableOption, ProbeMaterialOption, ProbeMenuSnapshot, ProbeCropStatusOption
 } from './ProbeLifetime';
 
 export interface ProbeFarmingView {
@@ -11,6 +11,10 @@ export interface ProbeFarmingView {
   readonly selectedSeedId: string | null;
   readonly selectedCropId: string | null;
   readonly seedAmount: number;
+  readonly plantingTiles: number;
+  readonly seedsPerTile: number;
+  readonly successProbability: number | null;
+  readonly cropStatusOptions: readonly ProbeCropStatusOption[];
   readonly canPlant: boolean;
   readonly canHarvest: boolean;
 }
@@ -24,7 +28,9 @@ export class ProbeFarming {
   private fieldId: string | null = null;
   private seedId: string | null = null;
   private cropId: string | null = null;
-  private seedAmount = 1;
+  private plantingTiles = 1;
+  private seedsPerTile = 1;
+  private cropStatuses: readonly ProbeCropStatusOption[] = [];
 
   refresh(menu: ProbeMenuSnapshot): void {
     const selectable = menu.selectable_view_model;
@@ -32,6 +38,7 @@ export class ProbeFarming {
     this.seeds = structuredClone(selectable?.seed_lot_options ?? []);
     this.crops = structuredClone(selectable?.harvestable_crop_options ?? []);
     this.materials = structuredClone(selectable?.splittable_lot_options ?? []);
+    this.cropStatuses = structuredClone(selectable?.crop_status_options ?? []);
     this.fieldId = this.enabled(this.fields, this.fieldId)?.id ?? null;
     this.seedId = this.enabled(this.seeds, this.seedId)?.id ?? null;
     this.cropId = this.enabled(this.crops, this.cropId)?.id ?? null;
@@ -43,7 +50,7 @@ export class ProbeFarming {
 
   selectNextSeed(): void {
     const next = this.next(this.seeds, this.seedId);
-    if (next !== this.seedId) this.seedAmount = 1;
+    if (next !== this.seedId) { this.plantingTiles = 1; this.seedsPerTile = 1; }
     this.seedId = next;
   }
 
@@ -53,17 +60,25 @@ export class ProbeFarming {
 
   adjustSeedAmount(delta: number): void {
     if (!Number.isSafeInteger(delta)) return;
-    const next = Math.max(1, this.seedAmount + delta);
-    if (Number.isSafeInteger(next)) this.seedAmount = next;
+    const next = Math.max(1, this.plantingTiles + delta);
+    if (Number.isSafeInteger(next) && Number.isSafeInteger(next * this.seedsPerTile)) this.plantingTiles = next;
+  }
+
+  cycleSeedsPerTile(): void {
+    const max = this.enabled(this.seeds, this.seedId)?.planting_policy?.max_seeds_per_tile ?? 1;
+    if (!Number.isSafeInteger(max) || max < 1) return;
+    const next = this.seedsPerTile % max + 1;
+    if (Number.isSafeInteger(this.plantingTiles * next)) this.seedsPerTile = next;
   }
 
   plantCommand(): ProbeCommand | null {
     const field = this.enabled(this.fields, this.fieldId);
     const seed = this.enabled(this.seeds, this.seedId);
-    if (!field || !seed || !Number.isSafeInteger(this.seedAmount) || this.seedAmount < 1) return null;
+    const amount = this.plantingTiles * this.seedsPerTile;
+    if (!field || !seed || !Number.isSafeInteger(amount) || amount < 1) return null;
     return { name: 'menu_confirm', selection: {
       action_type: 'plant_crop', field_option_id: field.id, seed_lot_option_id: seed.id,
-      seed_quantity: { amount: this.seedAmount, unit: seed.quantity.unit }
+      seed_quantity: { amount, unit: seed.quantity.unit }, seeds_per_tile: this.seedsPerTile
     } };
   }
 
@@ -73,10 +88,14 @@ export class ProbeFarming {
   }
 
   status(): ProbeFarmingView {
+    const rate = this.enabled(this.seeds, this.seedId)?.planting_policy?.per_seed_success_rate;
     return structuredClone({
       fieldOptions: this.fields, seedOptions: this.seeds, harvestableOptions: this.crops,
       materialOptions: this.materials, selectedFieldId: this.fieldId, selectedSeedId: this.seedId,
-      selectedCropId: this.cropId, seedAmount: this.seedAmount,
+      selectedCropId: this.cropId, seedAmount: this.plantingTiles * this.seedsPerTile,
+      plantingTiles: this.plantingTiles, seedsPerTile: this.seedsPerTile,
+      successProbability: typeof rate === 'number' && rate >= 0 && rate <= 1 ? 1 - (1 - rate) ** this.seedsPerTile : null,
+      cropStatusOptions: this.cropStatuses,
       canPlant: this.plantCommand() !== null, canHarvest: this.harvestCommand() !== null
     });
   }

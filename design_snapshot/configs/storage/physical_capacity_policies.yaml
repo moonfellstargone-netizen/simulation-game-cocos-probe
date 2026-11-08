@@ -1,0 +1,26 @@
+# Game balance assumptions, not measured physical properties. Never change an existing policy id's rules.
+# mass is milligrams and volume is microlitres per one quantity unit.
+default_policy_id: physical-stage1a-v1
+initial_container_limits:
+  home_room_temp_01: { mass_g: 50000, volume_ml: 100000 }
+  # Game-balance trial: 20 L / 12 kg per storage jar, not measured real-world capacity.
+  home_cellar_01: { mass_g: 12000, volume_ml: 20000 }
+  home_cellar_jar_02: { mass_g: 12000, volume_ml: 20000 }
+  home_cellar_jar_03: { mass_g: 12000, volume_ml: 20000 }
+  pickling_jar_basic_01: { mass_g: 10000, volume_ml: 10000 }
+policies:
+  - id: physical-stage1a-v1
+    rules:
+      - { kind: MaterialLot, definition_id: cabbage, form: fresh, quantity_unit: g, mass_mg_per_unit: { numerator: 1000, denominator: 1 }, volume_ul_per_unit: { numerator: 1600, denominator: 1 } }
+      - { kind: MaterialLot, definition_id: cabbage, form: cut, quantity_unit: g, mass_mg_per_unit: { numerator: 1000, denominator: 1 }, volume_ul_per_unit: { numerator: 1250, denominator: 1 } }
+      - { kind: MaterialLot, definition_id: cabbage, form: slightly_wilted, quantity_unit: g, mass_mg_per_unit: { numerator: 1000, denominator: 1 }, volume_ul_per_unit: { numerator: 1500, denominator: 1 } }
+      - { kind: MaterialLot, definition_id: cabbage, form: pickling, quantity_unit: g, mass_mg_per_unit: { numerator: 1000, denominator: 1 }, volume_ul_per_unit: { numerator: 1100, denominator: 1 } }
+      - { kind: MaterialLot, definition_id: cabbage, form: pickled, quantity_unit: g, mass_mg_per_unit: { numerator: 1000, denominator: 1 }, volume_ul_per_unit: { numerator: 1000, denominator: 1 } }
+      - { kind: MaterialLot, definition_id: cabbage, form: pickled_risky, quantity_unit: g, mass_mg_per_unit: { numerator: 1000, denominator: 1 }, volume_ul_per_unit: { numerator: 1000, denominator: 1 } }
+      - { kind: MaterialLot, definition_id: salt, form: dry, quantity_unit: g, mass_mg_per_unit: { numerator: 1000, denominator: 1 }, volume_ul_per_unit: { numerator: 800, denominator: 1 } }
+      - { kind: MaterialLot, definition_id: bacon, form: cured, quantity_unit: g, mass_mg_per_unit: { numerator: 1000, denominator: 1 }, volume_ul_per_unit: { numerator: 1200, denominator: 1 } }
+      - { kind: MaterialLot, definition_id: ginger, form: fresh, quantity_unit: g, mass_mg_per_unit: { numerator: 1000, denominator: 1 }, volume_ul_per_unit: { numerator: 1400, denominator: 1 } }
+      - { kind: MaterialLot, definition_id: cooking_oil, form: liquid, quantity_unit: ml, mass_mg_per_unit: { numerator: 920, denominator: 1 }, volume_ul_per_unit: { numerator: 1000, denominator: 1 } }
+      - { kind: MaterialLot, definition_id: cabbage_seed, form: dry_seed, quantity_unit: count, mass_mg_per_unit: { numerator: 3, denominator: 1 }, volume_ul_per_unit: { numerator: 100, denominator: 1 } }
+      - { kind: DishLot, definition_id: bacon_cabbage, form: cooked_dish, quantity_unit: g, mass_mg_per_unit: { numerator: 1000, denominator: 1 }, volume_ul_per_unit: { numerator: 1200, denominator: 1 } }
+      - { kind: DishLot, definition_id: bacon_cabbage, form: dish, quantity_unit: g, mass_mg_per_unit: { numerator: 1000, denominator: 1 }, volume_ul_per_unit: { numerator: 1200, denominator: 1 } }

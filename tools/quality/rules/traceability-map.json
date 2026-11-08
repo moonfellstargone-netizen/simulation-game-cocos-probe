@@ -1,6 +1,6 @@
 {
   "schemaVersion": "traceability-lite/v1",
-  "projectVersion": "v0.0.2.46",
+  "projectVersion": "v0.0.3.0",
   "currentFullReleaseTraceIds": [
     "trace.stage1a.actionpipeline",
     "trace.stage1a.save-load",
@@ -29,7 +29,10 @@
     "trace.orders.legal-state-deadline",
     "trace.cocos.web-orders-loop",
     "trace.cocos.cross-step-recovery",
-    "trace.cocos.touch-small-screen"
+    "trace.cocos.touch-small-screen",
+    "trace.cocos.wechat-m1",
+    "trace.farming.seed-quantity",
+    "trace.inventory.physical-capacity-batches"
   ],
   "entries": [
     {
@@ -1037,6 +1040,155 @@
         "docs/maps/runtime-map.md",
         "docs/maps/quality-map.md",
         "docs/code-index/public-api.md"
+      ],
+      "gateRefs": [
+        "full",
+        "release"
+      ]
+    },
+    {
+      "id": "trace.cocos.wechat-m1",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": [
+        "cocos-wechat-probe",
+        "tools",
+        "tests",
+        "game-core",
+        "cocos-creator-adapter"
+      ],
+      "sourceRefs": [
+        "apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatInventoryGroups.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts",
+        "tools/cocos-wechat-probe/prepare.mjs",
+        "tools/cocos-wechat-probe/build.mjs",
+        "tools/cocos-wechat-probe/lib/source.mjs",
+        "tools/cocos-probe/lib/prepareProject.mjs",
+        "tools/cocos-wechat-probe/lib/sourceProvenance.mjs",
+        "src/game-core/validation/RuntimeSchemaValidator.ts",
+        "src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts",
+        "tools/cocos-wechat-probe/lib/precompiledSchemas.mjs",
+        "apps/cocos-wechat-probe/runtime/WechatDataClone.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts"
+      ],
+      "testRefs": [
+        "test.cocos-wechat-preparation",
+        "test.cocos-wechat-runtime",
+        "test.architecture-boundary-authority-contracts",
+        "test.stage1a-bootstrap"
+      ],
+      "docRefs": [
+        "docs/module-cards/cocos-wechat-probe.md",
+        "docs/adr/ADR-0005-independent-wechat-m1-outer.md",
+        "docs/CHECK_ARCHITECTURE.md",
+        "docs/maps/cocos-map.md",
+        "docs/maps/runtime-map.md",
+        "docs/maps/quality-map.md",
+        "docs/code-index/public-api.md",
+        "docs/module-cards/game-core.md",
+        "docs/module-cards/cocos-creator-adapter.md",
+        "docs/module_contracts/Stage1ABootstrap.contract.md"
+      ],
+      "gateRefs": [
+        "full",
+        "release"
+      ],
+      "designRefs": [
+        "docs/SOURCE_DESIGN_PACK.md",
+        "design_snapshot/SOURCE_DESIGN_PACK.txt"
+      ]
+    },
+    {
+      "id": "trace.inventory.physical-capacity-batches",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": ["game-core", "cocos-app", "cocos-engine-probe", "cocos-wechat-probe", "tools", "tests"],
+      "sourceRefs": [
+        "src/game-core/inventory/CabbagePiecePlanner.ts",
+        "src/game-core/inventory/InventorySystem.ts",
+        "src/game-core/storage/PhysicalCapacity.ts",
+        "src/game-core/storage/PhysicalStorage.ts",
+        "src/game-core/storage/PhysicalPolicyRegistry.ts",
+        "src/game-core/storage/StorageReconciler.ts",
+        "src/game-core/storage/StorageAudit.ts",
+        "src/game-core/config/PhysicalPolicyLoader.ts",
+        "src/game-core/save/NewGameBuilder.ts",
+        "src/game-core/action/ActionPipeline.ts",
+        "src/game-core/processing/ProcessingSystem.ts",
+        "src/cocos-app/view-models/PhysicalCapacityDisplay.ts",
+        "src/cocos-app/view-models/CocosSelectableViewModel.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeInventory.ts",
+        "design_snapshot/configs/storage/physical_capacity_policies.yaml",
+        "design_snapshot/schemas/material_lot.schema.json",
+        "design_snapshot/schemas/storage_container.schema.json",
+        "tools/quality/physical-policy-lock.mjs"
+      ],
+      "testRefs": [
+        "test.stage1a-contract", "test.cocos-session", "test.cocos-ui-readiness",
+        "test.cocos-engine-probe-lifecycle", "test.cocos-wechat-runtime",
+        "test.cocos-web-verification-contracts", "test.cocos-probe-preparation"
+      ],
+      "docRefs": ["docs/module-cards/inventory.md", "docs/module-cards/processing.md", "docs/module-cards/save-load.md", "docs/module-cards/cocos-wechat-probe.md", "docs/maps/domain-map.md"],
+      "gateRefs": ["full", "release"]
+    },
+    {
+      "id": "trace.farming.seed-quantity",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": [
+        "game-core",
+        "cocos-app",
+        "cocos-engine-probe",
+        "cocos-wechat-probe",
+        "tools",
+        "tests"
+      ],
+      "sourceRefs": [
+        "src/game-core/farming/FarmingSystem.ts",
+        "src/game-core/runtime/GameRuntime.ts",
+        "src/cocos-app/view-models/CocosSelectableViewModel.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts",
+        "apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts",
+        "tools/cocos-probe/lib/webProbeSupport.mjs",
+        "src/game-core/action/ActionTypes.ts",
+        "src/game-core/domain/types.ts",
+        "design_snapshot/schemas/actions/formal_stage_1A_action_request.schema.json",
+        "design_snapshot/schemas/actions/stage_1A_action_params.schema.json",
+        "design_snapshot/schemas/crop_instance.schema.json",
+        "design_snapshot/configs/farming/seeds/cabbage_seed.yaml",
+        "tools/rebuild-design-snapshot.mjs",
+        "apps/cocos-probe/template/assets/scripts/ProbeFarming.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeLayout.ts",
+        "design_snapshot/schemas/config/seed_config.schema.json",
+        "src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts"
+      ],
+      "testRefs": [
+        "test.stage1a-contract",
+        "test.action-preview",
+        "test.cocos-session",
+        "test.cocos-ui-readiness",
+        "test.cocos-engine-probe-lifecycle",
+        "test.cocos-wechat-runtime",
+        "test.cocos-web-verification-contracts",
+        "test.cocos-probe-preparation"
+      ],
+      "docRefs": [
+        "docs/module-cards/game-core.md",
+        "docs/module-cards/cocos-app.md",
+        "docs/module-cards/cocos-wechat-probe.md",
+        "docs/module-cards/cocos-engine-probe.md",
+        "docs/code-index/public-api.md",
+        "docs/maps/runtime-map.md",
+        "docs/module-cards/quality-tools.md"
       ],
       "gateRefs": [
         "full",

@@ -1,5 +1,5 @@
 {
-  "version": "0.0.2.46",
+  "version": "0.0.3.0",
   "tests": {
     "static.typecheck": {
       "command": "node",
@@ -182,7 +182,9 @@
         "--import",
         "tsx",
         "--test",
-        "tests/stage1a-contract.test.ts"
+        "tests/stage1a-contract.test.ts",
+        "tests/physical-capacity.test.ts",
+        "tests/physical-storage-integration.test.ts"
       ],
       "covers": [
         "game-core",
@@ -198,7 +200,9 @@
         "blocker"
       ],
       "files": [
-        "tests/stage1a-contract.test.ts"
+        "tests/stage1a-contract.test.ts",
+        "tests/physical-capacity.test.ts",
+        "tests/physical-storage-integration.test.ts"
       ],
       "group": "stage1a"
     },
@@ -316,7 +320,8 @@
         "--import",
         "tsx",
         "--test",
-        "tests/cocos-ui-readiness.test.ts"
+        "tests/cocos-ui-readiness.test.ts",
+        "tests/physical-capacity-display.test.ts"
       ],
       "covers": [
         "cocos-app",
@@ -334,6 +339,8 @@
       ],
       "files": [
         "tests/cocos-ui-readiness.test.ts",
+        "tests/physical-capacity-display.test.ts",
+        "src/cocos-app/view-models/PhysicalCapacityDisplay.ts",
         "src/cocos-app/view-models/CocosSelectableViewModel.ts"
       ],
       "group": "cocos-ui"
@@ -787,9 +794,9 @@
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--root-name",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_46",
+        "模拟游戏_Cocos微信试水代码包_v0_0_3_0",
         "--output",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_46.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_3_0.zip",
         "--kind",
         "code"
       ],
@@ -810,11 +817,11 @@
       "command": "python3",
       "args": [
         "tools/check_release_zip.py",
-        "../模拟游戏_Cocos微信试水代码包_v0_0_2_46.zip",
+        "../模拟游戏_Cocos微信试水代码包_v0_0_3_0.zip",
         "--project-target",
         "tools/quality/rules/project-target.json",
         "--expected-root",
-        "模拟游戏_Cocos微信试水代码包_v0_0_2_46",
+        "模拟游戏_Cocos微信试水代码包_v0_0_3_0",
         "--kind",
         "code"
       ],
@@ -1132,7 +1139,8 @@
         "--import",
         "tsx",
         "--test",
-        "tests/stage1a-bootstrap.test.ts"
+        "tests/stage1a-bootstrap.test.ts",
+        "tests/runtime-precompiled-schema.test.ts"
       ],
       "covers": [
         "game-core",
@@ -1150,7 +1158,10 @@
         "blocker"
       ],
       "files": [
-        "tests/stage1a-bootstrap.test.ts"
+        "tests/stage1a-bootstrap.test.ts",
+        "tests/runtime-precompiled-schema.test.ts",
+        "src/game-core/validation/RuntimeSchemaValidator.ts",
+        "src/cocos-creator-adapter/bootstrap/Stage1ABootstrap.ts"
       ],
       "group": "cocos-adapter"
     },
@@ -1158,7 +1169,8 @@
       "command": "node",
       "args": [
         "--test",
-        "tests/cocos-probe-preparation.test.mjs"
+        "tests/cocos-probe-preparation.test.mjs",
+        "tests/physical-policy-lock.test.mjs"
       ],
       "covers": [
         "cocos-engine-probe",
@@ -1179,6 +1191,11 @@
       ],
       "files": [
         "tests/cocos-probe-preparation.test.mjs",
+        "tests/physical-policy-lock.test.mjs",
+        "tools/quality/physical-policy-lock.mjs",
+        "tools/quality/rules/physical-policy-lock.json",
+        "design_snapshot/configs/storage/physical_capacity_policies.yaml",
+          "tools/rebuild-design-snapshot.mjs",
         "tools/cocos-probe/prepare.mjs",
         "apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts",
         "apps/cocos-probe/template/assets/scripts/ProbeLifetime.ts",
@@ -1204,7 +1221,8 @@
         "tests/cocos-web-orders.test.ts",
         "apps/cocos-probe/template/assets/scripts/ProbeLayout.ts",
         "apps/cocos-probe/template/assets/scripts/ProbeLayout.ts.meta",
-        "tests/cocos-web-layout.test.ts"
+        "tests/cocos-web-layout.test.ts",
+        "tools/cocos-probe/lib/prepareProject.mjs"
       ],
       "group": "cocos-adapter"
     },
@@ -1299,6 +1317,126 @@
         "tools/cocos-probe/serve.mjs",
         "tests/cocos-web-serve-contracts.test.mjs",
         "apps/cocos-probe/template/assets/scripts/BrowserSaveStoragePort.ts"
+      ],
+      "group": "cocos-adapter"
+    },
+    "test.cocos-wechat-preparation": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/cocos-wechat-preparation.test.mjs"
+      ],
+      "covers": [
+        "cocos-wechat-probe",
+        "cocos-engine-probe",
+        "tools",
+        "tests",
+        "game-core",
+        "cocos-app",
+        "cocos-creator-adapter"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "cocos",
+        "wechat",
+        "preparation",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/cocos-wechat-preparation.test.mjs",
+        "tools/cocos-wechat-probe/prepare.mjs",
+        "tools/cocos-wechat-probe/build.mjs",
+        "tools/cocos-wechat-probe/lib/source.mjs",
+        "tools/cocos-probe/lib/prepareProject.mjs",
+        "tools/cocos-probe/lib/webProbeSupport.mjs",
+        "apps/cocos-wechat-probe/template/assets/Probe.scene",
+        "apps/cocos-wechat-probe/template/assets/Probe.scene.meta",
+        "apps/cocos-wechat-probe/template/assets/generated/probe-runtime.d.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts.meta",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatInventoryGroups.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatInventoryGroups.ts.meta",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts.meta",
+        "apps/cocos-wechat-probe/template/package.json",
+        "apps/cocos-wechat-probe/template/settings/v2/packages/engine.json",
+        "apps/cocos-wechat-probe/template/settings/v2/packages/project.json",
+        "apps/cocos-wechat-probe/template/tsconfig.json",
+        "tools/cocos-wechat-probe/lib/sourceProvenance.mjs",
+        "tools/cocos-wechat-probe/lib/precompiledSchemas.mjs",
+        "apps/cocos-wechat-probe/runtime/WechatDataClone.ts",
+        "tests/cocos-wechat-data-clone.test.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts.meta",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts.meta",
+        "tests/cocos-wechat-storage.test.ts",
+        "tests/cocos-wechat-schema-optimization.test.mjs"
+      ],
+      "group": "cocos-adapter"
+    },
+    "test.cocos-wechat-runtime": {
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "tests/cocos-wechat-runtime.test.ts",
+        "tests/cocos-wechat-m3-ui.test.ts",
+        "tests/wechat-inventory-groups.test.ts",
+        "tests/cocos-wechat-data-clone.test.ts",
+        "tests/cocos-wechat-storage.test.ts",
+        "tests/cocos-wechat-schema-optimization.test.mjs"
+      ],
+      "covers": [
+        "cocos-wechat-probe",
+        "tests",
+        "tools",
+        "cocos-creator-adapter",
+        "cocos-app",
+        "game-core"
+      ],
+      "type": "test",
+      "stability": "blocker",
+      "timeoutSeconds": 120,
+      "tags": [
+        "cocos",
+        "wechat",
+        "runtime",
+        "full",
+        "blocker"
+      ],
+      "files": [
+        "tests/cocos-wechat-runtime.test.ts",
+        "tests/cocos-wechat-m3-ui.test.ts",
+        "tests/wechat-inventory-groups.test.ts",
+        "apps/cocos-wechat-probe/template/assets/Probe.scene",
+        "apps/cocos-wechat-probe/template/assets/Probe.scene.meta",
+        "apps/cocos-wechat-probe/template/assets/generated/probe-runtime.d.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts.meta",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatInventoryGroups.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatInventoryGroups.ts.meta",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts.meta",
+        "apps/cocos-wechat-probe/template/package.json",
+        "apps/cocos-wechat-probe/template/settings/v2/packages/engine.json",
+        "apps/cocos-wechat-probe/template/settings/v2/packages/project.json",
+        "apps/cocos-wechat-probe/template/tsconfig.json",
+        "apps/cocos-wechat-probe/runtime/WechatDataClone.ts",
+        "tests/cocos-wechat-data-clone.test.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts.meta",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatPriorSaveValidator.ts.meta",
+        "tests/cocos-wechat-storage.test.ts",
+        "tests/cocos-wechat-schema-optimization.test.mjs",
+        "tools/cocos-wechat-probe/lib/precompiledSchemas.mjs",
+        "tools/cocos-wechat-probe/lib/sourceProvenance.mjs",
+        "tools/cocos-wechat-probe/prepare.mjs"
       ],
       "group": "cocos-adapter"
     }

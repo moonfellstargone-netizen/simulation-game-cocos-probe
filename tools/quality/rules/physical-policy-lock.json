@@ -1,0 +1,6 @@
+{
+  "format": "physical-policy-lock/v1",
+  "policies": {
+    "physical-stage1a-v1": "b21e750f503127664e4ca0bc5f7e69de46dd95b21ca849b500722951603aea2b"
+  }
+}

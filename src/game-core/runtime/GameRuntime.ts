@@ -13,16 +13,17 @@ import { CookingSystem } from '../cooking/CookingSystem';
 import { DemandResolver } from '../demand/DemandResolver';
 import { SettlementRegistry } from '../time/SettlementRegistry';
 import { TimeSystem } from '../time/TimeSystem';
-import type { DomainEvent, GameState, StorageOccupantRef, StorageRef } from '../domain/types';
+import type { DomainEvent, GameState, MaterialLot, DishLot, StorageOccupantRef, StorageRef } from '../domain/types';
 import type { ActionHandler } from '../action/ActionHandlerRegistry';
 import type { FormalStage1AActionRequest } from '../action/ActionTypes';
 import type { RuntimeContractValidator } from '../validation/RuntimeContractValidator';
+import { loadPhysicalPolicyRegistry } from '../config/PhysicalPolicyLoader';
 
 export class GameRuntime {
   readonly ids = new DeterministicIdService();
   readonly events = new DomainEventBus(this.ids);
   readonly results = new ActionResultFactory();
-  readonly storageReconciler = new StorageReconciler();
+  readonly storageReconciler: StorageReconciler;
   readonly demand: DemandResolver;
   readonly settlements = new SettlementRegistry();
   readonly registry = new ActionHandlerRegistry();
@@ -35,16 +36,22 @@ export class GameRuntime {
   readonly pipeline: ActionPipeline;
 
   constructor(private readonly configs: ConfigRepository, private readonly contracts?: RuntimeContractValidator) {
+    this.storageReconciler = new StorageReconciler(loadPhysicalPolicyRegistry(configs));
     this.storage = new StorageSystem(this.storageReconciler);
     this.farming = new FarmingSystem(this.configs, this.ids);
-    this.inventory = new InventorySystem(this.ids, this.configs);
-    this.processing = new ProcessingSystem(this.configs, this.ids);
-    this.cooking = new CookingSystem(this.configs, this.ids);
+    this.inventory = new InventorySystem(this.ids, this.configs, this.storageReconciler);
+    this.processing = new ProcessingSystem(this.configs, this.ids, this.storageReconciler);
+    this.cooking = new CookingSystem(this.configs, this.ids, this.storageReconciler);
     this.demand = new DemandResolver(this.configs);
     this.time = new TimeSystem(this.settlements);
     this.registerSettlementHandlers();
     this.registerActionHandlers();
-    this.pipeline = new ActionPipeline(this.registry, undefined, undefined, undefined, undefined, this.contracts);
+    this.pipeline = new ActionPipeline(this.registry, undefined, undefined, this.storageReconciler, undefined, this.contracts, this.ids);
+  }
+
+  private markLatest(lots: readonly (MaterialLot | DishLot)[], request: FormalStage1AActionRequest, worldMinute: number): void {
+    const { request_id: _requestId, idempotency_key: _idempotencyKey, ...summary } = request;
+    for (const lot of lots) lot.last_operation = { request: structuredClone(summary) as unknown as Record<string, unknown>, executed_at: worldMinute };
   }
 
   private registerSettlementHandlers(): void {
@@ -99,20 +106,21 @@ export class GameRuntime {
         actionType: 'plant_crop',
         execute: (state, request) => {
           if (request.action_type !== 'plant_crop') throw new Error('ERR_HANDLER_ACTION_MISMATCH');
-          const crop = this.farming.plantCrop(state.save_file, request.parameters.field_plot_id, request.parameters.seed_lot_id, request.parameters.seed_quantity);
-          this.appendEvent(state, request, 'farming.crop_planted', {
+          const crops = this.farming.plantCrop(state.save_file, request.parameters.field_plot_id, request.parameters.seed_lot_id, request.parameters.seed_quantity, request.parameters.seeds_per_tile);
+          this.markLatest(state.save_file.inventory.filter(lot => lot.lot_id === request.parameters.seed_lot_id), request, state.save_file.world_time.absolute_minute);
+          for (const crop of crops) this.appendEvent(state, request, 'farming.crop_planted', {
             crop_id: crop.crop_id,
             field_plot_id: crop.field_plot_id,
             crop_base_id: crop.crop_base_id
           });
           return this.results.success(request, {
-            created_objects: [{ object_type: 'CropInstance', object_id: crop.crop_id, summary: { status: crop.lifecycle_status } }],
+            created_objects: crops.map(crop => ({ object_type: 'CropInstance', object_id: crop.crop_id, summary: { status: crop.lifecycle_status } })),
             updated_objects: [
               { object_type: 'MaterialLot', object_id: request.parameters.seed_lot_id, summary: { quantity: request.parameters.seed_quantity } },
               { object_type: 'FieldPlotState', object_id: request.parameters.field_plot_id, summary: { status: 'occupied' } }
             ],
             consumed_resources: [{ resource_type: 'MaterialLot', resource_id: request.parameters.seed_lot_id, quantity: request.parameters.seed_quantity }],
-            event_log_entries: [{ message_key: 'event_log.farming.crop_planted', params: [{ key: 'crop_id', value: crop.crop_id }] }]
+            event_log_entries: crops.map(crop => ({ message_key: 'event_log.farming.crop_planted', params: [{ key: 'crop_id', value: crop.crop_id }] }))
           });
         }
       },
@@ -137,6 +145,7 @@ export class GameRuntime {
           if (request.action_type !== 'harvest_crop') throw new Error('ERR_HANDLER_ACTION_MISMATCH');
           const cropBefore = state.save_file.crop_instances.find((item) => item.crop_id === request.parameters.crop_id);
           const lot = this.farming.harvest(state.save_file, request.parameters.crop_id);
+          this.markLatest([lot], request, state.save_file.world_time.absolute_minute);
           this.appendEvent(state, request, 'farming.crop_harvested', {
             crop_id: request.parameters.crop_id,
             field_plot_id: cropBefore?.field_plot_id ?? '',
@@ -160,6 +169,8 @@ export class GameRuntime {
           if (request.action_type !== 'store_item') throw new Error('ERR_HANDLER_ACTION_MISMATCH');
           const from = this.storageRefOf(state, request.parameters.object_ref);
           this.storage.move(state.save_file, request.parameters.object_ref, request.parameters.storage_ref);
+          if (request.parameters.object_ref.object_type === 'MaterialLot') this.markLatest(state.save_file.inventory.filter(lot => lot.lot_id === request.parameters.object_ref.object_id), request, state.save_file.world_time.absolute_minute);
+          if (request.parameters.object_ref.object_type === 'DishLot') this.markLatest(state.save_file.dish_lots.filter(lot => lot.dish_lot_id === request.parameters.object_ref.object_id), request, state.save_file.world_time.absolute_minute);
           this.appendEvent(state, request, 'storage.item_moved', {
             object_ref: request.parameters.object_ref,
             from_storage_ref: from,
@@ -172,12 +183,15 @@ export class GameRuntime {
         actionType: 'split_lot',
         execute: (state, request) => {
           if (request.action_type !== 'split_lot') throw new Error('ERR_HANDLER_ACTION_MISMATCH');
-          const split = this.inventory.split(state.save_file, request.parameters.source_lot_id, request.parameters.quantity);
+          const outcome = this.inventory.split(state.save_file, request.parameters.source_lot_id, request.parameters.quantity);
+          const splits = outcome.lots;
+          const split = splits[0]!;
           const sourceAfterSplit = state.save_file.inventory.find((item) => item.lot_id === request.parameters.source_lot_id);
-          this.appendEvent(state, request, 'inventory.lot_created', {
-            lot_id: split.lot_id,
-            base_id: split.base_id,
-            quantity: split.quantity
+          this.markLatest([...splits, ...(sourceAfterSplit ? [sourceAfterSplit] : [])], request, state.save_file.world_time.absolute_minute);
+          for (const created of splits) this.appendEvent(state, request, 'inventory.lot_created', {
+            lot_id: created.lot_id,
+            base_id: created.base_id,
+            quantity: created.quantity
           });
           if (sourceAfterSplit) {
             this.appendEvent(state, request, 'inventory.lot_updated', {
@@ -187,9 +201,16 @@ export class GameRuntime {
             });
           }
           return this.results.success(request, {
-            created_objects: [{ object_type: 'MaterialLot', object_id: split.lot_id, summary: { quantity: split.quantity } }],
+            created_objects: splits.map(created => ({ object_type: 'MaterialLot', object_id: created.lot_id, summary: {
+              quantity: created.quantity,
+              split_role: outcome.takenIds.includes(created.lot_id) ? 'taken' : 'remaining',
+              ...(created.cabbage_pieces?.kind === 'whole' ? { piece_count: created.cabbage_pieces.pieces.length }
+                : created.cabbage_pieces?.kind === 'cut' ? { piece_count: 0 } : {})
+            } })),
             updated_objects: [
-              { object_type: 'MaterialLot', object_id: request.parameters.source_lot_id, summary: sourceAfterSplit ? { quantity: sourceAfterSplit.quantity } : { status: 'consumed' } },
+              { object_type: 'MaterialLot', object_id: request.parameters.source_lot_id, summary: sourceAfterSplit ? { quantity: sourceAfterSplit.quantity, split_role: 'remaining',
+                ...(sourceAfterSplit.cabbage_pieces?.kind === 'whole' ? { piece_count: sourceAfterSplit.cabbage_pieces.pieces.length }
+                  : sourceAfterSplit.cabbage_pieces?.kind === 'cut' ? { piece_count: 0 } : {}) } : { status: 'consumed' } },
               { object_type: 'StorageContainer', object_id: split.storage_ref.container_id }
             ],
             event_log_entries: [{ message_key: 'event_log.inventory.lot_split', params: [{ key: 'source_lot_id', value: request.parameters.source_lot_id }, { key: 'new_lot_id', value: split.lot_id }] }]
@@ -197,17 +218,40 @@ export class GameRuntime {
         }
       },
       {
+        actionType: 'merge_lot',
+        execute: (state, request) => {
+          if (request.action_type !== 'merge_lot') throw new Error('ERR_HANDLER_ACTION_MISMATCH');
+          const merged = this.inventory.merge(state.save_file, request.parameters.source_lot_id, request.parameters.target_lot_id);
+          this.markLatest([merged], request, state.save_file.world_time.absolute_minute);
+          this.appendEvent(state, request, 'inventory.lot_updated', { lot_id: merged.lot_id, base_id: merged.base_id, quantity: merged.quantity });
+          return this.results.success(request, { updated_objects: [
+            { object_type: 'MaterialLot', object_id: merged.lot_id, summary: { quantity: merged.quantity } },
+            { object_type: 'MaterialLot', object_id: request.parameters.source_lot_id, summary: { status: 'merged' } },
+            { object_type: 'StorageContainer', object_id: merged.storage_ref.container_id }
+          ] });
+        }
+      },
+      {
         actionType: 'start_processing',
         execute: (state, request) => {
           if (request.action_type !== 'start_processing') throw new Error('ERR_HANDLER_ACTION_MISMATCH');
+          const beforeLots = new Set(state.save_file.inventory.map(lot => lot.lot_id));
           const task = this.processing.startProcessing(state.save_file, request.parameters.method_id, request.parameters.input_lots, request.parameters.facility_ref);
+          const remainders = state.save_file.inventory.filter(lot => !beforeLots.has(lot.lot_id));
+          const changedIds = new Set(request.parameters.input_lots.map(input => input.lot_id));
+          this.markLatest(state.save_file.inventory.filter(lot => changedIds.has(lot.lot_id) || !beforeLots.has(lot.lot_id)), request, state.save_file.world_time.absolute_minute);
           this.appendEvent(state, request, 'processing.task_started', {
             task_id: task.task_id,
             method_id: task.method_id,
             input_lot_refs: task.input_lot_refs.map((input) => ({ lot_id: input.lot_id, quantity: input.quantity }))
           });
+          for (const lot of remainders) this.appendEvent(state, request, 'inventory.lot_created', {
+            lot_id: lot.lot_id, base_id: lot.base_id, quantity: lot.quantity
+          });
           return this.results.success(request, {
-            created_objects: [{ object_type: 'ProcessingTask', object_id: task.task_id, summary: { status: task.status } }],
+            created_objects: [{ object_type: 'ProcessingTask', object_id: task.task_id, summary: { status: task.status } },
+              ...remainders.map(lot => ({ object_type: 'MaterialLot', object_id: lot.lot_id,
+                summary: { quantity: lot.quantity, status: 'consumption_remainder' } }))],
             updated_objects: [
               ...request.parameters.input_lots.map((input) => ({ object_type: 'MaterialLot', object_id: input.lot_id })),
               { object_type: 'StorageContainer', object_id: request.parameters.facility_ref.container_id }
@@ -223,6 +267,7 @@ export class GameRuntime {
           if (request.action_type !== 'collect_processing_result') throw new Error('ERR_HANDLER_ACTION_MISMATCH');
           const taskBefore = state.save_file.processing_tasks.find((item) => item.task_id === request.parameters.task_id);
           const lot = this.processing.collect(state.save_file, request.parameters.task_id);
+          this.markLatest([lot], request, state.save_file.world_time.absolute_minute);
           this.appendEvent(state, request, 'processing.task_completed', {
             task_id: request.parameters.task_id,
             method_id: taskBefore?.method_id ?? null,
@@ -242,14 +287,24 @@ export class GameRuntime {
         actionType: 'cook_dish',
         execute: (state, request) => {
           if (request.action_type !== 'cook_dish') throw new Error('ERR_HANDLER_ACTION_MISMATCH');
+          const beforeLots = new Set(state.save_file.inventory.map(lot => lot.lot_id));
           const dish = this.cooking.cook(state.save_file, request.parameters.recipe_variant_id, request.parameters.ingredients, request.parameters.technique, request.parameters.operation_profile, request.parameters.target_storage_ref);
+          this.markLatest([dish], request, state.save_file.world_time.absolute_minute);
+          const remainders = state.save_file.inventory.filter(lot => !beforeLots.has(lot.lot_id));
+          const changedIds = new Set(Object.values(request.parameters.ingredients).map(input => input.lot_id));
+          this.markLatest(state.save_file.inventory.filter(lot => changedIds.has(lot.lot_id) || !beforeLots.has(lot.lot_id)), request, state.save_file.world_time.absolute_minute);
           this.appendEvent(state, request, 'cooking.dish_created', {
             dish_lot_id: dish.dish_lot_id,
             recognized_dish_id: dish.recognized_dish_id,
             serving_count: dish.serving_count
           });
+          for (const lot of remainders) this.appendEvent(state, request, 'inventory.lot_created', {
+            lot_id: lot.lot_id, base_id: lot.base_id, quantity: lot.quantity
+          });
           return this.results.success(request, {
-            created_objects: [{ object_type: 'DishLot', object_id: dish.dish_lot_id, summary: { quantity: dish.total_quantity } }],
+            created_objects: [{ object_type: 'DishLot', object_id: dish.dish_lot_id, summary: { quantity: dish.total_quantity } },
+              ...remainders.map(lot => ({ object_type: 'MaterialLot', object_id: lot.lot_id,
+                summary: { quantity: lot.quantity, status: 'consumption_remainder' } }))],
             updated_objects: [
               ...Object.values(request.parameters.ingredients).map((input) => ({ object_type: 'MaterialLot', object_id: input.lot_id })),
               { object_type: 'StorageContainer', object_id: dish.storage_ref.container_id }

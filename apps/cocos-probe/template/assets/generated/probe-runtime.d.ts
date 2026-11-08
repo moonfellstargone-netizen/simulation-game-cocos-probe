@@ -4,6 +4,7 @@ import type { ProbeBinding, ProbeHost, ProbeResources } from '../scripts/ProbeLi
 export function createStage1AHost(input: ProbeResources & {
   storage: InMemorySaveStoragePort;
   nowIso8601: string;
+  randomSeed?: string;
 }): ProbeHost;
 
 export class InMemorySaveStoragePort {

@@ -7,11 +7,11 @@ import { CocosAppRuntimeSession } from '../src/cocos-app/runtime/CocosAppRuntime
 import { InMemorySaveStoragePort, type ActionResult, type SaveFile } from '../src/game-core';
 import { buildRuntime, buildRuntimeWithoutState, cloneForCompare } from './support/runtimeHarness';
 
-function makeSession(storage = new InMemorySaveStoragePort()) {
+function makeSession(storage = new InMemorySaveStoragePort(), randomSeed = 'farming-test-23') {
   const { configs, contracts } = buildRuntimeWithoutState();
   return new CocosAppRuntimeSession(configs, contracts, storage, {
     buildId: testBuildId('action_preview_boundary_test'),
-    nowIso8601: '2026-05-19T00:00:00.000Z'
+    nowIso8601: '2026-05-19T00:00:00.000Z', randomSeed
   });
 }
 
@@ -51,6 +51,69 @@ async function makeOrderPreviewSource() {
   assert.ok(serialized);
   return { save: JSON.parse(serialized) as SaveFile, dishId: cooked.created_objects[0]!.object_id };
 }
+
+test('probability previews preserve real random state and never reveal the pending germination outcome', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const session = makeSession(storage, 'farming-test-28');
+  const parameters = { field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount: 3, unit: 'count' }, seeds_per_tile: 3 };
+  await session.save('probability_before');
+  const before = await storage.read('probability_before');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const preview = session.preview('plant_crop', parameters);
+    assert.equal(preview.success, true, preview.status_code);
+    assert.equal(preview.effect_counts.created_objects, 1, 'the preview reports one planted tile, not its future successful yield');
+    assert.doesNotMatch(JSON.stringify(preview), /outcome|germination|failed|succeeded/);
+    await session.save('probability_after_preview');
+    assert.equal(await storage.read('probability_after_preview'), before);
+  }
+  const planted = session.dispatch('plant_crop', parameters);
+  assert.equal(planted.success, true, planted.status_code);
+  assert.equal(planted.created_objects[0]!.object_id, 'crop_000001');
+  await session.save('probability_planted');
+  const pending = await storage.read('probability_planted');
+  const publicBefore = session.getSelectableViewModel();
+  assert.doesNotMatch(JSON.stringify(publicBefore), /"outcome"|"revealed"|"random_state"/);
+  assert.doesNotMatch(JSON.stringify(planted), /outcome|germination|failed|succeeded/);
+  const future = session.preview('advance_time', { minutes: 5400 });
+  assert.equal(future.success, true);
+  assert.doesNotMatch(JSON.stringify(future), /outcome|germination|failed|succeeded/);
+  assert.deepEqual(session.getSelectableViewModel(), publicBefore);
+  await session.save('probability_after_time_preview');
+  assert.equal(await storage.read('probability_after_time_preview'), pending);
+  assert.equal(session.dispatch('advance_time', { minutes: 5400 }).success, true);
+  assert.equal(session.getSelectableViewModel().harvestable_crop_options.length, 0);
+  assert.equal(session.getSelectableViewModel().field_options[0]!.available_tiles, 6);
+});
+
+test('batch planting preview reports all crops without changing state and agrees with capacity failures', async () => {
+  const storage = new InMemorySaveStoragePort();
+  const session = makeSession(storage);
+  const params = (amount: number) => ({ field_plot_id: 'field_plot_01', seed_lot_id: 'seed_cabbage_initial_001', seed_quantity: { amount, unit: 'count' } });
+  await session.save('before_batch_preview');
+  const before = await storage.read('before_batch_preview');
+  const choicesBefore = session.getSelectableViewModel();
+  for (const amount of [2, 6, 10]) {
+    const preview = session.preview('plant_crop', params(amount));
+    assert.equal(preview.success, amount <= 6);
+    assert.equal(preview.effect_counts.created_objects, amount <= 6 ? amount : 0);
+    if (amount === 10) assert.equal(preview.status_code, 'ERR_FIELD_CAPACITY_EXCEEDED');
+    assert.deepEqual(session.getSelectableViewModel(), choicesBefore);
+    await session.save('after_batch_preview');
+    assert.equal(await storage.read('after_batch_preview'), before);
+  }
+  assert.equal(session.dispatch('plant_crop', params(10)).status_code, 'ERR_FIELD_CAPACITY_EXCEEDED');
+  const actual = session.dispatch('plant_crop', params(2));
+  assert.equal(actual.success, true, actual.status_code);
+  assert.deepEqual(actual.created_objects.map(item => item.object_id), ['crop_000001', 'crop_000002']);
+  assert.equal(session.getSelectableViewModel().field_options[0]!.available_tiles, 4);
+  const previewFill = session.preview('plant_crop', params(4));
+  assert.equal(previewFill.success, true);
+  assert.equal(previewFill.effect_counts.created_objects, 4);
+  const fill = session.dispatch('plant_crop', params(4));
+  assert.equal(fill.success, true, fill.status_code);
+  assert.equal(session.getSelectableViewModel().field_options[0]!.available_tiles, 0);
+  assert.equal(session.preview('plant_crop', params(1)).status_code, 'ERR_FIELD_CAPACITY_EXCEEDED');
+});
 
 test('order previews agree with formal state and deadline eligibility without mutating saves, event history or real IDs', async () => {
   const source = await makeOrderPreviewSource();

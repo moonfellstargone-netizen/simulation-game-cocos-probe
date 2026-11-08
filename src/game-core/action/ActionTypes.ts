@@ -6,6 +6,7 @@ export type FormalStage1AActionType =
   | 'harvest_crop'
   | 'store_item'
   | 'split_lot'
+  | 'merge_lot'
   | 'start_processing'
   | 'collect_processing_result'
   | 'cook_dish'
@@ -28,6 +29,7 @@ export interface PlantCropParams {
   field_plot_id: string;
   seed_lot_id: string;
   seed_quantity: Quantity;
+  seeds_per_tile?: number;
 }
 
 export interface AdvanceTimeParams {
@@ -46,6 +48,11 @@ export interface StoreItemParams {
 export interface SplitLotParams {
   source_lot_id: string;
   quantity: Quantity;
+}
+
+export interface MergeLotParams {
+  source_lot_id: string;
+  target_lot_id: string;
 }
 
 export interface StartProcessingParams {
@@ -77,6 +84,7 @@ export type FormalStage1AActionRequest =
   | ActionRequest<'harvest_crop', HarvestCropParams>
   | ActionRequest<'store_item', StoreItemParams>
   | ActionRequest<'split_lot', SplitLotParams>
+  | ActionRequest<'merge_lot', MergeLotParams>
   | ActionRequest<'start_processing', StartProcessingParams>
   | ActionRequest<'collect_processing_result', CollectProcessingResultParams>
   | ActionRequest<'cook_dish', CookDishParams>
@@ -94,6 +102,8 @@ export interface ActionObjectRef {
     display_name_key?: string;
     quantity?: Quantity;
     status?: string;
+    split_role?: 'taken' | 'remaining';
+    piece_count?: number;
   } | null;
 }
 

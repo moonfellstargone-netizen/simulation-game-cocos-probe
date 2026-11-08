@@ -7,6 +7,8 @@ source_of_truth: false
 
 # cocos-app
 
+候选共享层提供独立只读拆分/合并校验、按品种与真实坛子的库存投影、容量适配与不确定结果隔离；公开VM不得直接写存档，旧批次未知颗数不得推算。
+
 ## 模块职责
 
 Cocos 试水应用层：Session、ViewModel、Action 适配（Dispatcher、Previewer、DraftBuilder），通过 Port 访问 game-core。
@@ -79,3 +81,15 @@ SelectableVM仅扩展现有order_options，复制issuer/deadline/signed余量、
 ## 跨步骤恢复公共会话
 
 trace.cocos.cross-step-recovery通过tests/stage1a-bootstrap.test.ts验证五保存点的新Host读取、后续真实菜单动作、完整状态及持久ID安全。Session/SelectableVM/StateVM生产接口与算法保持；原有Session失败加载/预览无副作用/ID回归继续执行，恢复列表不能当本次成功。真实网页由verify-web独立输入，Node结果不替代引擎或浏览器。
+
+## 拆分独立只读校验
+
+CocosAppRuntimeSession.validateSplit(sourceLotId, quantity)委托正式InventorySystem.assertCanSplit，只读验证当前会话状态，不执行预览、分配ID或改变SaveFile；失败抛现有正式错误。直接确认后仍由session.dispatch及ActionPipeline处理正式动作，不能据分发后异常推断回滚。
+
+## 微信加工Session边界
+
+CocosAppRuntimeSession的validateStartProcessing与validateCollectProcessing调用正式只读校验，不改变会话或分配领域对象ID；正式Action仍经dispatch。
+
+## 农事容量只读投影
+
+field_options的capacity_tiles和available_tiles来自地块定义及当前占位，部分占用仍可播种；播种传递总粒数与可选seeds_per_tile。公开投影只显示规则概率和已经揭晓的成长状态，不暴露未出苗时保存的随机结果。成苗失败后的空位可再次选择；harvestable_crop_options仍只包含可收获作物。批量回执与只读预览、存读档恢复均经trace.farming.seed-quantity追踪。

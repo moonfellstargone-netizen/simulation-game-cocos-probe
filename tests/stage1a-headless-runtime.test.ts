@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { StorageAudit } from '../src/game-core/index';
+import { loadPhysicalPolicyRegistry } from '../src/game-core/config/PhysicalPolicyLoader';
 import { Stage1AActionScriptRunner, Stage1AHeadlessRuntime } from '../src/game-core/dev-api';
 import { Stage1AFixtureRunner } from '../src/game-core/testing-api';
 import type { Stage1AFixtureDocument } from '../src/game-core/testing-api';
@@ -11,14 +12,14 @@ import { testBuildId } from './support/buildId.mjs';
 
 function runHeadlessCoreLoop() {
   const { configs, contracts } = buildRuntimeWithoutState();
-  const runtime = new Stage1AHeadlessRuntime(configs, contracts, { buildId: testBuildId('headless_test'), nowIso8601: '2026-05-19T00:00:00.000Z' });
+  const runtime = new Stage1AHeadlessRuntime(configs, contracts, { buildId: testBuildId('headless_test'), nowIso8601: '2026-05-19T00:00:00.000Z', randomSeed: 'farming-test-23' });
   const script = new Stage1AActionScriptRunner();
   const report = script.runCoreLoop(runtime);
-  return { runtime, report, contracts };
+  return { runtime, report, configs, contracts };
 }
 
 test('Headless runner completes Stage 1A core loop through submit_order with formal ActionPipeline dispatches', () => {
-  const { runtime, report, contracts } = runHeadlessCoreLoop();
+  const { runtime, report, configs, contracts } = runHeadlessCoreLoop();
 
   assert.deepEqual(report.step_results.map((step) => step.action_type), [
     'plant_crop',
@@ -47,7 +48,7 @@ test('Headless runner completes Stage 1A core loop through submit_order with for
     contracts.assertActionResult(result);
     for (const event of result.domain_events) contracts.assertDomainEvent(event);
   }
-  new StorageAudit().assertReconciled(runtime.state.save_file);
+  new StorageAudit(loadPhysicalPolicyRegistry(configs)).assertReconciled(runtime.state.save_file);
 });
 
 test('Headless runner rejects system action requests before ActionPipeline dispatch', () => {
@@ -70,7 +71,7 @@ test('Headless runner final key business state matches formal fixture runner sta
   const headless = runHeadlessCoreLoop();
   const { snapshot, configs, contracts, runtime } = buildRuntimeWithoutState();
   const fixture = snapshot.loaded_documents['tests/fixtures/stage_1A_action_sequence.yaml'] as Stage1AFixtureDocument;
-  const fixtureReport = new Stage1AFixtureRunner(runtime.pipeline, { configs, buildId: testBuildId('fixture_compare'), nowIso8601: '2026-05-19T00:00:00.000Z' }).runFixtureThroughStepId(fixture, 'T20_release_injected_reservation');
+  const fixtureReport = new Stage1AFixtureRunner(runtime.pipeline, { configs, buildId: testBuildId('fixture_compare'), nowIso8601: '2026-05-19T00:00:00.000Z', randomSeed: 'farming-test-23' }).runFixtureThroughStepId(fixture, 'T20_release_injected_reservation');
 
   const headlessOrder = headless.runtime.state.save_file.orders.find((item) => item.order_id === 'tavern_home_dish_001');
   const fixtureOrder = fixtureReport.state.save_file.orders.find((item) => item.order_id === 'tavern_home_dish_001');
@@ -85,8 +86,8 @@ test('Headless runner final key business state matches formal fixture runner sta
 
   contracts.assertSaveFile(headless.runtime.state.save_file);
   contracts.assertSaveFile(fixtureReport.state.save_file);
-  new StorageAudit().assertReconciled(headless.runtime.state.save_file);
-  new StorageAudit().assertReconciled(fixtureReport.state.save_file);
+  new StorageAudit(loadPhysicalPolicyRegistry(headless.configs)).assertReconciled(headless.runtime.state.save_file);
+  new StorageAudit(loadPhysicalPolicyRegistry(configs)).assertReconciled(fixtureReport.state.save_file);
 });
 
 test('Headless runtime and Cocos adapter source do not import or call fixture runner', () => {

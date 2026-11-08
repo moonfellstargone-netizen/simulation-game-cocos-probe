@@ -7,6 +7,8 @@ source_of_truth: false
 
 # processing
 
+本候选的整棵白菜部分消耗需保留其他整棵与切开余料，任务和产物保留实际输入来源快照。重复输入的既有处理语义不因本轮静默改变。
+
 ## 模块职责
 
 加工系统：`ProcessingSystem`、`ProcessingConfigResolver` 与相关 formal action 处理。
@@ -67,3 +69,7 @@ domain-map 与 public-api（如有新 action 类型对外暴露）。
 ## 网页加工消费边界
 
 既有ProcessingSystem/ProcessingConfigResolver执行规则保持。网页从app只读方法/任务投影读取现有要求、兼容设施和status，正式请求继续沿start_processing、advance_time和collect_processing_result；不增加重复输入、扣时、工具耐久或补救规则。trace.cocos.web-processing-loop连接该公开消费，既有trace.processing.required-inputs仍负责正式必需输入及失败保护，Node和真实浏览器各自留证。
+
+## 微信加工的独立校验
+
+assertCanStartProcessing和assertCanCollect与真实开工和领取共用只读计划；先按现有顺序核对输入并使用StorageReconciler计算容量，再分配任务或产物ID。实际动作、输入、状态机与重复输入规则保持。固定候选仍需完整/发布门禁与平台验收。

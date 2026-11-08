@@ -1,4 +1,8 @@
-﻿# PROJECT_MAP — v0.0.2.46
+# PROJECT_MAP — v0.0.3.0
+
+2026-11-09候选修订：用户要求白菜完整时记录颗数和实际重量、切开按重量管理，提供保守批次合并；新局容积和承重分别对账，菜窖开局三个独立坛子、允许混装，页面隐藏物理计量。加工成品领取先入仓库。旧存档无真实颗数时不得推测，旧制容量继续保留。此为原始正式包之上的授权修订；下列旧阶段单维容量、九Action及失败时不恢复ID的表述仅代表当时范围，不作为新规则现状。
+
+本候选按用户最新确认修订概率播种：每个种植位投1至3粒，成苗率分别为80%、96%、99.2%，最终最多留1株；批量操作分别表达种植位数和每位粒数。有效播种消耗全部投入种子，到出苗阶段揭晓，失败释放该位；输入、库存或容量不合法则整次拒绝。随机结果和流位置随存档保存，预览不消耗真实随机流；旧档已有作物不补抽。微信拆分保持实时数量说明和直接确认。该规则是原正式包之上的用户授权修订，派生配置与闭合Schema作最小扩展，原始资料包不改；单株产量、其它经营规则与平台边界保持。下文各历史阶段“不改变Schema/SaveFile”的描述限定于原阶段，本次变动以本段及SOURCE_DESIGN_PACK为准。
 
 项目分级地图导航入口。
 
@@ -8,7 +12,7 @@
 
 ## 2. 当前阶段
 
-v0.0.2.46：**Touch Interaction & Small-screen Readiness**。trace.cocos.touch-small-screen连接outer纯ProbeLayout、Cocos原生ScrollView/Mask、视觉视口同步及独立真实触摸验收；现有五页和全部29条旧追踪保留。业务core、Session/Queue、SaveFile与正式资源不改，不扩Stage1B或微信，不从电脑模拟推定手机适配。
+v0.0.3.0：**WeChat Stage1A Pilot**。本轮唯一目标是v0.0.3.0的M3微信加工包：在M2及M3种植、库存与拆分候选基础上，接入加工方法、材料、设施、任务、开工与领取，并保留时间推进、手动存读档和前后台保护。加工预览可选，直接确认使用独立正式校验；候选依赖PR25、PR26、PR27和PR28的既有变更，正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；本包不代表M3完整经营或M4手机验收完成。现有Web全部追踪和经营/恢复/触摸支持保留。
 
 ## 3. 权威边界
 
@@ -25,6 +29,8 @@ v0.0.2.46：**Touch Interaction & Small-screen Readiness**。trace.cocos.touch-s
 | `src/game-core/` | 核心逻辑，ActionPipeline 唯一正式状态入口 |
 | `src/cocos-app/` | Cocos 应用适配，Session / ViewModel |
 | `src/cocos-creator-adapter/` | engine-neutral 探针，非真实 Cocos 工程 |
+| `apps/cocos-wechat-probe/` | 独立微信outer，候选身份、正式推进与M2手动存读档 |
+| `tools/cocos-wechat-probe/` | 微信派生准备、来源核验与独立构建，归属tools |
 | `apps/cocos-probe/` | 真实Creator Web外层源模板，独立模块 |
 | `tools/cocos-probe/` | 仓库外工程准备与真实构建入口 |
 | `tools/quality/` | 质量门禁与 affected 策略 |
@@ -76,3 +82,10 @@ trace.cocos.cross-step-recovery连接save-load/app/creator/engine四张模块卡
 ## 触摸与小屏导航
 
 trace.cocos.touch-small-screen连接既有cocos-engine-probe/tools/tests模块，不新增模块或反向依赖。ProbeLayout与原生滚动/resize由engine模块卡及cocos-map导航，Node登记由quality-map导航，公开类型与函数见public-api索引。原29条追踪及全部既有经营/恢复回归保留。
+
+## 微信M1追踪与边界
+
+trace.cocos.wechat-m1连接cocos-wechat-probe模块卡、ADR-0005、cocos/runtime/quality地图与files/public-api索引。新增preparation/runtime任务为full/blocker，旧模块与全部追踪保持。M2增加微信存储和生命周期外层；完整经营与手机为M3/M4，尚未完成，不激活Stage1B planned条目。
+# 概率播种配置生产链
+
+白菜种子源配置→tools/rebuild-design-snapshot.mjs→design_snapshot/generated/stage_1A_runtime_snapshot.json→既有prepare及全部58Schema校验/微信预编译→独立运行工程。该工具与陈旧源反例登记在test.cocos-probe-preparation及trace.farming.seed-quantity；不直接手改生成物来伪造源同步。

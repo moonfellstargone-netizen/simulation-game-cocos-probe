@@ -1,7 +1,8 @@
 import type { ConfigRepository } from '../config/ConfigRepository';
-import type { DishComponent, DishLot, MaterialLot, Quantity, SaveFile, StorageRef } from '../domain/types';
+import type { DishComponent, DishLot, MaterialInputSourceSnapshot, MaterialLot, Quantity, SaveFile, StorageRef } from '../domain/types';
 import type { IdService } from '../id/IdService';
 import { InventorySystem } from '../inventory/InventorySystem';
+import { StorageReconciler } from '../storage/StorageReconciler';
 import { RecipeConfigResolver, type DishStructureConfig, type RecipeVariantConfig, type RoleIngredientRequirement } from './CookingConfigResolver';
 
 interface IngredientInput {
@@ -15,8 +16,9 @@ export class CookingSystem {
   private readonly inventory: InventorySystem;
   private readonly recipeConfigs: RecipeConfigResolver;
 
-  constructor(private readonly configs: ConfigRepository, private readonly ids: IdService) {
-    this.inventory = new InventorySystem(ids, configs);
+  constructor(private readonly configs: ConfigRepository, private readonly ids: IdService,
+    storage: StorageReconciler = new StorageReconciler()) {
+    this.inventory = new InventorySystem(ids, configs, storage);
     this.recipeConfigs = new RecipeConfigResolver(configs);
   }
 
@@ -27,7 +29,9 @@ export class CookingSystem {
     this.assertOperationProfile(structure, operationProfile);
 
     const resolvedInputs = this.resolveIngredientInputs(save, recipe, structure, ingredients);
-    for (const input of resolvedInputs) this.inventory.consume(save, input.input.lot_id, input.input.quantity);
+    const consumptionPlan = this.inventory.planConsumptionInputs(save, resolvedInputs.map(item => item.input));
+    const sourceSnapshots = this.inventory.captureConsumptionSources(save, resolvedInputs.map(item => item.input));
+    for (const input of consumptionPlan) this.inventory.consume(save, input.lot_id, input.quantity);
     this.consumeFuelIfEnabled(save, recipe);
 
     const dishProfile = this.buildDishProfile(resolvedInputs, structure, operationProfile);
@@ -37,7 +41,7 @@ export class CookingSystem {
     const dish: DishLot = {
       dish_lot_id: this.ids.next('dish'),
       recognized_dish_id: structure.id,
-      components: resolvedInputs.map((item) => this.toDishComponent(save, item.role, item.lot, item.input.quantity, recipeVariantId)),
+      components: resolvedInputs.map((item, index) => this.toDishComponent(save, item.role, item.lot, item.input.quantity, recipeVariantId, sourceSnapshots[index]!)),
       dish_profile: dishProfile,
       serving_count: servingCount,
       total_quantity: { amount: totalQuantityG, unit: 'g' },
@@ -53,12 +57,13 @@ export class CookingSystem {
         summary_key: recipe.display_name_key ?? null
       },
       lineage_summary: {
-        key_origins: resolvedInputs.map((item) => ({
-          origin_type: 'MaterialLot',
-          origin_id: item.input.lot_id,
-          source_ref: item.lot.source_ref,
-          note_key: item.role
-        })),
+        ...(this.inventory.collectSourceGroups(sourceSnapshots).length ? { ordinary_source_groups: this.inventory.collectSourceGroups(sourceSnapshots) } : {}),
+        key_origins: resolvedInputs.flatMap((item, index) => [
+          ...(Array.isArray(sourceSnapshots[index]?.lineage_summary?.key_origins) ? sourceSnapshots[index]!.lineage_summary!.key_origins as unknown[] : []),
+          ...(sourceSnapshots[index]?.piece_portions ?? []).map(piece => ({ origin_type: 'CropInstance', origin_id: piece.piece_id,
+            source_ref: piece.source_ref, note_key: item.role })),
+          { origin_type: 'MaterialLot', origin_id: item.input.lot_id, source_ref: item.lot.source_ref, note_key: item.role }
+        ]),
         important_flags: ['cooked_dish', ...this.buildSuitabilityTags(structure, defects)],
         lineage_depth: 1,
         compressed: false,
@@ -131,10 +136,12 @@ export class CookingSystem {
     if (role === 'oil' && quantity.unit !== 'ml') throw new Error('ERR_QUANTITY_UNIT_MISMATCH');
   }
 
-  private toDishComponent(save: SaveFile, role: string, lot: MaterialLot, quantity: Quantity, recipeVariantId: string): DishComponent {
+  private toDishComponent(save: SaveFile, role: string, lot: MaterialLot, quantity: Quantity, recipeVariantId: string,
+    sourceSnapshot: MaterialInputSourceSnapshot): DishComponent {
     return {
       component_id: this.ids.next('dish_component'),
       source_lot_id: lot.lot_id,
+      source_snapshot: sourceSnapshot,
       base_id: lot.base_id,
       role: this.normalizeComponentRole(role),
       quantity_used: { ...quantity },

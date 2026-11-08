@@ -6,10 +6,38 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync,
 import { isAbsolute, join, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { prepareCocosProbe } from '../tools/cocos-probe/prepare.mjs';
+import { rebuildDesignSnapshot } from '../tools/rebuild-design-snapshot.mjs';
 
 const root = process.cwd();
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const json = (path) => JSON.parse(readFileSync(path, 'utf8'));
+
+test('runtime snapshot is reproducible and rejects source drift before regeneration', () => {
+  const checked = rebuildDesignSnapshot(join(root, 'design_snapshot'), { check: true });
+  assert.ok(checked.documentCount > 0);
+  const isolated = mkdtempSync(join(tmpdir(), 'design-snapshot-contract-'));
+  try {
+    const copy = join(isolated, 'design_snapshot');
+    cpSync(join(root, 'design_snapshot'), copy, { recursive: true });
+    const sourcePath = join(copy, 'configs/farming/seeds/cabbage_seed.yaml');
+    const previous = readFileSync(sourcePath, 'utf8');
+    assert.match(previous, /germination_rate: 0\.8\b/);
+    writeFileSync(sourcePath, previous.replace(/germination_rate: 0\.8\b/, 'germination_rate: 0.7'));
+    const snapshotPath = join(copy, 'generated/stage_1A_runtime_snapshot.json');
+    const before = readFileSync(snapshotPath);
+    assert.throws(() => rebuildDesignSnapshot(copy, { check: true }), /ERR_DESIGN_SNAPSHOT_STALE/);
+    assert.deepEqual(readFileSync(snapshotPath), before, 'checking must not silently regenerate');
+    const rebuilt = rebuildDesignSnapshot(copy);
+    assert.notEqual(rebuilt.sha256, checked.sha256);
+    assert.equal(json(snapshotPath).loaded_documents['configs/farming/seeds/cabbage_seed.yaml'].seed_defaults.germination_rate, 0.7);
+    assert.deepEqual(rebuildDesignSnapshot(copy, { check: true }), rebuilt);
+  } finally {
+    const absolute = resolve(isolated);
+    assert.ok(absolute.startsWith(resolve(tmpdir()) + sep));
+    assert.ok(absolute.split(sep).at(-1).startsWith('design-snapshot-contract-'));
+    rmSync(absolute, { recursive: true, force: true });
+  }
+});
 let temporary;
 let source;
 let prepared;

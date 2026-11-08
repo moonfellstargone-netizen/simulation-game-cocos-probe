@@ -37,7 +37,19 @@ export interface DefinitionRef {
   canonical_id: string;
 }
 
+export type CabbagePieces =
+  | { kind: 'whole'; pieces: Array<{ id: string; weight_g: number; source_ref: SourceRef; seed_lot_snapshot?: MaterialLot }> }
+  | { kind: 'cut'; source_piece?: { id: string; original_weight_g: number; source_ref: SourceRef; seed_lot_snapshot?: MaterialLot } };
+
+export interface MaterialInputSourceSnapshot {
+  source_ref: SourceRef;
+  lineage_summary?: Record<string, unknown>;
+  piece_portions?: Array<{ piece_id: string; original_weight_g: number; taken_weight_g: number; source_ref: SourceRef; seed_lot_snapshot?: MaterialLot }>;
+}
+
+
 export interface MaterialLot {
+  last_operation?: { request: Record<string, unknown>; executed_at: number };
   lot_id: string;
   base_id: string;
   category: string;
@@ -53,6 +65,8 @@ export interface MaterialLot {
   flags: string[];
   definition_ref: DefinitionRef;
   storage_footprint: Quantity;
+  // Missing on older saves: the number and individual weights are unknown.
+  cabbage_pieces?: CabbagePieces;
   lineage_summary?: Record<string, unknown>;
   processing_history?: Array<Record<string, unknown>>;
 }
@@ -68,6 +82,7 @@ export interface TransformationHistoryEntry {
 export interface DishComponent {
   component_id: string;
   source_lot_id: string;
+  source_snapshot?: MaterialInputSourceSnapshot;
   base_id: string;
   role: 'main' | 'side' | 'seasoning' | 'liquid' | 'oil' | 'aromatic' | 'garnish';
   quantity_used: Quantity;
@@ -77,6 +92,7 @@ export interface DishComponent {
 }
 
 export interface DishLot {
+  last_operation?: { request: Record<string, unknown>; executed_at: number };
   dish_lot_id: string;
   recognized_dish_id?: string | null;
   components: DishComponent[];
@@ -100,6 +116,9 @@ export interface DishLot {
 
 export interface StorageContainer {
   container_id: string;
+  // Both are present only when the save has an explicit two-dimensional model.
+  capacity_limits?: { mass_g: number; volume_ml: number };
+  used_capacity_limits?: { mass_g: number; volume_ml: number };
   location_id: string;
   storage_type: string;
   container_type: string;
@@ -123,6 +142,15 @@ export interface FieldPlotState {
 }
 
 export interface CropInstance {
+  seed_lot_snapshot?: MaterialLot;
+  germination?: {
+    policy_version: 'independent-seeds-v1';
+    seeds_per_tile: number;
+    per_seed_success_rate: number;
+    reveal_growth_progress: number;
+    outcome: 'succeeded' | 'failed';
+    revealed: boolean;
+  };
   crop_id: string;
   crop_base_id: string;
   seed_lot_id: string | null;
@@ -142,6 +170,7 @@ export interface CropInstance {
 
 export interface ProcessingTaskInputRef {
   lot_id: string;
+  source_snapshot?: MaterialInputSourceSnapshot;
   quantity: Quantity;
   reservation_id: string | null;
   role?: string | null;
@@ -256,6 +285,8 @@ export interface TimeState {
 }
 
 export interface SaveFile {
+  // Absent on legacy saves; a declared policy selects a fixed, versioned physical model.
+  physical_capacity_policy_id?: string;
   save_version: string;
   game_version: string;
   schema_version: string;

@@ -1,6 +1,10 @@
-﻿# CODE_CONTEXT_INDEX — v0.0.2.46
+# CODE_CONTEXT_INDEX — v0.0.3.0
 
-版本：v0.0.2.46 / Touch Interaction & Small-screen Readiness / 触摸交互与小屏操作收口版。
+2026-11-09候选修订：新局以版本锁定的游戏物性策略对容积和承重分别核算；旧制存档仍按slot_weight读取。完整白菜逐棵记录重量，切开按重量，提供受来源/属性/预留约束的正式合并。菜窖开局三个独立储存坛、各自核容量，页面不直接显示物理单位；加工成品领取先入仓库。旧阶段九Action、单维容量和ID失败处理描述以该修订为准；原始正式资料和历史fixture保持，设备实测以对应候选记录为准。
+
+本候选按用户最新确认修订概率播种：每个种植位投1至3粒，成苗率分别为80%、96%、99.2%，最终最多留1株；批量操作分别表达种植位数和每位粒数。有效播种消耗全部投入种子，到出苗阶段揭晓，失败释放该位；输入、库存或容量不合法则整次拒绝。随机结果和流位置随存档保存，预览不消耗真实随机流；旧档已有作物不补抽。微信拆分保持实时数量说明和直接确认。该规则是原正式包之上的用户授权修订，派生配置与闭合Schema作最小扩展，原始资料包不改；单株产量、其它经营规则与平台边界保持。下文各历史阶段“不改变Schema/SaveFile”的描述限定于原阶段，本次变动以本段及SOURCE_DESIGN_PACK为准。
+
+版本：v0.0.3.0 / WeChat Stage1A Pilot / 微信真机Stage1A试水版。
 
 ## 执行前必读顺序
 
@@ -30,7 +34,7 @@
 
 后续建议不是授权目标。外部执行指令必须说明任务意图；若版本号出现两个不同任务意图，先修任务锁，不继续写代码。当前任务上下文交接来自外部执行指令或开发日志包；代码包不保存每轮具体任务上下文；代码包只保存执行端上下文治理约束。
 
-## v0.0.2.46 测试索引
+## v0.0.3.0 测试索引
 
 - `tests/cocos-web-verification-contracts.test.mjs`（`test:cocos-web-verification-contracts`，Node工具契约）
 
@@ -64,7 +68,7 @@
 
 先读[引擎探针模块卡](module-cards/cocos-engine-probe.md)与[外层契约](module_contracts/CocosEngineProbe.contract.md)，再核对apps/cocos-probe、tools/cocos-probe/prepare.mjs及两项新测试。仓库内apps/cocos-probe保存最小工程源模板及外层桥接；tools/cocos-probe/prepare.mjs从现有src/design_snapshot派生浏览器runtime与全部58个声明Schema，在仓库外生成可打开工作副本。probe-source-manifest.json记录sourceCommit、sourceDirty、输入/产物摘要及project-target派生BuildId，副本不成为第二套代码或配置权威。
 
-Node中的准备契约和外层生命周期测试登记为full/blocker，由trace.cocos.web-bootstrap-probe追踪；它们验证实际派生产物、资源完整性、异常路径和确定性生命周期，不冒充引擎运行证据。根typecheck仍仅覆盖src。真实Creator预览与Web构建另行执行，缺引擎时明确失败或未执行，不能静默skip或使用假cc类型声称通过。旧三层不接真实 `cc / wx / fs`；首次真实cc仅属于新outer模块，不能删旧禁令或扩大历史白名单。
+Node中的准备契约和外层生命周期测试登记为full/blocker，由trace.cocos.web-bootstrap-probe追踪；它们验证实际派生产物、资源完整性、异常路径和确定性生命周期，不冒充引擎运行证据。根typecheck仍仅覆盖src。真实Creator预览与Web构建另行执行，缺引擎时明确失败或未执行，不能静默skip或使用假cc类型声称通过。旧三层不接真实 `cc / wx / fs`；真实cc仅属于显式登记的Web与微信outer模块，不能删旧禁令或扩大历史白名单。
 
 ## PR CI 入口
 
@@ -185,3 +189,19 @@ tests/cocos-web-orders.test.ts、readiness/menu、prepare与web-verification分�
 ## 触摸与小屏入口
 
 先读cocos-engine-probe模块卡和CocosEngineProbe契约，再读ProbeLayout.ts、CocosWebProbe.ts、模板probe-viewport.js/css及tests/cocos-web-layout.test.ts。工具侧沿verify-web.mjs、webProbeSupport.mjs及既有verification负例。trace.cocos.touch-small-screen连接上述文件与真实args/files/covers；observer只读几何和滚动，不提供状态修改捷径。
+
+## 微信M1入口
+
+先读[module-card](module-cards/cocos-wechat-probe.md)与[ADR-0005](adr/ADR-0005-independent-wechat-m1-outer.md)，再读apps/cocos-wechat-probe、tools/cocos-probe/lib/prepareProject.mjs、tools/cocos-wechat-probe/prepare.mjs、build.mjs、lib/source.mjs、lib/sourceProvenance.mjs及tests/cocos-wechat-preparation.test.mjs和tests/cocos-wechat-runtime.test.ts。
+
+本轮唯一目标是v0.0.3.0的M3微信加工包：在M2及M3种植、库存与拆分候选基础上，接入加工方法、材料、设施、任务、开工与领取，并保留时间推进、手动存读档和前后台保护。加工预览可选，直接确认使用独立正式校验；候选依赖PR25、PR26、PR27和PR28的既有变更，正式动作仍经公共Host/Binding/Queue与ActionPipeline。真实Creator、官方微信工具和手机结果分别验收，不由Node契约推断；本包不代表M3完整经营或M4手机验收完成。
+
+test:cocos-wechat-preparation / test.cocos-wechat-preparation实际执行tests/cocos-wechat-preparation.test.mjs；test:cocos-wechat-runtime / test.cocos-wechat-runtime实际执行tests/cocos-wechat-runtime.test.ts，均为full/blocker。trace.cocos.wechat-m1连接新outer、共享生产者、微信构建、候选身份、架构负例和质量登记。Node只能证明受控准备/行为契约；真实Creator3.8.8/SDK、官方微信工具场景/输入/日志/重载、受影响Web回归和最终提交CI各自验收。旧全部追踪、权威架构禁令和Web功能/来源检查保留，不以修改阈值、预期、CI或affected算法通过门禁。
+
+## 微信Schema预编译入口
+
+先读ADR-0005的正式Schema预编译边界、core/creator/微信模块卡及Stage1ABootstrap契约，再读RuntimeSchemaValidator.ts、Stage1ABootstrap.ts、tools/cocos-wechat-probe/lib/precompiledSchemas.mjs与tests/runtime-precompiled-schema.test.ts。此能力只在显式集合时替代动态编译，不因此开放Stage1B、直接平台API或其他AOT；M2使用独立outer的存储适配。
+
+## 微信M2存储入口
+
+先读微信模块卡和正式保存契约，再读`apps/cocos-wechat-probe/template/assets/scripts/WechatSaveStoragePort.ts`、`WechatProbeController.ts`、`CocosWechatProbe.ts`与`tests/cocos-wechat-storage.test.ts`。备份/恢复边界和平台故障模型见模块卡；真实平台验收结果以仓库外报告为准。

@@ -186,6 +186,12 @@
             },
             "status": {
               "type": "string"
+            },
+            "split_role": {
+              "enum": ["taken", "remaining"]
+            },
+            "piece_count": {
+              "type": "integer", "minimum": 0
             }
           },
           "minProperties": 1

@@ -1,4 +1,8 @@
 import type { ConfigRepository, FacilityRef, Order, Quantity, SaveFile, StorageRef } from '../../game-core';
+import { loadPhysicalPolicyRegistry } from '../../game-core/config/PhysicalPolicyLoader';
+import { physicalPolicyId } from '../../game-core/storage/PhysicalStorage';
+import type { PhysicalOccupant, PhysicalUnit } from '../../game-core/storage/PhysicalCapacity';
+import { derivePhysicalCapacityDisplay, type CapacityDisplayResult } from './PhysicalCapacityDisplay';
 
 export interface CocosSelectableOptionBase {
   id: string;
@@ -12,6 +16,8 @@ export interface CocosFieldOption extends CocosSelectableOptionBase {
   location_id: string;
   occupied_tiles: number;
   active_crop_count: number;
+  capacity_tiles: number;
+  available_tiles: number;
 }
 
 export interface CocosMaterialLotOption extends CocosSelectableOptionBase {
@@ -19,10 +25,19 @@ export interface CocosMaterialLotOption extends CocosSelectableOptionBase {
   category: string;
   current_form: string;
   quantity: Quantity;
+  cabbage_pieces?: { kind: 'whole'; pieces: Array<{ id: string; weight_g: number; source_ref: { source_type: string; source_id: string; source_time: number; source_actor?: string; source_location?: string | null; summary_key?: string | null } }> } | { kind: 'cut' };
   storage_ref: StorageRef;
   active_reservation_count: number;
   compatible_method_ids: string[];
   compatible_recipe_roles: Array<{ recipe_variant_id: string; role: string }>;
+  planting_policy?: { max_seeds_per_tile: number; per_seed_success_rate: number };
+}
+
+export interface CocosCropStatusOption {
+  id: string;
+  field_plot_id: string;
+  growth_stage: string;
+  lifecycle_status: string;
 }
 
 export interface CocosHarvestableCropOption extends CocosSelectableOptionBase {
@@ -142,8 +157,11 @@ export interface CocosOrderOption extends CocosSelectableOptionBase {
 export interface CocosStorageTargetOption extends CocosSelectableOptionBase {
   location_id: string;
   storage_type: string;
+  container_type: string;
   capacity: Quantity;
   used_capacity: number;
+  capacity_limits?: { mass_g: number; volume_ml: number };
+  used_capacity_limits?: { mass_g: number; volume_ml: number };
   supported_forms: string[];
 }
 
@@ -161,13 +179,14 @@ export interface CocosSelectableViewModelData {
   field_options: CocosFieldOption[];
   seed_lot_options: CocosMaterialLotOption[];
   harvestable_crop_options: CocosHarvestableCropOption[];
+  crop_status_options?: CocosCropStatusOption[];
   splittable_lot_options: CocosMaterialLotOption[];
   processable_lot_options: CocosMaterialLotOption[];
   collectable_task_options: CocosCollectableTaskOption[];
   processing_method_options: CocosProcessingMethodOption[];
   processing_task_options: CocosProcessingTaskOption[];
   cookable_recipe_options: CocosCookableRecipeOption[];
-  submittable_dish_lot_options: Array<{ id: string; recognized_dish_id: string | null; serving_count: number; storage_ref: StorageRef; enabled: boolean; reason_key: string | null }>;
+  submittable_dish_lot_options: Array<{ id: string; recognized_dish_id: string | null; serving_count: number; storage_form: string; storage_ref: StorageRef; enabled: boolean; reason_key: string | null }>;
   order_options: CocosOrderOption[];
   storage_target_options: CocosStorageTargetOption[];
   processing_facility_options: CocosProcessingFacilityOption[];
@@ -203,24 +222,68 @@ interface RecipeStructure {
 export class CocosSelectableViewModel {
   constructor(private readonly configs: ConfigRepository) {}
 
+  storageCapacityDisplay(save: SaveFile, targetId: string, lotId: string | null, gridCount: number): CapacityDisplayResult {
+    try {
+      const target = save.storage_containers.find(item => item.container_id === targetId);
+      if (!target) return { model: 'physical', status: 'unavailable', reason: 'ERR_PHYSICAL_DISPLAY_TARGET_MISSING' };
+      const policyId = physicalPolicyId(save);
+      if (policyId === null) return derivePhysicalCapacityDisplay({ model: 'legacy_slot', used: target.used_capacity, maximum: target.capacity.amount });
+      const policy = loadPhysicalPolicyRegistry(this.configs).resolve(policyId);
+      const containers = save.storage_containers.map(item => ({ id: item.container_id, location_id: item.location_id,
+        storage_type: item.storage_type, supported_forms: [...item.supported_forms], limits: { ...item.capacity_limits! } }));
+      const occupants: PhysicalOccupant[] = [
+        ...save.inventory.map(item => ({ kind: 'MaterialLot' as const, id: item.lot_id, definition_id: item.base_id,
+          form: item.current_form, quantity: { amount: item.quantity.amount, unit: item.quantity.unit as PhysicalUnit }, storage_ref: { ...item.storage_ref } })),
+        ...save.dish_lots.map(item => ({ kind: 'DishLot' as const, id: item.dish_lot_id, definition_id: item.recognized_dish_id ?? '',
+          form: item.storage_form, quantity: { amount: item.total_quantity.amount, unit: item.total_quantity.unit as PhysicalUnit }, storage_ref: { ...item.storage_ref } }))
+      ];
+      let standardCabbage: number | undefined;
+      try {
+        const growth = this.configs.requiredDoc<{ harvest_rule?: { output_base_id?: string; output_form?: string; default_quantity_g?: number } }>('configs/farming/growth_profiles/cabbage_growth_basic.yaml').harvest_rule;
+        if (growth?.output_base_id === 'cabbage' && growth.output_form === 'fresh' && typeof growth.default_quantity_g === 'number' && Number.isFinite(growth.default_quantity_g) && growth.default_quantity_g > 0) standardCabbage = growth.default_quantity_g;
+      } catch { /* Missing standard makes the optional estimate unavailable. */ }
+      const selected = lotId ? save.inventory.find(item => item.lot_id === lotId) : undefined;
+      const selection = selected ? { lot_id: selected.lot_id,
+        ...(selected.cabbage_pieces?.kind === 'whole' ? { pieces: selected.cabbage_pieces.pieces.map(piece => ({ id: piece.id, weight_g: piece.weight_g })) } : {}) } : undefined;
+      return derivePhysicalCapacityDisplay({ model: 'physical', policy_id: policyId, policy, containers, occupants, target_id: targetId, grid_count: gridCount,
+        ...(standardCabbage === undefined ? {} : { standard_cabbage_g: standardCabbage }),
+        ...(selection ? { selection } : {}) });
+    } catch (error) {
+      return { model: 'physical', status: 'unavailable', reason: error instanceof Error ? error.message.split(':')[0] || 'ERR_PHYSICAL_DISPLAY' : 'ERR_PHYSICAL_DISPLAY' };
+    }
+  }
+
   build(save: SaveFile): CocosSelectableViewModelData {
     const processingMethodIds = this.processingMethodIds();
     const activeRecipeIds = this.activeRecipeIds();
     const materialOptions = save.inventory.map((lot) => this.materialLotOption(save, lot.lot_id, processingMethodIds, activeRecipeIds));
     const processingFacilities = this.processingFacilityOptions(save, processingMethodIds);
+    const fieldDefinitions = this.configs.requiredDoc<{ field_plot_definitions: Record<string, { capacity_tiles: number }> }>('configs/farming/field_plots.yaml');
 
     return {
-      field_options: save.fields.map((field) => ({
-        id: field.field_plot_id,
-        label_key: `field.${field.definition_id}.name`,
-        enabled: field.active_crop_ids.length === 0 && field.occupied_tiles === 0,
-        reason_key: field.active_crop_ids.length === 0 && field.occupied_tiles === 0 ? null : 'ui.reason.field_occupied',
-        definition_id: field.definition_id,
-        location_id: field.location_id,
-        occupied_tiles: field.occupied_tiles,
-        active_crop_count: field.active_crop_ids.length
-      })),
+      field_options: save.fields.map((field) => {
+        const capacity = fieldDefinitions.field_plot_definitions[field.definition_id]?.capacity_tiles;
+        const available = Number.isSafeInteger(capacity) && capacity! > 0
+          && Number.isSafeInteger(field.occupied_tiles) && field.occupied_tiles >= 0
+          ? Math.max(0, capacity! - field.occupied_tiles) : 0;
+        return {
+          id: field.field_plot_id,
+          label_key: `field.${field.definition_id}.name`,
+          enabled: available > 0,
+          reason_key: available > 0 ? null : 'ui.reason.field_occupied',
+          definition_id: field.definition_id,
+          location_id: field.location_id,
+          occupied_tiles: field.occupied_tiles,
+          active_crop_count: field.active_crop_ids.length,
+          capacity_tiles: capacity ?? 0,
+          available_tiles: available
+        };
+      }),
       seed_lot_options: materialOptions.filter((option) => option.category === 'seed' || option.current_form.includes('seed') || option.base_id.endsWith('_seed')),
+      // Only already-visible lifecycle stages are projected; random samples remain in core state.
+      crop_status_options: save.crop_instances.filter(crop => !['harvested', 'removed'].includes(crop.lifecycle_status)).map(crop => ({
+        id: crop.crop_id, field_plot_id: crop.field_plot_id, growth_stage: crop.growth_stage, lifecycle_status: crop.lifecycle_status
+      })),
       harvestable_crop_options: save.crop_instances.map((crop) => ({
         id: crop.crop_id,
         label_key: `crop.${crop.crop_base_id}.name`,
@@ -251,6 +314,7 @@ export class CocosSelectableViewModel {
         id: lot.dish_lot_id,
         recognized_dish_id: lot.recognized_dish_id ?? null,
         serving_count: lot.serving_count,
+        storage_form: lot.storage_form,
         storage_ref: { ...lot.storage_ref },
         enabled: true,
         reason_key: null
@@ -259,12 +323,15 @@ export class CocosSelectableViewModel {
       storage_target_options: save.storage_containers.map((container) => ({
         id: container.container_id,
         label_key: `storage.${container.container_id}.name`,
-        enabled: container.used_capacity < container.capacity.amount,
-        reason_key: container.used_capacity < container.capacity.amount ? null : 'ui.reason.storage_full',
+        enabled: save.physical_capacity_policy_id !== undefined || container.used_capacity < container.capacity.amount,
+        reason_key: save.physical_capacity_policy_id !== undefined || container.used_capacity < container.capacity.amount ? null : 'ui.reason.storage_full',
         location_id: container.location_id,
         storage_type: container.storage_type,
+        container_type: container.container_type,
         capacity: { ...container.capacity },
         used_capacity: container.used_capacity,
+        ...(container.capacity_limits ? { capacity_limits: { ...container.capacity_limits } } : {}),
+        ...(container.used_capacity_limits ? { used_capacity_limits: { ...container.used_capacity_limits } } : {}),
         supported_forms: [...container.supported_forms]
       })),
       processing_facility_options: processingFacilities
@@ -405,6 +472,15 @@ export class CocosSelectableViewModel {
     const lot = save.inventory.find((item) => item.lot_id === lotId);
     if (!lot) throw new Error(`ERR_SELECTABLE_LOT_NOT_FOUND:${lotId}`);
     const activeReservationCount = save.reservations.filter((reservation) => reservation.status === 'active' && reservation.target_ref.object_type === 'MaterialLot' && reservation.target_ref.object_id === lot.lot_id).length;
+    const seedDefinition = Object.entries(this.configs.loadStage1A().documents)
+      .filter(([path]) => path.startsWith('configs/farming/seeds/') && path.endsWith('.yaml'))
+      .map(([, definition]) => definition as { id?: string; seed_defaults?: { germination_rate?: number }; planting_policy?: { max_seeds_per_tile?: number } })
+      .find(definition => definition.id === lot.base_id);
+    const maxSeeds = seedDefinition?.planting_policy?.max_seeds_per_tile;
+    const rate = seedDefinition?.seed_defaults?.germination_rate;
+    const plantingPolicy = typeof maxSeeds === 'number' && Number.isSafeInteger(maxSeeds) && maxSeeds > 0
+      && typeof rate === 'number' && Number.isFinite(rate) && rate >= 0 && rate <= 1
+      ? { max_seeds_per_tile: maxSeeds, per_seed_success_rate: rate } : null;
     return {
       id: lot.lot_id,
       label_key: `material.${lot.base_id}.${lot.current_form}`,
@@ -414,10 +490,12 @@ export class CocosSelectableViewModel {
       category: lot.category,
       current_form: lot.current_form,
       quantity: { ...lot.quantity },
+      ...(lot.cabbage_pieces === undefined ? {} : { cabbage_pieces: structuredClone(lot.cabbage_pieces) }),
       storage_ref: { ...lot.storage_ref },
       active_reservation_count: activeReservationCount,
       compatible_method_ids: processingMethodIds.filter((methodId) => this.lotMatchesProcessingMethod(lot, methodId)),
-      compatible_recipe_roles: recipeVariantIds.flatMap((recipeId) => this.compatibleRecipeRoles(lot, recipeId).map((role) => ({ recipe_variant_id: recipeId, role })))
+      compatible_recipe_roles: recipeVariantIds.flatMap((recipeId) => this.compatibleRecipeRoles(lot, recipeId).map((role) => ({ recipe_variant_id: recipeId, role }))),
+      ...(plantingPolicy === null ? {} : { planting_policy: plantingPolicy })
     };
   }
 

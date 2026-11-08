@@ -83,3 +83,23 @@ trace.inventory.split-quantity连接InventorySystem及配置调用方，现有te
 ## 订单合法状态与截止
 
 DemandResolver与GameRuntime按[orders模块卡](orders.md)对齐available/accepted提交及now>deadline过期→expired，submitted仅在同步事务内部。失败保持提交前完整领域状态与事件，旧failed不迁移，ActionPipeline与SaveFile保持。trace.orders.legal-state-deadline连接既有核心、预览、Session和readiness测试；没有新增接单、聚合或页面业务。
+
+## 显式预编译Schema集合
+
+RuntimeSchemaValidator支持显式PrecompiledSchemaValidatorSet：format为runtime-precompiled-schemas/v1，schemaSources在源侧按完整资源路径保留JSON.stringify(schema)原JSON绑定，validators按正式$id记录ValidateFunction。运行期将源JSON解析后与实际Schema作完整JSON语义规范化比较，仅允许Creator的对象键重排；字段集合、数组次序和全部嵌套值必须一致，不忽略未知字段、数组或数值变化，坏JSON和非JSON内容拒绝。原始Schema、预编译生成物和工具/产物的字节SHA来源仍严格，不因运行期对象键规范化而放宽。Stage1ABootstrapResources的可选precompiledValidators字段透明转交该集合。显式提供集合时不创建Ajv、不回退动态编译；完整路径/ID/内容不匹配、重复或无$id、无效/异步函数及非布尔结果均拒绝。未提供时Node/Web维持原Ajv路径。核心仍不接cc/wx/fs、工具或资源读取。
+
+tests/runtime-precompiled-schema.test.ts进入现有test:stage1a-bootstrap / registry test.stage1a-bootstrap实际args/files/covers，沿用full/blocker，不新增任务或降低门禁。该测试覆盖禁用动态Function后的正式启动/合法动作及坏请求、集合/内容拒绝；微信preparation契约覆盖实际facade、全部Schema、来源与生成物篡改，资源预检标记为node-aot-public-bootstrap-passed。Web旧resourcePreflight和默认动态路径保持。Node不替代新提交的Creator/SDK、微信真实输入/日志/重载、Web回归或审查/CI。
+
+函数实现的来源由构建生产链约束；核心只接收已解析Schema与函数集合，不导入Ajv standalone工具或读取生成文件。公开类型沿现有index.ts的export *自然导出，既有动态校验不变。
+
+## 拆分校验与共享仓储对账
+
+InventorySystem.assertCanSplit提供只读正式校验，split与之复用拆分计划；StorageReconciler先计算并校验占用后再统一写回。成功占用规则不变，异常时直接调用的中间状态与此前逐步写入不同；其他仓储动作、新局与正式事务仍须回归。分发后的契约/界面异常不一概证明状态回滚。
+
+## 微信加工独立校验
+
+ProcessingSystem共用开工和领取只读计划，InventorySystem按既有顺序投影材料，StorageReconciler复用同一占用计算。ActionPipeline与正式Schema、配置和玩法不变；正式提交与预览仍各自经现有管线。
+
+## 播种数量与地块容量
+
+FarmingSystem.plantCrop以seed_quantity总粒数和可选seeds_per_tile（1至3，默认1）计算种植位数，要求正安全整数且能整除。每位最多形成1株，按正式派生配置的单粒0.8计算至少一粒成功概率；批量请求先校验库存、预留和地块容量，再消耗种子及分配对象。成苗结果与专用随机流随SaveFile保存，达到现有sprout阈值时揭晓失败并释放位置，成功继续生长。未带成苗数据的旧作物继续原生长规则；不追溯补抽或返还历史种子。预览隔离真实流，重复读取同保存不重新抽样。每株产量沿既有default_quantity_g。trace.farming.seed-quantity连接参数/持久化/概率/容量/预览/Session与两端回归。

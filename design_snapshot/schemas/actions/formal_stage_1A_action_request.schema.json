@@ -85,6 +85,11 @@
             },
             "seed_quantity": {
               "$ref": "common_defs.schema.json#/$defs/Quantity"
+            },
+            "seeds_per_tile": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
             }
           }
         }
@@ -188,6 +193,16 @@
               "$ref": "common_defs.schema.json#/$defs/Quantity"
             }
           }
+        }
+      }
+    },
+    {
+      "required": ["action_type", "parameters"],
+      "properties": {
+        "action_type": { "const": "merge_lot" },
+        "parameters": {
+          "type": "object", "required": ["source_lot_id", "target_lot_id"], "additionalProperties": false,
+          "properties": { "source_lot_id": { "type": "string", "minLength": 1 }, "target_lot_id": { "type": "string", "minLength": 1 } }
         }
       }
     },

@@ -2,6 +2,7 @@ import {
   ConfigRepository,
   RuntimeContractValidator,
   RuntimeSchemaValidator,
+  type PrecompiledSchemaValidatorSet,
   type RuntimeConfigSnapshot,
   type SaveStoragePort
 } from '../../game-core';
@@ -13,13 +14,15 @@ export interface Stage1ABootstrapResources {
   storage: SaveStoragePort;
   buildId: string;
   nowIso8601: string;
+  randomSeed?: string;
+  precompiledValidators?: PrecompiledSchemaValidatorSet;
 }
 
 // The returned host already owns a validated session; do not call Probe.onLoad on it.
 export function createStage1AHost(input: Stage1ABootstrapResources): CocosSessionHost {
   assertInput(input);
   const schemaIds = assertSchemaResources(input.snapshot.schema_paths, input.schemas);
-  const schemas = RuntimeSchemaValidator.fromSnapshotSchemas(input.schemas);
+  const schemas = RuntimeSchemaValidator.fromSnapshotSchemas(input.schemas, input.precompiledValidators);
   schemas.assertSchemasAvailable(schemaIds);
   const contracts = new RuntimeContractValidator(schemas);
   contracts.assertReady();
@@ -29,7 +32,8 @@ export function createStage1AHost(input: Stage1ABootstrapResources): CocosSessio
   if (stage.stageId !== 'stage_1A') throw new Error(`ERR_BOOTSTRAP_STAGE_UNSUPPORTED:${stage.stageId}`);
   const host = new CocosSessionHost(configs, contracts, input.storage, {
     buildId: input.buildId,
-    nowIso8601: input.nowIso8601
+    nowIso8601: input.nowIso8601,
+    ...(input.randomSeed === undefined ? {} : { randomSeed: input.randomSeed })
   });
   host.createSession();
   return host;
@@ -59,6 +63,9 @@ function assertInput(input: Stage1ABootstrapResources): void {
   if (typeof input.buildId !== 'string' || !input.buildId.trim()) throw new Error('ERR_BOOTSTRAP_RESOURCE_INVALID:buildId');
   if (!isValidStartupTimestamp(input.nowIso8601)) {
     throw new Error('ERR_BOOTSTRAP_RESOURCE_INVALID:nowIso8601');
+  }
+  if (input.randomSeed !== undefined && (typeof input.randomSeed !== 'string' || !input.randomSeed.trim())) {
+    throw new Error('ERR_BOOTSTRAP_RESOURCE_INVALID:randomSeed');
   }
 }
 

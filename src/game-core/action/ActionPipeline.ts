@@ -6,12 +6,18 @@ import { ActionHandlerRegistry } from './ActionHandlerRegistry';
 import { FormalStage1AActionValidator } from './FormalStage1AActionValidator';
 import type { ActionRequest, ActionResult, FormalStage1AActionType } from './ActionTypes';
 import type { RuntimeContractValidator } from '../validation/RuntimeContractValidator';
+import type { DeterministicIdService } from '../id/IdService';
+
+class RejectedAction extends Error {
+  constructor(readonly result: ActionResult) { super('ERR_ACTION_REJECTED'); }
+}
 
 const storageMutatingActions = new Set<string>([
   'plant_crop',
   'harvest_crop',
   'store_item',
   'split_lot',
+  'merge_lot',
   'start_processing',
   'collect_processing_result',
   'cook_dish',
@@ -25,10 +31,12 @@ export class ActionPipeline {
     private readonly transactions: TransactionRunner = new TransactionRunner(),
     private readonly storageReconciler: StorageReconciler = new StorageReconciler(),
     private readonly results: ActionResultFactory = new ActionResultFactory(),
-    private readonly contracts?: RuntimeContractValidator
+    private readonly contracts?: RuntimeContractValidator,
+    private readonly ids?: DeterministicIdService
   ) {}
 
   dispatch(state: GameState, request: ActionRequest): ActionResult {
+    const idCheckpoint = this.ids?.checkpoint();
     try {
       this.contracts?.assertActionRequest(request);
       this.validator.assertFormalAction(request);
@@ -37,20 +45,29 @@ export class ActionPipeline {
         throw new Error(`ERR_PREVIEW_ONLY_NOT_ALLOWED_IN_FORMAL_DISPATCH:${formalRequest.action_type}`);
       }
       const beforeEventCount = state.domain_events.length;
-      const result = this.transactions.run(state, () => {
+      return this.transactions.run(state, () => {
+        // Validate before consuming or merging objects so malformed provenance cannot
+        // disappear from the state before the post-action contract check observes it.
+        if (storageMutatingActions.has(formalRequest.action_type)) this.contracts?.assertSaveFile(state.save_file);
         const handler = this.registry.get(formalRequest.action_type as FormalStage1AActionType);
         const handled = handler.execute(state, formalRequest);
+        if (!handled.success) throw new RejectedAction(handled);
         if (handled.success && storageMutatingActions.has(formalRequest.action_type)) {
           this.storageReconciler.reconcile(state.save_file);
+          this.contracts?.assertSaveFile(state.save_file);
         }
-        return handled;
+        const committedEvents = state.domain_events.slice(beforeEventCount);
+        for (const event of committedEvents) this.contracts?.assertDomainEvent(event);
+        const withEvents = this.results.withDomainEvents(handled, committedEvents);
+        this.contracts?.assertActionResult(withEvents);
+        return withEvents;
       });
-      const committedEvents = state.domain_events.slice(beforeEventCount);
-      for (const event of committedEvents) this.contracts?.assertDomainEvent(event);
-      const withEvents = this.results.withDomainEvents(result, committedEvents);
-      this.contracts?.assertActionResult(withEvents);
-      return withEvents;
     } catch (error) {
+      if (idCheckpoint) this.ids?.restore(idCheckpoint);
+      if (error instanceof RejectedAction) {
+        this.contracts?.assertActionResult(error.result);
+        return error.result;
+      }
       const statusCode = error instanceof Error ? error.message.split(':')[0] || 'ERR_UNKNOWN' : 'ERR_UNKNOWN';
       const failure = this.results.failure(request, statusCode, { raw_error: error instanceof Error ? error.message : String(error) });
       this.contracts?.assertActionResult(failure);

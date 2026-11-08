@@ -19,8 +19,39 @@
   ],
   "additionalProperties": false,
   "properties": {
+    "last_operation": {
+      "type": "object", "required": ["request", "executed_at"], "additionalProperties": false,
+      "properties": { "request": { "oneOf": [{ "$ref": "action_request.schema.json" }, { "$ref": "common_defs.schema.json#/$defs/OperationRequestSummary" }] }, "executed_at": { "type": "integer", "minimum": 0 } }
+    },
     "lot_id": {
       "type": "string"
+    },
+    "cabbage_pieces": {
+      "oneOf": [
+        {
+          "type": "object", "required": ["kind", "pieces"], "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "whole" },
+            "pieces": { "type": "array", "minItems": 1, "items": {
+              "type": "object", "required": ["id", "weight_g", "source_ref"], "additionalProperties": false,
+              "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "weight_g": { "type": "number", "exclusiveMinimum": 0 },
+                "source_ref": { "$ref": "common_defs.schema.json#/$defs/SourceRef" },
+                "seed_lot_snapshot": { "$ref": "common_defs.schema.json#/$defs/SeedLotSnapshot" }
+              }
+            } }
+          }
+        },
+        { "type": "object", "required": ["kind"], "additionalProperties": false,
+          "properties": { "kind": { "const": "cut" },
+            "source_piece": { "type": "object", "required": ["id", "original_weight_g", "source_ref"], "additionalProperties": false,
+              "properties": { "id": { "type": "string", "minLength": 1 }, "original_weight_g": { "type": "number", "exclusiveMinimum": 0 },
+                "source_ref": { "$ref": "common_defs.schema.json#/$defs/SourceRef" },
+                "seed_lot_snapshot": { "$ref": "common_defs.schema.json#/$defs/SeedLotSnapshot" } }
+            }
+          } }
+      ]
     },
     "base_id": {
       "type": "string"

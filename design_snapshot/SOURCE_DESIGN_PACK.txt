@@ -1,14 +1,15 @@
 source_design_pack: 模拟游戏_正式开发总设定包_v1_5_2_2_practical_ready.zip
 design_pack_version: v1.5.2.2
-code_package_version: v0.0.2.46
-code_package_npm_version: 0.0.2-46
-code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_2_46
-version_name: Touch Interaction & Small-screen Readiness
-chinese_version_name: 触摸交互与小屏操作收口版
-scope: Prepare existing Stage1A outer screens for agreed desktop-emulated landscape touch viewports with native Cocos scrolling, cancellation, single-dispatch and viewport recovery. Preserve core, Session/Queue, SaveFile, formal resources, manual single-slot storage and existing Web regression chains; no new gameplay, multitouch framework, autosave, migration or WeChat integration.
+code_package_version: v0.0.3.0
+code_package_npm_version: 0.0.3-0
+code_package_name: 模拟游戏_Cocos微信试水代码包_v0_0_3_0
+version_name: WeChat Stage1A Pilot
+chinese_version_name: 微信真机Stage1A试水版
+scope: WeChat Stage1A Pilot M3 candidate: farming, inventory, direct split, processing, manual save/load. This runtime derivative includes the user-approved probabilistic planting amendment; full M3 and M4 acceptance remain incomplete.
 
-formal_source_statement: 正式包 v1.5.2.2 remains authoritative
-context_statement: 约定电脑横屏触摸/小屏布局与滚动取消、单次派发及缩高恢复；沿用既有代码包内部检查体系治理并同步必要版本/追踪；core、Session/Queue、SaveFile与正式资源保持，不冒称手机或微信通过
-quality_surface: trace.cocos.touch-small-screen, pure ProbeLayout behavior and executed preparation/lifecycle/web-verification contracts; inherited 29 traces; q:full, q:release without cache, independent Creator/SDK and built/editor mouse/touch evidence
-authority_statement: design pack remains authoritative; GitHub repo is daily code authority
+formal_source_statement: 正式包 v1.5.2.2为原始来源；本派生集合另含2026-11-08用户明确批准的概率播种修订，不能称原包已规定80%或与原始资料字节完全一致
+context_statement: 每个种植位最多3粒、每粒独立80%成苗，最终最多保留1株；2粒96%、3粒99.2%。扩展播种参数、成苗保存字段和派生配置，旧作物不追溯补抽；另增加用户授权的白菜批次与双维容量修订，正式变化经ActionPipeline
+quality_surface: trace.farming.seed-quantity and inherited traces; q:full and q:release without cache; independent Creator/SDK and built/editor regression; new WeChat device results require separate evidence
+authority_statement: design pack remains authoritative except the explicit approved planting and inventory amendments; GitHub repo is daily code authority; 代码包内部检查体系治理保持，原架构边界和正式Action校验不放宽
 affected_boundary: q:affected and cache probe serve development feedback only; q:full and q:release without cache remain completion authority
+2026-11-09候选补充：用户要求完整白菜同时记录颗数与重量、切开后按重量，允许受约束的批次合并；新局按容积与承重双维核算，菜窖开局三个独立坛子并允许混装，界面隐藏物理单位。加工品领取先入仓库。旧档缺失颗数不猜测，旧制容量点不转换为现实单位。此为用户授权的运行派生修订；原始正式资料包与历史固定快照保持原文，历史fixture/expected保留。

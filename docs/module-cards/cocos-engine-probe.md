@@ -9,7 +9,7 @@ source_of_truth: false
 
 ## 模块职责
 
-apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期桥接。只有该outer可使用cc；旧game-core、cocos-app、cocos-creator-adapter保持engine-neutral。既有网页支持农事、公开材料批次浏览、正式store_item整批转移及手动本地单槽存读档。既有网页拆分及核心校验保持；既有outer消费app最小只读配方/操作约束及燃料投影，提供第四网页烹饪选料与真实菜品反馈；既有加工页保留，正式匹配、数量、时间和事务仍由既有核心校验，真实输入另行验收。
+apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期桥接。本Web outer可使用cc，独立微信outer另见cocos-wechat-probe模块卡；旧game-core、cocos-app、cocos-creator-adapter保持engine-neutral。既有网页支持农事、公开材料批次浏览、正式store_item整批转移及手动本地单槽存读档。既有网页拆分及核心校验保持；既有outer消费app最小只读配方/操作约束及燃料投影，提供第四网页烹饪选料与真实菜品反馈；既有加工页保留，正式匹配、数量、时间和事务仍由既有核心校验，真实输入另行验收。
 
 工程从唯一src/design_snapshot派生runtime、snapshot及全部58项Schema；工作副本、依赖、缓存、报告和构建均在仓库外，禁止手改副本成为第二源码权威。script.loose=false保留标准JavaScript语义，不能恢复Creator默认loose破坏Ajv继承getter的已知转换。
 
@@ -32,7 +32,7 @@ apps/cocos-probe/保存Creator3.8.8真实Web探针源模板和外层生命周期
 - apps/cocos-probe/template/assets/scripts/ProbeInteraction.ts：无cc的单次操作协调、busy和销毁后迟到反馈保护。
 - apps/cocos-probe/template/assets/scripts/ProbeFarming.ts：公开选项副本、当前选择、带单位播种数量和既有菜单命令草稿。
 - apps/cocos-probe/template/build-templates/web-desktop/index.ejs、probe-viewport.css、probe-viewport.js：官方构建模板上的页面容器和视口同步；保留cocosTemplate注入，不能手改派生index.html。
-- tools/cocos-probe/prepare.mjs：唯一来源派生仓库外工程。
+- tools/cocos-probe/prepare.mjs：兼容Web入口，经固定共享prepareProject生产者从唯一来源派生仓库外工程。
 - tools/cocos-probe/build.mjs：真实构建及Web逐文件/目录摘要。
 - tools/cocos-probe/verify-web.mjs：verifyWebProbe(options)与独立真实浏览器CLI。
 - tools/cocos-probe/lib/webProbeSupport.mjs：构建/验收共享的HTTP、参数、来源与Web摘要辅助。
@@ -144,3 +144,7 @@ compact重排前通过公开isFocused捕获当前编辑框，缩高/恢复后按
 editor保留原矩阵，新增触摸用Creator原生WebpageFullScreen控件切换并逐实际canvas/frame几何标注，不篡改预览DOM造支持。电脑hasTouch/DPR或缩高恢复不证明vivo X200s真实键盘、安全区或微信触摸。busy/销毁迟到沿既有受控Node回归与浏览器实际可观察窗口分别说明，不伪造同步Storage pending。真实Creator/SDK、built/editor鼠标/触摸和逐图检查独立留证。
 
 正常经营/存读档链console error必须为零，pageerror在全部场景都必须为零；旧missing-resource预期404单独归类。另有且仅有受控touch-native-cancel负例可记录一条SDK/Chrome诊断全文：Ignored attempt to cancel a touchcancel event with cancelable=false, for example because scrolling is in progress and cannot be interrupted. 必须同时证明原生cancel为trusted、cancelable=false、取消0CLICK/0command、世界保持及后续真实保存/推进/读取健康恢复；保留原始console。全文出现于其他case、被伪标missing-resource、次数非一、原生或恢复证据缺失、其他console error/pageerror均失败，不能泛过滤touch页面或报告原始console零error。该归属来自安装SDK原生touch-input回调与实际负例，不修改SDK或架构/门禁策略。
+
+## 批量播种兼容
+
+Web农事读取公开地块capacity_tiles/available_tiles，展示空余格数，保留半满地块选择。播种位数和每位粒数经原正式菜单确认；真实browser按总粒数核验扣种、按种植位数核验占位和播种对象数，并区分后续成苗失败。概率采用用户确认规则，不把每个播种对象都当作保证成熟。Web拆分仍保留既有预览交互；本次取消独立预览按钮仅属于微信页面。trace.farming.seed-quantity连接共享核心与两端回归。

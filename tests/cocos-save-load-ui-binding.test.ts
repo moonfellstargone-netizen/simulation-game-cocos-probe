@@ -36,7 +36,8 @@ test('Save/load UI binding saves and loads only through session host and refresh
     seed_quantity: { amount: 1, unit: 'count' }
   });
   assert.equal(plantResult.success, true);
-  assert.equal(host.requireSession().getSelectableViewModel().field_options.find((field) => field.id === 'field_plot_01')?.enabled, false);
+  assert.equal(host.requireSession().getSelectableViewModel().field_options.find((field) => field.id === 'field_plot_01')?.enabled, true);
+  assert.equal(host.requireSession().getSelectableViewModel().field_options.find((field) => field.id === 'field_plot_01')?.available_tiles, 5);
 
   const loaded = await controller.load({ slot_id: 'slot_stage1a_initial' });
   assert.equal(loaded.last_load_result?.slot_id, 'slot_stage1a_initial');

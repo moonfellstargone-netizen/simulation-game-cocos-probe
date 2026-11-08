@@ -20,6 +20,10 @@
   ],
   "additionalProperties": false,
   "properties": {
+    "last_operation": {
+      "type": "object", "required": ["request", "executed_at"], "additionalProperties": false,
+      "properties": { "request": { "oneOf": [{ "$ref": "action_request.schema.json" }, { "$ref": "common_defs.schema.json#/$defs/OperationRequestSummary" }] }, "executed_at": { "type": "integer", "minimum": 0 } }
+    },
     "dish_lot_id": {
       "type": "string"
     },

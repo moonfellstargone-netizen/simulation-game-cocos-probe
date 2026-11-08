@@ -17,6 +17,7 @@
   ],
   "additionalProperties": false,
   "properties": {
+    "seed_lot_snapshot": { "$ref": "common_defs.schema.json#/$defs/SeedLotSnapshot" },
     "crop_id": {
       "type": "string",
       "minLength": 1
@@ -92,6 +93,104 @@
       "items": {
         "type": "string"
       }
+    },
+    "germination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_version",
+        "seeds_per_tile",
+        "per_seed_success_rate",
+        "reveal_growth_progress",
+        "outcome",
+        "revealed"
+      ],
+      "properties": {
+        "policy_version": {
+          "const": "independent-seeds-v1"
+        },
+        "seeds_per_tile": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "per_seed_success_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reveal_growth_progress": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 100
+        },
+        "outcome": {
+          "enum": [
+            "succeeded",
+            "failed"
+          ]
+        },
+        "revealed": {
+          "type": "boolean"
+        }
+      }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "germination"
+        ],
+        "properties": {
+          "germination": {
+            "properties": {
+              "revealed": {
+                "const": false
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "lifecycle_status": {
+            "const": "active"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "germination"
+        ],
+        "properties": {
+          "germination": {
+            "properties": {
+              "revealed": {
+                "const": true
+              },
+              "outcome": {
+                "const": "failed"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "lifecycle_status": {
+            "const": "failed"
+          },
+          "growth_stage": {
+            "const": "withered"
+          },
+          "health": {
+            "const": 0
+          }
+        }
+      }
+    }
+  ]
 }
