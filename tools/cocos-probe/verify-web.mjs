@@ -1505,7 +1505,38 @@ async function assertTouchCanvas(page, viewport, evidence) {
     const state=globalThis.__cocosWebProbe.status(),r=document.querySelector('#GameCanvas').getBoundingClientRect();
     return state.layout?.mode==='compact' && Math.abs(r.left)<=1e-4 && Math.abs(r.top)<=1e-4 && Math.abs(r.width-width)<=1 && Math.abs(r.height-height)<=1
       && Math.abs(state.layout.frame.width-width)<=1 && Math.abs(state.layout.frame.height-height)<=1;
-  },viewport); } catch (error) {
+  },viewport);
+    // Window/layout callbacks precede the renderer's camera-matrix update. Observe two
+    // complete rendered frames instead of comparing DOM to that transitional matrix.
+    const rendered = await page.evaluate(async () => {
+      const cc = await System.import('cc');
+      const camera = cc.director.getScene().getComponentsInChildren(cc.Camera).find(item => item.node.name === 'ProbeCamera');
+      const samples = [];
+      return new Promise(resolve => {
+        let stable = 0;
+        const finish = passed => {
+          clearTimeout(timeout);
+          cc.director.off(cc.Director.EVENT_AFTER_DRAW, observe);
+          resolve({ passed, timeoutMs: 2000, requiredConsecutiveFrames: 2, samples });
+        };
+        const observe = () => {
+          const canvas = document.querySelector('#GameCanvas'), rect = canvas.getBoundingClientRect();
+          const origin = camera.worldToScreen(new cc.Vec3(0, 0, 0));
+          const x = camera.worldToScreen(new cc.Vec3(100, 0, 0));
+          const y = camera.worldToScreen(new cc.Vec3(0, 100, 0));
+          const horizontalCss = (x.x - origin.x) * rect.width / canvas.width;
+          const verticalCss = (y.y - origin.y) * rect.height / canvas.height;
+          samples.push({ at: performance.now(), horizontalCss, verticalCss });
+          stable = Math.abs(horizontalCss - 100) <= 1e-4 && Math.abs(verticalCss - 100) <= 1e-4 ? stable + 1 : 0;
+          if (stable >= 2) finish(true);
+        };
+        const timeout = setTimeout(() => finish(false), 2000);
+        cc.director.on(cc.Director.EVENT_AFTER_DRAW, observe);
+      });
+    });
+    if (evidence) (evidence.renderedFrames ??= []).push({ viewport, ...rendered });
+    assert.equal(rendered.passed, true, 'camera projection must match the compact CSS scale for two rendered frames within two seconds');
+  } catch (error) {
     if(evidence) evidence.failedCanvas=await page.evaluate(async () => {
       const r=document.querySelector('#GameCanvas').getBoundingClientRect(),canvas=document.querySelector('#GameCanvas');
       const cc=await System.import('cc');
