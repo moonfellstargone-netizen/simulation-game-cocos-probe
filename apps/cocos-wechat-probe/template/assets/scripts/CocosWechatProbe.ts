@@ -2,7 +2,7 @@ import { _decorator, Button, Camera, Canvas, Color, Component, EditBox, Game, ga
   JsonAsset, Label, Layers, Node, resources, ResolutionPolicy, screen, sys, UITransform, view } from 'cc';
 import { createStage1AHost, QinglanUiSceneProbeComponent } from '../generated/probe-runtime.js';
 import { groupWechatInventory } from './WechatInventoryGroups';
-import { WechatProbeController, type WechatMaterialOption, type WechatProbeSnapshot, type WechatResources } from './WechatProbeController';
+import { WechatProbeController, type WechatMaterialOption, type WechatStorageOption, type WechatProbeSnapshot, type WechatResources } from './WechatProbeController';
 import { WECHAT_BACKUP_SLOT_ID, WECHAT_SAVE_SLOT_ID, WechatSaveStoragePort } from './WechatSaveStoragePort';
 import { createWechatPriorSaveValidator } from './WechatPriorSaveValidator';
 
@@ -768,8 +768,23 @@ export class CocosWechatProbe extends Component {
     if (this.stockMode === 'detail' || this.stockMode === 'dishDetail') this.stockMode = this.stockReturnMode;
     else if (this.stockMode === 'warehouseLots') this.stockMode = 'warehouse';
     else if (this.stockMode === 'containerLots') this.stockMode = 'cellar';
+    else if (this.stockMode === 'other') this.stockMode = 'warehouse';
     else this.stockMode = 'locations';
     this.stockListOffset = 0;
+  }
+
+  private stockLocationName(targets: readonly WechatStorageOption[], id: string): string {
+    const target = targets.find(item => item.id === id);
+    if (!target) return '未知位置';
+    if (target.container_type === 'room_temp_container') return '仓库';
+    const sameKind = targets.filter(item => item.container_type === target.container_type && item.storage_type === target.storage_type)
+      .slice().sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    const index = sameKind.findIndex(item => item.id === id) + 1;
+    if (target.container_type === 'cellar_jar') return `菜窖坛子${index}`;
+    if (target.container_type === 'cellar_container') return sameKind.length > 1 ? `旧菜窖${index}` : '旧菜窖';
+    if (target.container_type === 'pickling_jar') return `腌制坛${index}`;
+    const label = STORAGE[target.storage_type] ?? '其他位置';
+    return sameKind.length > 1 ? `${label}${index}` : label;
   }
 
   private stockRows(state: WechatProbeSnapshot): Array<{ key: string; label: string; kind: string }> {
@@ -783,13 +798,14 @@ export class CocosWechatProbe extends Component {
       return `${this.names[lot.base_id] ?? '材料'} · ${FORMS[lot.current_form] ?? lot.current_form} · ${quantity}`;
     };
     const dishLabel = (id: string | null, count: number) => `${id ? this.names[id] ?? '菜品' : '未识别菜品'} · ${count}份`;
+    const otherLocation = (ref: { readonly container_id: string }) => this.stockLocationName(targets, ref.container_id);
     if (this.stockMode === 'locations') return [
       { key:'warehouse', label:`仓库 · ${groups.warehouseBatchCount}批${options?.submittable_dish_lot_options ? '' : ' · 菜品待确认'}`, kind:'location' },
-      { key:'cellar', label:`菜窖 · ${groups.jars.filter(jar => !jar.legacy).length}个坛子${groups.jars.some(jar => jar.legacy) ? ' · 含旧菜窖' : ''}`, kind:'location' },
-      { key:'other', label:`其他储存 · ${groups.other.length + groups.otherDishes.length}批`, kind:'location' }];
+      { key:'cellar', label:`菜窖 · ${groups.jars.filter(jar => !jar.legacy).length}个坛子${groups.jars.some(jar => jar.legacy) ? ' · 含旧菜窖' : ''}`, kind:'location' }];
     if (this.stockMode === 'warehouse') return [
       ...groups.warehouse.map(group => ({ key:group.baseId, kind:'group', label:`${this.names[group.baseId] ?? '材料'} · ${group.batches.length}批${group.baseId === 'cabbage' ? ` · 已知完整白菜${group.knownWholeCount}颗${group.unknownWholeBatches ? ` · ${group.unknownWholeBatches}批颗数未知` : ''}` : group.hasCountQuantity ? ` · ${group.countQuantity === null ? '数量待确认' : `${group.countQuantity}${group.baseId.endsWith('_seed') ? '粒' : '个'}`}` : ''}` })),
-      ...groups.warehouseDishes.map(dish => ({ key:dish.id, kind:'dish', label:dishLabel(dish.recognized_dish_id,dish.serving_count) }))];
+      ...groups.warehouseDishes.map(dish => ({ key:dish.id, kind:'dish', label:dishLabel(dish.recognized_dish_id,dish.serving_count) })),
+      ...(groups.other.length + groups.otherDishes.length ? [{ key:'other', kind:'location', label:`其他位置 · ${groups.other.length + groups.otherDishes.length}批` }] : [])];
     if (this.stockMode === 'cellar') return groups.jars.map(jar => {
       const selected = lots.find(lot => lot.id === this.lotId);
       const candidate = selected?.base_id === 'cabbage' && selected.current_form === 'fresh' ? selected.id : null;
@@ -799,7 +815,7 @@ export class CocosWechatProbe extends Component {
         : capacity?.model === 'physical' && capacity.status === 'ready' && capacity.selection.status === 'already_in_target' ? '本批已在此处'
         : capacity?.model === 'physical' && capacity.status === 'ready' && capacity.selection.status === 'unknown' && capacity.selection.reason === 'not_selected' && capacity.standard_cabbage_estimate !== undefined
           ? `约可再放${capacity.standard_cabbage_estimate}颗标准白菜` : '可放数量待确认';
-      return { key:jar.target.id, kind:'jar', label:`${jar.legacy ? '旧菜窖' : `坛子${groups.jars.filter(item => !item.legacy).findIndex(item => item.target.id === jar.target.id) + 1}`} · ${jar.batches.length + jar.dishes.length}批${options?.submittable_dish_lot_options ? '' : '（菜品待确认）'} · ${detail}` };
+      return { key:jar.target.id, kind:'jar', label:`${this.stockLocationName(targets, jar.target.id)} · ${jar.batches.length + jar.dishes.length}批${options?.submittable_dish_lot_options ? '' : '（菜品待确认）'} · ${detail}` };
     });
     const selected = this.stockMode === 'warehouseLots' ? groups.warehouse.find(group => group.baseId === this.stockKind)?.batches ?? []
       : this.stockMode === 'containerLots' ? groups.jars.find(jar => jar.target.id === this.stockContainer)?.batches ?? []
@@ -808,8 +824,8 @@ export class CocosWechatProbe extends Component {
       : this.stockMode === 'other' ? groups.otherDishes : [];
     if (this.stockMode === 'dishDetail') { const dish = dishes.find(item => item.id === this.stockDishId);
       return dish ? [{key:dish.id,kind:'info',label:`${dishLabel(dish.recognized_dish_id,dish.serving_count)} · 菜品批次`}] : []; }
-    return [...selected.map(lot => ({ key:lot.id, kind:'lot', label:itemLabel(lot) })),
-      ...selectedDishes.map(dish => ({key:dish.id,kind:'dish',label:dishLabel(dish.recognized_dish_id,dish.serving_count)}))];
+    return [...selected.map(lot => ({ key:lot.id, kind:'lot', label:itemLabel(lot) + (this.stockMode === 'other' ? ` · ${otherLocation(lot.storage_ref)}` : '') })),
+      ...selectedDishes.map(dish => ({key:dish.id,kind:'dish',label:dishLabel(dish.recognized_dish_id,dish.serving_count) + (this.stockMode === 'other' ? ` · ${otherLocation(dish.storage_ref)}` : '')}))];
   }
 
   private selectStockEntry(index: number, state: WechatProbeSnapshot): void {
@@ -864,13 +880,7 @@ export class CocosWechatProbe extends Component {
     const dishDetail = this.stockMode === 'dishDetail';
     const unit = (value: string) => UNITS[value] ?? value;
     const place = (value: string) => STORAGE[value] ?? value;
-    const containerName = (id: string) => {
-      const container = targets.find(item => item.id === id); if (!container) return '未知储存位置';
-      if (container.container_type === 'room_temp_container') return '仓库';
-      if (container.container_type === 'cellar_container') return '旧菜窖';
-      if (container.container_type === 'cellar_jar') return `菜窖坛子${targets.filter(item => item.container_type === 'cellar_jar').findIndex(item => item.id === id) + 1}`;
-      return place(container.storage_type);
-    };
+    const containerName = (id: string) => this.stockLocationName(targets, id);
     const inProcessing = this.page.startsWith('processing');
     for (const node of this.processingBaseNodes) node.active = !inProcessing;
     this.farmNode.active = this.page === 'farm';
@@ -915,7 +925,7 @@ export class CocosWechatProbe extends Component {
       this.labels.stockHelp.string = target ? '容量无法核对，请检查数据' : '选择目标后可整批转移';
     }
     if (dishDetail) {
-      this.labels.stockLot.string = dish ? `${dish.recognized_dish_id ? this.names[dish.recognized_dish_id] ?? '菜品' : '未识别菜品'} · ${dish.serving_count}份` : '菜品批次已不存在';
+      this.labels.stockLot.string = dish ? `${dish.recognized_dish_id ? this.names[dish.recognized_dish_id] ?? '菜品' : '未识别菜品'} · ${dish.serving_count}份 · ${containerName(dish.storage_ref.container_id)}` : '菜品批次已不存在';
       this.labels.stockTarget.string = target ? `目标：${containerName(target.id)}` : '请选择支持菜品的目标';
       this.labels.stockHelp.string = this.dishMoveNeedsReview ? '转移结果待确认，请先核对库存' : '菜品按份数显示，目标须支持菜品形态';
     }

@@ -93,8 +93,11 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     click('PageStock');
     assert.match(probe.labels.stockRow0.string, /仓库.*批/);
     assert.match(probe.labels.stockRow1.string, /菜窖.*3个坛子/);
+    assert.equal(probe.stockRows(controller.snapshot()).length,2,'top level contains only warehouse and cellar');
+    assert.equal(probe.labels.stockRow2.string,'');
     click('StockEntry0');
     assert.ok([probe.labels.stockRow0.string, probe.labels.stockRow1.string, probe.labels.stockRow2.string].some((text: string) => /白菜种子.*10粒/.test(text)), 'warehouse seed total uses seed units');
+    assert.equal(probe.stockRows(controller.snapshot()).some((row: any) => row.key === 'other'),false,'empty other locations are not listed');
     click('StockListBack'); click('StockEntry1');
     for (let i=0;i<3;i++) { assert.match(probe.labels['stockRow'+i].string, /坛子[123].*约可再放10颗标准白菜/); assert.doesNotMatch(probe.labels['stockRow'+i].string, /升|千克|容量点/); }
     assert.notEqual(probe.stockRows(controller.snapshot())[0].key, probe.stockRows(controller.snapshot())[1].key, 'each displayed jar has its own formal container');
@@ -208,9 +211,57 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
       click('PageStock');
       if (storage?.container_type === 'room_temp_container') { clickStockRow('warehouse', 'location'); clickStockRow(selected.base_id, 'group'); }
       else if (storage?.container_type === 'cellar_jar' || storage?.container_type === 'cellar_container') { clickStockRow('cellar', 'location'); clickStockRow(storage.id, 'jar'); }
-      else clickStockRow('other', 'location');
+      else { clickStockRow('warehouse', 'location'); clickStockRow('other', 'location'); }
       clickStockRow(id, 'lot'); assert.equal(probe.lotId, id);
     };
+    // Controlled detached saves exercise the actual UI and formal move without modifying fixtures.
+    // Restore the original in-memory test save before continuing the existing flow.
+    const previouslySaved=(await storage.read('wechat_probe'))!;
+    await controller.save(); const originalRaw=(await storage.read('wechat_probe'))!;
+    for (const legacy of [false,true]) {
+      const save=JSON.parse(originalRaw); const jar=save.storage_containers.find((item: any)=>item.container_id==='pickling_jar_basic_01');
+      jar.supported_forms.push('dry');
+      if (legacy) {
+        delete save.physical_capacity_policy_id;
+        for (const item of save.storage_containers) { delete item.capacity_limits; delete item.used_capacity_limits; }
+        save.storage_containers=save.storage_containers.filter((item: any)=>!['home_cellar_jar_02','home_cellar_jar_03'].includes(item.container_id));
+        save.storage_containers.find((item: any)=>item.container_id==='home_cellar_01').container_type='cellar_container';
+      }
+      await storage.write('wechat_probe',JSON.stringify(save)); await controller.load();
+      const before=controller.snapshot().menu!.selectable_view_model!; const salt=before.splittable_lot_options.find(x=>x.base_id==='salt')!;
+      await controller.move(salt.id,'pickling_jar_basic_01');
+      click('PageStock');const top=probe.stockRows(controller.snapshot());
+      assert.deepEqual(top.map((row: any)=>row.key),['warehouse','cellar']);
+      assert.match(top[0].label,/仓库 · 4批/, 'other-location lot is excluded from the warehouse total');
+      if(legacy) assert.match(top[1].label,/含旧菜窖/);
+      clickStockRow('warehouse','location');assert.match(probe.stockRows(controller.snapshot()).find((row: any)=>row.key==='other').label,/其他位置 · 1批/);
+      clickStockRow('other','location');const listed=probe.stockRows(controller.snapshot()).find((row: any)=>row.key===salt.id);
+      assert.match(listed.label,/盐.*200克.*腌制坛1/);assert.doesNotMatch(listed.label,/pickling_jar_basic_01/);
+      const targetSet=controller.snapshot().menu!.selectable_view_model!.storage_target_options;
+      const jarTarget=targetSet.find(item=>item.id==='pickling_jar_basic_01')!;const secondJar={...jarTarget,id:'pickling_jar_extra'};
+      assert.equal(probe.stockLocationName([secondJar,jarTarget],jarTarget.id),'腌制坛1');
+      assert.equal(probe.stockLocationName([secondJar,jarTarget],secondJar.id),'腌制坛2');
+      assert.equal(probe.stockLocationName([jarTarget,secondJar],secondJar.id),'腌制坛2','input order does not change the names');
+      clickStockRow(salt.id,'lot');assert.match(probe.labels.stockLot.string,/盐.*200克.*腌制坛1/);
+      click('StockLot'); click('StockListBack');assert.equal(probe.stockMode,'warehouse','other-location back returns to warehouse list');
+    }
+    // A detached UI projection with a genuinely missing target must state that the
+    // position is unknown; it is not presented as a successfully loaded save.
+    const unavailable=structuredClone(controller.snapshot().menu!); const projection=unavailable.selectable_view_model!;
+    const copied=structuredClone(projection.splittable_lot_options.find(x=>x.base_id==='salt')!); copied.id='missing-location-lot';copied.storage_ref={location_id:'missing_home',storage_type:'unknown',container_id:'missing_container'};
+    projection.splittable_lot_options.push(copied);
+    projection.submittable_dish_lot_options!.push({id:'missing-location-dish',recognized_dish_id:null,serving_count:2,storage_form:'cooked_dish',enabled:true,storage_ref:{location_id:'missing_home',storage_type:'unknown',container_id:'missing_container'}});
+    controller.acceptMenuPatch(unavailable); click('PageStock'); clickStockRow('warehouse','location');
+    assert.match(probe.stockRows(controller.snapshot()).find((row: any)=>row.key==='other').label,/其他位置 · 3批/);
+    clickStockRow('other','location'); const otherRows=probe.stockRows(controller.snapshot());
+    assert.match(otherRows.find((row: any)=>row.key==='missing-location-lot').label,/200克.*未知位置/);
+    assert.match(otherRows.find((row: any)=>row.key==='missing-location-dish').label,/2份.*未知位置/);
+    assert.ok(otherRows.every((row: any)=>!row.label.includes('missing_container')&&!row.label.includes('pickling_jar_basic_01')),'internal container IDs are not player labels');
+    clickStockRow('missing-location-dish','dish');assert.match(probe.labels.stockLot.string,/2份.*未知位置/);assert.doesNotMatch(probe.labels.stockLot.string,/missing_container/);
+    click('StockLot');assert.equal(probe.stockMode,'other','dish details return to the other-location list');
+    clickStockRow('missing-location-lot','lot');assert.match(probe.labels.stockLot.string,/未知位置/);assert.doesNotMatch(probe.labels.stockLot.string,/missing_container/);
+    await storage.write('wechat_probe',originalRaw); await controller.load();
+    await storage.write('wechat_probe',previouslySaved);
     selectLot(pair.lot.id);
     for (let i = 0; probe.targetId !== pair.target.id && i < menu.storage_target_options.length + 1; i++) click('StockTarget');
     assert.equal(probe.lotId, pair.lot.id); assert.equal(probe.targetId, pair.target.id);
