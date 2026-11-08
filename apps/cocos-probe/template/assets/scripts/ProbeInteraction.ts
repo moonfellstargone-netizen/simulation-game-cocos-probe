@@ -61,6 +61,18 @@ export class ProbeInteraction {
         throw new Error('ERR_COCOS_PROBE_SAVE_LOAD_SUMMARY_MISSING');
       }
       let errorMessage = outcome.status === 'failed' ? outcome.error_message ?? '操作未完成' : null;
+      if (command.name === 'menu_confirm_split_direct') {
+        const validation = outcome.snapshot?.menu?.last_split_validation_result;
+        const action = outcome.snapshot?.menu?.last_action_result;
+        if (outcome.status !== 'completed' || outcome.command_name !== command.name || validation?.action_type !== 'split_lot'
+          || typeof validation.success !== 'boolean' || typeof validation.status_code !== 'string' || !validation.status_code) throw new Error('ERR_WEB_SPLIT_RESULT_UNCERTAIN');
+        if (!validation.success) {
+          if (action !== null) throw new Error('ERR_WEB_SPLIT_RESULT_UNCERTAIN');
+          errorMessage = validation.status_code;
+        } else if (!action || !validBusinessResult(action) || !action.success || !action.request_id) {
+          throw new Error('ERR_WEB_SPLIT_RESULT_UNCERTAIN');
+        }
+      }
       if (outcome.status === 'completed' && (command.name === 'menu_preview' || command.name === 'menu_confirm')) {
         const menu = outcome.snapshot?.menu;
         const preview = menu?.last_preview_result;
@@ -86,7 +98,7 @@ export class ProbeInteraction {
       return result;
     } catch (error) {
       this.operation = {
-        ...this.operation, status: 'failed', message: '操作异常，请重试',
+        ...this.operation, status: 'failed', message: error instanceof Error && error.message.startsWith('ERR_WEB_SPLIT_RESULT_UNCERTAIN') ? '拆分结果待确认，请先核对库存' : '操作异常，请重试',
         errorMessage: error instanceof Error ? error.message : String(error), worldMinute: null
       };
       throw error;
@@ -106,6 +118,7 @@ function validBusinessResult(result: ProbeBusinessResult): boolean {
 }
 
 function runningMessage(command: ProbeCommand): string {
+  if (command.name === 'refresh') return '正在核对库存';
   if (command.name === 'save') return '正在本地保存';
   if (command.name === 'load') return '正在读取本地存档';
   if (command.name === 'menu_preview') return command.selection.action_type === 'cook_dish' ? '正在校验烹饪选择'
@@ -115,6 +128,7 @@ function runningMessage(command: ProbeCommand): string {
 }
 
 function completedMessage(command: ProbeCommand): string {
+  if (command.name === 'refresh') return '库存已核对，请检查后重新选择';
   if (command.name === 'save') return '本地保存成功';
   if (command.name === 'load') return '已恢复本地存档';
   if (command.name === 'menu_preview') return '本次校验通过，尚未执行';

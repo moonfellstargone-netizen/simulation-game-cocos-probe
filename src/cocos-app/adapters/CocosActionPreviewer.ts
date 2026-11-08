@@ -1,5 +1,6 @@
 import type { ActionResult, ConfigRepository, FormalStage1AActionType, GameState, RuntimeContractValidator } from '../../game-core';
 import { ActionRequestBuilder, GameRuntime, StorageAudit } from '../../game-core';
+import { loadPhysicalPolicyRegistry } from '../../game-core/config/PhysicalPolicyLoader';
 
 export interface CocosActionPreviewResult {
   action_type: FormalStage1AActionType;
@@ -25,13 +26,15 @@ export interface CocosActionPreviewResult {
 
 export class CocosActionPreviewer {
   private readonly requests: ActionRequestBuilder = new ActionRequestBuilder({ defaultActorId: 'player', requestPrefix: 'preview_req', idempotencyPrefix: 'preview_idem' });
-  private readonly audit = new StorageAudit();
+  private readonly audit: StorageAudit;
 
   constructor(
     private readonly configs: ConfigRepository,
     private readonly contracts: RuntimeContractValidator,
     private readonly stateProvider: () => GameState
-  ) {}
+  ) {
+    this.audit = new StorageAudit(loadPhysicalPolicyRegistry(configs));
+  }
 
   preview<TParams>(actionType: FormalStage1AActionType, parameters: TParams): CocosActionPreviewResult {
     this.requests.assertFormalActionType(actionType);

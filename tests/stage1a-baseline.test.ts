@@ -7,6 +7,8 @@ import { FORMAL_STAGE_1A_ACTION_TYPES, InMemorySaveStoragePort, StorageAudit, ty
 import { Stage1AActionScriptRunner, Stage1AHeadlessRuntime } from '../src/game-core/dev-api';
 import { Stage1AFixtureRunner, type Stage1AFixtureDocument } from '../src/game-core/testing-api';
 import { buildRuntimeWithoutState } from './support/runtimeHarness';
+import { loadPhysicalPolicyRegistry } from '../src/game-core/config/PhysicalPolicyLoader';
+import type { ConfigRepository } from '../src/game-core/config/ConfigRepository';
 import { baselineBuildIds } from './support/buildId.mjs';
 
 const EXPECTED_FORMAL_ACTIONS = [
@@ -89,7 +91,7 @@ function runCoreLoopThroughSession(session: CocosAppRuntimeSession): Record<stri
   return refs;
 }
 
-function assertStage1ABaselineSaveFile(saveFile: SaveFile, submittedDishLotId: string | undefined): void {
+function assertStage1ABaselineSaveFile(saveFile: SaveFile, submittedDishLotId: string | undefined, configs: ConfigRepository): void {
   const order = saveFile.orders.find((item) => item.order_id === 'tavern_home_dish_001');
   assert.equal(order?.status, 'completed');
   assert.equal(Number(saveFile.player_state.money), 137);
@@ -100,11 +102,13 @@ function assertStage1ABaselineSaveFile(saveFile: SaveFile, submittedDishLotId: s
     assert.equal(saveFile.storage_containers.some((container) => container.active_object_refs.some((ref) => ref.object_type === 'DishLot' && ref.object_id === submittedDishLotId)), false);
   }
   assert.equal(saveFile.processing_tasks.some((item) => item.status === 'completed'), true);
-  new StorageAudit().assertReconciled(saveFile);
+  new StorageAudit(loadPhysicalPolicyRegistry(configs)).assertReconciled(saveFile);
 }
 
 test('Stage 1A baseline keeps the formal action catalog closed and explicit', () => {
-  assert.deepEqual([...FORMAL_STAGE_1A_ACTION_TYPES], EXPECTED_FORMAL_ACTIONS);
+  const currentFormalActions = [...EXPECTED_FORMAL_ACTIONS];
+  currentFormalActions.splice(currentFormalActions.indexOf('split_lot') + 1, 0, 'merge_lot');
+  assert.deepEqual([...FORMAL_STAGE_1A_ACTION_TYPES], currentFormalActions);
 });
 
 test('Stage 1A baseline final state is consistent across fixture runner, headless runtime, and Cocos session save port', async () => {
@@ -134,9 +138,9 @@ test('Stage 1A baseline final state is consistent across fixture runner, headles
   assert.equal(typeof savedCocos, 'string');
   const cocosSaveFile = JSON.parse(savedCocos!) as SaveFile;
 
-  assertStage1ABaselineSaveFile(fixtureReport.state.save_file, fixtureReport.aliases.dish_lot as string | undefined);
-  assertStage1ABaselineSaveFile(headlessRuntime.state.save_file, headlessReport.refs.dish_lot);
-  assertStage1ABaselineSaveFile(cocosSaveFile, cocosRefs.dish_lot);
+  assertStage1ABaselineSaveFile(fixtureReport.state.save_file, fixtureReport.aliases.dish_lot as string | undefined, configs);
+  assertStage1ABaselineSaveFile(headlessRuntime.state.save_file, headlessReport.refs.dish_lot, configs);
+  assertStage1ABaselineSaveFile(cocosSaveFile, cocosRefs.dish_lot, configs);
 
   contracts.assertSaveFile(fixtureReport.state.save_file);
   contracts.assertSaveFile(headlessRuntime.state.save_file);

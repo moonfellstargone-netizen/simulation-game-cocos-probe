@@ -2,7 +2,7 @@ import type { ActionResult } from '../../game-core';
 import type { CocosActionPreviewResult } from '../../cocos-app/adapters/CocosActionPreviewer';
 import type { CocosSelectableViewModelData } from '../../cocos-app/view-models/CocosSelectableViewModel';
 import type { CocosStateViewModelData } from '../../cocos-app/view-models/CocosStateViewModel';
-import { cloneMenuSnapshot, type MenuRenderSnapshot, type SplitValidationSnapshot, type ProcessingValidationSnapshot } from './MenuRenderSnapshot';
+import { cloneMenuSnapshot, type MenuRenderSnapshot, type SplitValidationSnapshot, type MergeValidationSnapshot, type ProcessingValidationSnapshot } from './MenuRenderSnapshot';
 
 export class MinimalMenuPresenter {
   private snapshot: MenuRenderSnapshot = {
@@ -10,6 +10,7 @@ export class MinimalMenuPresenter {
     selectable_view_model: null,
     last_preview_result: null,
     last_split_validation_result: null,
+    last_merge_validation_result: null,
     last_processing_validation_result: null,
     last_action_result: null,
     errors: []
@@ -35,6 +36,10 @@ export class MinimalMenuPresenter {
     this.snapshot.last_split_validation_result = structuredClone(result);
   }
 
+  renderMergeValidation(result: MergeValidationSnapshot): void {
+    this.snapshot.last_merge_validation_result = structuredClone(result);
+  }
+
   renderProcessingValidation(result: ProcessingValidationSnapshot): void {
     this.snapshot.last_processing_validation_result = structuredClone(result);
   }
@@ -46,6 +51,7 @@ export class MinimalMenuPresenter {
   clearTransientResults(): void {
     this.snapshot.last_preview_result = null;
     this.snapshot.last_split_validation_result = null;
+    this.snapshot.last_merge_validation_result = null;
     this.snapshot.last_processing_validation_result = null;
     this.snapshot.last_action_result = null;
     this.snapshot.errors = [];

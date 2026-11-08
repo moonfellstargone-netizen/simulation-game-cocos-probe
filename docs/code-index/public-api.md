@@ -20,6 +20,7 @@
 
 - `CocosAppRuntimeSession`（`src/cocos-app/runtime/CocosAppRuntimeSession.ts`）
   - `validateSplit(sourceLotId, quantity)` — 独立只读验证正式拆分约束；拒绝抛现有错误，不分配ID或执行动作。
+  - `validateMerge(sourceLotId, targetLotId)` — 独立只读验证批次合并，不修改存档或分配正式ID。
   - `dispatch(actionType, parameters)`
   - `preview(actionType, parameters)`
   - `save(slotId)` / `load(slotId)`

@@ -4,10 +4,12 @@ import {
 } from '../adapters/CocosActionDispatcher';
 import { CocosRuntimeFacade } from '../adapters/CocosRuntimeFacade';
 import type { CocosStateViewModelData } from '../view-models/CocosStateViewModel';
-import type { CocosSelectableViewModelData } from '../view-models/CocosSelectableViewModel';
+import { CocosSelectableViewModel, type CocosSelectableViewModelData } from '../view-models/CocosSelectableViewModel';
+import type { CapacityDisplayResult } from '../view-models/PhysicalCapacityDisplay';
 import type { CocosActionPreviewResult } from '../adapters/CocosActionPreviewer';
 import type { ConfigRepository, GameState, Quantity, StartProcessingParams, RuntimeContractValidator, SaveStoragePort, SaveSlotWriteSummary } from '../../game-core';
 import { GameRuntime, NewGameBuilder, SaveManager, StorageAudit } from '../../game-core';
+import { loadPhysicalPolicyRegistry } from '../../game-core/config/PhysicalPolicyLoader';
 
 export interface CocosActionSessionPort {
   dispatch<TParams>(actionType: FormalStage1AActionType, parameters: TParams): ActionResult;
@@ -32,7 +34,7 @@ export interface CocosAppRuntimeSessionLoadSummary {
 export class CocosAppRuntimeSession {
   private readonly runtime: GameRuntime;
   private readonly saveManager = new SaveManager();
-  private readonly audit = new StorageAudit();
+  private readonly audit: StorageAudit;
   private readonly dispatcher: CocosActionDispatcher;
   private readonly facade: CocosRuntimeFacade;
   private state: GameState;
@@ -43,6 +45,7 @@ export class CocosAppRuntimeSession {
     private readonly storage: SaveStoragePort,
     private readonly options: CocosAppRuntimeSessionOptions = {}
   ) {
+    this.audit = new StorageAudit(loadPhysicalPolicyRegistry(this.configs));
     this.runtime = new GameRuntime(this.configs, this.contracts);
     this.state = new NewGameBuilder(this.configs).buildStage1A({
       buildId: this.options.buildId ?? 'cocos_app_session_default',
@@ -68,6 +71,10 @@ export class CocosAppRuntimeSession {
     return this.facade.getSelectableViewModel();
   }
 
+  getStorageCapacityDisplay(targetId: string, lotId: string | null, gridCount: number): CapacityDisplayResult {
+    return new CocosSelectableViewModel(this.configs).storageCapacityDisplay(this.state.save_file, targetId, lotId, gridCount);
+  }
+
   preview<TParams>(actionType: FormalStage1AActionType, parameters: TParams): CocosActionPreviewResult {
     const result = this.facade.preview(actionType, parameters);
     this.validateSessionState('preview_after_no_side_effect');
@@ -76,6 +83,10 @@ export class CocosAppRuntimeSession {
 
   validateSplit(sourceLotId: string, quantity: Quantity): void {
     this.runtime.inventory.assertCanSplit(this.state.save_file, sourceLotId, quantity);
+  }
+
+  validateMerge(sourceLotId: string, targetLotId: string): void {
+    this.runtime.inventory.assertCanMerge(this.state.save_file, sourceLotId, targetLotId);
   }
 
   validateStartProcessing(parameters: StartProcessingParams): void {

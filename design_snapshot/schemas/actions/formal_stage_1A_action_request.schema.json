@@ -197,6 +197,16 @@
       }
     },
     {
+      "required": ["action_type", "parameters"],
+      "properties": {
+        "action_type": { "const": "merge_lot" },
+        "parameters": {
+          "type": "object", "required": ["source_lot_id", "target_lot_id"], "additionalProperties": false,
+          "properties": { "source_lot_id": { "type": "string", "minLength": 1 }, "target_lot_id": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    {
       "required": [
         "action_type",
         "parameters"

@@ -29,12 +29,23 @@ async function probe(storage = new InMemorySaveStoragePort(), intercept?: Interc
     })
   });
   const interaction = new ProbeInteraction({ isAvailable: () => !lifetime.isDisposed() && lifetime.status().phase === 'ready',
-    execute: (command) => { calls++; const execute = () => lifetime.execute(command); return intercept ? intercept(command, execute) : execute(); }, onChange: () => {} });
+    execute: async (command) => {
+      calls++; const execute = () => lifetime.execute(command);
+      try {
+        const result = await (intercept ? intercept(command, execute) : execute());
+        if (command.name === 'menu_confirm_split_direct') {
+          inventory.acceptSplitResult(command, result);
+          if (inventory.status().splitNeedsReview) throw new Error('ERR_WEB_SPLIT_RESULT_UNCERTAIN');
+        }
+        if (command.name === 'refresh' && !inventory.acceptSplitReview(result)) throw new Error('ERR_WEB_SPLIT_RESULT_UNCERTAIN');
+        return result;
+      } catch (error) { if (command.name === 'menu_confirm_split_direct') inventory.markSplitUncertain(); throw error; }
+    }, onChange: () => {} });
   await lifetime.start();
   async function send(command: ProbeCommand) {
-    if (command.name !== 'menu_preview' && !(command.name === 'menu_confirm' && command.selection.action_type === 'split_lot')) inventory.invalidateSplitPreview();
+    if (command.name !== 'menu_preview' && command.name !== 'menu_confirm_split_direct') inventory.invalidateSplitPreview();
     const result = await interaction.execute(command);
-    if (result && !lifetime.isDisposed()) inventory.acceptSplitResult(command, result);
+    if (result && !lifetime.isDisposed() && command.name === 'menu_preview') inventory.acceptSplitResult(command, result);
     return result;
   }
   async function serialized() { await host!.requireSession().save('capture'); return (await storage.read('capture'))!; }
@@ -87,7 +98,8 @@ test('split input uses complete numeric text and the selected original unit with
   assert.deepEqual(p.inventory.splitPreviewCommand(), { name: 'menu_preview', selection: {
     action_type: 'split_lot', source_lot_option_id: salt.id, quantity: { amount: 0.25, unit: 'g' }
   } });
-  assert.equal(p.inventory.status().canConfirmSplit, false, 'explicit successful preview is required');
+  assert.equal(p.inventory.status().canConfirmSplit, true, 'valid input can be confirmed without preview');
+  assert.equal(p.inventory.splitConfirmCommand()?.name, 'menu_confirm_split_direct');
   p.inventory.selectNextLot();
   assert.equal(p.inventory.status().splitQuantityText, '');
   assert.equal(p.inventory.status().splitPreview, null);
@@ -95,9 +107,14 @@ test('split input uses complete numeric text and the selected original unit with
   assert.equal(await p.serialized(), before);
 });
 
-test('real public split preview preserves the full save and IDs before 1200g becomes actual 900g and 300g lots', async (t) => {
+test('legacy weight-only cabbage split preview preserves the full save and IDs before 1200g becomes 900g and 300g lots', async (t) => {
   const p = await probe(); t.after(() => p.lifetime.dispose());
-  const id = await harvest(p); select(p, id); assert.equal(lot(p, id)!.quantity.amount, 1200);
+  const id = await harvest(p);
+  await p.session().save('web_probe');
+  const legacy = JSON.parse((await p.storage.read('web_probe'))!);
+  delete legacy.inventory.find((item: { lot_id: string }) => item.lot_id === id).cabbage_pieces;
+  await p.storage.write('web_probe', JSON.stringify(legacy)); await p.send(LOAD);
+  select(p, id); assert.equal(lot(p, id)!.quantity.amount, 1200);
   const before = await p.serialized();
   await preview(p, '300');
   assert.deepEqual(p.inventory.status().splitPreview, { success: true, statusCode: 'OK' });
@@ -115,6 +132,26 @@ test('real public split preview preserves the full save and IDs before 1200g bec
   assert.equal(p.inventory.status().selectedLotId, id);
   assert.equal(p.inventory.status().splitQuantityText, '');
   assert.equal(p.inventory.status().canConfirmSplit, false);
+});
+
+test('whole cabbage splits by piece count while retaining real weight and rejecting fractions', async (t) => {
+  const p = await probe(); t.after(() => p.lifetime.dispose());
+  const id = await harvest(p); select(p, id);
+  const before = await p.serialized();
+  assert.equal(p.inventory.status().splitUnit, 'count');
+  await preview(p, '0.5');
+  assert.deepEqual(p.inventory.status().splitPreview, { success: false, statusCode: 'ERR_SPLIT_QUANTITY_INVALID' });
+  assert.equal(await p.serialized(), before);
+  await preview(p, '1');
+  assert.deepEqual(p.inventory.status().splitPreview, { success: true, statusCode: 'OK' });
+  const result = await confirm(p);
+  const action = result.command_result.snapshot!.menu!.last_action_result!;
+  const created = action.created_objects.find(item => item.summary?.split_role === 'taken')!;
+  assert.equal(lot(p, id), undefined);
+  assert.deepEqual(lot(p, created.object_id)!.quantity, { amount: 1200, unit: 'g' });
+  assert.equal(lot(p, created.object_id)!.cabbage_pieces?.kind, 'whole');
+  assert.deepEqual(p.inventory.status().splitResult?.quantity, { amount: 1200, unit: 'g' });
+  assert.equal(p.inventory.status().splitResult?.remainingQuantity, null);
 });
 
 test('gram and millilitre fractions and whole counts use formal quantities; a full split removes the source choice', async (t) => {
@@ -142,7 +179,9 @@ test('fractional counts and excessive quantities reach formal preview refusal wi
     assert.equal(p.interaction.status().operation.status, 'failed');
     assert.equal(p.inventory.status().splitPreview?.success, false);
     assert.equal(p.inventory.status().splitQuantityText, text);
-    assert.equal(p.inventory.splitConfirmCommand(), null);
+    assert.equal(p.inventory.splitConfirmCommand()?.name, 'menu_confirm_split_direct');
+    await confirm(p);
+    assert.equal(p.interaction.status().operation.status, 'failed', 'direct execution independently rejects invalid quantities');
     assert.equal(await p.serialized(), before);
     await preview(p, '1'); await confirm(p);
     assert.equal(p.interaction.status().operation.status, 'completed');
@@ -158,7 +197,8 @@ test('stale preview receipts cannot reappear after quantity changes, panel inval
   assert.equal(p.inventory.status().splitPreview, null);
   await preview(p, '2'); p.inventory.invalidateSplitPreview();
   p.inventory.acceptSplitResult(saved.command, saved.result);
-  assert.equal(p.inventory.status().canConfirmSplit, false);
+  assert.equal(p.inventory.status().canConfirmSplit, true, 'direct confirmation does not reuse or require the stale preview');
+  assert.equal(p.inventory.status().splitPreview, null);
   const current = await preview(p, '2');
   p.inventory.refresh({ selectable_view_model: null });
   p.inventory.acceptSplitResult(current.command, current.result);
@@ -188,16 +228,24 @@ test('an unconsumed real preview receipt cannot revive confirmation after editin
     release(); await pending;
     assert.equal(p.inventory.status().splitQuantityText, change === 'edit' ? '2' : '1');
     assert.equal(p.inventory.status().splitPreview, null, `${change} must invalidate the still-pending receipt`);
-    assert.equal(p.inventory.status().canConfirmSplit, false);
-    assert.equal(p.inventory.splitConfirmCommand(), null);
+    assert.equal(p.inventory.status().canConfirmSplit, true, 'direct confirmation remains independent of the delayed preview');
+    assert.equal(p.inventory.splitConfirmCommand()?.name, 'menu_confirm_split_direct');
     assert.equal(await p.serialized(), before);
     await preview(p, '3');
     assert.equal(p.inventory.status().canConfirmSplit, true, 'a fresh preview can recover after the stale receipt is rejected');
   }
 });
 
-test('capacity refusal uses canonical batches, keeps the complete save and recovers after an existing whole-lot move', async (t) => {
+test('legacy slot capacity refusal uses canonical batches, keeps the complete save and recovers after an existing whole-lot move', async (t) => {
   const p = await probe(); t.after(() => p.lifetime.dispose());
+  // Explicit isolated legacy save keeps the slot-rounding failure path under test;
+  // the physical model does not add mass or volume merely by splitting a batch.
+  await p.session().save('web_probe');
+  const legacy = JSON.parse((await p.storage.read('web_probe'))!);
+  delete legacy.physical_capacity_policy_id;
+  for (const container of legacy.storage_containers) { delete container.capacity_limits; delete container.used_capacity_limits; }
+  await p.storage.write('web_probe', JSON.stringify(legacy));
+  await p.send(LOAD);
   const salt = p.inventory.status().lotOptions.find((item) => item.base_id === 'salt')!;
   const room = p.inventory.status().targetOptions.find((item) => item.id === salt.storage_ref.container_id)!;
   const free = room.capacity.amount - room.used_capacity;
@@ -244,10 +292,51 @@ test('preview feedback requires its own action result and does not require or re
   const source = p.inventory.status().lotOptions.find((item) => item.quantity.unit === 'g')!; select(p, source.id);
   p.inventory.setSplitQuantity('1');
   await assert.rejects(p.send(p.inventory.splitPreviewCommand()!), /ERR_COCOS_PROBE_ACTION_SUMMARY_MISSING_OR_MISMATCHED/);
-  assert.equal(p.inventory.status().canConfirmSplit, false);
+  assert.equal(p.inventory.status().canConfirmSplit, true, 'a failed optional preview does not block independent formal validation');
   corrupt = false; await preview(p, '1');
   assert.equal(p.interaction.status().operation.message, '本次校验通过，尚未执行');
   assert.equal(p.menu().last_action_result, null);
+});
+
+test('direct split validates and executes without requiring a preview', async (t) => {
+  const commands: string[] = [];
+  const p = await probe(undefined, async (command, execute) => { commands.push(command.name); return execute(); }); t.after(() => p.lifetime.dispose());
+  const source = p.inventory.status().lotOptions.find(item => item.base_id === 'salt')!; select(p, source.id);
+  p.inventory.setSplitQuantity('2');
+  assert.equal(p.inventory.status().splitPreview, null);
+  await confirm(p);
+  assert.deepEqual(commands, ['menu_confirm_split_direct']);
+  assert.equal(p.interaction.status().operation.status, 'completed');
+  assert.deepEqual(p.inventory.status().splitResult?.quantity, { amount: 2, unit: 'g' });
+});
+
+test('incomplete split receipt isolates the already committed action until a real read-only refresh', async (t) => {
+  const commands: string[] = []; let corruptRefresh = true;
+  const p = await probe(undefined, async (command, execute) => {
+    commands.push(command.name);
+    const result = await execute();
+    if (command.name === 'menu_confirm_split_direct') {
+      const copy = structuredClone(result); Reflect.set(copy.command_result.snapshot!.menu!, 'last_action_result', null); return copy;
+    }
+    if (command.name === 'refresh' && corruptRefresh) {
+      const copy = structuredClone(result); Reflect.deleteProperty(copy.command_result.snapshot!.menu!.selectable_view_model!, 'splittable_lot_options'); return copy;
+    }
+    return result;
+  }); t.after(() => p.lifetime.dispose());
+  const source = p.inventory.status().lotOptions.find(item => item.base_id === 'salt')!; select(p, source.id);
+  p.inventory.setSplitQuantity('2');
+  await assert.rejects(confirm(p), /ERR_WEB_SPLIT_RESULT_UNCERTAIN/);
+  assert.equal(p.inventory.status().splitNeedsReview, true);
+  assert.equal(p.inventory.splitConfirmCommand(), null);
+  assert.equal(lot(p, source.id)?.quantity.amount, source.quantity.amount - 2, 'formal action committed before its receipt was lost');
+  await assert.rejects(p.send({ name: 'refresh' }), /ERR_WEB_SPLIT_RESULT_UNCERTAIN/);
+  assert.equal(p.inventory.status().splitNeedsReview, true, 'incomplete refresh does not unlock');
+  corruptRefresh = false;
+  const afterCommit = await p.serialized();
+  await p.send({ name: 'refresh' });
+  assert.equal(await p.serialized(), afterCommit, 'review is read-only');
+  assert.equal(p.inventory.status().splitNeedsReview, false);
+  assert.deepEqual(commands, ['menu_confirm_split_direct', 'refresh', 'refresh'], 'review never resubmits the split');
 });
 
 test('rapid duplicate confirmations are admitted once while a delayed result cannot restore a disposed split view', async (t) => {
@@ -256,14 +345,54 @@ test('rapid duplicate confirmations are admitted once while a delayed result can
   const started = new Promise<void>((resolve) => { reached = resolve; });
   const p = await probe(undefined, async (command, execute) => {
     const result = await execute();
-    if (command.name === 'menu_confirm' && command.selection.action_type === 'split_lot') { reached(); await held; }
+    if (command.name === 'menu_confirm_split_direct') { reached(); await held; }
     return result;
   }); t.after(() => p.lifetime.dispose());
   const source = p.inventory.status().lotOptions.find((item) => item.quantity.unit === 'g')!; select(p, source.id);
   await preview(p, '1'); const command = p.inventory.splitConfirmCommand()!; const calls = p.calls();
   const pending = p.send(command); await started;
   assert.equal(await p.send(command), null); assert.equal(p.calls(), calls + 1);
-  p.inventory.invalidateSplitPreview(); await p.lifetime.dispose(); release(); await pending;
+  p.inventory.invalidateSplitPreview(); await p.lifetime.dispose(); release(); await assert.rejects(pending, /ERR_WEB_SPLIT_RESULT_UNCERTAIN/);
   assert.equal(p.inventory.status().splitResult, null);
   assert.equal(p.inventory.status().canConfirmSplit, false);
+});
+
+ test('altered or duplicated split receipts remain locked and read-only review never resubmits', async (t) => {
+  for (const mode of ['duplicate', 'wrong-role', 'wrong-quantity'] as const) {
+    const commands: string[] = [];
+    const p = await probe(undefined, async (command, execute) => {
+      commands.push(command.name); const result = await execute();
+      if (command.name !== 'menu_confirm_split_direct') return result;
+      const copy = structuredClone(result); const action = copy.command_result.snapshot!.menu!.last_action_result!;
+      if (mode === 'duplicate') Reflect.set(action, 'created_objects', [...action.created_objects, action.created_objects[0]]);
+      if (mode === 'wrong-role') Reflect.set(action.created_objects[0]!.summary!, 'split_role', 'remaining');
+      if (mode === 'wrong-quantity') Reflect.set(action.created_objects[0]!.summary!.quantity!, 'amount', 999);
+      return copy;
+    });
+    t.after(() => p.lifetime.dispose());
+    const source = p.inventory.status().lotOptions.find(item => item.base_id === 'salt')!; select(p, source.id);
+    p.inventory.setSplitQuantity('2'); await assert.rejects(confirm(p), /ERR_WEB_SPLIT_RESULT_UNCERTAIN/);
+    assert.equal(p.inventory.status().splitNeedsReview, true); assert.equal(p.inventory.splitConfirmCommand(), null);
+    const committed = await p.serialized(); await p.send({ name: 'refresh' });
+    assert.equal(await p.serialized(), committed); assert.deepEqual(commands, ['menu_confirm_split_direct', 'refresh']);
+  }
+});
+
+ test('a forged refusal after committed direct split remains locked until read-only review', async (t) => {
+  const commands: string[] = [];
+  const p = await probe(undefined, async (command, execute) => {
+    commands.push(command.name); const result = await execute();
+    if (command.name !== 'menu_confirm_split_direct') return result;
+    const copy = structuredClone(result); const menu = copy.command_result.snapshot!.menu!;
+    Reflect.set(menu, 'last_split_validation_result', { action_type: 'split_lot', success: false, status_code: 'ERR_NOT_ENOUGH_RESOURCE' });
+    Reflect.set(menu, 'last_action_result', null); return copy;
+  });
+  t.after(() => p.lifetime.dispose());
+  const source = p.inventory.status().lotOptions.find(item => item.base_id === 'salt')!; select(p, source.id);
+  p.inventory.setSplitQuantity('2'); await assert.rejects(confirm(p), /ERR_WEB_SPLIT_RESULT_UNCERTAIN/);
+  assert.equal(lot(p, source.id)?.quantity.amount, source.quantity.amount - 2);
+  assert.equal(p.inventory.status().splitNeedsReview, true); assert.equal(p.inventory.splitConfirmCommand(), null);
+  const committed = await p.serialized(); await p.send({ name: 'refresh' });
+  assert.equal(await p.serialized(), committed); assert.equal(p.inventory.status().splitNeedsReview, false);
+  assert.deepEqual(commands, ['menu_confirm_split_direct', 'refresh']);
 });

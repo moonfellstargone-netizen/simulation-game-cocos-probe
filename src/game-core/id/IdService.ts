@@ -5,6 +5,13 @@ export interface IdService {
 export class DeterministicIdService implements IdService {
   private readonly counters = new Map<string, string>();
 
+  checkpoint(): ReadonlyMap<string, string> { return new Map(this.counters); }
+
+  restore(checkpoint: ReadonlyMap<string, string>): void {
+    this.counters.clear();
+    for (const [prefix, value] of checkpoint) this.counters.set(prefix, value);
+  }
+
   observeExisting(value: unknown): void {
     const pending: unknown[] = [value];
     const visited = new WeakSet<object>();

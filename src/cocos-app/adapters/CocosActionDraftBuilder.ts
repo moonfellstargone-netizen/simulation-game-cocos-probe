@@ -4,6 +4,7 @@ import type {
   CookDishParams,
   FormalStage1AActionType,
   HarvestCropParams,
+  MergeLotParams,
   PlantCropParams,
   Quantity,
   SplitLotParams,
@@ -49,6 +50,12 @@ export class CocosActionDraftBuilder {
     this.assertId(source_lot_id, 'source_lot_id');
     this.assertPositiveQuantity(quantity, 'quantity');
     return { action_type: 'split_lot', parameters: { source_lot_id, quantity: { ...quantity } } };
+  }
+
+  mergeLot(source_lot_id: string, target_lot_id: string): CocosActionDraft<'merge_lot', MergeLotParams> {
+    this.assertId(source_lot_id, 'source_lot_id');
+    this.assertId(target_lot_id, 'target_lot_id');
+    return { action_type: 'merge_lot', parameters: { source_lot_id, target_lot_id } };
   }
 
   startProcessing(method_id: string, input_lots: StartProcessingParams['input_lots'], facility_ref: StartProcessingParams['facility_ref']): CocosActionDraft<'start_processing', StartProcessingParams> {

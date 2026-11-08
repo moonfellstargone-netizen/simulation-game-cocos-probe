@@ -83,6 +83,10 @@ test('fixed Wechat preparation records exact public inputs and distinct same-com
     'particle-2d', 'tiled-map', 'video', 'webview', 'audio', 'profiler', 'rich-text', 'mask', 'intersection-2d']) {
     assert.equal(engine.cache[name]._value, false, 'excluded WeChat engine feature: ' + name);
   }
+  for (const file of ['WechatInventoryGroups.ts', 'WechatInventoryGroups.ts.meta']) {
+    assert.ok(manifest.inputs['apps/cocos-wechat-probe/template/assets/scripts/' + file], 'inventory source recorded');
+    assert.ok(manifest.outputs['assets/scripts/' + file], 'inventory source copied to prepared candidate');
+  }
   assert.ok(manifest.inputs['apps/cocos-wechat-probe/template/settings/v2/packages/engine.json']);
   assert.ok(manifest.outputs['settings/v2/packages/engine.json']);
   for (const name of ['tools/cocos-probe/lib/prepareProject.mjs', 'tools/cocos-wechat-probe/prepare.mjs']) assert.ok(manifest.inputs[name]);
@@ -362,6 +366,11 @@ test('source claims are anchored to real Git bytes, current dirty inputs and ins
   const missingCloneInput = structuredClone(prepared.manifest);
   delete missingCloneInput.inputs['apps/cocos-wechat-probe/runtime/WechatDataClone.ts'];
   assert.throws(() => assertWechatSourceProvenance({ rootDir: source, manifest: missingCloneInput }), /ERR_WECHAT_SOURCE_INPUTS_INCOMPLETE/);
+  for (const file of ['WechatInventoryGroups.ts', 'WechatInventoryGroups.ts.meta']) {
+    const incomplete = structuredClone(prepared.manifest);
+    delete incomplete.inputs['apps/cocos-wechat-probe/template/assets/scripts/' + file];
+    assert.throws(() => assertWechatSourceProvenance({ rootDir: source, manifest: incomplete }), /ERR_WECHAT_SOURCE_INPUTS_INCOMPLETE/, file + ' is required');
+  }
   const wrongPrecompiledSource = structuredClone(prepared.manifest);
   const precompiledPath = Object.keys(wrongPrecompiledSource.schemaPrecompilation.schemaSources)[0];
   wrongPrecompiledSource.schemaPrecompilation.schemaSources[precompiledPath] = '{}';

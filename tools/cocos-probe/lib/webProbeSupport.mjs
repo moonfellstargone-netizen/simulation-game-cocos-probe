@@ -182,7 +182,7 @@ export function assertUiCommandObservation(observation, expected) {
   assert.ok(typeof after.operation.message === 'string' && after.operation.message.trim(), 'operation must have visible feedback');
   assert.equal(after.displayedOperation, after.operation.message, 'operation Label must match the current result');
   assert.ok(!after.displayedOperation.startsWith('启动失败'), 'an operation failure must not be presented as a startup failure');
-  const menuCommand = expected.name === 'menu_confirm' || expected.name === 'menu_preview';
+  const menuCommand = expected.name === 'menu_confirm' || expected.name === 'menu_preview' || expected.name === 'menu_confirm_split_direct';
   assert.equal(after.operation.slotId, menuCommand ? null : 'web_probe');
   if (expected.errorMessagePrefix !== undefined) {
     assert.equal(expected.status, 'failed', 'a variable rejection detail is only valid for a failed command');
@@ -321,7 +321,14 @@ export function assertInventoryProjection(state) {
   }
   for (const target of inventory.targetOptions) {
     assert.ok(Number.isFinite(target.capacity?.amount) && target.capacity.amount > 0 && target.capacity.unit === 'slot_weight', 'ordinary storage capacity remains slot_weight, never material g/ml/count');
-    assert.ok(Number.isFinite(target.used_capacity) && target.used_capacity >= 0 && target.used_capacity <= target.capacity.amount);
+    assert.ok(Number.isFinite(target.used_capacity) && target.used_capacity >= 0);
+    if (target.capacity_limits || target.used_capacity_limits) {
+      assert.ok(target.capacity_limits && target.used_capacity_limits, 'physical limits and used values must both be available');
+      for (const dimension of ['mass_g', 'volume_ml']) {
+        assert.ok(Number.isFinite(target.capacity_limits[dimension]) && target.capacity_limits[dimension] > 0);
+        assert.ok(Number.isFinite(target.used_capacity_limits[dimension]) && target.used_capacity_limits[dimension] >= 0 && target.used_capacity_limits[dimension] <= target.capacity_limits[dimension]);
+      }
+    } else assert.ok(target.used_capacity <= target.capacity.amount, 'legacy slot capacity remains enforced');
   }
   if (state.panel === 'inventory') {
     for (const key of ['lot', 'form', 'quantity', 'location', 'target', 'capacity', 'hint']) {
@@ -335,8 +342,8 @@ export function assertInventoryProjection(state) {
     }
     const target = inventory.targetOptions.find((item) => item.id === inventory.selectedTargetId);
     if (target) {
-      const capacityPattern = '(^|[^\\d.])' + escapePattern(target.used_capacity) + '\\s*/\\s*' + escapePattern(target.capacity.amount) + '(?![\\d.])';
-      assert.match(state.displayedInventory.capacity, new RegExp(capacityPattern), 'target capacity must show current used and total values');
+      assert.equal(state.displayedInventory.capacity, '目标空间将在操作时校验');
+      assert.doesNotMatch(state.displayedInventory.capacity, /升|千克|容量点/);
       const name = STORAGE_LABELS[target.storage_type];
       if (name) assert.ok(state.displayedInventory.target.includes(name), 'the target Label must describe the selected storage type');
     }
@@ -399,6 +406,14 @@ export function assertInventoryCommandObservation(observation, expected) {
   assert.ok(transferredCapacity > 0, 'moving an active lot must release positive source capacity');
   assert.equal(targetAfter.used_capacity - target.used_capacity, transferredCapacity, 'the same slot_weight must be added to the destination without deriving it from material units');
   assert.equal(after.targetOptions.reduce((sum, item) => sum + item.used_capacity, 0), before.targetOptions.reduce((sum, item) => sum + item.used_capacity, 0), 'total used storage capacity is conserved');
+  if (source.used_capacity_limits || target.used_capacity_limits) {
+    assert.ok(source.used_capacity_limits && target.used_capacity_limits && sourceAfter.used_capacity_limits && targetAfter.used_capacity_limits);
+    for (const dimension of ['mass_g', 'volume_ml']) {
+      const removed = Math.round((source.used_capacity_limits[dimension] - sourceAfter.used_capacity_limits[dimension]) * 1000);
+      const added = Math.round((targetAfter.used_capacity_limits[dimension] - target.used_capacity_limits[dimension]) * 1000);
+      assert.ok(removed > 0 && removed === added, 'whole-batch transfer conserves physical ' + dimension);
+    }
+  }
   assert.equal(after.selectedLotId, lot.id); assert.equal(after.selectedTargetId, target.id); assert.equal(after.canMove, false);
   assert.match(observation.after.displayedOperation, /转移成功/);
 }
@@ -427,12 +442,14 @@ export function assertSplitProjection(state) {
   assert.equal(state.displayedSplit.quantityText, inventory.splitQuantityText, 'EditBox text must match the current local draft');
   const selected = inventory.lotOptions.find((lot) => lot.id === inventory.selectedLotId);
   if (selected) {
-    assert.equal(inventory.splitUnit, selected.quantity.unit, 'split units come from the selected public lot');
-    assert.equal(state.displayedSplit.unit, VISIBLE_UNITS[selected.quantity.unit] ?? selected.quantity.unit, 'the visible input unit must match its source');
+    const inputUnit = selected.cabbage_pieces?.kind === 'whole' ? 'count' : selected.quantity.unit;
+    assert.equal(inventory.splitUnit, inputUnit, 'split units come from the selected material state');
+    assert.equal(state.displayedSplit.unit, selected.cabbage_pieces?.kind === 'whole' ? '颗' : VISIBLE_UNITS[inputUnit] ?? inputUnit, 'the visible input unit must match its source');
   }
   if (inventory.canConfirmSplit) {
     assert.ok(selected?.enabled);
-    assert.equal(inventory.splitPreview?.success, true, 'confirmation requires a current successful preview');
+    assert.equal(inventory.splitNeedsReview, false, 'uncertain results block new confirmation');
+    assert.equal(inventory.splitInputError, null, 'confirmation requires a locally valid quantity');
   }
   return inventory;
 }
@@ -461,7 +478,7 @@ export function assertSplitQuantityObservation(observation, text) {
   assert.equal(after.inventory.splitQuantityText, text);
   assert.equal(after.inventory.splitPreview, null, 'editing invalidates the previous preview');
   assert.equal(after.inventory.splitResult, null, 'editing clears the old split result');
-  assert.equal(after.inventory.canConfirmSplit, false);
+  assert.equal(after.inventory.canConfirmSplit, after.inventory.splitInputError === null && !after.inventory.splitNeedsReview);
 }
 
 export function assertSplitDisabledObservation(observation, buttonName) {
@@ -478,17 +495,28 @@ export function assertSplitPreviewObservation(observation, expected) {
   assertSplitProjection(observation.before); const after = assertSplitProjection(observation.after);
   assertInventoryWorldUnchanged(observation.before, observation.after);
   assert.deepEqual(after.splitPreview, { success: expected.status === 'completed', statusCode: expected.statusCode });
-  assert.equal(after.canConfirmSplit, expected.status === 'completed');
+  assert.equal(after.canConfirmSplit, after.splitInputError === null && !after.splitNeedsReview);
   assert.equal(after.splitResult, null);
   assert.ok(observation.after.displayedSplit.preview.trim(), 'the explicit preview must have visible feedback');
 }
 
+export function assertSplitDirectRejectionObservation(observation, { statusCode }) {
+  assertUiCommandObservation(observation, { name: 'menu_confirm_split_direct', status: 'failed', timeLabel: observation.before.timeLabel, errorMessage: statusCode });
+  const before = assertSplitProjection(observation.before); const after = assertSplitProjection(observation.after);
+  assert.equal(before.canConfirmSplit, true);
+  assertInventoryWorldUnchanged(observation.before, observation.after);
+  assert.equal(after.splitResult, null);
+  assert.equal(after.splitNeedsReview, false, 'an explicit validation refusal is a known outcome');
+}
+
 export function assertSplitConfirmObservation(observation, { amount }) {
-  assertUiCommandObservation(observation, { name: 'menu_confirm', status: 'completed', timeLabel: observation.before.timeLabel });
+  assertUiCommandObservation(observation, { name: 'menu_confirm_split_direct', status: 'completed', timeLabel: observation.before.timeLabel });
   const before = assertSplitProjection(observation.before); const after = assertSplitProjection(observation.after);
   assert.equal(before.canConfirmSplit, true);
   const source = before.lotOptions.find((lot) => lot.id === before.selectedLotId);
-  assert.ok(source?.enabled && Number.isFinite(amount) && amount > 0 && amount <= source.quantity.amount);
+  const pieces = source?.cabbage_pieces?.kind === 'whole' ? source.cabbage_pieces.pieces : null;
+  assert.ok(source?.enabled && Number.isFinite(amount) && amount > 0 && amount <= (pieces ? pieces.length : source.quantity.amount));
+  if (pieces) assert.ok(Number.isInteger(amount), 'whole cabbage uses integer piece counts');
   assert.equal(Number(before.splitQuantityText), amount);
   const result = after.splitResult;
   assert.ok(result && result.sourceLotId === source.id);
@@ -497,16 +525,19 @@ export function assertSplitConfirmObservation(observation, { amount }) {
   const created = after.lotOptions.find((lot) => lot.id === result.newLotId);
   assert.ok(created, 'the result must name a real publicly observable child lot');
   for (const key of ['base_id', 'category', 'current_form', 'storage_ref']) assert.deepEqual(created[key], source[key]);
-  assert.deepEqual(created.quantity, { amount, unit: source.quantity.unit });
+  const splitAmount = pieces ? pieces.slice(0, amount).reduce((sum, item) => sum + item.weight_g, 0) : amount;
+  assert.deepEqual(created.quantity, { amount: splitAmount, unit: source.quantity.unit });
+  if (pieces) assert.deepEqual(created.cabbage_pieces, { kind: 'whole', pieces: pieces.slice(0, amount) });
   assert.deepEqual(result.quantity, created.quantity);
   const remainder = after.lotOptions.find((lot) => lot.id === source.id);
-  const remainingAmount = source.quantity.amount - amount;
+  const remainingAmount = source.quantity.amount - splitAmount;
   if (remainingAmount === 0) {
     assert.equal(remainder, undefined, 'a full split removes the exhausted source');
     assert.equal(result.remainingQuantity, null);
     assert.equal(after.selectedLotId, null, 'an exhausted source selection must be cleared');
   } else {
-    assert.deepEqual(remainder, { ...source, quantity: { amount: remainingAmount, unit: source.quantity.unit } });
+    assert.deepEqual(remainder, { ...source, quantity: { amount: remainingAmount, unit: source.quantity.unit },
+      ...(pieces ? { cabbage_pieces: { kind: 'whole', pieces: pieces.slice(amount) } } : {}) });
     assert.deepEqual(result.remainingQuantity, remainder.quantity);
   }
   assert.equal(after.lotOptions.length, before.lotOptions.length + (remainingAmount === 0 ? 0 : 1));
@@ -519,7 +550,7 @@ export function assertSplitConfirmObservation(observation, { amount }) {
   for (const key of ['fieldOptions', 'harvestableOptions']) assert.deepEqual(observation.after.farming[key], observation.before.farming[key]);
   assert.deepEqual(observation.after.farming.materialOptions, after.lotOptions, 'both public panels must observe the same current material batches');
   assert.equal(after.canConfirmSplit, false, 'a completed split cannot reuse the old preview');
-  assert.ok(visibleNumber(observation.after.displayedSplit.result, amount, VISIBLE_UNITS[source.quantity.unit] ?? source.quantity.unit), 'the result Label must show the actual split quantity and unit');
+  assert.ok(visibleNumber(observation.after.displayedSplit.result, splitAmount, VISIBLE_UNITS[source.quantity.unit] ?? source.quantity.unit), 'the result Label must show the actual split weight and unit');
   if (remainingAmount === 0) assert.match(observation.after.displayedSplit.result, /来源已全部拆出/);
   else assert.ok(visibleNumber(observation.after.displayedSplit.result, remainingAmount, VISIBLE_UNITS[source.quantity.unit] ?? source.quantity.unit), 'the result must show the actual remaining quantity');
   assert.match(observation.after.displayedOperation, /拆分成功/);
@@ -942,11 +973,30 @@ export function assertOrderLoadRecovery(saved,loaded){
   for(const key of INVENTORY_COLLECTIONS)assert.deepEqual(loaded.after.inventory[key],saved.inventory[key]);
   assert.equal(after.preview,null);assert.equal(after.result,null);assert.equal(after.canSubmit,false);
 }
-export function assertOrderSerializedSettlement(beforeRaw,afterRaw,selected){
+export function assertOrderSerializedSettlement(beforeRaw,afterRaw,selected,physicalPolicies=null){
   const before=JSON.parse(beforeRaw),after=JSON.parse(afterRaw);const dish=before.dish_lots.find(item=>item.dish_lot_id===selected.dishLotId);assert.ok(dish);
   assert.deepEqual(after.dish_lots,before.dish_lots.filter(item=>item.dish_lot_id!==dish.dish_lot_id));
   assert.equal(after.storage_containers.some(container=>container.active_object_refs.some(ref=>ref.object_type==='DishLot'&&ref.object_id===dish.dish_lot_id)),false);
-  assert.deepEqual(after.storage_containers,before.storage_containers.map(old=>old.container_id===dish.storage_ref.container_id?{...old,used_capacity:old.used_capacity-dish.storage_footprint.amount,active_object_refs:old.active_object_refs.filter(ref=>ref.object_type!=='DishLot'||ref.object_id!==dish.dish_lot_id)}:old),'serialized settlement changes only the selected dish storage reference and footprint');
+  let physicalDelta=null;
+  if(before.physical_capacity_policy_id!==undefined){
+    assert.equal(after.physical_capacity_policy_id,before.physical_capacity_policy_id);
+    const policy=physicalPolicies?.policies?.find(item=>item.id===before.physical_capacity_policy_id);assert.ok(policy,'physical settlement requires the verified candidate policy');
+    const rule=policy.rules.find(item=>item.kind==='DishLot'&&item.definition_id===dish.recognized_dish_id&&item.form===dish.storage_form&&item.quantity_unit===dish.total_quantity.unit);assert.ok(rule,'selected dish requires an exact physical rule');
+    const amount=dish.total_quantity.amount;
+    const mass=amount*rule.mass_mg_per_unit.numerator/rule.mass_mg_per_unit.denominator;
+    const volume=amount*rule.volume_ul_per_unit.numerator/rule.volume_ul_per_unit.denominator;
+    assert.ok(Number.isSafeInteger(mass)&&mass>0&&Number.isSafeInteger(volume)&&volume>0,'this settlement case must have exact integer milligram/microlitre contributions');
+    physicalDelta={mass_g:mass,volume_ml:volume};
+  }
+  assert.deepEqual(after.storage_containers,before.storage_containers.map(old=>{
+    if(old.container_id!==dish.storage_ref.container_id)return old;
+    const expected={...old,used_capacity:old.used_capacity-dish.storage_footprint.amount,active_object_refs:old.active_object_refs.filter(ref=>ref.object_type!=='DishLot'||ref.object_id!==dish.dish_lot_id)};
+    if(physicalDelta){assert.ok(old.used_capacity_limits);expected.used_capacity_limits=Object.fromEntries(Object.entries(physicalDelta).map(([key,delta])=>{
+      const beforeMilli=old.used_capacity_limits[key]*1000;assert.ok(Number.isFinite(beforeMilli)&&Math.abs(beforeMilli-Math.round(beforeMilli))<1e-6);
+      return [key,(Math.round(beforeMilli)-delta)/1000];
+    }));}
+    return expected;
+  }),'serialized settlement changes exactly the selected dish storage reference, slot and physical footprints');
   assert.equal(after.orders.find(item=>item.order_id===selected.orderId).status,'completed');assert.equal(after.player_state.money-before.player_state.money,selected.rewardMoney);
 }
 

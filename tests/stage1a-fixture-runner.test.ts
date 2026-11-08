@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { StorageAudit } from '../src/game-core/index';
+import { loadPhysicalPolicyRegistry } from '../src/game-core/config/PhysicalPolicyLoader';
 import { Stage1AFixtureRunner } from '../src/game-core/testing-api';
 import type { Stage1AFixtureDocument } from '../src/game-core/testing-api';
 import { buildRuntimeWithoutState } from './support/runtimeHarness';
@@ -91,5 +92,5 @@ test('Stage1AFixtureRunner executes the formal fixture through T20_release_injec
     for (const event of result.domain_events) contracts.assertDomainEvent(event);
   }
   contracts.assertSaveFile(report.state.save_file);
-  new StorageAudit().assertReconciled(report.state.save_file);
+  new StorageAudit(loadPhysicalPolicyRegistry(configs)).assertReconciled(report.state.save_file);
 });

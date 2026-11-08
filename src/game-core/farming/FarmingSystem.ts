@@ -54,12 +54,14 @@ export class FarmingSystem {
     const expectedHarvestMinute = save.world_time.absolute_minute + Math.ceil(duration / 0.85 / 0.95);
     if (!Number.isSafeInteger(expectedHarvestMinute) || expectedHarvestMinute <= save.world_time.absolute_minute) throw new Error('ERR_CROP_GROWTH_DURATION_INVALID');
     const germination = this.planGermination(save, tileCount, seedsPerTile, probability);
+    const seedSnapshot = structuredClone(seed);
     this.inventory.consume(save, seedLotId, seedQuantity);
     save.random_state.streams = { ...(save.random_state.streams as Record<string, unknown>), farming_germination_v1: germination.stream };
     const crops = Array.from({ length: tileCount }, (_, index): CropInstance => ({
       crop_id: this.ids.next('crop'),
       crop_base_id: String(seedDef.crop_base_id),
       seed_lot_id: seedLotId,
+      seed_lot_snapshot: structuredClone(seedSnapshot),
       field_plot_id: fieldPlotId,
       planted_time: save.world_time.absolute_minute,
       growth_stage: initialStage,
@@ -142,6 +144,13 @@ export class FarmingSystem {
         source_actor: 'player',
         source_location: crop.field_plot_id
       },
+      cabbage_pieces: { kind: 'whole', pieces: [{
+        id: crop.crop_id,
+        weight_g: quantity,
+        ...(crop.seed_lot_snapshot === undefined ? {} : { seed_lot_snapshot: structuredClone(crop.seed_lot_snapshot) }),
+        source_ref: { source_type: 'farming', source_id: crop.crop_id,
+          source_time: save.world_time.absolute_minute, source_actor: 'player', source_location: crop.field_plot_id }
+      }] },
       storage_ref: storageRef,
       created_time: save.world_time.absolute_minute,
       last_update_time: save.world_time.absolute_minute,

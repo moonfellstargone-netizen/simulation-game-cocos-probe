@@ -30,7 +30,7 @@
 8. Modules 权威边界：modules/ 可保留完整游戏设计、未来扩展样板与阶段说明；凡使用“第一版 / MVP / 必做”等词，必须标明 Stage 1A、Stage 1B、Stage 1C debug 或后续扩展归属，并以 active config、formal schema、fixture/expected 为准。
 
 四、Stage 1A formal Action 契约
-1. Stage 1A formal gameplay actions：plant_crop、advance_time、harvest_crop、store_item、split_lot、start_processing、collect_processing_result、cook_dish、submit_order。
+1. Stage 1A formal gameplay actions：plant_crop、advance_time、harvest_crop、store_item、split_lot、merge_lot、start_processing、collect_processing_result、cook_dish、submit_order。merge_lot及白菜完整个体记录为用户明确授权的候选修订，原始正式包与历史固定快照保持原文，原九动作fixture仍用于其既有闭环，新增动作另行覆盖。
 2. collect_processing_result 是 Stage 1A 正式玩家 Action；加工时间推进使用 advance_time，收取加工结果使用 collect_processing_result，不允许用合并式测试动作替代正式 Action。
 3. system.* 动作只属于测试 DSL，不进入正式玩家 Action。
 4. 非 system.* fixture 的 parameters 必须与 formal ActionRequest 参数完全一致；测试专用结算模式、环境假设、驱动提示只能写入 test_driver_hints 或 expected，不得进入正式 parameters，也不得在 fixture schema 中额外放宽。
@@ -53,6 +53,11 @@
 8. Stage 1B/1C overlay 当前仍是预留/调试草案；若启用，family_meal_state 合并进 SaveFile.family_state.meal_state，debug_inventory_additions 追加进 SaveFile.inventory，debug_orders 追加进 SaveFile.orders，随后执行 storage reconciliation。
 
 六、Storage reconciliation 与 StorageOccupant 口径
+用户2026-11-08授权的候选扩展：以下旧slot_weight容量上限适用于未声明physical_capacity_policy_id的旧制存档；新局声明经加载配置的物性策略，全部容器同时按容积（ml）与承重（g）对账，slot_weight继续作为兼容缓存但不再作为新制容量上限。所有MaterialLot和DishLot仍必须完整参与核算，物性策略不可静默覆盖旧版本；旧档不把容量点转换为真实单位。以上候选扩展不改写原始正式资料包，也不表示旧档已完成迁移。
+来源记录的用户最新选择：普通批次保留必要真实来源与最近一次操作，普通拆合历史不无限复制；特殊种源、采收批次、重要标记和加工/菜品输入快照仍须保护。来源分组只按稳定身份及一致内容识别共享来源，不按文字相同猜测；历史档的无法确定信息不反推，原档和备份不自动改写。
+用户2026-11-09补充：新局菜窖的三个储存坛是独立容器，每坛按标准白菜约10颗设置双维限额，可混装，菜窖不另设共享总限额；腌制缸仍是独立加工设施。加工成品领取先入仓库，玩家再手动移入坛子。标准旧档在该次正式领取事务中可补充仓库允许形式，失败与预览不修改原状态；未知非标准旧档不擅自放宽。旧菜窖不自动迁移或伪称已是三个坛子。
+历史菜窖设施仍携带的capacity_g属于原设施元数据，不作为新三个坛子或菜窖共享承重的上限；新制容量权威是各个cellar_jar自身capacity_limits。
+本候选的白菜完整个体及来源口径：新收获以克记录总重量及可验证逐棵重量和来源，旧批次缺少记录时颗数为未知；切开部分仍以克计量并保存已知的原棵来源。拆分/合并、加工与烹饪消耗不得伪造颗数或丢失已记录来源；加工任务输入与菜品成分保留可选来源快照，历史任务和菜品可缺此字段。重复输入继续逐项校验并记录，不因新的逐棵表示新增重复输入拒绝规则。拆分回执以split_role与piece_count区分拆出和余量，业务失败及事件/结果契约失败须连同状态、事件与生成ID一起回滚。加工多primary输入的既有产出预估口径保持，不据此宣称所有加工产出全过程重量守恒。
 1. StorageContainer.active_object_refs 与 used_capacity 是可重建缓存，不是第二事实源；NewGameBuilder、读档后、overlay 合并后都必须通过 StorageOccupantAdapter 从合并后的 StorageOccupant.storage_ref、storage_form 与 storage_footprint 重算。当前 Stage 1A 的 StorageOccupant 包括 MaterialLot 与 DishLot，缓存引用必须使用 common_defs.StorageOccupantRef。
 2. Stage 1A 普通储存容器使用 slot_weight 作为容量比较单位：used_capacity 表示当前容器内所有 StorageOccupant 的 storage_footprint.amount 汇总，且只与 capacity.unit=slot_weight 的容器比较。
 3. 后续 water_storage、currency_storage 或特殊容器可以通过 storage_type / capacity_model 扩展独立容量模型；但在未登记新模型前，不得把 g/ml/count 直接混入普通 used_capacity。

@@ -1,5 +1,38 @@
 import { WECHAT_BACKUP_SLOT_ID, WECHAT_SAVE_SLOT_ID } from './WechatSaveStoragePort';
 
+// Match core's JSON-decimal arithmetic exactly; no floating-point tolerance.
+// Compare digit strings directly so an inexact binary sum cannot validate a receipt.
+function exactDecimalSum(values: readonly number[]): number | null {
+  const decimal = (value: number): { digits: string; scale: number } | null => {
+    if (!Number.isFinite(value) || value < 0) return null;
+    const [mantissa, exponentText] = value.toString().toLowerCase().split('e');
+    const [integer, fraction = ''] = mantissa!.split('.');
+    let digits = (integer! + fraction).replace(/^0+(?=\d)/, '');
+    let scale = fraction.length - Number(exponentText ?? 0);
+    if (scale < 0) { digits += '0'.repeat(-scale); scale = 0; }
+    while (scale > 0 && digits.endsWith('0')) { digits = digits.slice(0, -1); scale--; }
+    return { digits: digits || '0', scale };
+  };
+  const parts = values.map(decimal);
+  if (parts.some(part => !part)) return null;
+  const scale = parts.reduce((max, part) => Math.max(max, part!.scale), 0);
+  const aligned = (part: { digits: string; scale: number }) => (part.digits + '0'.repeat(scale - part.scale)).replace(/^0+(?=\d)/, '');
+  let sum = '0';
+  for (const part of parts) {
+    const right = aligned(part!); const length = Math.max(sum.length, right.length);
+    const leftPadded = sum.padStart(length, '0'); const rightPadded = right.padStart(length, '0');
+    let carry = 0, digits = '';
+    for (let i = length - 1; i >= 0; i--) { const n = Number(leftPadded[i]) + Number(rightPadded[i]) + carry; digits = String(n % 10) + digits; carry = Math.floor(n / 10); }
+    sum = ((carry ? String(carry) : '') + digits).replace(/^0+(?=\d)/, '');
+  }
+  const amount = Number(`${sum}e-${scale}`); const result = decimal(amount);
+  return result && result.scale <= scale && aligned(result) === sum ? amount : null;
+}
+function exactDecimalSumEquals(values: readonly number[], expected: number): boolean {
+  const amount = exactDecimalSum(values);
+  return amount !== null && amount === expected;
+}
+
 export interface WechatResources {
   readonly snapshot: unknown;
   readonly schemas: Record<string, unknown>;
@@ -18,8 +51,17 @@ export interface CandidateIdentity {
 export interface WechatHost {
   hasSession(): boolean;
   destroySession(): void;
-  requireSession(): { getViewModel(): { readonly time_label: string } };
+  requireSession(): { getViewModel(): { readonly time_label: string }; getStorageCapacityDisplay?(targetId: string, lotId: string | null, gridCount: number): WechatCapacityDisplay };
 }
+
+export type WechatCapacityDisplay =
+  | { readonly model: 'legacy_slot'; readonly used: number; readonly maximum: number }
+  | { readonly model: 'physical'; readonly status: 'unavailable'; readonly reason: string }
+  | { readonly model: 'physical'; readonly status: 'ready'; readonly used_mass_g: number; readonly maximum_mass_g: number;
+      readonly remaining_mass_g: number; readonly used_volume_ml: number; readonly maximum_volume_ml: number; readonly remaining_volume_ml: number;
+      readonly volume_grid: readonly number[]; readonly standard_cabbage_estimate?: number;
+      readonly selection: { readonly status: 'unknown'; readonly reason: string } | { readonly status: 'already_in_target' }
+        | { readonly status: 'ready'; readonly fit_prefix: number; readonly selected_total: number; readonly blocked_by: readonly ('mass' | 'volume')[]; readonly fit_by_visual_grid: readonly number[] } };
 
 export interface WechatQuantity { readonly amount: number; readonly unit: string }
 export interface WechatFieldOption { readonly id: string; readonly definition_id: string; readonly enabled: boolean; readonly occupied_tiles: number; readonly active_crop_count: number; readonly capacity_tiles: number; readonly available_tiles: number }
@@ -27,12 +69,14 @@ export interface WechatMaterialOption {
   readonly id: string; readonly enabled: boolean; readonly base_id: string; readonly current_form: string;
   readonly category?: string; readonly compatible_method_ids?: readonly string[];
   readonly quantity: WechatQuantity;
+  readonly cabbage_pieces?: { readonly kind: 'whole'; readonly pieces: readonly { readonly id: string; readonly weight_g: number; readonly source_ref: { readonly source_type: string; readonly source_id: string; readonly source_time: number; readonly source_actor?: string; readonly source_location?: string | null; readonly summary_key?: string | null } }[] } | { readonly kind: 'cut' };
   readonly planting_policy?: { readonly max_seeds_per_tile: number; readonly per_seed_success_rate: number };
   readonly storage_ref: { readonly location_id: string; readonly storage_type: string; readonly container_id: string };
 }
+export interface WechatDishOption { readonly id: string; readonly recognized_dish_id: string | null; readonly serving_count: number; readonly storage_form?: string; readonly storage_ref: { readonly location_id: string; readonly storage_type: string; readonly container_id: string }; readonly enabled: boolean }
 export interface WechatCropOption { readonly id: string; readonly enabled: boolean; readonly crop_base_id: string; readonly field_plot_id: string }
 export interface WechatStorageOption {
-  readonly id: string; readonly enabled: boolean; readonly location_id: string; readonly storage_type: string;
+  readonly id: string; readonly enabled: boolean; readonly location_id: string; readonly storage_type: string; readonly container_type?: string;
   readonly capacity: WechatQuantity; readonly used_capacity: number; readonly supported_forms: readonly string[];
 }
 export interface WechatProcessingRequirement {
@@ -65,6 +109,7 @@ export interface WechatMenuSnapshot {
     readonly harvestable_crop_options: readonly WechatCropOption[];
     readonly crop_status_options?: readonly { readonly id: string; readonly field_plot_id: string; readonly growth_stage: string; readonly lifecycle_status: string }[];
     readonly splittable_lot_options: readonly WechatMaterialOption[];
+    readonly submittable_dish_lot_options?: readonly WechatDishOption[];
     readonly storage_target_options: readonly WechatStorageOption[];
     readonly processing_method_options: readonly WechatProcessingMethod[];
     readonly processable_lot_options: readonly WechatMaterialOption[];
@@ -80,6 +125,7 @@ function copyMenu(value: WechatMenuSnapshot): WechatMenuSnapshot {
   const material = (item: WechatMaterialOption): WechatMaterialOption => ({ id: item.id, enabled: item.enabled,
     base_id: item.base_id, current_form: item.current_form, quantity: { amount: item.quantity.amount, unit: item.quantity.unit },
     category: item.category, compatible_method_ids: [...(item.compatible_method_ids ?? [])],
+    ...(item.cabbage_pieces ? { cabbage_pieces: item.cabbage_pieces.kind === 'whole' ? { kind: 'whole' as const, pieces: item.cabbage_pieces.pieces.map(piece => ({ id: piece.id, weight_g: piece.weight_g, source_ref: { ...piece.source_ref } })) } : { kind: 'cut' as const } } : {}),
     ...(item.planting_policy ? { planting_policy: { ...item.planting_policy } } : {}),
     storage_ref: { location_id: item.storage_ref.location_id, storage_type: item.storage_ref.storage_type, container_id: item.storage_ref.container_id } });
   return { view_model: value.view_model ? { time_label: value.view_model.time_label } : null,
@@ -90,8 +136,9 @@ function copyMenu(value: WechatMenuSnapshot): WechatMenuSnapshot {
       crop_status_options: (s.crop_status_options ?? []).map(item => ({ id: item.id, field_plot_id: item.field_plot_id,
         growth_stage: item.growth_stage, lifecycle_status: item.lifecycle_status })),
       splittable_lot_options: s.splittable_lot_options.map(material),
+      ...(Array.isArray(s.submittable_dish_lot_options) ? { submittable_dish_lot_options: s.submittable_dish_lot_options.map(item => ({ id: item.id, recognized_dish_id: item.recognized_dish_id, serving_count: item.serving_count, storage_form: item.storage_form, storage_ref: { ...item.storage_ref }, enabled: item.enabled })) } : {}),
       storage_target_options: s.storage_target_options.map(item => ({ id: item.id, enabled: item.enabled, location_id: item.location_id,
-        storage_type: item.storage_type, capacity: { amount: item.capacity.amount, unit: item.capacity.unit }, used_capacity: item.used_capacity,
+        storage_type: item.storage_type, container_type: item.container_type, capacity: { amount: item.capacity.amount, unit: item.capacity.unit }, used_capacity: item.used_capacity,
         supported_forms: [...item.supported_forms] })),
       processing_method_options: (s.processing_method_options ?? []).map(item => ({ id: item.id, label_key: item.label_key, enabled: item.enabled,
         input_requirements: item.input_requirements.map(req => ({ requirement_index: req.requirement_index,
@@ -122,8 +169,9 @@ export interface WechatCommandResult {
         readonly selectable_view_model?: WechatMenuSnapshot['selectable_view_model'];
         readonly last_preview_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
         readonly last_split_validation_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
+        readonly last_merge_validation_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
         readonly last_processing_validation_result?: { readonly action_type: string; readonly success: boolean; readonly status_code: string } | null;
-        readonly last_action_result?: { readonly success: boolean; readonly request_id?: string; readonly status_code?: string; readonly created_objects?: readonly { readonly object_type: string; readonly object_id: string }[]; readonly updated_objects?: readonly { readonly object_type: string; readonly object_id: string }[]; readonly consumed_resources?: readonly { readonly resource_type: string; readonly resource_id: string; readonly quantity: WechatQuantity }[] } | null;
+        readonly last_action_result?: { readonly success: boolean; readonly request_id?: string; readonly status_code?: string; readonly created_objects?: readonly { readonly object_type: string; readonly object_id: string; readonly summary?: { readonly quantity?: WechatQuantity; readonly status?: string; readonly split_role?: 'taken' | 'remaining'; readonly piece_count?: number } | null }[]; readonly updated_objects?: readonly { readonly object_type: string; readonly object_id: string; readonly summary?: { readonly quantity?: WechatQuantity; readonly status?: string; readonly split_role?: 'taken' | 'remaining'; readonly piece_count?: number } | null }[]; readonly consumed_resources?: readonly { readonly resource_type: string; readonly resource_id: string; readonly quantity: WechatQuantity }[] } | null;
       };
       readonly save_load?: {
         readonly last_save_result?: { readonly slot_id: string } | null;
@@ -134,12 +182,14 @@ export interface WechatCommandResult {
 }
 
 export type WechatCommand =
+  | { readonly name: 'menu_confirm_merge_direct'; readonly selection: { readonly action_type: 'merge_lot'; readonly source_lot_option_id: string; readonly target_lot_option_id: string } }
   | { readonly name: 'menu_preview' | 'menu_confirm_split_direct'; readonly selection: { readonly action_type: 'split_lot'; readonly source_lot_option_id: string; readonly quantity: WechatQuantity } }
   | { readonly name: 'menu_preview' | 'menu_confirm_processing_direct'; readonly selection: WechatProcessingSelection }
   | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'advance_time'; readonly minutes: 60 | 1440 } }
   | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'plant_crop'; readonly field_option_id: string; readonly seed_lot_option_id: string; readonly seed_quantity: WechatQuantity; readonly seeds_per_tile?: number } }
   | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'harvest_crop'; readonly crop_option_id: string } }
   | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'store_item'; readonly source_lot_option_id: string; readonly target_storage_option_id: string } }
+  | { readonly name: 'menu_confirm'; readonly selection: { readonly action_type: 'store_item'; readonly source_dish_lot_option_id: string; readonly target_storage_option_id: string } }
   | { readonly name: 'save'; readonly selection: { readonly slot_id: string } }
   | { readonly name: 'load'; readonly selection: { readonly slot_id: string } }
   | { readonly name: 'refresh' };
@@ -163,12 +213,13 @@ export interface WechatProbeSnapshot {
   readonly menu: WechatMenuSnapshot | null;
   readonly split_preview: WechatSplitPreview | null;
   readonly split_result: WechatSplitResult | null;
+  readonly merge_result?: { readonly sourceLotId: string; readonly targetLotId: string; readonly quantity: WechatQuantity } | null;
   readonly processing_preview: WechatProcessingPreview | null;
   readonly processing_result: WechatProcessingResult | null;
 }
 
 export interface WechatSplitPreview { readonly sourceLotId: string; readonly quantity: WechatQuantity; readonly success: boolean; readonly statusCode: string }
-export interface WechatSplitResult { readonly sourceLotId: string; readonly newLotId: string; readonly quantity: WechatQuantity; readonly remainingQuantity: WechatQuantity | null }
+export interface WechatSplitResult { readonly sourceLotId: string; readonly newLotId: string; readonly quantity: WechatQuantity; readonly remainingQuantity: WechatQuantity | null; readonly pieceCount?: number; readonly remainingPieceCount?: number }
 export interface WechatProcessingPreview { readonly actionType: WechatProcessingSelection['action_type']; readonly success: boolean; readonly statusCode: string }
 export interface WechatProcessingResult { readonly actionType: WechatProcessingSelection['action_type']; readonly taskId: string; readonly lotId: string | null }
 
@@ -206,6 +257,7 @@ export class WechatProbeController {
   private splitGeneration = 0;
   private splitPreview: WechatSplitPreview | null = null;
   private splitResult: WechatSplitResult | null = null;
+  private mergeResult: { sourceLotId: string; targetLotId: string; quantity: WechatQuantity } | null = null;
   // This controller owns one Session/dispatcher. Loading replaces state, not its request sequence.
   private readonly observedMenuRequestIds = new Set<string>();
   private splitCommandInFlight: 'preview' | 'confirm' | null = null;
@@ -232,6 +284,7 @@ export class WechatProbeController {
       last_error: this.error, menu: this.menu ? copyMenu(this.menu) : null,
       split_preview: this.splitPreview ? { ...this.splitPreview, quantity: { ...this.splitPreview.quantity } } : null,
       split_result: this.splitResult ? { ...this.splitResult, quantity: { ...this.splitResult.quantity }, remainingQuantity: this.splitResult.remainingQuantity ? { ...this.splitResult.remainingQuantity } : null } : null,
+      merge_result: this.mergeResult ? { ...this.mergeResult, quantity: { ...this.mergeResult.quantity } } : null,
       processing_preview: this.processingPreview ? { ...this.processingPreview } : null,
       processing_result: this.processingResult ? { ...this.processingResult } : null });
   }
@@ -263,6 +316,14 @@ export class WechatProbeController {
     return this.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 60 } });
   }
 
+  storageCapacityDisplay(targetId: string, lotId: string | null): WechatCapacityDisplay | null {
+    if (!this.host?.hasSession()) return null;
+    const session = this.host.requireSession();
+    if (!session.getStorageCapacityDisplay) return null;
+    try { return session.getStorageCapacityDisplay(targetId, lotId, 4); }
+    catch { return { model: 'physical', status: 'unavailable', reason: 'ERR_PHYSICAL_DISPLAY' }; }
+  }
+
   async advanceDay(): Promise<WechatProbeSnapshot> {
     return this.execute({ name: 'menu_confirm', selection: { action_type: 'advance_time', minutes: 1440 } });
   }
@@ -277,6 +338,16 @@ export class WechatProbeController {
     return this.execute({ name: 'menu_confirm', selection: { action_type: 'harvest_crop', crop_option_id: cropId } });
   }
 
+  async moveDish(dishId: string, targetId: string): Promise<WechatProbeSnapshot> {
+    const menu = this.menu?.selectable_view_model;
+    const dishes = menu?.submittable_dish_lot_options; const targets = menu?.storage_target_options;
+    const selected = dishes?.filter(item => item.id === dishId) ?? []; const destinations = targets?.filter(item => item.id === targetId) ?? [];
+    if (!dishes || !targets || selected.length !== 1 || destinations.length !== 1 || !selected[0]!.enabled || !destinations[0]!.enabled
+      || !selected[0]!.storage_form || !destinations[0]!.supported_forms.includes(selected[0]!.storage_form!)
+      || selected[0]!.storage_ref.container_id === targetId) throw new Error('ERR_WECHAT_PROBE_ACTION_FAILED:ERR_MENU_OPTION_INVALID');
+    return this.execute({ name: 'menu_confirm', selection: { action_type: 'store_item', source_dish_lot_option_id: dishId, target_storage_option_id: targetId } });
+  }
+
   async move(lotId: string, targetId: string): Promise<WechatProbeSnapshot> {
     return this.execute({ name: 'menu_confirm', selection: { action_type: 'store_item', source_lot_option_id: lotId, target_storage_option_id: targetId } });
   }
@@ -285,6 +356,7 @@ export class WechatProbeController {
     this.splitGeneration++;
     this.splitPreview = null;
     this.splitResult = null;
+    this.mergeResult = null;
     if (!this.disposed) this.notify();
   }
 
@@ -295,11 +367,17 @@ export class WechatProbeController {
 
   async confirmSplit(lotId: string, quantity: WechatQuantity): Promise<WechatProbeSnapshot> {
     const lot = this.menu?.selectable_view_model?.splittable_lot_options.find(item => item.id === lotId && item.enabled);
-    if (!lot || !quantity || !Number.isFinite(quantity.amount) || quantity.amount <= 0 || quantity.unit !== lot.quantity.unit) {
+    const requiredUnit = lot?.cabbage_pieces?.kind === 'whole' ? 'count' : lot?.quantity.unit;
+    if (!lot || !quantity || !Number.isFinite(quantity.amount) || quantity.amount <= 0 || quantity.unit !== requiredUnit) {
       throw new Error('ERR_WECHAT_SPLIT_INPUT_INVALID');
     }
     return this.execute({ name: 'menu_confirm_split_direct', selection: { action_type: 'split_lot', source_lot_option_id: lotId,
       quantity: { amount: quantity.amount, unit: quantity.unit } } });
+  }
+
+  async confirmMerge(sourceLotId: string, targetLotId: string): Promise<WechatProbeSnapshot> {
+    if (!sourceLotId || !targetLotId || sourceLotId === targetLotId) throw new Error('ERR_WECHAT_MERGE_INPUT_INVALID');
+    return this.execute({ name: 'menu_confirm_merge_direct', selection: { action_type: 'merge_lot', source_lot_option_id: sourceLotId, target_lot_option_id: targetLotId } });
   }
 
   invalidateProcessingPreview(): void {
@@ -381,7 +459,11 @@ export class WechatProbeController {
     if (this.disposed || this.phase !== 'ready' || this.binding === null) throw new Error('ERR_WECHAT_PROBE_NOT_READY');
     if (!this.visible) throw new Error('ERR_WECHAT_PROBE_HIDDEN');
     if (this.busy) throw new Error('ERR_WECHAT_PROBE_BUSY');
+    const dishMoveSelection = command.name === 'menu_confirm' && command.selection.action_type === 'store_item' && 'source_dish_lot_option_id' in command.selection ? command.selection : undefined;
+    const dishMoveBefore = dishMoveSelection ? this.menu?.selectable_view_model?.submittable_dish_lot_options?.find(item => item.id === dishMoveSelection.source_dish_lot_option_id) : undefined;
     const splitBefore = command.name === 'menu_confirm_split_direct'
+      ? this.menu?.selectable_view_model?.splittable_lot_options ?? [] : [];
+    const mergeBefore = command.name === 'menu_confirm_merge_direct'
       ? this.menu?.selectable_view_model?.splittable_lot_options ?? [] : [];
     const processBefore = command.name === 'menu_confirm_processing_direct' ? this.menu?.selectable_view_model : null;
     this.busy = true;
@@ -389,7 +471,8 @@ export class WechatProbeController {
     this.invalidateProcessingPreview();
     const splitGeneration = this.splitGeneration;
     const processingGeneration = this.processingGeneration;
-    this.splitCommandInFlight = (command.name === 'menu_preview' || command.name === 'menu_confirm_split_direct') && command.selection.action_type === 'split_lot'
+    this.splitCommandInFlight = command.name === 'menu_confirm_merge_direct' ? 'confirm'
+      : (command.name === 'menu_preview' || command.name === 'menu_confirm_split_direct') && command.selection.action_type === 'split_lot'
       ? (command.name === 'menu_preview' ? 'preview' : 'confirm') : null;
     this.processingCommandInFlight = command.name === 'refresh' ? 'refresh' : (command.name === 'menu_preview' || command.name === 'menu_confirm_processing_direct')
       && (command.selection.action_type === 'start_processing' || command.selection.action_type === 'collect_processing_result')
@@ -422,6 +505,10 @@ export class WechatProbeController {
           const reason = error instanceof Error ? error.message : String(error);
           throw new Error(`ERR_WECHAT_SPLIT_RESULT_UNCERTAIN:${reason}`);
         }
+        if (actualCommand.name === 'menu_confirm_merge_direct') {
+          const reason = error instanceof Error ? error.message : String(error);
+          throw new Error(`ERR_WECHAT_MERGE_RESULT_UNCERTAIN:${reason}`);
+        }
         if (actualCommand.name === 'menu_confirm_processing_direct') {
           const reason = error instanceof Error ? error.message : String(error);
           throw new Error(`ERR_WECHAT_PROCESSING_RESULT_UNCERTAIN:${reason}`);
@@ -440,7 +527,7 @@ export class WechatProbeController {
         const refreshed = current.snapshot?.menu;
         const selectable = refreshed?.selectable_view_model;
         if (current.status !== 'completed' || current.command_name !== 'refresh' || current.snapshot?.lifecycle?.has_session !== true
-            || !selectable || !Array.isArray(selectable.processing_task_options) || !Array.isArray(selectable.collectable_task_options)
+            || !selectable || !Array.isArray(selectable.submittable_dish_lot_options) || !Array.isArray(selectable.storage_target_options) || !Array.isArray(selectable.processing_task_options) || !Array.isArray(selectable.collectable_task_options)
             || !Array.isArray(selectable.processable_lot_options) || !Array.isArray(selectable.splittable_lot_options)
             || !Array.isArray(selectable.processing_method_options) || !Array.isArray(selectable.processing_facility_options)
             || processingGeneration !== this.processingGeneration || !this.visible) throw new Error('ERR_WECHAT_REFRESH_FAILED');
@@ -466,27 +553,106 @@ export class WechatProbeController {
           throw new Error('ERR_WECHAT_SPLIT_RESULT_UNCERTAIN');
         }
         const selection = actualCommand.selection;
-        const ids = action?.created_objects?.filter(item => item.object_type === 'MaterialLot') ?? [];
+        const refs = action?.created_objects ?? [];
         const lots = this.menu?.selectable_view_model?.splittable_lot_options ?? [];
-        const created = ids.length === 1 ? lots.find(item => item.id === ids[0].object_id) : undefined;
         const source = lots.find(item => item.id === selection.source_lot_option_id);
         const oldSource = splitBefore.find(item => item.id === selection.source_lot_option_id);
-        const sourceUpdated = action?.updated_objects?.filter(item => item.object_type === 'MaterialLot'
-          && item.object_id === selection.source_lot_option_id) ?? [];
-        const remaining = oldSource ? oldSource.quantity.amount - selection.quantity.amount : NaN;
-        if (action?.success !== true || !created || created.id === selection.source_lot_option_id
-            || !oldSource || splitBefore.some(item => item.id === created.id) || sourceUpdated.length !== 1
-            || created.quantity.amount !== selection.quantity.amount || created.quantity.unit !== selection.quantity.unit
-            || created.base_id !== oldSource.base_id || created.current_form !== oldSource.current_form
-            || created.storage_ref.container_id !== oldSource.storage_ref.container_id
-            || (remaining === 0 ? !!source : !source || source.quantity.amount !== remaining || source.quantity.unit !== oldSource.quantity.unit)) {
-          throw new Error('ERR_WECHAT_SPLIT_RESULT_UNCERTAIN');
-        }
+        const sourceUpdated = action?.updated_objects?.filter(item => item.object_type === 'MaterialLot') ?? [];
+        const invalid = () => { throw new Error('ERR_WECHAT_SPLIT_RESULT_UNCERTAIN'); };
+        if (action?.success !== true || !action.request_id || action.status_code !== 'OK' || this.observedMenuRequestIds.has(action.request_id)
+          || !oldSource || refs.length === 0 || refs.some(ref => ref.object_type !== 'MaterialLot' || !ref.object_id
+            || !ref.summary || (ref.summary.split_role !== 'taken' && ref.summary.split_role !== 'remaining'))
+          || new Set(refs.map(ref => ref.object_id)).size !== refs.length
+          || refs.some(ref => splitBefore.some(item => item.id === ref.object_id))
+          || sourceUpdated.length !== 1 || sourceUpdated[0]!.object_id !== selection.source_lot_option_id
+          || new Set(lots.map(item => item.id)).size !== lots.length) invalid();
+        const resolved = refs.map(ref => ({ ref, lot: lots.find(item => item.id === ref.object_id) }));
+        if (resolved.some(({ ref, lot }) => !lot || !ref.summary?.quantity
+          || lot.quantity.amount !== ref.summary.quantity.amount || lot.quantity.unit !== ref.summary.quantity.unit
+          || lot.base_id !== oldSource!.base_id || JSON.stringify(lot.storage_ref) !== JSON.stringify(oldSource!.storage_ref)
+          || (lot.cabbage_pieces?.kind === 'whole' ? ref.summary.piece_count !== lot.cabbage_pieces.pieces.length
+            : lot.cabbage_pieces?.kind === 'cut' ? ref.summary.piece_count !== 0 : ref.summary.piece_count !== undefined))) invalid();
+        const taken = resolved.filter(item => item.ref.summary!.split_role === 'taken').map(item => item.lot!);
+        const extraRemaining = resolved.filter(item => item.ref.summary!.split_role === 'remaining').map(item => item.lot!);
+        const sourceSummary = sourceUpdated[0]!.summary;
+        if (!taken.length || (source ? sourceSummary?.split_role !== 'remaining' || !sourceSummary.quantity
+          || sourceSummary.quantity.amount !== source.quantity.amount || sourceSummary.quantity.unit !== source.quantity.unit
+          || source.base_id !== oldSource!.base_id || JSON.stringify(source.storage_ref) !== JSON.stringify(oldSource!.storage_ref)
+          || (source.cabbage_pieces?.kind === 'whole' ? sourceSummary.piece_count !== source.cabbage_pieces.pieces.length
+            : source.cabbage_pieces?.kind === 'cut' ? sourceSummary.piece_count !== 0 : sourceSummary.piece_count !== undefined)
+          : sourceSummary?.status !== 'consumed')) invalid();
+        const remainingLots = [...(source ? [source] : []), ...extraRemaining];
+        const allLots = [...taken, ...remainingLots];
+        if (allLots.some(lot => lot.quantity.unit !== oldSource!.quantity.unit)
+          || !exactDecimalSumEquals(allLots.map(lot => lot.quantity.amount), oldSource!.quantity.amount)) invalid();
+        if (oldSource!.cabbage_pieces?.kind === 'whole') {
+          if (selection.quantity.unit !== 'count' || !Number.isSafeInteger(selection.quantity.amount)) invalid();
+          if (new Set(oldSource!.cabbage_pieces.pieces.map(piece => piece.id)).size !== oldSource!.cabbage_pieces.pieces.length
+            || oldSource!.cabbage_pieces.pieces.some(piece => !piece.id || !Number.isFinite(piece.weight_g) || piece.weight_g <= 0)
+            || !exactDecimalSumEquals(oldSource!.cabbage_pieces.pieces.map(piece => piece.weight_g), oldSource!.quantity.amount)) invalid();
+          const selected = oldSource!.cabbage_pieces.pieces.slice(0, selection.quantity.amount);
+          const rest = oldSource!.cabbage_pieces.pieces.slice(selection.quantity.amount);
+          const pieceList = (items: WechatMaterialOption[]) => items.flatMap(item => item.cabbage_pieces?.kind === 'whole' ? [...item.cabbage_pieces.pieces] : []);
+          if (allLots.some(item => item.cabbage_pieces?.kind !== 'whole')
+            || allLots.some(item => item.current_form !== oldSource!.current_form)
+            || selected.length !== selection.quantity.amount
+            || JSON.stringify(pieceList(taken)) !== JSON.stringify(selected)
+            || JSON.stringify(pieceList(remainingLots)) !== JSON.stringify(rest)) invalid();
+        } else if (selection.quantity.unit !== oldSource!.quantity.unit
+          || !exactDecimalSumEquals(taken.map(lot => lot.quantity.amount), selection.quantity.amount)
+          || allLots.some(item => item.current_form !== oldSource!.current_form)) invalid();
+        const takenAmount = exactDecimalSum(taken.map(lot => lot.quantity.amount));
+        const remainingAmount = remainingLots.length ? exactDecimalSum(remainingLots.map(lot => lot.quantity.amount)) : null;
+        if (takenAmount === null || (remainingLots.length > 0 && remainingAmount === null)) invalid();
+        this.observedMenuRequestIds.add(action!.request_id!);
+        const created = taken[0]!;
         this.completed++;
         if (splitGeneration === this.splitGeneration && this.visible) {
           this.splitResult = { sourceLotId: selection.source_lot_option_id, newLotId: created.id,
-            quantity: { ...created.quantity }, remainingQuantity: source ? { ...source.quantity } : null };
+            quantity: { amount: takenAmount!, unit: created.quantity.unit },
+            remainingQuantity: remainingLots.length ? { amount: remainingAmount!, unit: oldSource!.quantity.unit } : null,
+            ...(oldSource!.cabbage_pieces?.kind === 'whole' ? { pieceCount: selection.quantity.amount, remainingPieceCount: oldSource!.cabbage_pieces.pieces.length - selection.quantity.amount } : {}) };
         }
+      }
+      if (!this.disposed && actualCommand.name === 'menu_confirm_merge_direct') {
+        const validation = current.snapshot?.menu?.last_merge_validation_result;
+        const action = current.snapshot?.menu?.last_action_result;
+        if (current.status !== 'completed' || current.command_name !== actualCommand.name
+          || validation?.action_type !== 'merge_lot' || typeof validation.success !== 'boolean' || !validation.status_code) throw new Error('ERR_WECHAT_MERGE_RESULT_UNCERTAIN');
+        if (!validation.success) {
+          if (action !== null) throw new Error('ERR_WECHAT_MERGE_RESULT_UNCERTAIN');
+          throw new Error(`ERR_WECHAT_PROBE_ACTION_FAILED:${validation.status_code}`);
+        }
+        const s = actualCommand.selection;
+        const oldSource = mergeBefore.find(item => item.id === s.source_lot_option_id);
+        const oldTarget = mergeBefore.find(item => item.id === s.target_lot_option_id);
+        const lots = this.menu?.selectable_view_model?.splittable_lot_options ?? [];
+        const merged = lots.find(item => item.id === s.target_lot_option_id);
+        const updates = action?.updated_objects?.filter(item => item.object_type === 'MaterialLot') ?? [];
+        const sourceUpdate = updates.find(item => item.object_id === s.source_lot_option_id);
+        const targetUpdate = updates.find(item => item.object_id === s.target_lot_option_id);
+        if (action?.success !== true || !action.request_id || action.status_code !== 'OK' || this.observedMenuRequestIds.has(action.request_id)
+          || !oldSource || !oldTarget || !merged || s.source_lot_option_id === s.target_lot_option_id
+          || new Set(lots.map(item => item.id)).size !== lots.length || lots.some(item => item.id === s.source_lot_option_id)
+          || updates.length !== 2 || !sourceUpdate || !targetUpdate || sourceUpdate.summary?.status !== 'merged'
+          || !targetUpdate.summary?.quantity || targetUpdate.summary.quantity.amount !== merged.quantity.amount
+          || targetUpdate.summary.quantity.unit !== merged.quantity.unit || oldSource.quantity.unit !== oldTarget.quantity.unit
+          || merged.quantity.unit !== oldTarget.quantity.unit || !exactDecimalSumEquals([oldTarget.quantity.amount, oldSource.quantity.amount], merged.quantity.amount)
+          || oldSource.base_id !== oldTarget.base_id || oldSource.current_form !== oldTarget.current_form
+          || JSON.stringify(oldSource.storage_ref) !== JSON.stringify(oldTarget.storage_ref)
+          || merged.base_id !== oldTarget.base_id || merged.current_form !== oldTarget.current_form
+          || JSON.stringify(merged.storage_ref) !== JSON.stringify(oldTarget.storage_ref)
+          || (action.created_objects?.length ?? 0) !== 0) throw new Error('ERR_WECHAT_MERGE_RESULT_UNCERTAIN');
+        if (oldTarget.cabbage_pieces?.kind === 'whole' && oldSource.cabbage_pieces?.kind === 'whole') {
+          const expectedPieces = [...oldTarget.cabbage_pieces.pieces, ...oldSource.cabbage_pieces.pieces];
+          if (merged.cabbage_pieces?.kind !== 'whole' || new Set(expectedPieces.map(piece => piece.id)).size !== expectedPieces.length
+            || expectedPieces.some(piece => !piece.id || !Number.isFinite(piece.weight_g) || piece.weight_g <= 0)
+            || !exactDecimalSumEquals(expectedPieces.map(piece => piece.weight_g), merged.quantity.amount)
+            || JSON.stringify(merged.cabbage_pieces.pieces) !== JSON.stringify(expectedPieces)) throw new Error('ERR_WECHAT_MERGE_RESULT_UNCERTAIN');
+        } else if (oldTarget.cabbage_pieces?.kind !== oldSource.cabbage_pieces?.kind || merged.cabbage_pieces?.kind !== oldTarget.cabbage_pieces?.kind) throw new Error('ERR_WECHAT_MERGE_RESULT_UNCERTAIN');
+        this.observedMenuRequestIds.add(action.request_id);
+        this.completed++;
+        if (splitGeneration === this.splitGeneration && this.visible) this.mergeResult = { sourceLotId: s.source_lot_option_id, targetLotId: s.target_lot_option_id, quantity: { ...merged.quantity } };
       }
       if (!this.disposed && actualCommand.name === 'menu_confirm_processing_direct') {
         const validation = current.snapshot?.menu?.last_processing_validation_result;
@@ -531,20 +697,38 @@ export class WechatProbeController {
         this.completed++;
         if (processingGeneration === this.processingGeneration && this.visible) this.processingResult = { actionType: selection.action_type, taskId, lotId };
       }
-      if (actualCommand.name !== 'menu_confirm_split_direct' && actualCommand.name !== 'menu_confirm_processing_direct' && actualCommand.name !== 'refresh') {
+      if (actualCommand.name !== 'menu_confirm_split_direct' && actualCommand.name !== 'menu_confirm_merge_direct' && actualCommand.name !== 'menu_confirm_processing_direct' && actualCommand.name !== 'refresh') {
         if (actualCommand.name === 'menu_confirm' && !this.disposed) {
           const action = current.snapshot?.menu?.last_action_result;
           if (current.command_name !== actualCommand.name || preview?.action_type !== actualCommand.selection.action_type
               || typeof preview.success !== 'boolean' || typeof preview.status_code !== 'string' || !preview.status_code) {
             throw new Error('ERR_WECHAT_ACTION_RESULT_UNCERTAIN');
           }
-          if (!preview.success && action == null) throw new Error(`ERR_WECHAT_PROBE_ACTION_FAILED:${preview.status_code}`);
+          if (!preview.success && action == null) {
+            if (dishMoveSelection) {
+              const after = this.menu?.selectable_view_model?.submittable_dish_lot_options?.find(item => item.id === dishMoveSelection.source_dish_lot_option_id);
+              if (!dishMoveBefore || JSON.stringify(after) !== JSON.stringify(dishMoveBefore)) throw new Error('ERR_WECHAT_ACTION_RESULT_UNCERTAIN');
+            }
+            throw new Error(`ERR_WECHAT_PROBE_ACTION_FAILED:${preview.status_code}`);
+          }
           if (!preview.success || current.status !== 'completed' || typeof action?.success !== 'boolean'
               || typeof action.status_code !== 'string' || !action.status_code || typeof action.request_id !== 'string' || !action.request_id) {
             throw new Error('ERR_WECHAT_ACTION_RESULT_UNCERTAIN');
           }
           if (this.observedMenuRequestIds.has(action.request_id)) throw new Error('ERR_WECHAT_ACTION_RESULT_UNCERTAIN');
           this.observedMenuRequestIds.add(action.request_id);
+          if (actualCommand.selection.action_type === 'store_item' && 'source_dish_lot_option_id' in actualCommand.selection) {
+            const selection = actualCommand.selection;
+            const after = this.menu?.selectable_view_model?.submittable_dish_lot_options?.find(item => item.id === selection.source_dish_lot_option_id);
+            const updates = action.updated_objects?.filter(item => item.object_type === 'DishLot' && item.object_id === selection.source_dish_lot_option_id) ?? [];
+            const target = this.menu?.selectable_view_model?.storage_target_options.find(item => item.id === selection.target_storage_option_id);
+            const afterDishes = this.menu?.selectable_view_model?.submittable_dish_lot_options ?? [];
+            const afterTargets = this.menu?.selectable_view_model?.storage_target_options ?? [];
+            if (new Set(afterDishes.map(item => item.id)).size !== afterDishes.length || new Set(afterTargets.map(item => item.id)).size !== afterTargets.length
+              || !dishMoveBefore || !after || !target || updates.length !== 1 || action.updated_objects?.length !== 1 || (action.created_objects?.length ?? 0) !== 0 || action.status_code !== 'OK' || after.storage_ref.location_id !== target.location_id || after.storage_ref.storage_type !== target.storage_type || after.storage_ref.container_id !== selection.target_storage_option_id
+              || after.id !== dishMoveBefore.id || after.recognized_dish_id !== dishMoveBefore.recognized_dish_id || after.serving_count !== dishMoveBefore.serving_count || after.storage_form !== dishMoveBefore.storage_form)
+              throw new Error('ERR_WECHAT_ACTION_RESULT_UNCERTAIN');
+          }
           if (!action.success) throw new Error(`ERR_WECHAT_ACTION_RESULT_UNCERTAIN:${action.status_code}`);
         }
         const success = actualCommand.name === 'menu_preview'

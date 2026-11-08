@@ -1,5 +1,7 @@
 # Runtime Map — v0.0.3.0
 
+本候选新局由正式配置加载物性版本和三只独立菜窖坛子的容量，旧档缺策略保持旧制；存读档审计、ActionPipeline与只读容量投影使用同一政策。真实状态变更依旧只经正式动作，拆分和合并无需预览，回执异常需核对后恢复。
+
 ## 系统职责
 
 运行时入口：GameRuntime、ActionPipeline、Session、headless dev runner，以及外部正式资源经createStage1AHost装配宿主的入口。

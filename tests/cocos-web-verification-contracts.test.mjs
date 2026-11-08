@@ -374,18 +374,33 @@ function inventoryState() {
     ],
     selectedLotId: 'material', selectedTargetId: 'cellar', canMove: true
   };
-  state.displayedInventory = { lot: '蔬菜批次', form: '鲜品', quantity: '数量：100克', location: '当前位置：常温储存', target: '目标：菜窖', capacity: '目标容量占用：1/20', hint: '可以整批转移' };
+  state.displayedInventory = { lot: '蔬菜批次', form: '鲜品', quantity: '数量：100克', location: '当前位置：常温储存', target: '目标：菜窖', capacity: '目标空间将在操作时校验', hint: '可以整批转移' };
   return state;
 }
 
 function splitState() {
   const state = inventoryState();
   Object.assign(state.inventory, { splitQuantityText: '30', splitUnit: 'g', splitInputError: null,
-    canPreviewSplit: true, canConfirmSplit: false, splitPreview: null, splitResult: null });
+    canPreviewSplit: true, canConfirmSplit: true, splitNeedsReview: false, splitPreview: null, splitResult: null });
   state.displayedSplit = { quantityText: '30', unit: '克', selection: '所选材料100克', preview: '请先预览', result: '尚无拆分结果' };
   state.farming.materialOptions = structuredClone(state.inventory.lotOptions);
   return state;
 }
+
+test('inventory projection checks physical volume and weight while retaining legacy slot compatibility', () => {
+  const state = inventoryState();
+  const target = state.inventory.targetOptions.find(item => item.id === state.inventory.selectedTargetId);
+  target.capacity_limits = { mass_g: 2000, volume_ml: 4000 };
+  target.used_capacity_limits = { mass_g: 1200, volume_ml: 1800 };
+  state.displayedInventory.capacity = '目标空间将在操作时校验';
+  assert.doesNotThrow(() => assertInventoryProjection(state));
+  for (const mutate of [
+    x => { x.displayedInventory.capacity = '体积1.8/4升'; },
+    x => { x.displayedInventory.capacity = '承重1.2/2千克'; },
+    x => { delete x.inventory.targetOptions.find(item => item.id === x.inventory.selectedTargetId).used_capacity_limits; },
+    x => { x.inventory.targetOptions.find(item => item.id === x.inventory.selectedTargetId).used_capacity_limits.mass_g = 2001; }
+  ]) { const invalid = structuredClone(state); mutate(invalid); assert.throws(() => assertInventoryProjection(invalid)); }
+});
 
 function processingState() {
   const state = inventoryState();
@@ -588,7 +603,7 @@ function splitCompletedState(full = false) {
   state.displayedInventory.quantity = full ? '数量：—' : '数量：70克';
   state.displayedSplit.result = `新增批次：${amount}克 · ${full ? '来源已全部拆出' : '来源剩余70克'}`;
   state.farming.materialOptions = structuredClone(state.inventory.lotOptions);
-  state.operation = { sequence: 1, name: 'menu_confirm', status: 'completed', message: '拆分成功', errorMessage: null, slotId: null, worldMinute: null };
+  state.operation = { sequence: 1, name: 'menu_confirm_split_direct', status: 'completed', message: '拆分成功', errorMessage: null, slotId: null, worldMinute: null };
   state.displayedOperation = state.operation.message;
   return state;
 }
@@ -614,7 +629,7 @@ test('split keyboard observations require real editing events, exact visible tex
     (x) => { x.after.operation.sequence++; },
     (x) => { x.after.inventory.lotOptions[0].quantity.amount--; },
     (x) => { x.after.inventory.splitPreview = { success: true, statusCode: 'OK' }; },
-    (x) => { x.after.inventory.canConfirmSplit = true; },
+    (x) => { x.after.inventory.canConfirmSplit = false; },
     // The original centered anchors put the Label left/up beyond the EditBox even though text input still worked.
     (x) => { x.layout.inputLabels.text.left -= 100; x.layout.inputLabels.text.right -= 100; },
     (x) => { x.layout.inputLabels.text.top -= 20; x.layout.inputLabels.text.bottom -= 20; },
@@ -653,7 +668,7 @@ test('split preview and disabled observations reject stale success, business mut
   refused.after.operation = { ...after.operation, status: 'failed', message: '资源不足', errorMessage: 'ERR_NOT_ENOUGH_RESOURCE' };
   refused.after.displayedOperation = refused.after.operation.message;
   assert.doesNotThrow(() => assertSplitPreviewObservation(refused, { status: 'failed', statusCode: 'ERR_NOT_ENOUGH_RESOURCE', errorMessage: 'ERR_NOT_ENOUGH_RESOURCE' }));
-  const disabled = farmingClick(splitState(), splitState()); disabled.eventCount = 0; disabled.layout.buttonInteractable = false;
+  const disabled = farmingClick(splitState(), splitState()); disabled.before.inventory.canConfirmSplit = false; disabled.after.inventory.canConfirmSplit = false; disabled.eventCount = 0; disabled.layout.buttonInteractable = false;
   assert.doesNotThrow(() => assertSplitDisabledObservation(disabled, 'SplitConfirm'));
   for (const mutate of [
     (x) => { x.eventCount = 1; },
@@ -698,6 +713,40 @@ test('split success requires exact source/child quantities, stable unrelated lot
   assert.throws(() => assertSplitConfirmObservation(staleRemainder, { amount: 30 }));
 });
 
+test('whole cabbage count split verifies actual piece identities, weight and remaining quantity', () => {
+  const before = splitReadyState();
+  const after = splitCompletedState();
+  const pieces = [
+    { id: 'piece-a', weight_g: 40, source_ref: { source_type: 'farming', source_id: 'crop-a', source_time: 0 } },
+    { id: 'piece-b', weight_g: 60, source_ref: { source_type: 'farming', source_id: 'crop-b', source_time: 0 } }
+  ];
+  before.inventory.lotOptions[0].cabbage_pieces = { kind: 'whole', pieces: structuredClone(pieces) };
+  before.inventory.splitQuantityText = before.displayedSplit.quantityText = '1';
+  before.inventory.splitUnit = 'count'; before.displayedSplit.unit = '颗';
+  before.farming.materialOptions = structuredClone(before.inventory.lotOptions);
+  after.inventory.lotOptions[0].quantity.amount = 60;
+  after.inventory.lotOptions[0].cabbage_pieces = { kind: 'whole', pieces: [structuredClone(pieces[1])] };
+  after.inventory.lotOptions.at(-1).quantity.amount = 40;
+  after.inventory.lotOptions.at(-1).cabbage_pieces = { kind: 'whole', pieces: [structuredClone(pieces[0])] };
+  after.inventory.splitResult.quantity.amount = 40; after.inventory.splitResult.remainingQuantity.amount = 60;
+  after.inventory.splitUnit = 'count'; after.displayedSplit.unit = '颗';
+  after.displayedInventory.quantity = '数量：1颗 / 60克';
+  after.displayedSplit.result = '新增批次：40克 · 来源剩余60克';
+  after.farming.materialOptions = structuredClone(after.inventory.lotOptions);
+  const valid = farmingClick(before, after);
+  assert.doesNotThrow(() => assertSplitConfirmObservation(valid, { amount: 1 }));
+  for (const mutate of [
+    x => { x.after.inventory.lotOptions.at(-1).cabbage_pieces.pieces[0].id = 'wrong'; },
+    x => { x.after.inventory.lotOptions.at(-1).cabbage_pieces.pieces[0].weight_g = 60; },
+    x => { x.after.inventory.lotOptions[0].cabbage_pieces.pieces[0].id = 'piece-a'; },
+    x => { x.after.inventory.lotOptions.at(-1).quantity.amount = 1; },
+    x => { x.after.displayedSplit.unit = '粒'; }
+  ]) {
+    const invalid = structuredClone(valid); mutate(invalid);
+    assert.throws(() => assertSplitConfirmObservation(invalid, { amount: 1 }));
+  }
+});
+
 test('split manual-load observations require saved lots/capacity and invalidate old preview and result', () => {
   const saved = splitCompletedState(); const after = structuredClone(saved);
   after.inventory.splitPreview = null; after.inventory.splitResult = null; after.inventory.canConfirmSplit = false;
@@ -727,7 +776,7 @@ function movedInventoryState() {
   state.inventory.targetOptions[1].used_capacity = 2;
   state.inventory.canMove = false;
   state.displayedInventory.location = '当前位置：菜窖';
-  state.displayedInventory.capacity = '目标容量占用：2/20';
+  state.displayedInventory.capacity = '目标空间将在操作时校验';
   state.displayedInventory.hint = '材料已在这个位置';
   state.operation = { sequence: 1, name: 'menu_confirm', status: 'completed', message: '整批转移成功', errorMessage: null, slotId: null, worldMinute: null };
   state.displayedOperation = state.operation.message;
@@ -780,7 +829,7 @@ test('whole-batch move observations require exact identity and quantity, destina
     (x) => { x.after.inventory.lotOptions[0].storage_ref.container_id = 'room'; },
     (x) => { x.after.inventory.lotOptions[1].quantity.amount--; },
     (x) => { x.after.inventory.targetOptions[0].used_capacity = 3; },
-    (x) => { x.after.inventory.targetOptions[1].used_capacity = 3; x.after.displayedInventory.capacity = '目标容量占用：3/20'; },
+    (x) => { x.after.inventory.targetOptions[1].used_capacity = 3; x.after.displayedInventory.capacity = '目标空间将在操作时校验'; },
     (x) => { x.after.inventory.targetOptions[2].used_capacity = 1; },
     (x) => { x.after.inventory.selectedLotId = null; },
     (x) => { x.after.inventory.canMove = true; },
@@ -793,7 +842,7 @@ test('whole-batch move observations require exact identity and quantity, destina
 
 test('an unsupported-form refusal preserves all public data and does not contaminate the next successful move', () => {
   const before = inventoryState(); before.inventory.selectedTargetId = 'jar';
-  before.displayedInventory.target = '目标：腌菜缸'; before.displayedInventory.capacity = '目标容量占用：0/3';
+  before.displayedInventory.target = '目标：腌菜缸'; before.displayedInventory.capacity = '目标空间将在操作时校验';
   const after = structuredClone(before);
   after.operation = { sequence: 1, name: 'menu_confirm', status: 'failed', message: '该位置不支持这种物料形态', errorMessage: 'ERR_STORAGE_FORM_NOT_SUPPORTED', slotId: null, worldMinute: null };
   after.displayedOperation = after.operation.message;
@@ -827,7 +876,7 @@ test('a physical same-container disabled click emits no event or command and mus
     (x) => { x.after.operation.sequence++; },
     (x) => { x.before.inventory.canMove = true; },
     (x) => { x.after.inventory.lotOptions[0].quantity.amount--; },
-    (x) => { x.before.inventory.selectedTargetId = 'room'; x.before.displayedInventory.target = '目标：常温储存'; x.before.displayedInventory.capacity = '目标容量占用：2/50'; }
+    (x) => { x.before.inventory.selectedTargetId = 'room'; x.before.displayedInventory.target = '目标：常温储存'; x.before.displayedInventory.capacity = '目标空间将在操作时校验'; }
   ]) {
     const invalid = structuredClone(valid); mutate(invalid);
     assert.throws(() => assertDisabledInventoryObservation(invalid));
@@ -1081,6 +1130,20 @@ test('order load recovery and serialized settlement reject stale success, wrong 
  for(const mutate of [x=>x.storage_containers[0].active_object_refs=rawBefore.storage_containers[0].active_object_refs,x=>x.storage_containers[0].active_object_refs.push({object_type:'MaterialLot',object_id:'foreign'}),x=>x.storage_containers.push({container_id:'foreign',used_capacity:0,active_object_refs:[]})]){const bad=structuredClone(rawAfter);mutate(bad);assert.throws(()=>processingChecks.assertOrderSerializedSettlement(JSON.stringify(rawBefore),JSON.stringify(bad),selected));}
 });
 
+
+test('physical order settlement verifies both capacity dimensions using the candidate policy', () => {
+  const policy = { policies: [{ id: 'physical-v1', rules: [{ kind: 'DishLot', definition_id: 'dish-kind', form: 'cooked_dish', quantity_unit: 'g', mass_mg_per_unit: { numerator: 1000, denominator: 1 }, volume_ul_per_unit: { numerator: 1200, denominator: 1 } }] }] };
+  const dish = { dish_lot_id: 'dish', recognized_dish_id: 'dish-kind', storage_form: 'cooked_dish', total_quantity: { amount: 200, unit: 'g' }, storage_ref: { container_id: 'room' }, storage_footprint: { amount: 2, unit: 'slot_weight' } };
+  const before = { physical_capacity_policy_id: 'physical-v1', dish_lots: [dish], storage_containers: [{ container_id: 'room', used_capacity: 4, used_capacity_limits: { mass_g: 500, volume_ml: 600 }, active_object_refs: [{ object_type: 'DishLot', object_id: 'dish' }] }], orders: [{ order_id: 'order', status: 'available' }], player_state: { money: 100 } };
+  const after = { physical_capacity_policy_id: 'physical-v1', dish_lots: [], storage_containers: [{ container_id: 'room', used_capacity: 2, used_capacity_limits: { mass_g: 300, volume_ml: 360 }, active_object_refs: [] }], orders: [{ order_id: 'order', status: 'completed' }], player_state: { money: 137 } };
+  const selected = { dishLotId: 'dish', orderId: 'order', rewardMoney: 37 };
+  assert.doesNotThrow(() => processingChecks.assertOrderSerializedSettlement(JSON.stringify(before), JSON.stringify(after), selected, policy));
+  for (const dimension of ['mass_g', 'volume_ml']) {
+    const bad = structuredClone(after); bad.storage_containers[0].used_capacity_limits[dimension] += 1;
+    assert.throws(() => processingChecks.assertOrderSerializedSettlement(JSON.stringify(before), JSON.stringify(bad), selected, policy));
+  }
+  assert.throws(() => processingChecks.assertOrderSerializedSettlement(JSON.stringify(before), JSON.stringify(after), selected));
+});
 
 test('order visible state cannot claim available after actual completion or invert signed expiry feedback',()=>{
  const settled=settledOrderObservation();settled.after.displayedOrders.state='状态：可提交';

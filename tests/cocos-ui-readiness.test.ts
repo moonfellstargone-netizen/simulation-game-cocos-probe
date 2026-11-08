@@ -23,6 +23,38 @@ function makeSession() {
   return makeSessionFixture().session;
 }
 
+test('physical capacity display ignores legacy slot fullness, stays read-only and keeps legacy saves distinct', async () => {
+  const { session, storage } = makeSessionFixture();
+  await session.save('physical_display_before');
+  const raw = (await storage.read('physical_display_before'))!;
+  const initial = session.getSelectableViewModel();
+  const salt = initial.splittable_lot_options.find(lot => lot.base_id === 'salt')!;
+  const room = initial.storage_target_options.find(item => item.id === salt.storage_ref.container_id)!;
+  const availableSlots = room.capacity.amount - room.used_capacity;
+  for (let i = 0; i < availableSlots; i++) assert.equal(session.dispatch('split_lot', { source_lot_id: salt.id, quantity: { amount: 1, unit: 'g' } }).success, true);
+  const physicalTarget = session.getSelectableViewModel().storage_target_options.find(item => item.id === room.id)!;
+  assert.equal(physicalTarget.used_capacity, physicalTarget.capacity.amount, 'legacy slot counter is full');
+  assert.equal(physicalTarget.enabled, true, 'physical capacity does not use the legacy slot limit');
+  await session.save('physical_display_current');
+  const before = await storage.read('physical_display_current');
+  const display = session.getStorageCapacityDisplay(room.id, null, 4);
+  assert.equal(display.model, 'physical');
+  if (display.model !== 'physical' || display.status !== 'ready') throw new Error('physical display unavailable');
+  assert.equal(display.volume_grid.length, 4);
+  assert.equal(display.selection.status, 'unknown', 'no selected cabbage must not invent a count');
+  await session.save('physical_display_after');
+  assert.equal(await storage.read('physical_display_after'), before, 'display calculation does not mutate the saved session');
+
+  const legacy = JSON.parse(raw);
+  delete legacy.physical_capacity_policy_id;
+  for (const container of legacy.storage_containers) { delete container.capacity_limits; delete container.used_capacity_limits; }
+  await storage.write('legacy_display_fixture', JSON.stringify(legacy));
+  const restored = makeSessionFixture(storage).session;
+  await restored.load('legacy_display_fixture');
+  const oldDisplay = restored.getStorageCapacityDisplay(room.id, null, 4);
+  assert.deepEqual(oldDisplay, { model: 'legacy_slot', used: room.used_capacity, maximum: room.capacity.amount });
+});
+
 test('farming choices expose configured chance and visible crop stages without revealing random outcomes', async () => {
   const { session, storage, configs } = makeSessionFixture();
   const before = session.getSelectableViewModel();

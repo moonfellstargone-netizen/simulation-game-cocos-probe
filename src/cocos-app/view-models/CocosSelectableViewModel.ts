@@ -1,4 +1,8 @@
 import type { ConfigRepository, FacilityRef, Order, Quantity, SaveFile, StorageRef } from '../../game-core';
+import { loadPhysicalPolicyRegistry } from '../../game-core/config/PhysicalPolicyLoader';
+import { physicalPolicyId } from '../../game-core/storage/PhysicalStorage';
+import type { PhysicalOccupant, PhysicalUnit } from '../../game-core/storage/PhysicalCapacity';
+import { derivePhysicalCapacityDisplay, type CapacityDisplayResult } from './PhysicalCapacityDisplay';
 
 export interface CocosSelectableOptionBase {
   id: string;
@@ -21,6 +25,7 @@ export interface CocosMaterialLotOption extends CocosSelectableOptionBase {
   category: string;
   current_form: string;
   quantity: Quantity;
+  cabbage_pieces?: { kind: 'whole'; pieces: Array<{ id: string; weight_g: number; source_ref: { source_type: string; source_id: string; source_time: number; source_actor?: string; source_location?: string | null; summary_key?: string | null } }> } | { kind: 'cut' };
   storage_ref: StorageRef;
   active_reservation_count: number;
   compatible_method_ids: string[];
@@ -152,8 +157,11 @@ export interface CocosOrderOption extends CocosSelectableOptionBase {
 export interface CocosStorageTargetOption extends CocosSelectableOptionBase {
   location_id: string;
   storage_type: string;
+  container_type: string;
   capacity: Quantity;
   used_capacity: number;
+  capacity_limits?: { mass_g: number; volume_ml: number };
+  used_capacity_limits?: { mass_g: number; volume_ml: number };
   supported_forms: string[];
 }
 
@@ -178,7 +186,7 @@ export interface CocosSelectableViewModelData {
   processing_method_options: CocosProcessingMethodOption[];
   processing_task_options: CocosProcessingTaskOption[];
   cookable_recipe_options: CocosCookableRecipeOption[];
-  submittable_dish_lot_options: Array<{ id: string; recognized_dish_id: string | null; serving_count: number; storage_ref: StorageRef; enabled: boolean; reason_key: string | null }>;
+  submittable_dish_lot_options: Array<{ id: string; recognized_dish_id: string | null; serving_count: number; storage_form: string; storage_ref: StorageRef; enabled: boolean; reason_key: string | null }>;
   order_options: CocosOrderOption[];
   storage_target_options: CocosStorageTargetOption[];
   processing_facility_options: CocosProcessingFacilityOption[];
@@ -213,6 +221,37 @@ interface RecipeStructure {
 
 export class CocosSelectableViewModel {
   constructor(private readonly configs: ConfigRepository) {}
+
+  storageCapacityDisplay(save: SaveFile, targetId: string, lotId: string | null, gridCount: number): CapacityDisplayResult {
+    try {
+      const target = save.storage_containers.find(item => item.container_id === targetId);
+      if (!target) return { model: 'physical', status: 'unavailable', reason: 'ERR_PHYSICAL_DISPLAY_TARGET_MISSING' };
+      const policyId = physicalPolicyId(save);
+      if (policyId === null) return derivePhysicalCapacityDisplay({ model: 'legacy_slot', used: target.used_capacity, maximum: target.capacity.amount });
+      const policy = loadPhysicalPolicyRegistry(this.configs).resolve(policyId);
+      const containers = save.storage_containers.map(item => ({ id: item.container_id, location_id: item.location_id,
+        storage_type: item.storage_type, supported_forms: [...item.supported_forms], limits: { ...item.capacity_limits! } }));
+      const occupants: PhysicalOccupant[] = [
+        ...save.inventory.map(item => ({ kind: 'MaterialLot' as const, id: item.lot_id, definition_id: item.base_id,
+          form: item.current_form, quantity: { amount: item.quantity.amount, unit: item.quantity.unit as PhysicalUnit }, storage_ref: { ...item.storage_ref } })),
+        ...save.dish_lots.map(item => ({ kind: 'DishLot' as const, id: item.dish_lot_id, definition_id: item.recognized_dish_id ?? '',
+          form: item.storage_form, quantity: { amount: item.total_quantity.amount, unit: item.total_quantity.unit as PhysicalUnit }, storage_ref: { ...item.storage_ref } }))
+      ];
+      let standardCabbage: number | undefined;
+      try {
+        const growth = this.configs.requiredDoc<{ harvest_rule?: { output_base_id?: string; output_form?: string; default_quantity_g?: number } }>('configs/farming/growth_profiles/cabbage_growth_basic.yaml').harvest_rule;
+        if (growth?.output_base_id === 'cabbage' && growth.output_form === 'fresh' && typeof growth.default_quantity_g === 'number' && Number.isFinite(growth.default_quantity_g) && growth.default_quantity_g > 0) standardCabbage = growth.default_quantity_g;
+      } catch { /* Missing standard makes the optional estimate unavailable. */ }
+      const selected = lotId ? save.inventory.find(item => item.lot_id === lotId) : undefined;
+      const selection = selected ? { lot_id: selected.lot_id,
+        ...(selected.cabbage_pieces?.kind === 'whole' ? { pieces: selected.cabbage_pieces.pieces.map(piece => ({ id: piece.id, weight_g: piece.weight_g })) } : {}) } : undefined;
+      return derivePhysicalCapacityDisplay({ model: 'physical', policy_id: policyId, policy, containers, occupants, target_id: targetId, grid_count: gridCount,
+        ...(standardCabbage === undefined ? {} : { standard_cabbage_g: standardCabbage }),
+        ...(selection ? { selection } : {}) });
+    } catch (error) {
+      return { model: 'physical', status: 'unavailable', reason: error instanceof Error ? error.message.split(':')[0] || 'ERR_PHYSICAL_DISPLAY' : 'ERR_PHYSICAL_DISPLAY' };
+    }
+  }
 
   build(save: SaveFile): CocosSelectableViewModelData {
     const processingMethodIds = this.processingMethodIds();
@@ -275,6 +314,7 @@ export class CocosSelectableViewModel {
         id: lot.dish_lot_id,
         recognized_dish_id: lot.recognized_dish_id ?? null,
         serving_count: lot.serving_count,
+        storage_form: lot.storage_form,
         storage_ref: { ...lot.storage_ref },
         enabled: true,
         reason_key: null
@@ -283,12 +323,15 @@ export class CocosSelectableViewModel {
       storage_target_options: save.storage_containers.map((container) => ({
         id: container.container_id,
         label_key: `storage.${container.container_id}.name`,
-        enabled: container.used_capacity < container.capacity.amount,
-        reason_key: container.used_capacity < container.capacity.amount ? null : 'ui.reason.storage_full',
+        enabled: save.physical_capacity_policy_id !== undefined || container.used_capacity < container.capacity.amount,
+        reason_key: save.physical_capacity_policy_id !== undefined || container.used_capacity < container.capacity.amount ? null : 'ui.reason.storage_full',
         location_id: container.location_id,
         storage_type: container.storage_type,
+        container_type: container.container_type,
         capacity: { ...container.capacity },
         used_capacity: container.used_capacity,
+        ...(container.capacity_limits ? { capacity_limits: { ...container.capacity_limits } } : {}),
+        ...(container.used_capacity_limits ? { used_capacity_limits: { ...container.used_capacity_limits } } : {}),
         supported_forms: [...container.supported_forms]
       })),
       processing_facility_options: processingFacilities
@@ -447,6 +490,7 @@ export class CocosSelectableViewModel {
       category: lot.category,
       current_form: lot.current_form,
       quantity: { ...lot.quantity },
+      ...(lot.cabbage_pieces === undefined ? {} : { cabbage_pieces: structuredClone(lot.cabbage_pieces) }),
       storage_ref: { ...lot.storage_ref },
       active_reservation_count: activeReservationCount,
       compatible_method_ids: processingMethodIds.filter((methodId) => this.lotMatchesProcessingMethod(lot, methodId)),

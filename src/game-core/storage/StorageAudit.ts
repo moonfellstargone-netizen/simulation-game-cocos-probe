@@ -1,5 +1,8 @@
 import type { Quantity, SaveFile, StorageOccupantRef } from '../domain/types';
 import { listStorageOccupants } from './StorageOccupant';
+import { calculateSavePhysicalCapacity, physicalPolicyId } from './PhysicalStorage';
+import type { PhysicalPolicyRegistry } from './PhysicalPolicyRegistry';
+import type { PhysicalResult } from './PhysicalCapacity';
 
 export interface StorageAuditIssue {
   code: string;
@@ -17,6 +20,8 @@ export interface StorageAuditReport {
 }
 
 export class StorageAudit {
+  constructor(private readonly physicalPolicies?: PhysicalPolicyRegistry) {}
+
   audit(save: SaveFile): StorageAuditReport {
     const issues: StorageAuditIssue[] = [];
     const containers = new Map(save.storage_containers.map((container) => [container.container_id, container]));
@@ -24,6 +29,14 @@ export class StorageAudit {
     const liveByKey = new Map(liveOccupants.map((item) => [this.keyOf({ object_type: item.object_type, object_id: item.object_id }), item]));
     const expectedRefsByContainer = new Map<string, StorageOccupantRef[]>();
     const expectedCapacityByContainer = new Map<string, number>();
+    let physical: PhysicalResult | null = null;
+    let physicalModel = false;
+    try {
+      physicalModel = physicalPolicyId(save) !== null;
+      physical = calculateSavePhysicalCapacity(save, liveOccupants, this.physicalPolicies);
+    } catch (error) {
+      issues.push({ code: error instanceof Error ? error.message : 'ERR_PHYSICAL_CALCULATION_FAILED' });
+    }
 
     for (const occupant of liveOccupants) {
       const ref = { object_type: occupant.object_type, object_id: occupant.object_id };
@@ -70,8 +83,18 @@ export class StorageAudit {
       if (container.used_capacity !== expectedCapacity) {
         issues.push({ code: 'ERR_STORAGE_USED_CAPACITY_MISMATCH', container_id: container.container_id, expected: expectedCapacity, actual: container.used_capacity });
       }
-      if (container.used_capacity > container.capacity.amount) {
+      if (!physicalModel && container.used_capacity > container.capacity.amount) {
         issues.push({ code: 'ERR_STORAGE_CAPACITY_OVERFLOW', container_id: container.container_id, expected: container.capacity.amount, actual: container.used_capacity });
+      }
+      if (physical) {
+        const calculated = physical.containers.get(container.container_id)!;
+        if (!container.used_capacity_limits || container.used_capacity_limits.mass_g !== calculated.mass_g
+            || container.used_capacity_limits.volume_ml !== calculated.volume_ml) {
+          issues.push({ code: 'ERR_PHYSICAL_USED_CAPACITY_MISMATCH', container_id: container.container_id });
+        }
+        for (const dimension of calculated.overflow) {
+          issues.push({ code: `ERR_STORAGE_CAPACITY_OVERFLOW:${dimension}`, container_id: container.container_id });
+        }
       }
     }
 

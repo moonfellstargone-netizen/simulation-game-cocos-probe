@@ -52,6 +52,13 @@ export class CocosUiShellController {
     });
   }
 
+  confirmMergeDirect(selection: Extract<MenuActionSelection, { action_type: 'merge_lot' }>): CocosUiShellRenderSnapshot {
+    return this.runShellOperation('menu_confirm_merge_direct', () => {
+      this.presenter.renderMenuSnapshot(this.menu.confirmMergeDirect(selection));
+      this.presenter.renderSaveLoadSnapshot(this.saveLoad.refresh());
+    });
+  }
+
   confirmProcessingDirect(selection: Extract<MenuActionSelection, { action_type: 'start_processing' | 'collect_processing_result' }>): CocosUiShellRenderSnapshot {
     return this.runShellOperation('menu_confirm_processing_direct', () => {
       this.presenter.renderMenuSnapshot(this.menu.confirmProcessingDirect(selection));

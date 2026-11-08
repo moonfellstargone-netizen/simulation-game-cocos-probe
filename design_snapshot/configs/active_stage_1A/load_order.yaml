@@ -10,6 +10,7 @@ load_order:
 - ./feature_flag_overrides.yaml
 - ../core/time_segments.yaml
 - ../core/property_definitions.yaml
+- ../storage/physical_capacity_policies.yaml
 - ../materials/crops/cabbage.yaml
 - ../materials/seasonings/salt.yaml
 - ../materials/seasonings/cooking_oil.yaml

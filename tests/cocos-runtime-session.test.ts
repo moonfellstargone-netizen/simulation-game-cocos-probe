@@ -280,9 +280,17 @@ test('split quantity failures preserve saved state and full splits survive a fre
   assert.equal(remaining.storage_footprint.amount, 2);
 });
 
-test('split capacity overflow restores the entire public session and moving a batch permits healthy splitting', async () => {
+test('legacy slot split capacity overflow restores the entire public session and moving a batch permits healthy splitting', async () => {
   const storage = new InMemorySaveStoragePort();
   const session = makeSession(storage).session;
+  // Exercise an explicit legacy in-memory save: physical-capacity saves no longer
+  // use per-batch slot rounding as their capacity limit.
+  await session.save('legacy_split_fixture');
+  const legacy = JSON.parse((await storage.read('legacy_split_fixture'))!);
+  delete legacy.physical_capacity_policy_id;
+  for (const container of legacy.storage_containers) { delete container.capacity_limits; delete container.used_capacity_limits; }
+  await storage.write('legacy_split_fixture', JSON.stringify(legacy));
+  await session.load('legacy_split_fixture');
   const initial = session.getSelectableViewModel();
   const salt = initial.splittable_lot_options.find((lot) => lot.base_id === 'salt')!;
   const room = initial.storage_target_options.find((target) => target.id === salt.storage_ref.container_id)!;

@@ -89,7 +89,17 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
   const oldInfo = console.info; console.info = () => {};
   await controller.start();
   try {
-    probe.names = { cabbage: '白菜', salt: '盐', pickling_cabbage_basic: '基础腌白菜' };
+    probe.names = { cabbage: '白菜', cabbage_seed: '白菜种子', salt: '盐', pickling_cabbage_basic: '基础腌白菜' };
+    click('PageStock');
+    assert.match(probe.labels.stockRow0.string, /仓库.*批/);
+    assert.match(probe.labels.stockRow1.string, /菜窖.*3个坛子/);
+    click('StockEntry0');
+    assert.ok([probe.labels.stockRow0.string, probe.labels.stockRow1.string, probe.labels.stockRow2.string].some((text: string) => /白菜种子.*10粒/.test(text)), 'warehouse seed total uses seed units');
+    click('StockListBack'); click('StockEntry1');
+    for (let i=0;i<3;i++) { assert.match(probe.labels['stockRow'+i].string, /坛子[123].*约可再放10颗标准白菜/); assert.doesNotMatch(probe.labels['stockRow'+i].string, /升|千克|容量点/); }
+    assert.notEqual(probe.stockRows(controller.snapshot())[0].key, probe.stockRows(controller.snapshot())[1].key, 'each displayed jar has its own formal container');
+    click('StockEntry0'); assert.match(probe.labels.stockRow0.string, /暂无物品/);
+    click('StockListBack'); click('StockListBack'); click('PageFarm');
     assert.equal(probe.menuButtons.PageProcessing.interactable, true, 'processing entry is enabled when ready');
     click('PageProcessing');
     assert.equal(probe.page, 'processing', 'processing entry opens overview');
@@ -185,10 +195,28 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     const menu = controller.snapshot().menu!.selectable_view_model!;
     const pair = menu.splittable_lot_options.flatMap(lot => menu.storage_target_options.map(target => ({ lot, target }))).find(({lot, target}) => !previousLots.has(lot.id) && lot.enabled && target.enabled && target.id !== lot.storage_ref.container_id && target.supported_forms.includes(lot.current_form));
     assert.ok(pair, 'harvested lot has a compatible distinct destination');
-    click('PageStock');
-    for (let i = 0; probe.lotId !== pair.lot.id && i < menu.splittable_lot_options.length + 1; i++) click('StockLot');
+    const clickStockRow = (key: string, kind: string) => {
+      const rows = probe.stockRows(controller.snapshot()); const index = rows.findIndex((row: any) => row.key === key && row.kind === kind);
+      assert.ok(index >= 0, `visible inventory entry exists: ${kind}/${key}`);
+      while (probe.stockListOffset < Math.floor(index / 3) * 3) click('StockListNext');
+      while (probe.stockListOffset > Math.floor(index / 3) * 3) click('StockListPrev');
+      click('StockEntry' + (index % 3));
+    };
+    const selectLot = (id: string) => {
+      const current = controller.snapshot().menu!.selectable_view_model!; const selected = current.splittable_lot_options.find(x => x.id === id)!;
+      const storage = current.storage_target_options.find(x => x.id === selected.storage_ref.container_id);
+      click('PageStock');
+      if (storage?.container_type === 'room_temp_container') { clickStockRow('warehouse', 'location'); clickStockRow(selected.base_id, 'group'); }
+      else if (storage?.container_type === 'cellar_jar' || storage?.container_type === 'cellar_container') { clickStockRow('cellar', 'location'); clickStockRow(storage.id, 'jar'); }
+      else clickStockRow('other', 'location');
+      clickStockRow(id, 'lot'); assert.equal(probe.lotId, id);
+    };
+    selectLot(pair.lot.id);
     for (let i = 0; probe.targetId !== pair.target.id && i < menu.storage_target_options.length + 1; i++) click('StockTarget');
     assert.equal(probe.lotId, pair.lot.id); assert.equal(probe.targetId, pair.target.id);
+    assert.match(probe.labels.stockLot.string, /1颗.*1200克/);
+    assert.doesNotMatch(probe.labels.stockTarget.string, /升|千克/);
+    assert.match(probe.labels.stockHelp.string, /本批可放1\/1颗/);
     assert.equal(probe.menuButtons.StockMove.interactable, true);
     const beforeMove = controller.snapshot().accepted_commands;
     click('StockMove'); await waitForIdle();
@@ -197,14 +225,33 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     assert.equal(moved.storage_ref.container_id, pair.target.id);
     assert.deepEqual(moved.quantity, pair.lot.quantity);
     assert.equal(probe.lotId, pair.lot.id);
+    // A definite capacity rejection is ordinary player feedback; unknown or
+    // uncertain errors must still be logged, even when their text mentions capacity.
+    for (let i = 0; probe.targetId === moved.storage_ref.container_id && i < menu.storage_target_options.length + 1; i++) click('StockTarget');
+    assert.notEqual(probe.targetId, moved.storage_ref.container_id);
+    assert.equal(probe.menuButtons.StockMove.interactable, true);
+    const originalMove = controller.move;
+    const originalError = console.error;
+    const errorLog: unknown[][] = [];
+    let moveCalls = 0;
+    console.error = (...args: unknown[]) => { errorLog.push(args); };
+    try {
+      controller.move = async () => { moveCalls++; throw new Error('ERR_WECHAT_PROBE_ACTION_FAILED:ERR_STORAGE_CAPACITY_OVERFLOW'); };
+      click('StockMove'); await waitForIdle();
+      assert.equal(moveCalls, 1, 'the transfer still goes through the controller');
+      assert.match(probe.labels.hint.string, /目标空间不足.*拆分批次.*其他储存位置/);
+      assert.equal(errorLog.length, 0, 'definite capacity rejection is not logged as a program error');
+      controller.move = async () => { moveCalls++; throw new Error('ERR_WECHAT_ACTION_RESULT_UNCERTAIN:ERR_STORAGE_CAPACITY_OVERFLOW'); };
+      click('StockMove'); await waitForIdle();
+      assert.equal(moveCalls, 2);
+      assert.match(probe.labels.hint.string, /待确认.*核实/);
+      assert.equal(errorLog.length, 1, 'uncertain results still surface as errors');
+      assert.match(String(errorLog[0]![1]), /ERR_WECHAT_ACTION_RESULT_UNCERTAIN/);
+    } finally { controller.move = originalMove; console.error = originalError; }
     // The input helper models an actual EditBox text-changed event; formal results
     // still come from the real Host/Binding/ActionPipeline.
     const enter = (value: string) => { probe.splitInput.string = value; probe.splitInput.focused = true; probe.onSplitTextChanged(); };
-    const selectLot = (id: string) => {
-      const count = controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.length;
-      for (let i = 0; probe.lotId !== id && i < count + 1; i++) click('StockLot');
-      assert.equal(probe.lotId, id);
-    };
+
     click('StockSplit');
     assert.equal(probe.page, 'split');
     assert.equal(probe.menuButtons.SplitPreview, undefined, 'splitting has no separate preview control');
@@ -229,7 +276,19 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     assert.match(probe.labels.splitSummary.string, new RegExp(`拆出2粒.*原批次剩${seedBeforeReject - 2}粒`));
     assert.equal(controller.snapshot().accepted_commands, beforeInvalid, 'live explanation is local and dispatches no preview');
     click('SplitBack'); selectLot(pair.lot.id); click('StockSplit');
-    const beforeFraction = controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(x => x.id === pair.lot.id)!.quantity.amount;
+    enter('0.5');
+    assert.match(probe.labels.splitSummary.string, /完整白菜.*整数颗/);
+    assert.equal(probe.menuButtons.SplitConfirm.interactable, false, 'whole cabbage cannot be split by fractional pieces');
+    enter('1');
+    assert.match(probe.labels.splitSummary.string, /拆出1颗.*1200克/);
+    click('SplitConfirm'); await waitForIdle();
+    assert.equal(controller.snapshot().split_result?.pieceCount, 1);
+    assert.equal(controller.snapshot().split_result?.quantity.amount, 1200);
+    click('SplitBack');
+    const weightLot = controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(x => x.enabled && x.quantity.unit === 'g' && x.quantity.amount > 2.5 && x.cabbage_pieces?.kind !== 'whole')!;
+    assert.ok(weightLot, 'a weight-based ingredient remains available for fractional split tests');
+    selectLot(weightLot.id); click('StockSplit');
+    const beforeFraction = weightLot.quantity.amount;
     enter('0.5');
     assert.equal(controller.snapshot().split_preview, null);
     const beforeDirect = controller.snapshot().accepted_commands;
@@ -249,7 +308,7 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     assert.ok(first);
     assert.equal(first.quantity.amount, 0.5);
     assert.equal(first.remainingQuantity?.amount, beforeFraction - 0.5);
-    assert.equal(first.sourceLotId, pair.lot.id);
+    assert.equal(first.sourceLotId, weightLot.id);
     assert.equal(probe.splitInput.string, '', 'success clears the submitted quantity');
     click('SplitConfirm');
     assert.equal(controller.snapshot().accepted_commands, beforeDirect + 1, 'the old quantity cannot be submitted by another click');
@@ -266,7 +325,21 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     assert.equal(full.remainingQuantity, null);
     assert.equal(full.quantity.amount, beforeFraction - 2.5);
     assert.equal(probe.lotId, null);
-    click('SplitBack'); selectLot(first.newLotId); click('StockSplit');
+    click('SplitBack'); selectLot(full.newLotId); click('StockSplit'); enter('1');
+    click('SplitConfirm'); await waitForIdle();
+    const mergeSource = controller.snapshot().split_result!.newLotId;
+    click('SplitBack'); selectLot(mergeSource);
+    const availableMergeTargets = controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.length;
+    for (let i = 0; probe.mergeTargetId !== full.newLotId && i < availableMergeTargets + 1; i++) click('StockMergeTarget');
+    assert.equal(probe.mergeTargetId, full.newLotId);
+    assert.equal(probe.menuButtons.StockMerge.interactable, true);
+    const beforeMergeCommands = submittedCommands.length;
+    click('StockMerge'); await waitForIdle();
+    assert.deepEqual(submittedCommands.slice(beforeMergeCommands), ['menu_confirm_merge_direct']);
+    assert.equal(controller.snapshot().merge_result?.targetLotId, full.newLotId);
+    assert.match(probe.labels.hint.string, /合并完成/);
+    assert.equal(controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.some(item => item.id === mergeSource), false, 'compatible source is merged exactly once');
+    selectLot(first.newLotId); click('StockSplit');
     enter('0.5'); failSplitPatch = true;
     const oldError = console.error; console.error = () => {};
     try { click('SplitConfirm'); await waitForIdle(); } finally { console.error = oldError; }
@@ -312,9 +385,13 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     const lotsBefore = controller.snapshot().menu!.selectable_view_model!.processable_lot_options;
     const cabbage = lotsBefore.find(item => item.base_id === 'cabbage' && item.enabled)!;
     assert.ok(cabbage);
-    const split = await controller.confirmSplit(cabbage.id, { amount: 250, unit: cabbage.quantity.unit });
-    const secondCabbage = split.split_result!.newLotId;
-    for (let i = 0; i < 3; i++) await controller.confirmSplit(cabbage.id, { amount: 1, unit: cabbage.quantity.unit });
+    // Prepare cut portions via the formal core action: the player-facing split
+    // screen intentionally accepts whole cabbage only in integer pieces.
+    const split = liveHost.requireSession().dispatch('split_lot', { source_lot_id: cabbage.id, quantity: { amount: 250, unit: 'g' } });
+    assert.equal(split.success, true);
+    const secondCabbage = split.created_objects.find(item => item.summary?.split_role === 'taken')!.object_id;
+    for (let i = 0; i < 3; i++) assert.equal(liveHost.requireSession().dispatch('split_lot', { source_lot_id: cabbage.id, quantity: { amount: 1, unit: 'g' } }).success, true);
+    await controller.refreshSplitView();
     probe.names = { cabbage: '白菜', salt: '盐', pickling_cabbage_basic: '基础腌白菜' };
     click('PageProcessing');
     assert.equal(probe.page, 'processing');
@@ -598,6 +675,31 @@ test('M3 real outer selections drive plant, harvest and whole-lot move, and load
     assert.equal(liveHost!.requireSession().getSelectableViewModel().processing_task_options.find(item => item.id === thirdTask)!.status, 'completed');
     assert.deepEqual(submittedCommands.slice(readyCommands), ['menu_confirm_processing_direct', ...Array(8).fill('refresh'), 'menu_confirm_processing_direct'],
       'only the user explicitly triggers the later collection');
+    // Isolated view interaction: the separate runtime test covers a real cooked
+    // DishLot and real ActionPipeline transfer, while this checks lock feedback.
+    const displayMenu = structuredClone(controller.snapshot().menu!);
+    const room = displayMenu.selectable_view_model!.storage_target_options.find(x => x.container_type === 'room_temp_container')!;
+    displayMenu.selectable_view_model!.storage_target_options.push({ ...structuredClone(room), id:'display_second_room' });
+    displayMenu.selectable_view_model!.submittable_dish_lot_options = [{ id:'display_dish', recognized_dish_id:'bacon_cabbage', serving_count:2, storage_form:'cooked_dish', enabled:true, storage_ref:{container_id:room.id,location_id:room.location_id,storage_type:room.storage_type} }];
+    controller.acceptMenuPatch(displayMenu); click('ProcessingExit'); click('PageStock'); clickStockRow('warehouse','location'); clickStockRow('display_dish','dish');
+    assert.match(probe.labels.stockLot.string,/菜品.*2份/);
+    click('StockTarget'); click('StockTarget'); assert.equal(probe.targetId,'display_second_room');
+    const realMoveDish=controller.moveDish; const realRefresh=controller.refreshSplitView; const realSave=controller.save; let saves=0;
+    controller.moveDish=async()=>{throw new Error('ERR_WECHAT_ACTION_RESULT_UNCERTAIN');}; controller.save=async()=>{saves++;return controller.snapshot();};
+    click('StockMove'); await waitForIdle();
+    assert.equal(probe.dishMoveNeedsReview,true); assert.equal(probe.menuButtons.StockMove.interactable,false);
+    assert.equal(probe.saveButton.interactable,false); probe.onSave(); assert.equal(saves,0);
+    assert.equal(probe.dishMoveReviewId,'display_dish');
+    probe.menuHandler('PageStock')(); probe.menuHandler('StockLot')();
+    assert.equal(probe.stockMode,'dishDetail','locked event handlers cannot navigate away');
+    probe.stockDishId='different_dish'; controller.refreshSplitView=async()=>controller.snapshot();
+    click('StockMergeTarget'); await waitForIdle(); assert.equal(probe.dishMoveNeedsReview,true,'refresh of another selected identity cannot clear the original lock');
+    probe.stockDishId='display_dish';
+    controller.refreshSplitView=async()=>{ const snapshot=controller.snapshot(); const copy=structuredClone(snapshot); copy.menu!.selectable_view_model!.submittable_dish_lot_options!.push(copy.menu!.selectable_view_model!.submittable_dish_lot_options![0]!); return copy; };
+    click('StockMergeTarget'); await waitForIdle(); assert.equal(probe.dishMoveNeedsReview,true,'duplicate IDs cannot unlock');
+    controller.refreshSplitView=async()=>controller.snapshot(); click('StockMergeTarget'); await waitForIdle();
+    assert.equal(probe.dishMoveNeedsReview,false); assert.match(probe.labels.hint.string,/库存已核对/);
+    controller.moveDish=realMoveDish; controller.refreshSplitView=realRefresh; controller.save=realSave;
   } finally { console.info = oldInfo; await controller.dispose(); }
 });
 
@@ -654,6 +756,19 @@ test('M3 bottom hint geometry fits the design viewport, avoids controls, and ret
     assert.ok(item.left >= -480 && item.right <= 480 && item.bottom >= -250 && item.top <= 250, `farm/${name} remains within the design viewport`);
     for (let j = 0; j < i; j++) assert.ok(separate(item, farmItems[j].rect), `farm/${name} overlaps ${farmItems[j].name}`);
   }
+  const stockItems = probe.stockNode.children.filter((node: any) => node !== probe.stockListNode).map((node: any) => ({ name: node.name, rect: rect(node) }));
+  for (let i = 0; i < stockItems.length; i++) {
+    const { name, rect: item } = stockItems[i];
+    assert.ok(item.left >= -480 && item.right <= 480 && item.bottom >= -250 && item.top <= 250, `stock/${name} remains within the design viewport`);
+    for (let j = 0; j < i; j++) assert.ok(separate(item, stockItems[j].rect), `stock/${name} overlaps ${stockItems[j].name}`);
+  }
+  const stockListItems = probe.stockListNode.children.map((node: any) => ({ name: node.name, rect: rect(node) }));
+  for (let i = 0; i < stockListItems.length; i++) {
+    const { name, rect: item } = stockListItems[i];
+    assert.ok(item.left >= -480 && item.right <= 480 && item.bottom >= -250 && item.top <= 250, `stockList/${name} remains within the design viewport`);
+    for (let j = 0; j < i; j++) assert.ok(separate(item, stockListItems[j].rect), `stockList/${name} overlaps ${stockListItems[j].name}`);
+  }
+  assert.ok(probe.labels.stockTarget.lineHeight * 2 <= 40 && probe.labels.stockHelp.lineHeight * 2 <= 40, 'two-line stock capacity labels fit their reserved height');
   for (const [pageName, page] of Object.entries(probe.processingPages) as Array<[string, any]>) {
     const items = page.children.map((node: any) => ({ name: node.name, rect: rect(node) }));
     for (let i = 0; i < items.length; i++) {

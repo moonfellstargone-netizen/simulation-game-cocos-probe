@@ -7,6 +7,8 @@ source_of_truth: false
 
 # inventory
 
+本候选补充整棵白菜逐棵重量与来源、按颗及按重量拆取、受保护数据与预留约束的合并；旧批次无法确定颗数时保留未知。新局按版本锁定政策核容积与承重，旧制仍按原容量点；菜窖三个坛子是可混装的独立储位，不是虚拟格。
+
 ## 模块职责
 
 库存与物料批次：`InventorySystem`、`MaterialLotFactory`、存储占用与 reconciliation 相关逻辑。
@@ -29,6 +31,8 @@ source_of_truth: false
 - `src/game-core/inventory/InventorySystem.ts`
 - `src/game-core/inventory/MaterialLotFactory.ts`
 - `src/game-core/storage/StorageSystem.ts`
+- `src/game-core/inventory/CabbagePiecePlanner.ts`
+- `src/game-core/storage/PhysicalCapacity.ts`、`PhysicalStorage.ts`、`PhysicalPolicyRegistry.ts`
 
 ## 关键测试
 
@@ -53,6 +57,8 @@ source_of_truth: false
 更新 `docs/maps/domain-map.md` 关键文件列表（如有路径变更）。
 
 ## 拆分数量、定义占用与失败保护
+
+以下为旧slot_weight阶段的历史说明。本候选新增完整白菜逐棵计划、新制双维容量以及失败时状态、事件和ID一致回滚；同lot重复g输入的精度修复不改重复输入业务规则。
 
 正式split_lot要求请求和源数量为有效正数/finite，count保持整数，各单位整数请求须按请求原值扣减，partial须实际减少源；不新增g/ml最小量或一律整数限制。连续小数沿用Number舍入，未引入任意精度十进制语义。全量保留既有成功语义，归零源移出active inventory，新的正量批次保留inventory_split来源、lineage和旧源ID审计；该策略是兼容实现选择，不是正式包唯一指定的全量规则。
 

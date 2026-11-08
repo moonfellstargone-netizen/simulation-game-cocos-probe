@@ -10,7 +10,8 @@ import {
   type MenuActionSelection,
   type Stage1ABootstrapResources
 } from '../src/cocos-creator-adapter';
-import { InMemorySaveStoragePort, RuntimeContractValidator, RuntimeSchemaValidator, StorageAudit, type ActionResult, type RuntimeConfigSnapshot, type SaveFile } from '../src/game-core';
+import { ConfigRepository, InMemorySaveStoragePort, RuntimeContractValidator, RuntimeSchemaValidator, StorageAudit, type ActionResult, type RuntimeConfigSnapshot, type SaveFile } from '../src/game-core';
+import { loadPhysicalPolicyRegistry } from '../src/game-core/config/PhysicalPolicyLoader';
 import { testBuildId } from './support/buildId.mjs';
 import { ControlledSaveStoragePort } from './support/controlledSaveStoragePort';
 
@@ -125,7 +126,7 @@ async function confirm(p: RecoveryHost, selection: MenuActionSelection): Promise
   assert.equal(new Set(createdIds).size, createdIds.length, 'created objects have distinct IDs');
   assert.equal(new Set(eventIds).size, eventIds.length, 'new domain events have distinct IDs');
   for (const id of [...createdIds, ...eventIds]) assert.equal(before.has(id), false, `creation must not reuse an ID retained anywhere in SaveFile: ${id}`);
-  new StorageAudit().assertReconciled(JSON.parse(await capture(p)) as SaveFile);
+  new StorageAudit(loadPhysicalPolicyRegistry(new ConfigRepository(p.input.snapshot))).assertReconciled(JSON.parse(await capture(p)) as SaveFile);
   return result;
 }
 
@@ -247,7 +248,7 @@ for (const point of ['growing', 'processing', 'ready', 'dish', 'completed'] as c
     assert.deepEqual(selectable(fresh), savedOptions);
     // Domain events are transient; SaveManager restores SaveFile and starts a fresh event queue.
     assert.deepEqual(fresh.host.requireSession().getViewModel(), { ...savedView, recent_events: [] });
-    new StorageAudit().assertReconciled(state);
+    new StorageAudit(loadPhysicalPolicyRegistry(new ConfigRepository(input.snapshot))).assertReconciled(state);
 
     if (point === 'growing') {
       progress.sourceId = await matureAndHarvest(fresh, progress.cropId);
@@ -319,7 +320,8 @@ for (const failure of ['malformed JSON', 'Schema rejection', 'StorageAudit rejec
       const invalid = JSON.parse(checkpoint) as SaveFile;
       invalid.storage_containers[0]!.used_capacity += 1;
       new RuntimeContractValidator(RuntimeSchemaValidator.fromSnapshotSchemas(base.schemas)).assertSaveFile(invalid);
-      assert.equal(new StorageAudit().audit(invalid).ok, false, 'candidate is Schema-valid but violates storage reconciliation');
+      const audit = new StorageAudit(loadPhysicalPolicyRegistry(new ConfigRepository(base.snapshot)));
+      assert.ok(audit.audit(invalid).issues.some(issue => issue.code === 'ERR_STORAGE_USED_CAPACITY_MISMATCH'), 'candidate is Schema-valid but violates storage reconciliation');
       await storage.write('web_probe', JSON.stringify(invalid));
       rejection = /ERR_STORAGE_AUDIT_FAILED/;
     } else {

@@ -13,21 +13,22 @@ interface ProcessingInputRequest {
 export class ProcessingSystem {
   private readonly inventory: InventorySystem;
   private readonly processingConfigs: ProcessingConfigResolver;
-  private readonly storage = new StorageReconciler();
-
-  constructor(private readonly configs: ConfigRepository, private readonly ids: IdService) {
-    this.inventory = new InventorySystem(ids, configs);
+  constructor(private readonly configs: ConfigRepository, private readonly ids: IdService,
+    private readonly storage: StorageReconciler = new StorageReconciler()) {
+    this.inventory = new InventorySystem(ids, configs, storage);
     this.processingConfigs = new ProcessingConfigResolver(configs);
   }
 
   startProcessing(save: SaveFile, methodId: string, inputLots: ProcessingInputRequest[], facilityRef: ProcessingTask['facility_ref']): ProcessingTask {
     const { method, inputRoles, primaryInput, environment } = this.planStart(save, methodId, inputLots, facilityRef);
-    for (const input of inputLots) this.inventory.consume(save, input.lot_id, input.quantity);
+    const sourceSnapshots = this.inventory.captureConsumptionSources(save, inputLots);
+    for (const input of this.inventory.planConsumptionInputs(save, inputLots)) this.inventory.consume(save, input.lot_id, input.quantity);
     const expectedQuantity = { ...primaryInput.quantity };
     const task: ProcessingTask = {
       task_id: this.ids.next('task_processing'),
       method_id: methodId,
-      input_lot_refs: inputRoles.map((input) => ({ lot_id: input.lot_id, quantity: { ...input.quantity }, reservation_id: null, role: input.role })),
+      input_lot_refs: inputRoles.map((input, index) => ({ lot_id: input.lot_id, quantity: { ...input.quantity }, reservation_id: null,
+        role: input.role, source_snapshot: sourceSnapshots[index]! })),
       reserved_quantities: inputRoles.map((input) => ({ reservation_id: this.ids.next('res_consumed'), lot_id: input.lot_id, quantity: { ...input.quantity }, status: 'consumed' })),
       start_world_minute: save.world_time.absolute_minute,
       expected_finish_minute: save.world_time.absolute_minute + Number(method.process_duration_minutes ?? 0),
@@ -93,7 +94,8 @@ export class ProcessingSystem {
   }
 
   collect(save: SaveFile, taskId: string): MaterialLot {
-    const { task, lot } = this.planCollect(save, taskId);
+    const { task, lot, upgradeLegacyWarehouse } = this.planCollect(save, taskId);
+    if (upgradeLegacyWarehouse) save.storage_containers.find(container => container.container_id === 'home_room_temp_01')!.supported_forms.push(lot.current_form);
     lot.lot_id = this.ids.next('lot_processed');
     lot.processing_history![0]!.history_id = this.ids.next('hist_processing');
     task.status = 'completed';
@@ -107,7 +109,7 @@ export class ProcessingSystem {
     this.planCollect(save, taskId);
   }
 
-  private planCollect(save: SaveFile, taskId: string): { task: ProcessingTask; lot: MaterialLot } {
+  private planCollect(save: SaveFile, taskId: string): { task: ProcessingTask; lot: MaterialLot; upgradeLegacyWarehouse: boolean } {
     const task = save.processing_tasks.find((item) => item.task_id === taskId);
     if (!task) throw new Error(`ERR_PROCESSING_TASK_NOT_FOUND:${taskId}`);
     if (task.status === 'completed') throw new Error('ERR_PROCESSING_TASK_ALREADY_COMPLETED');
@@ -135,12 +137,28 @@ export class ProcessingSystem {
         source_location: task.facility_ref.location_id,
         summary_key: method.event_log_rules?.completed_key ?? null
       },
-      storage_ref: { location_id: 'home', storage_type: 'cellar', container_id: 'home_cellar_01' },
+      storage_ref: { location_id: 'home', storage_type: 'room_temp', container_id: 'home_room_temp_01' },
       created_time: save.world_time.absolute_minute,
       last_update_time: save.world_time.absolute_minute,
       schema_version: save.schema_version,
       rules_version: save.rules_version,
       flags: ['processed'],
+      lineage_summary: {
+        ...(this.inventory.collectSourceGroups(task.input_lot_refs.map(input => input.source_snapshot)).length
+          ? { ordinary_source_groups: this.inventory.collectSourceGroups(task.input_lot_refs.map(input => input.source_snapshot)) } : {}),
+        key_origins: task.input_lot_refs.flatMap(input => [
+          ...(Array.isArray(input.source_snapshot?.lineage_summary?.key_origins) ? input.source_snapshot.lineage_summary.key_origins : []),
+          ...(input.source_snapshot?.piece_portions ?? []).map(piece => ({ origin_type: 'CropInstance', origin_id: piece.piece_id,
+            source_ref: piece.source_ref, note_key: 'processing_input' })),
+          ...(input.source_snapshot ? [{ origin_type: 'MaterialLot', origin_id: input.lot_id,
+            source_ref: input.source_snapshot.source_ref, note_key: 'processing_input' }] : [])
+        ]),
+        important_flags: [...new Set(task.input_lot_refs.flatMap(input => Array.isArray(input.source_snapshot?.lineage_summary?.important_flags)
+          ? input.source_snapshot.lineage_summary.important_flags.map(String) : []))],
+        lineage_depth: Math.max(0, ...task.input_lot_refs.map(input => Number(input.source_snapshot?.lineage_summary?.lineage_depth ?? 0))) + 1,
+        compressed: task.input_lot_refs.some(input => input.source_snapshot?.lineage_summary?.compressed === true),
+        summary_text_key: method.event_log_rules?.completed_key ?? null, debug_trace_ref: null
+      },
       definition_ref: { type: 'material', id: String(outputBaseId), canonical_id: `base:${String(outputBaseId)}` },
       storage_footprint: { amount: Math.max(1, Math.ceil(Number(quantity.amount) / 100)), unit: 'slot_weight' },
       processing_history: [{
@@ -154,8 +172,26 @@ export class ProcessingSystem {
         notes: []
       }]
     };
-    this.storage.assertMaterials(save, [...save.inventory, lot]);
-    return { task, lot };
+    const warehouse = save.storage_containers.find(container => container.container_id === 'home_room_temp_01');
+    let upgradeLegacyWarehouse = false;
+    if (warehouse && !warehouse.supported_forms.includes(outputForm)) {
+      const legacyForms = ['fresh', 'cut', 'dry', 'cured', 'liquid', 'cooked_dish', 'dish', 'dry_seed'];
+      const legacyCellar = save.storage_containers.find(container => container.container_id === 'home_cellar_01');
+      const standardLegacy = task.method_id === 'pickling_cabbage_basic' && outputBaseId === 'cabbage' && outputForm === 'pickled'
+        && warehouse.location_id === 'home' && warehouse.storage_type === 'room_temp' && warehouse.container_type === 'room_temp_container'
+        && Array.isArray(warehouse.flags) && warehouse.flags.length === 1 && warehouse.flags[0] === 'default_inventory'
+        && warehouse.supported_forms.length === legacyForms.length && legacyForms.every(form => warehouse.supported_forms.includes(form))
+        && legacyCellar?.location_id === 'home' && legacyCellar.storage_type === 'cellar' && legacyCellar.container_type === 'cellar_container'
+        && !save.storage_containers.some(container => container.container_type === 'cellar_jar');
+      if (standardLegacy) upgradeLegacyWarehouse = true;
+    }
+    // Check the original save first, then a detached candidate: no unsupported or
+    // over-capacity legacy state is changed by preview or a failed formal action.
+    this.storage.assertMaterials(save, save.inventory);
+    const candidate = upgradeLegacyWarehouse ? structuredClone(save) : save;
+    if (upgradeLegacyWarehouse) candidate.storage_containers.find(container => container.container_id === 'home_room_temp_01')!.supported_forms.push(outputForm);
+    this.storage.assertMaterials(candidate, [...candidate.inventory, lot]);
+    return { task, lot, upgradeLegacyWarehouse };
   }
 
   private resolveInputRoles(save: SaveFile, method: ProcessingMethodConfig, inputLots: ProcessingInputRequest[]): Array<ProcessingInputRequest & { role: string; base_id: string; current_form: string }> {

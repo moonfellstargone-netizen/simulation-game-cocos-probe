@@ -31,7 +31,8 @@
     "trace.cocos.cross-step-recovery",
     "trace.cocos.touch-small-screen",
     "trace.cocos.wechat-m1",
-    "trace.farming.seed-quantity"
+    "trace.farming.seed-quantity",
+    "trace.inventory.physical-capacity-batches"
   ],
   "entries": [
     {
@@ -1059,6 +1060,7 @@
       ],
       "sourceRefs": [
         "apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatInventoryGroups.ts",
         "apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts",
         "tools/cocos-wechat-probe/prepare.mjs",
         "tools/cocos-wechat-probe/build.mjs",
@@ -1098,6 +1100,42 @@
         "docs/SOURCE_DESIGN_PACK.md",
         "design_snapshot/SOURCE_DESIGN_PACK.txt"
       ]
+    },
+    {
+      "id": "trace.inventory.physical-capacity-batches",
+      "status": "active",
+      "stage": "Stage 1A",
+      "riskLevel": "high",
+      "moduleRefs": ["game-core", "cocos-app", "cocos-engine-probe", "cocos-wechat-probe", "tools", "tests"],
+      "sourceRefs": [
+        "src/game-core/inventory/CabbagePiecePlanner.ts",
+        "src/game-core/inventory/InventorySystem.ts",
+        "src/game-core/storage/PhysicalCapacity.ts",
+        "src/game-core/storage/PhysicalStorage.ts",
+        "src/game-core/storage/PhysicalPolicyRegistry.ts",
+        "src/game-core/storage/StorageReconciler.ts",
+        "src/game-core/storage/StorageAudit.ts",
+        "src/game-core/config/PhysicalPolicyLoader.ts",
+        "src/game-core/save/NewGameBuilder.ts",
+        "src/game-core/action/ActionPipeline.ts",
+        "src/game-core/processing/ProcessingSystem.ts",
+        "src/cocos-app/view-models/PhysicalCapacityDisplay.ts",
+        "src/cocos-app/view-models/CocosSelectableViewModel.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts",
+        "apps/cocos-probe/template/assets/scripts/ProbeInventory.ts",
+        "design_snapshot/configs/storage/physical_capacity_policies.yaml",
+        "design_snapshot/schemas/material_lot.schema.json",
+        "design_snapshot/schemas/storage_container.schema.json",
+        "tools/quality/physical-policy-lock.mjs"
+      ],
+      "testRefs": [
+        "test.stage1a-contract", "test.cocos-session", "test.cocos-ui-readiness",
+        "test.cocos-engine-probe-lifecycle", "test.cocos-wechat-runtime",
+        "test.cocos-web-verification-contracts", "test.cocos-probe-preparation"
+      ],
+      "docRefs": ["docs/module-cards/inventory.md", "docs/module-cards/processing.md", "docs/module-cards/save-load.md", "docs/module-cards/cocos-wechat-probe.md", "docs/maps/domain-map.md"],
+      "gateRefs": ["full", "release"]
     },
     {
       "id": "trace.farming.seed-quantity",

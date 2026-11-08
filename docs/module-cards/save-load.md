@@ -7,6 +7,8 @@ source_of_truth: false
 
 # save-load
 
+本候选新局记录物性策略ID，双维容量与缓存经对应策略核验；缺失该ID的历史档保持原slot_weight模型。旧批次未知颗数不从重量推断；本轮不声称旧档已自动转换到物理容量。
+
 ## 模块职责
 
 存档序列化与迁移：`SaveManager`、`SaveMigrationRegistry`、`NewGameBuilder`；端口 `SaveStoragePort` 定义在 game-core。

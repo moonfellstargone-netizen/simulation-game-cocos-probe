@@ -9,6 +9,7 @@ export type CocosUiShellOperation =
   | 'menu_preview'
   | 'menu_confirm'
   | 'menu_confirm_split_direct'
+  | 'menu_confirm_merge_direct'
   | 'menu_confirm_processing_direct'
   | 'save'
   | 'load';

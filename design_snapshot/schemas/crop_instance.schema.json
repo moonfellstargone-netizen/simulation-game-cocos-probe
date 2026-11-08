@@ -17,6 +17,7 @@
   ],
   "additionalProperties": false,
   "properties": {
+    "seed_lot_snapshot": { "$ref": "common_defs.schema.json#/$defs/SeedLotSnapshot" },
     "crop_id": {
       "type": "string",
       "minLength": 1

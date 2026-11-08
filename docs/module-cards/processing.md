@@ -7,6 +7,8 @@ source_of_truth: false
 
 # processing
 
+本候选的整棵白菜部分消耗需保留其他整棵与切开余料，任务和产物保留实际输入来源快照。重复输入的既有处理语义不因本轮静默改变。
+
 ## 模块职责
 
 加工系统：`ProcessingSystem`、`ProcessingConfigResolver` 与相关 formal action 处理。

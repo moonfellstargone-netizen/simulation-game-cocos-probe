@@ -28,6 +28,10 @@
 | `.github/workflows/quality.yml` | tools | PR 完整检查与报告保留 | 改 CI 触发/权限/执行步骤 | `test:ci-workflow-contracts` |
 | `tests/ci-workflow-contracts.test.mjs` | tests | PR CI YAML 语义与负向约束 | 改工作流 | `test:ci-workflow-contracts` |
 | `src/game-core/**` | game-core | 核心逻辑 | 玩法/状态 | `test:stage1a-baseline` |
+| `src/game-core/inventory/CabbagePiecePlanner.ts` | game-core | 整棵/切开白菜的只读拆取计划 | 修改颗数、重量及来源 | `test:contract` |
+| `src/game-core/storage/PhysicalCapacity.ts`、`PhysicalStorage.ts`、`PhysicalPolicyRegistry.ts` | game-core | 版本化物性、双维容量与旧制边界 | 改容量政策或对账 | `test:contract`、`test:cocos-probe-preparation` |
+| `src/cocos-app/view-models/PhysicalCapacityDisplay.ts` | cocos-app | 混装容量与可放数量只读投影 | 修改容量展示 | `test:cocos-ui-readiness` |
+| `tools/quality/physical-policy-lock.mjs`、`tools/quality/rules/physical-policy-lock.json` | quality-tools | 已发布物性策略版本锁 | 新增物性版本 | `test:cocos-probe-preparation` |
 | `src/cocos-app/**` | cocos-app | 应用适配 | Session/UI VM | `test:cocos-session` |
 | `src/cocos-creator-adapter/**` | cocos-creator-adapter | Creator 探针 | UI binding | `test:cocos-ui-readiness` |
 | `src/cocos-creator-adapter/scene/CocosSceneBindingController.ts` | cocos-creator-adapter | 实例内命令与端口完整顺序、失败后全量重同步 | 改异步绑定、初始渲染或恢复 | `test:cocos-scene-binding`、`test:cocos-component-node-binding` |

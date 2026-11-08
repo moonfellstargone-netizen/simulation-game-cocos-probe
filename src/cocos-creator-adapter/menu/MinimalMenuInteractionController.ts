@@ -84,6 +84,32 @@ export class MinimalMenuInteractionController {
     return this.presenter.currentSnapshot();
   }
 
+  confirmMergeDirect(selection: Extract<MenuActionSelection, { action_type: 'merge_lot' }>): MenuRenderSnapshot {
+    this.presenter.clearTransientResults();
+    const session = this.host.requireSession();
+    let parameters: { source_lot_id: string; target_lot_id: string };
+    try {
+      if (selection.action_type !== 'merge_lot') throw new Error('ERR_MENU_MERGE_ACTION_INVALID');
+      const selectable = session.getSelectableViewModel();
+      this.presenter.renderSelectableViewModel(selectable);
+      const draft = this.binding.buildDraft(selectable, selection);
+      if (draft.action_type !== 'merge_lot') throw new Error('ERR_MENU_MERGE_ACTION_INVALID');
+      parameters = draft.parameters as typeof parameters;
+      session.validateMerge(parameters.source_lot_id, parameters.target_lot_id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.presenter.renderMergeValidation({ action_type: 'merge_lot', success: false, status_code: message.split(':')[0] || 'ERR_UNKNOWN' });
+      return this.presenter.currentSnapshot();
+    }
+    this.presenter.renderMergeValidation({ action_type: 'merge_lot', success: true, status_code: 'OK' });
+    try {
+      this.presenter.renderActionResult(session.dispatch('merge_lot', parameters));
+      this.presenter.renderViewModel(session.getViewModel());
+      this.presenter.renderSelectableViewModel(session.getSelectableViewModel());
+    } catch (error) { this.presenter.renderError(this.toError(error)); }
+    return this.presenter.currentSnapshot();
+  }
+
   confirmProcessingDirect(selection: Extract<MenuActionSelection, { action_type: 'start_processing' | 'collect_processing_result' }>): MenuRenderSnapshot {
     this.presenter.clearTransientResults();
     const session = this.host.requireSession();

@@ -9,7 +9,7 @@
     "arch:check": "node tools/run-architecture-check.mjs",
     "arch:legacy": "python3 tools/validate_code_architecture.py",
     "test:smoke": "node --test tests/stage1a-architecture-smoke.test.mjs",
-    "test:contract": "node --import tsx --test tests/stage1a-contract.test.ts",
+    "test:contract": "node --import tsx --test tests/stage1a-contract.test.ts tests/physical-capacity.test.ts tests/physical-storage-integration.test.ts",
     "test:fixture": "node --import tsx --test tests/stage1a-fixture-runner.test.ts",
     "check": "node tools/run-code-check.mjs",
     "dev:stage1a": "tsx scripts/run-stage1a-headless.ts",
@@ -18,7 +18,7 @@
     "test:api-boundary": "node --import tsx --test tests/api-boundary.test.ts",
     "test:cocos-session": "node --import tsx --test tests/cocos-runtime-session.test.ts",
     "test:stage1a-baseline": "node --import tsx --test tests/stage1a-baseline.test.ts",
-    "test:cocos-ui-readiness": "node --import tsx --test tests/cocos-ui-readiness.test.ts",
+    "test:cocos-ui-readiness": "node --import tsx --test tests/cocos-ui-readiness.test.ts tests/physical-capacity-display.test.ts",
     "test:action-preview-boundary": "node --import tsx --test tests/action-preview-boundary.test.ts",
     "test:cocos-lifecycle": "node --import tsx --test tests/cocos-creator-lifecycle-probe.test.ts",
     "test:cocos-menu": "node --import tsx --test tests/cocos-minimal-menu-binding.test.ts",
@@ -57,7 +57,7 @@
     "test:ci-workflow-contracts": "node --test tests/ci-workflow-contracts.test.mjs",
     "test:stage1a-bootstrap": "node --import tsx --test tests/stage1a-bootstrap.test.ts tests/runtime-precompiled-schema.test.ts",
     "cocos:prepare": "node tools/cocos-probe/prepare.mjs",
-    "test:cocos-probe-preparation": "node --test tests/cocos-probe-preparation.test.mjs",
+    "test:cocos-probe-preparation": "node --test tests/cocos-probe-preparation.test.mjs tests/physical-policy-lock.test.mjs",
     "test:cocos-engine-probe-lifecycle": "node --import tsx --test tests/cocos-engine-probe-lifecycle.test.ts tests/cocos-web-interaction.test.ts tests/cocos-browser-storage.test.ts tests/cocos-web-farming.test.ts tests/cocos-web-inventory.test.ts tests/cocos-web-split.test.ts tests/cocos-web-processing.test.ts tests/cocos-web-cooking.test.ts tests/cocos-web-orders.test.ts tests/cocos-web-layout.test.ts",
     "cocos:build": "node tools/cocos-probe/build.mjs",
     "cocos:verify:web": "node tools/cocos-probe/verify-web.mjs",
@@ -66,7 +66,7 @@
     "cocos:prepare:wechat": "node tools/cocos-wechat-probe/prepare.mjs",
     "cocos:build:wechat": "node tools/cocos-wechat-probe/build.mjs",
     "test:cocos-wechat-preparation": "node --test tests/cocos-wechat-preparation.test.mjs",
-    "test:cocos-wechat-runtime": "node --import tsx --test tests/cocos-wechat-runtime.test.ts tests/cocos-wechat-m3-ui.test.ts tests/cocos-wechat-data-clone.test.ts tests/cocos-wechat-storage.test.ts tests/cocos-wechat-schema-optimization.test.mjs"
+    "test:cocos-wechat-runtime": "node --import tsx --test tests/cocos-wechat-runtime.test.ts tests/cocos-wechat-m3-ui.test.ts tests/wechat-inventory-groups.test.ts tests/cocos-wechat-data-clone.test.ts tests/cocos-wechat-storage.test.ts tests/cocos-wechat-schema-optimization.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

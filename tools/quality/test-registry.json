@@ -182,7 +182,9 @@
         "--import",
         "tsx",
         "--test",
-        "tests/stage1a-contract.test.ts"
+        "tests/stage1a-contract.test.ts",
+        "tests/physical-capacity.test.ts",
+        "tests/physical-storage-integration.test.ts"
       ],
       "covers": [
         "game-core",
@@ -198,7 +200,9 @@
         "blocker"
       ],
       "files": [
-        "tests/stage1a-contract.test.ts"
+        "tests/stage1a-contract.test.ts",
+        "tests/physical-capacity.test.ts",
+        "tests/physical-storage-integration.test.ts"
       ],
       "group": "stage1a"
     },
@@ -316,7 +320,8 @@
         "--import",
         "tsx",
         "--test",
-        "tests/cocos-ui-readiness.test.ts"
+        "tests/cocos-ui-readiness.test.ts",
+        "tests/physical-capacity-display.test.ts"
       ],
       "covers": [
         "cocos-app",
@@ -334,6 +339,8 @@
       ],
       "files": [
         "tests/cocos-ui-readiness.test.ts",
+        "tests/physical-capacity-display.test.ts",
+        "src/cocos-app/view-models/PhysicalCapacityDisplay.ts",
         "src/cocos-app/view-models/CocosSelectableViewModel.ts"
       ],
       "group": "cocos-ui"
@@ -1162,7 +1169,8 @@
       "command": "node",
       "args": [
         "--test",
-        "tests/cocos-probe-preparation.test.mjs"
+        "tests/cocos-probe-preparation.test.mjs",
+        "tests/physical-policy-lock.test.mjs"
       ],
       "covers": [
         "cocos-engine-probe",
@@ -1183,6 +1191,10 @@
       ],
       "files": [
         "tests/cocos-probe-preparation.test.mjs",
+        "tests/physical-policy-lock.test.mjs",
+        "tools/quality/physical-policy-lock.mjs",
+        "tools/quality/rules/physical-policy-lock.json",
+        "design_snapshot/configs/storage/physical_capacity_policies.yaml",
           "tools/rebuild-design-snapshot.mjs",
         "tools/cocos-probe/prepare.mjs",
         "apps/cocos-probe/template/assets/scripts/CocosWebProbe.ts",
@@ -1345,6 +1357,8 @@
         "apps/cocos-wechat-probe/template/assets/generated/probe-runtime.d.ts",
         "apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts",
         "apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts.meta",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatInventoryGroups.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatInventoryGroups.ts.meta",
         "apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts",
         "apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts.meta",
         "apps/cocos-wechat-probe/template/package.json",
@@ -1372,6 +1386,7 @@
         "--test",
         "tests/cocos-wechat-runtime.test.ts",
         "tests/cocos-wechat-m3-ui.test.ts",
+        "tests/wechat-inventory-groups.test.ts",
         "tests/cocos-wechat-data-clone.test.ts",
         "tests/cocos-wechat-storage.test.ts",
         "tests/cocos-wechat-schema-optimization.test.mjs"
@@ -1397,11 +1412,14 @@
       "files": [
         "tests/cocos-wechat-runtime.test.ts",
         "tests/cocos-wechat-m3-ui.test.ts",
+        "tests/wechat-inventory-groups.test.ts",
         "apps/cocos-wechat-probe/template/assets/Probe.scene",
         "apps/cocos-wechat-probe/template/assets/Probe.scene.meta",
         "apps/cocos-wechat-probe/template/assets/generated/probe-runtime.d.ts",
         "apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts",
         "apps/cocos-wechat-probe/template/assets/scripts/CocosWechatProbe.ts.meta",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatInventoryGroups.ts",
+        "apps/cocos-wechat-probe/template/assets/scripts/WechatInventoryGroups.ts.meta",
         "apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts",
         "apps/cocos-wechat-probe/template/assets/scripts/WechatProbeController.ts.meta",
         "apps/cocos-wechat-probe/template/package.json",

@@ -1,7 +1,8 @@
 import { _decorator, Button, Camera, Canvas, Color, Component, EditBox, Game, game, Graphics, isValid,
   JsonAsset, Label, Layers, Node, resources, ResolutionPolicy, screen, sys, UITransform, view } from 'cc';
 import { createStage1AHost, QinglanUiSceneProbeComponent } from '../generated/probe-runtime.js';
-import { WechatProbeController, type WechatProbeSnapshot, type WechatResources } from './WechatProbeController';
+import { groupWechatInventory } from './WechatInventoryGroups';
+import { WechatProbeController, type WechatMaterialOption, type WechatProbeSnapshot, type WechatResources } from './WechatProbeController';
 import { WECHAT_BACKUP_SLOT_ID, WECHAT_SAVE_SLOT_ID, WechatSaveStoragePort } from './WechatSaveStoragePort';
 import { createWechatPriorSaveValidator } from './WechatPriorSaveValidator';
 
@@ -66,10 +67,21 @@ export class CocosWechatProbe extends Component {
   private processingPendingLotId: string | null = null;
   private farmNode: Node | null = null;
   private stockNode: Node | null = null;
+  private stockListNode: Node | null = null;
+  private stockMode: 'locations' | 'warehouse' | 'cellar' | 'other' | 'warehouseLots' | 'containerLots' | 'detail' | 'dishDetail' = 'locations';
+  private stockListOffset = 0;
+  private stockKind: string | null = null;
+  private stockContainer: string | null = null;
+  private stockDishId: string | null = null;
+  private dishMoveNeedsReview = false;
+  private dishMoveReviewId: string | null = null;
+  private dishMovePending = false;
+  private stockReturnMode: 'warehouse' | 'warehouseLots' | 'containerLots' | 'other' = 'warehouseLots';
   private splitNode: Node | null = null;
   private splitInput: EditBox | null = null;
   private splitNeedsReview = false;
   private splitPendingText: string | null = null;
+  private mergePending = false;
   private splitHintGeneration = 0;
   private menuButtons: Record<string, Button> = {};
   private menuHandlers: Record<string, () => void> = {};
@@ -78,6 +90,7 @@ export class CocosWechatProbe extends Component {
   private cropId: string | null = null;
   private lotId: string | null = null;
   private targetId: string | null = null;
+  private mergeTargetId: string | null = null;
   private seedAmount = 1;
   private seedsPerTile = 1;
 
@@ -162,6 +175,7 @@ export class CocosWechatProbe extends Component {
   }
 
   private onAdvance(): void {
+    if (this.dishMoveNeedsReview) return;
     this.finishSplitEditing();
     this.resetCancelConfirmation();
     this.invalidateSplit();
@@ -171,8 +185,9 @@ export class CocosWechatProbe extends Component {
     void this.controller?.advance().catch(error => console.error('[wechat-m1] action-failed', String(error)));
   }
 
-  private onSave(): void { this.finishSplitEditing(); this.resetCancelConfirmation(); this.invalidateSplit(); this.setCommandReadContext(false); void this.controller?.save().catch(error => console.error('[wechat-m2] save-failed', String(error))); }
+  private onSave(): void { if (this.dishMoveNeedsReview) return; this.finishSplitEditing(); this.resetCancelConfirmation(); this.invalidateSplit(); this.setCommandReadContext(false); void this.controller?.save().catch(error => console.error('[wechat-m2] save-failed', String(error))); }
   private onRead(): void {
+    if (this.dishMoveNeedsReview) return;
     this.finishSplitEditing();
     this.resetCancelConfirmation();
     this.invalidateSplit();
@@ -184,8 +199,9 @@ export class CocosWechatProbe extends Component {
       } else console.error('[wechat-m2] load-failed', String(error));
     });
   }
-  private onReadBackup(): void { this.finishSplitEditing(); this.resetCancelConfirmation(); this.invalidateSplit(); this.clearProcessingSelection(); this.setCommandReadContext(false); void this.controller?.loadBackup().catch(error => console.error('[wechat-m2] backup-load-failed', String(error))); }
+  private onReadBackup(): void { if (this.dishMoveNeedsReview) return; this.finishSplitEditing(); this.resetCancelConfirmation(); this.invalidateSplit(); this.clearProcessingSelection(); this.setCommandReadContext(false); void this.controller?.loadBackup().catch(error => console.error('[wechat-m2] backup-load-failed', String(error))); }
   private onCancelFirst(): void {
+    if (this.dishMoveNeedsReview) return;
     this.finishSplitEditing();
     this.invalidateSplit();
     this.setCommandReadContext(false);
@@ -228,7 +244,7 @@ export class CocosWechatProbe extends Component {
   }
   private onHide(): void {
     if (this.processingActionsPending > 0) this.processingActionInterrupted = true;
-    if (this.splitPendingText !== null) this.splitNeedsReview = true;
+    if (this.splitPendingText !== null || this.mergePending) this.splitNeedsReview = true;
     this.finishSplitEditing(); this.resetCancelConfirmation(); this.invalidateSplit(); this.controller?.setVisible(false);
   }
   private onShow(): void {
@@ -244,6 +260,7 @@ export class CocosWechatProbe extends Component {
       const beforeEditing = this.controller?.snapshot();
       if (!beforeEditing || beforeEditing.phase !== 'ready' || beforeEditing.busy || !beforeEditing.visible) return;
       if (this.menuButtons[name]?.node.activeInHierarchy === false) return;
+      if (this.dishMoveNeedsReview && name !== 'StockMergeTarget') return;
       this.finishSplitEditing();
       const state = this.controller?.snapshot();
       if (!state || state.phase !== 'ready' || state.busy || !state.visible) return;
@@ -252,7 +269,11 @@ export class CocosWechatProbe extends Component {
       const options = state.menu?.selectable_view_model;
       if (this.handleProcessing(name, state)) { this.renderMenu(this.controller!.snapshot()); return; }
       if (name === 'PageFarm') this.page = 'farm';
-      else if (name === 'PageStock') this.page = 'stock';
+      else if (name === 'PageStock') { this.page = 'stock'; this.stockMode = 'locations'; this.stockListOffset = 0; }
+      else if (name === 'StockListBack') { this.stockBack(); }
+      else if (name === 'StockListPrev') { this.stockListOffset = Math.max(0, this.stockListOffset - 3); }
+      else if (name === 'StockListNext') { this.stockListOffset += 3; }
+      else if (/^StockEntry[0-2]$/.test(name)) { this.selectStockEntry(Number(name.slice(-1)), state); }
       else if (name === 'StockSplit') this.page = 'split';
       else if (name === 'SplitBack') this.page = 'stock';
       else if (name === 'FarmField') this.fieldId = this.next(options?.field_options.filter(x => x.enabled) ?? [], this.fieldId);
@@ -261,8 +282,16 @@ export class CocosWechatProbe extends Component {
       else if (name === 'FarmMinus' && this.seedId !== null) this.seedAmount = Math.max(1, this.seedAmount - 1);
       else if (name === 'FarmPlus' && this.seedId !== null && Number.isSafeInteger(this.seedAmount + 1)) this.seedAmount++;
       else if (/^FarmSeeds[123]$/.test(name) && this.seedId !== null) this.seedsPerTile = Number(name.slice(-1));
-      else if (name === 'StockLot') { this.lotId = this.next(options?.splittable_lot_options ?? [], this.lotId); if (this.splitInput) this.splitInput.string = ''; }
-      else if (name === 'StockTarget') this.targetId = this.next(options?.storage_target_options ?? [], this.targetId);
+      else if (name === 'StockLot') { this.stockMode = this.stockReturnMode; this.stockListOffset = 0; }
+      else if (name === 'StockTarget') { const selected = this.stockMode === 'dishDetail' ? options?.submittable_dish_lot_options?.find(item => item.id === this.stockDishId) : options?.splittable_lot_options.find(item => item.id === this.lotId); const form = selected && ('storage_form' in selected ? selected.storage_form : 'current_form' in selected ? selected.current_form : undefined); this.targetId = this.next((options?.storage_target_options ?? []).filter(item => !!form && item.supported_forms.includes(form)), this.targetId); }
+      else if (name === 'StockMergeTarget' && this.dishMoveNeedsReview) { this.refreshDishMove(); }
+      else if (name === 'StockMergeTarget') {
+        const source = options?.splittable_lot_options.find(item => item.id === this.lotId && item.enabled);
+        const choices = (options?.splittable_lot_options ?? []).filter(item => item.enabled && source && item.id !== source.id
+          && item.base_id === source.base_id && item.current_form === source.current_form && item.storage_ref.container_id === source.storage_ref.container_id);
+        this.mergeTargetId = this.next(choices, this.mergeTargetId);
+      }
+      else if (name === 'StockMerge') this.confirmMerge();
       else {
         const seed = options?.seed_lot_options.find(x => x.id === this.seedId && x.enabled);
         const field = options?.field_options.find(x => x.id === this.fieldId && x.enabled);
@@ -277,15 +306,20 @@ export class CocosWechatProbe extends Component {
         else if (name === 'FarmPlant' && field && seed) { action = this.controller!.plant(field.id, seed.id,
           { amount: this.seedAmount * this.seedsPerTile, unit: seed.quantity.unit }, this.seedsPerTile); done = `已播种${this.seedAmount}位，出苗后查看成苗结果`; }
         else if (name === 'FarmHarvest' && crop) { action = this.controller!.harvest(crop.id); done = '收获完成'; }
+        else if (name === 'StockMove' && this.stockMode === 'dishDetail' && target && this.stockDishId) { this.confirmDishMove(this.stockDishId, target.id); }
         else if (name === 'StockMove' && lot && target && target.id !== lot.storage_ref.container_id) { action = this.controller!.move(lot.id, target.id); done = '转移完成'; }
         if (action) {
           this.lastCommandWasRead = false;
           const generation = this.splitHintGeneration;
           void action.then(() => { if (isValid(this.node, true) && this.controller?.snapshot().phase === 'ready'
               && this.controller.snapshot().visible && generation === this.splitHintGeneration) this.labels.hint.string = done; })
-            .catch(error => { if (isValid(this.node, true) && this.controller?.snapshot().visible && generation === this.splitHintGeneration)
-              this.labels.hint.string = this.errorText(String(error));
-              console.error('[wechat-m3] action-failed', String(error)); });
+            .catch(error => {
+              const capacityRejected = name === 'StockMove' && error instanceof Error
+                && error.message === 'ERR_WECHAT_PROBE_ACTION_FAILED:ERR_STORAGE_CAPACITY_OVERFLOW';
+              if (isValid(this.node, true) && this.controller?.snapshot().visible && generation === this.splitHintGeneration)
+                this.labels.hint.string = capacityRejected ? '目标空间不足，可拆分批次或选择其他储存位置' : this.errorText(String(error));
+              if (!capacityRejected) console.error('[wechat-m3] action-failed', String(error));
+            });
         }
       }
       this.renderMenu(this.controller!.snapshot());
@@ -609,16 +643,46 @@ export class CocosWechatProbe extends Component {
     return Number.isFinite(value) && value > 0 ? value : null;
   }
 
-  private splitInputProblem(lot: { quantity: { amount: number; unit: string } } | undefined): string | null {
+  private splitInputProblem(lot: WechatMaterialOption | undefined): string | null {
     const amount = this.splitAmount();
     if (!lot) return '请返回库存选择材料批次';
     if (amount === null) return '请输入大于零的有效数量';
-    if (lot.quantity.unit === 'count' && !Number.isInteger(amount)) return '种子数量须为整数';
-    if (amount > lot.quantity.amount) return '数量超过当前库存';
+    if (lot.cabbage_pieces?.kind === 'whole') {
+      if (!Number.isSafeInteger(amount)) return '完整白菜须按整数颗拆分';
+      if (amount > lot.cabbage_pieces.pieces.length) return '数量超过当前库存';
+    } else {
+      if (lot.quantity.unit === 'count' && !Number.isInteger(amount)) return '种子数量须为整数';
+      if (amount > lot.quantity.amount) return '数量超过当前库存';
+    }
     return null;
   }
 
-  private confirmSplit(lot: { id: string; quantity: { amount: number; unit: string } }): void {
+  private confirmDishMove(dishId: string, targetId: string): void {
+    if (this.dishMoveNeedsReview || this.dishMovePending) return;
+    this.dishMovePending = true;
+    void this.controller!.moveDish(dishId, targetId).then(() => {
+      if (isValid(this.node, true)) this.labels.hint.string = '菜品转移完成';
+    }).catch(error => {
+      const text = error instanceof Error ? error.message : String(error);
+      if (!text.startsWith('ERR_WECHAT_PROBE_ACTION_FAILED:')) { this.dishMoveNeedsReview = true; this.dishMoveReviewId = dishId; }
+      if (isValid(this.node, true)) this.labels.hint.string = this.dishMoveNeedsReview ? '转移结果待确认，请先核对库存' : this.errorText(text);
+    }).finally(() => { this.dishMovePending = false; if (isValid(this.node, true) && this.controller) this.renderMenu(this.controller.snapshot()); });
+  }
+
+  private refreshDishMove(): void {
+    if (!this.dishMoveNeedsReview) return;
+    void this.controller!.refreshSplitView().then(state => {
+      const options = state.menu?.selectable_view_model; const dishes = options?.submittable_dish_lot_options; const targets = options?.storage_target_options;
+      if (!state.visible || state.phase !== 'ready' || !Array.isArray(dishes) || !Array.isArray(targets)
+        || new Set(dishes.map(item => item.id)).size !== dishes.length || new Set(targets.map(item => item.id)).size !== targets.length
+        || !this.dishMoveReviewId || this.stockDishId !== this.dishMoveReviewId
+        || !dishes.some(item => item.id === this.dishMoveReviewId && targets.some(target => target.id === item.storage_ref.container_id))) throw new Error('ERR_WECHAT_REFRESH_FAILED');
+      this.dishMoveNeedsReview = false; this.dishMoveReviewId = null; this.labels.hint.string = '库存已核对，请查看菜品位置';
+    }).catch(() => { this.labels.hint.string = '库存核对未完成，请稍后重试'; })
+      .finally(() => { if (isValid(this.node, true) && this.controller) this.renderMenu(this.controller.snapshot()); });
+  }
+
+  private confirmSplit(lot: WechatMaterialOption): void {
     if (this.splitNeedsReview || this.splitPendingText !== null) return;
     const problem = this.splitInputProblem(lot);
     if (problem) { this.labels.hint.string = problem; return; }
@@ -626,7 +690,7 @@ export class CocosWechatProbe extends Component {
     const generation = this.splitHintGeneration;
     this.lastCommandWasRead = false;
     this.splitPendingText = this.splitInput!.string;
-    void this.controller!.confirmSplit(lot.id, { amount, unit: lot.quantity.unit }).then(state => {
+    void this.controller!.confirmSplit(lot.id, { amount, unit: lot.cabbage_pieces?.kind === 'whole' ? 'count' : lot.quantity.unit }).then(state => {
       if (!state.split_result || state.split_result.sourceLotId !== lot.id || generation !== this.splitHintGeneration || !state.visible) {
         this.splitNeedsReview = true;
         return;
@@ -662,6 +726,30 @@ export class CocosWechatProbe extends Component {
     });
   }
 
+  private confirmMerge(): void {
+    if (this.splitNeedsReview || this.mergePending || !this.lotId || !this.mergeTargetId || this.lotId === this.mergeTargetId) return;
+    const sourceId = this.lotId, targetId = this.mergeTargetId, generation = this.splitHintGeneration;
+    this.mergePending = true;
+    this.lastCommandWasRead = false;
+    void this.controller!.confirmMerge(sourceId, targetId).then(state => {
+      if (!state.merge_result || state.merge_result.sourceLotId !== sourceId || state.merge_result.targetLotId !== targetId
+        || generation !== this.splitHintGeneration || !state.visible) { this.splitNeedsReview = true; return; }
+      this.mergeTargetId = null;
+      this.labels.hint.string = '批次合并完成';
+    }).catch(error => {
+      const reason = error instanceof Error ? error.message : String(error);
+      const rejection = reason.match(/^ERR_WECHAT_PROBE_ACTION_FAILED:([^\s]+)$/);
+      if (!rejection) this.splitNeedsReview = true;
+      if (isValid(this.node, true) && generation === this.splitHintGeneration && this.controller?.snapshot().visible) {
+        this.labels.hint.string = rejection ? '批次暂不能合并，请核对品质、位置和预约状态' : '合并结果待确认，请进入拆分页核对库存';
+      }
+      if (!rejection) console.error('[wechat-m3] merge-confirm-failed', String(error));
+    }).finally(() => {
+      this.mergePending = false;
+      if (isValid(this.node, true) && this.controller) this.renderMenu(this.controller.snapshot());
+    });
+  }
+
   private splitRejection(code: string): string {
     if (code === 'ERR_NOT_ENOUGH_RESOURCE') return '数量超过当前库存';
     if (code === 'ERR_SPLIT_QUANTITY_INVALID') return '数量不符合单位要求';
@@ -674,6 +762,80 @@ export class CocosWechatProbe extends Component {
   private next(options: readonly { readonly id: string }[], selected: string | null): string | null {
     if (!options.length) return null;
     return options[(options.findIndex(item => item.id === selected) + 1) % options.length].id;
+  }
+
+  private stockBack(): void {
+    if (this.stockMode === 'detail' || this.stockMode === 'dishDetail') this.stockMode = this.stockReturnMode;
+    else if (this.stockMode === 'warehouseLots') this.stockMode = 'warehouse';
+    else if (this.stockMode === 'containerLots') this.stockMode = 'cellar';
+    else this.stockMode = 'locations';
+    this.stockListOffset = 0;
+  }
+
+  private stockRows(state: WechatProbeSnapshot): Array<{ key: string; label: string; kind: string }> {
+    const options = state.menu?.selectable_view_model;
+    const lots = options?.splittable_lot_options ?? []; const targets = options?.storage_target_options ?? [];
+    const dishes = options?.submittable_dish_lot_options ?? [];
+    const groups = groupWechatInventory(lots, targets, dishes);
+    const itemLabel = (lot: WechatMaterialOption) => {
+      const quantity = lot.cabbage_pieces?.kind === 'whole' ? `${lot.cabbage_pieces.pieces.length}颗`
+        : lot.base_id === 'cabbage' && lot.current_form === 'fresh' && !lot.cabbage_pieces ? '颗数未知' : `${lot.quantity.amount}${UNITS[lot.quantity.unit] ?? lot.quantity.unit}`;
+      return `${this.names[lot.base_id] ?? '材料'} · ${FORMS[lot.current_form] ?? lot.current_form} · ${quantity}`;
+    };
+    const dishLabel = (id: string | null, count: number) => `${id ? this.names[id] ?? '菜品' : '未识别菜品'} · ${count}份`;
+    if (this.stockMode === 'locations') return [
+      { key:'warehouse', label:`仓库 · ${groups.warehouseBatchCount}批${options?.submittable_dish_lot_options ? '' : ' · 菜品待确认'}`, kind:'location' },
+      { key:'cellar', label:`菜窖 · ${groups.jars.filter(jar => !jar.legacy).length}个坛子${groups.jars.some(jar => jar.legacy) ? ' · 含旧菜窖' : ''}`, kind:'location' },
+      { key:'other', label:`其他储存 · ${groups.other.length + groups.otherDishes.length}批`, kind:'location' }];
+    if (this.stockMode === 'warehouse') return [
+      ...groups.warehouse.map(group => ({ key:group.baseId, kind:'group', label:`${this.names[group.baseId] ?? '材料'} · ${group.batches.length}批${group.baseId === 'cabbage' ? ` · 已知完整白菜${group.knownWholeCount}颗${group.unknownWholeBatches ? ` · ${group.unknownWholeBatches}批颗数未知` : ''}` : group.hasCountQuantity ? ` · ${group.countQuantity === null ? '数量待确认' : `${group.countQuantity}${group.baseId.endsWith('_seed') ? '粒' : '个'}`}` : ''}` })),
+      ...groups.warehouseDishes.map(dish => ({ key:dish.id, kind:'dish', label:dishLabel(dish.recognized_dish_id,dish.serving_count) }))];
+    if (this.stockMode === 'cellar') return groups.jars.map(jar => {
+      const selected = lots.find(lot => lot.id === this.lotId);
+      const candidate = selected?.base_id === 'cabbage' && selected.current_form === 'fresh' ? selected.id : null;
+      const capacity = this.controller?.storageCapacityDisplay(jar.target.id, candidate);
+      const detail = capacity?.model === 'physical' && capacity.status === 'ready' && capacity.selection.status === 'ready'
+        ? `本批可放${capacity.selection.fit_prefix}/${capacity.selection.selected_total}颗`
+        : capacity?.model === 'physical' && capacity.status === 'ready' && capacity.selection.status === 'already_in_target' ? '本批已在此处'
+        : capacity?.model === 'physical' && capacity.status === 'ready' && capacity.selection.status === 'unknown' && capacity.selection.reason === 'not_selected' && capacity.standard_cabbage_estimate !== undefined
+          ? `约可再放${capacity.standard_cabbage_estimate}颗标准白菜` : '可放数量待确认';
+      return { key:jar.target.id, kind:'jar', label:`${jar.legacy ? '旧菜窖' : `坛子${groups.jars.filter(item => !item.legacy).findIndex(item => item.target.id === jar.target.id) + 1}`} · ${jar.batches.length + jar.dishes.length}批${options?.submittable_dish_lot_options ? '' : '（菜品待确认）'} · ${detail}` };
+    });
+    const selected = this.stockMode === 'warehouseLots' ? groups.warehouse.find(group => group.baseId === this.stockKind)?.batches ?? []
+      : this.stockMode === 'containerLots' ? groups.jars.find(jar => jar.target.id === this.stockContainer)?.batches ?? []
+      : this.stockMode === 'other' ? groups.other : [];
+    const selectedDishes = this.stockMode === 'containerLots' ? groups.jars.find(jar => jar.target.id === this.stockContainer)?.dishes ?? []
+      : this.stockMode === 'other' ? groups.otherDishes : [];
+    if (this.stockMode === 'dishDetail') { const dish = dishes.find(item => item.id === this.stockDishId);
+      return dish ? [{key:dish.id,kind:'info',label:`${dishLabel(dish.recognized_dish_id,dish.serving_count)} · 菜品批次`}] : []; }
+    return [...selected.map(lot => ({ key:lot.id, kind:'lot', label:itemLabel(lot) })),
+      ...selectedDishes.map(dish => ({key:dish.id,kind:'dish',label:dishLabel(dish.recognized_dish_id,dish.serving_count)}))];
+  }
+
+  private selectStockEntry(index: number, state: WechatProbeSnapshot): void {
+    const row = this.stockRows(state)[this.stockListOffset + index]; if (!row) return;
+    if (row.kind === 'location') this.stockMode = row.key as 'warehouse' | 'cellar' | 'other';
+    else if (row.kind === 'group') { this.stockKind = row.key; this.stockMode = 'warehouseLots'; }
+    else if (row.kind === 'jar') { this.stockContainer = row.key; this.targetId = row.key; this.stockMode = 'containerLots'; }
+    else if (row.kind === 'lot') { this.stockReturnMode = this.stockMode as 'warehouseLots' | 'containerLots' | 'other'; this.lotId = row.key; this.mergeTargetId = null; this.stockMode = 'detail'; if (this.splitInput) this.splitInput.string = ''; }
+    else if (row.kind === 'dish') { this.stockReturnMode = this.stockMode as 'warehouse' | 'warehouseLots' | 'containerLots' | 'other'; this.stockDishId = row.key; this.stockMode = 'dishDetail'; }
+    this.stockListOffset = 0;
+  }
+
+  private renderStockList(state: WechatProbeSnapshot): void {
+    if (!this.stockListNode) return;
+    const rows = this.stockRows(state);
+    const lastOffset = rows.length ? Math.floor((rows.length - 1) / 3) * 3 : 0;
+    this.stockListOffset = Math.min(this.stockListOffset, lastOffset);
+    const enabled = state.phase === 'ready' && state.visible && !state.busy;
+    for (let i = 0; i < 3; i++) {
+      const row = rows[this.stockListOffset + i];
+      this.labels['stockRow' + i].string = row?.label ?? (i === 0 ? '这里暂无物品' : '');
+      this.menuButtons['StockEntry' + i].interactable = enabled && !!row && row.kind !== 'info';
+    }
+    this.menuButtons.StockListBack.interactable = enabled && this.stockMode !== 'locations';
+    this.menuButtons.StockListPrev.interactable = enabled && this.stockListOffset > 0;
+    this.menuButtons.StockListNext.interactable = enabled && this.stockListOffset + 3 < rows.length;
   }
 
   private renderMenu(state: WechatProbeSnapshot): void {
@@ -693,13 +855,30 @@ export class CocosWechatProbe extends Component {
     const seed = seeds.find(x => x.id === this.seedId);
     const crop = crops.find(x => x.id === this.cropId);
     const lot = lots.find(x => x.id === this.lotId);
+    const mergeChoices = lots.filter(item => item.enabled && lot?.enabled && item.id !== lot.id
+      && item.base_id === lot.base_id && item.current_form === lot.current_form && item.storage_ref.container_id === lot.storage_ref.container_id);
+    if (!mergeChoices.some(item => item.id === this.mergeTargetId)) this.mergeTargetId = null;
+    const mergeTarget = mergeChoices.find(item => item.id === this.mergeTargetId);
     const target = targets.find(x => x.id === this.targetId);
+    const dish = options?.submittable_dish_lot_options?.find(item => item.id === this.stockDishId);
+    const dishDetail = this.stockMode === 'dishDetail';
     const unit = (value: string) => UNITS[value] ?? value;
     const place = (value: string) => STORAGE[value] ?? value;
+    const containerName = (id: string) => {
+      const container = targets.find(item => item.id === id); if (!container) return '未知储存位置';
+      if (container.container_type === 'room_temp_container') return '仓库';
+      if (container.container_type === 'cellar_container') return '旧菜窖';
+      if (container.container_type === 'cellar_jar') return `菜窖坛子${targets.filter(item => item.container_type === 'cellar_jar').findIndex(item => item.id === id) + 1}`;
+      return place(container.storage_type);
+    };
     const inProcessing = this.page.startsWith('processing');
     for (const node of this.processingBaseNodes) node.active = !inProcessing;
     this.farmNode.active = this.page === 'farm';
     this.stockNode.active = this.page === 'stock';
+    const stockDetail = this.stockMode === 'detail' || this.stockMode === 'dishDetail';
+    if (this.stockListNode) this.stockListNode.active = !stockDetail;
+    for (const key of ['StockLot','StockTarget','StockMove','StockSplit','StockMergeTarget','StockMerge']) this.menuButtons[key].node.active = stockDetail;
+    for (const key of ['stockLot','stockTarget','stockHelp']) this.labels[key].node.active = stockDetail;
     this.splitNode.active = this.page === 'split';
     if (this.processingNode) this.processingNode.active = inProcessing;
     for (const [page, node] of Object.entries(this.processingPages)) node.active = this.page === page;
@@ -720,18 +899,41 @@ export class CocosWechatProbe extends Component {
     const failed = cropStatuses.filter(item => item.lifecycle_status === 'failed').length;
     if (failed > 0 && field && field.available_tiles > 0) this.labels.farmField.string += ' · 可补种';
     this.labels.farmCrop.string = `待出苗${pending} · 生长中${growing}\n出苗失败${failed} · 可收获${crops.filter(x => x.enabled).length}${crop ? `（选${crops.findIndex(x => x.id === crop.id) + 1}）` : ''}`;
-    this.labels.stockLot.string = lot ? `批次${lots.findIndex(x => x.id === lot.id) + 1}/${lots.length}：${this.names[lot.base_id] ?? '材料'} ${lot.quantity.amount}${unit(lot.quantity.unit)} · ${place(lot.storage_ref.storage_type)}${lot.enabled ? '' : ' · 不可用'}` : `库存：${lots.length}批，请选择材料`;
-    this.labels.stockTarget.string = target ? `目标：${place(target.storage_type)} · 空间占用${target.used_capacity}/${target.capacity.amount}${unit(target.capacity.unit)}${target.enabled ? '' : ' · 不可用'}` : `目标：${targets.length}处，请选择储存位置`;
-    this.labels.stockHelp.string = lot ? `形态：${this.names[`${lot.base_id}:${lot.current_form}`] ?? FORMS[lot.current_form] ?? lot.current_form} · 目标支持：${target?.supported_forms.map(form => FORMS[form] ?? form).join('/') || '未列出'} · 整批转移` : '选择材料批次与目标后可整批转移';
-    this.labels.splitLot.string = lot ? `拆分：${this.names[lot.base_id] ?? '材料'} · 当前${lot.quantity.amount}${unit(lot.quantity.unit)}` : '请返回库存选择材料批次';
-    this.labels.splitUnit.string = lot ? `数量单位：${unit(lot.quantity.unit)}` : '数量单位：—';
+    this.labels.stockLot.string = lot ? `批次${lots.findIndex(x => x.id === lot.id) + 1}/${lots.length}：${this.names[lot.base_id] ?? '材料'} ${lot.cabbage_pieces?.kind === 'whole' ? `${lot.cabbage_pieces.pieces.length}颗 / ` : lot.base_id === 'cabbage' && !lot.cabbage_pieces ? '颗数未知 / ' : ''}${lot.quantity.amount}${unit(lot.quantity.unit)} · ${containerName(lot.storage_ref.container_id)}${lot.enabled ? '' : ' · 不可用'}` : `库存：${lots.length}批，请选择材料`;
+    const capacity = target ? this.controller?.storageCapacityDisplay(target.id, lot?.id ?? null) : null;
+    const mergeLabel = mergeTarget ? `合并第${lots.findIndex(item => item.id === mergeTarget.id) + 1}批` : mergeChoices.length ? '请选择合并批次' : '暂无合并候选';
+    if (target && capacity?.model === 'physical' && capacity.status === 'ready') {
+      const selection = capacity.selection;
+      this.labels.stockTarget.string = `目标：${containerName(target.id)} · ${mergeLabel}`;
+      this.labels.stockHelp.string = selection.status === 'ready' ? `本批可放${selection.fit_prefix}/${selection.selected_total}颗`
+        : selection.status === 'already_in_target' ? '本批已在目标储存' : '选择完整白菜批次后可计算可放数量';
+    } else if (target && capacity?.model === 'legacy_slot') {
+      this.labels.stockTarget.string = `目标：${containerName(target.id)} · 旧档容量待核对\n${mergeLabel}`;
+      this.labels.stockHelp.string = '旧档白菜颗数以批次记录为准';
+    } else {
+      this.labels.stockTarget.string = target ? `目标：${containerName(target.id)} · 容量待确认\n${mergeLabel}` : `目标：${targets.length}处，请选择储存位置`;
+      this.labels.stockHelp.string = target ? '容量无法核对，请检查数据' : '选择目标后可整批转移';
+    }
+    if (dishDetail) {
+      this.labels.stockLot.string = dish ? `${dish.recognized_dish_id ? this.names[dish.recognized_dish_id] ?? '菜品' : '未识别菜品'} · ${dish.serving_count}份` : '菜品批次已不存在';
+      this.labels.stockTarget.string = target ? `目标：${containerName(target.id)}` : '请选择支持菜品的目标';
+      this.labels.stockHelp.string = this.dishMoveNeedsReview ? '转移结果待确认，请先核对库存' : '菜品按份数显示，目标须支持菜品形态';
+    }
+    this.renderStockList(state);
+    this.labels.splitLot.string = lot ? `拆分：${this.names[lot.base_id] ?? '材料'} · 当前${lot.cabbage_pieces?.kind === 'whole' ? `${lot.cabbage_pieces.pieces.length}颗 / ` : ''}${lot.quantity.amount}${unit(lot.quantity.unit)}` : '请返回库存选择材料批次';
+    this.labels.splitUnit.string = lot ? `数量单位：${lot.cabbage_pieces?.kind === 'whole' ? '颗' : unit(lot.quantity.unit)}` : '数量单位：—';
     const result = state.split_result;
     const resultIndex = result ? lots.findIndex(x => x.id === result.newLotId) : -1;
     const splitProblem = this.splitInputProblem(lot);
     const splitAmount = this.splitAmount();
-    this.labels.splitSummary.string = this.splitNeedsReview ? '拆分结果待确认，请先核对库存' : result ? `${resultIndex < 0 ? '新增批次' : `新增第${resultIndex + 1}批`}：${result.quantity.amount}${unit(result.quantity.unit)} · ${result.remainingQuantity ? `来源剩余${result.remainingQuantity.amount}${unit(result.remainingQuantity.unit)}` : '来源已全部拆出'}`
-      : splitProblem ?? `拆出${splitAmount}${unit(lot!.quantity.unit)} · 原批次剩${lot!.quantity.amount - splitAmount!}${unit(lot!.quantity.unit)}`;
+    const whole = lot?.cabbage_pieces?.kind === 'whole' ? lot.cabbage_pieces.pieces : null;
+    const splitWeight = whole && splitAmount !== null ? whole.slice(0, splitAmount).reduce((sum, piece) => sum + piece.weight_g, 0) : null;
+    this.labels.splitSummary.string = this.splitNeedsReview ? '拆分结果待确认，请先核对库存' : result ? `${resultIndex < 0 ? '新增批次' : `新增第${resultIndex + 1}批`}：${result.pieceCount === undefined ? '' : `${result.pieceCount}颗 / `}${result.quantity.amount}${unit(result.quantity.unit)} · ${result.remainingQuantity ? `来源剩余${result.remainingPieceCount === undefined ? '' : `${result.remainingPieceCount}颗 / `}${result.remainingQuantity.amount}${unit(result.remainingQuantity.unit)}` : '来源已全部拆出'}`
+      : splitProblem ?? (whole ? `拆出${splitAmount}颗 / ${splitWeight}克 · 原批次剩${whole.length - splitAmount!}颗` : `拆出${splitAmount}${unit(lot!.quantity.unit)} · 原批次剩${lot!.quantity.amount - splitAmount!}${unit(lot!.quantity.unit)}`);
     const enabled = state.phase === 'ready' && state.visible && !state.busy;
+    for (const button of [this.button, this.saveButton, this.loadButton, this.backupButton, this.cancelFirstButton]) {
+      if (button && isValid(button, true)) button.interactable = enabled && !this.dishMoveNeedsReview;
+    }
     this.splitInput.enabled = enabled && this.page === 'split' && !!lot?.enabled && !this.splitNeedsReview;
     const set = (name: string, value: boolean) => { const button = this.menuButtons[name]; if (button && isValid(button.node, true)) button.interactable = enabled && value; };
     set('PageFarm', true); set('PageStock', true); set('PageProcessing', true); set('AdvanceDay', true);
@@ -744,9 +946,13 @@ export class CocosWechatProbe extends Component {
       if (label) label.string = `${count === this.seedsPerTile ? '✓ ' : ''}${count}粒/位`;
     }
     set('FarmPlant', !!field && !!seed && !plantProblem); set('FarmHarvest', !!crop);
-    set('StockLot', lots.length > 0); set('StockTarget', targets.length > 0);
-    set('StockMove', !!lot?.enabled && !!target?.enabled && target.id !== lot.storage_ref.container_id);
-    set('StockSplit', !!lot?.enabled || this.splitNeedsReview); set('SplitBack', true);
+    set('StockLot', !this.dishMoveNeedsReview); set('StockTarget', !this.dishMoveNeedsReview && (dishDetail ? !!dish?.storage_form && targets.some(item => item.supported_forms.includes(dish.storage_form!)) : !!lot && targets.some(item => item.supported_forms.includes(lot.current_form))));
+    set('StockMove', !this.dishMoveNeedsReview && !this.dishMovePending && (dishDetail ? !!dish?.enabled && !!dish.storage_form && !!target?.enabled && target.supported_forms.includes(dish.storage_form) && target.id !== dish.storage_ref.container_id : !!lot?.enabled && !!target?.enabled && target.supported_forms.includes(lot.current_form) && target.id !== lot.storage_ref.container_id));
+    set('StockMergeTarget', dishDetail ? this.dishMoveNeedsReview : !!lot?.enabled && mergeChoices.length > 0 && !this.splitNeedsReview && !this.mergePending);
+    const stockReviewCaption = this.menuButtons.StockMergeTarget.node.children.find(child => child.name === 'caption')?.getComponent(Label);
+    if (stockReviewCaption) stockReviewCaption.string = dishDetail ? '核对库存' : '选择合并批次';
+    set('StockMerge', !dishDetail && !!lot?.enabled && !!mergeTarget && !this.splitNeedsReview && !this.mergePending);
+    set('StockSplit', !dishDetail && (!!lot?.enabled || this.splitNeedsReview)); set('SplitBack', true);
     this.menuButtons.SplitRefresh.node.active = this.splitNeedsReview;
     set('SplitRefresh', this.splitNeedsReview);
     set('SplitConfirm', !!lot?.enabled && !splitProblem && !this.splitNeedsReview && this.splitPendingText === null);
@@ -915,7 +1121,7 @@ export class CocosWechatProbe extends Component {
       : `状态: ${state.phase}${state.busy ? ' · 执行中' : ''}${state.visible ? '' : ' · 后台'}`;
     this.labels.result.string = `推进按钮 ${this.clickCount} · 已完成命令 ${state.completed_commands}`;
     for (const button of [this.button, this.saveButton, this.loadButton, this.backupButton, this.cancelFirstButton]) {
-      if (button && isValid(button, true)) button.interactable = state.phase === 'ready' && !state.busy && state.visible;
+      if (button && isValid(button, true)) button.interactable = state.phase === 'ready' && !state.busy && state.visible && !this.dishMoveNeedsReview;
     }
     this.renderMenu(state);
     const { menu: _menu, ...diagnostics } = state;
@@ -1006,13 +1212,30 @@ export class CocosWechatProbe extends Component {
     this.stockNode.layer = Layers.Enum.UI_2D;
     root.addChild(this.stockNode);
     this.stockNode.addComponent(UITransform).setContentSize(960, 540);
-    this.menuButtons.StockLot = this.smallButton(this.stockNode, 'StockLot', '选择材料', -350, 25);
+    this.menuButtons.StockLot = this.smallButton(this.stockNode, 'StockLot', '返回列表', -350, 25);
     this.menuButtons.StockTarget = this.smallButton(this.stockNode, 'StockTarget', '选择目标', -350, -30);
     this.labels.stockLot = this.menuLabel(this.stockNode, 'stockLot', 80, 25);
     this.labels.stockTarget = this.menuLabel(this.stockNode, 'stockTarget', 80, -30);
     this.labels.stockHelp = this.menuLabel(this.stockNode, 'stockHelp', 80, -85);
+    this.labels.stockTarget.lineHeight = 20;
+    this.labels.stockHelp.lineHeight = 20;
     this.menuButtons.StockMove = this.smallButton(this.stockNode, 'StockMove', '整批转移', 110, -140);
     this.menuButtons.StockSplit = this.smallButton(this.stockNode, 'StockSplit', '拆分批次', 330, -140);
+    this.menuButtons.StockMergeTarget = this.smallButton(this.stockNode, 'StockMergeTarget', '选择合并批次', -330, -140);
+    this.menuButtons.StockMerge = this.smallButton(this.stockNode, 'StockMerge', '合并批次', -110, -140);
+
+    this.stockListNode = new Node('InventoryList');
+    this.stockListNode.layer = Layers.Enum.UI_2D; this.stockNode.addChild(this.stockListNode);
+    this.stockListNode.addComponent(UITransform).setContentSize(960, 540);
+    for (let i = 0; i < 3; i++) {
+      const y = 25 - i * 55;
+      this.menuButtons['StockEntry' + i] = this.smallButton(this.stockListNode, 'StockEntry' + i, '查看', -350, y);
+      this.labels['stockRow' + i] = this.menuLabel(this.stockListNode, 'stockRow' + i, 80, y);
+      this.labels['stockRow' + i].fontSize = 16; this.labels['stockRow' + i].lineHeight = 19;
+    }
+    this.menuButtons.StockListBack = this.smallButton(this.stockListNode, 'StockListBack', '返回', -330, -140);
+    this.menuButtons.StockListPrev = this.smallButton(this.stockListNode, 'StockListPrev', '上一页', -110, -140);
+    this.menuButtons.StockListNext = this.smallButton(this.stockListNode, 'StockListNext', '下一页', 110, -140);
 
     this.splitNode = new Node('SplitPage');
     this.splitNode.layer = Layers.Enum.UI_2D;

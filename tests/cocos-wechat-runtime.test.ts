@@ -1230,9 +1230,115 @@ test('M3 grouped sowing validates independently and three failed seeds release o
   } finally { await p.controller.dispose(); }
 });
 
-test('M3 planting rejects ten positions, reveals six sowing outcomes and harvest obeys remaining storage capacity', async () => {
+test('M3 whole cabbage merge and count split use direct commands and preserve piece identities', async () => {
+  const commands: string[] = [];
+  const p = harness({ receiveMenu: true, intercept: async (command, execute) => { commands.push(command.name); return execute(); } });
+  await p.controller.start();
+  try {
+    const menu = p.controller.snapshot().menu!.selectable_view_model!;
+    await p.controller.plant(menu.field_options.find(item => item.enabled)!.id, menu.seed_lot_options.find(item => item.enabled)!.id, { amount: 2, unit: 'count' });
+    for (let i = 0; i < 4; i++) await p.controller.advanceDay();
+    const crops = p.controller.snapshot().menu!.selectable_view_model!.harvestable_crop_options.filter(item => item.enabled);
+    assert.equal(crops.length, 2);
+    for (const crop of crops) await p.controller.harvest(crop.id);
+    const cabbages = p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.filter(item => item.base_id === 'cabbage' && item.cabbage_pieces?.kind === 'whole');
+    assert.equal(cabbages.length, 2);
+    const before = commands.length;
+    const merged = await p.controller.confirmMerge(cabbages[0].id, cabbages[1].id);
+    assert.deepEqual(commands.slice(before), ['menu_confirm_merge_direct'], 'merge directly validates and dispatches without preview');
+    assert.equal(merged.merge_result?.targetLotId, cabbages[1].id);
+    const joined = merged.menu!.selectable_view_model!.splittable_lot_options.find(item => item.id === cabbages[1].id)!;
+    assert.equal(joined.cabbage_pieces?.kind, 'whole');
+    if (joined.cabbage_pieces?.kind !== 'whole') throw new Error('whole cabbage expected');
+    assert.equal(joined.cabbage_pieces.pieces.length, 2);
+    const ids = joined.cabbage_pieces.pieces.map(item => item.id);
+    const splitStart = commands.length;
+    const split = await p.controller.confirmSplit(joined.id, { amount: 1, unit: 'count' });
+    assert.deepEqual(commands.slice(splitStart), ['menu_confirm_split_direct']);
+    assert.equal(split.split_result?.pieceCount, 1);
+    assert.equal(split.split_result?.remainingPieceCount, 1);
+    const after = split.menu!.selectable_view_model!.splittable_lot_options;
+    const taken = after.find(item => item.id === split.split_result!.newLotId)!;
+    const remain = after.find(item => item.id === joined.id)!;
+    assert.equal(taken.cabbage_pieces?.kind, 'whole');
+    assert.equal(remain.cabbage_pieces?.kind, 'whole');
+    if (taken.cabbage_pieces?.kind !== 'whole' || remain.cabbage_pieces?.kind !== 'whole') throw new Error('whole cabbage expected');
+    assert.deepEqual([taken.cabbage_pieces.pieces[0].id, remain.cabbage_pieces.pieces[0].id], ids);
+    assert.equal(taken.quantity.amount + remain.quantity.amount, joined.quantity.amount);
+  } finally { await p.controller.dispose(); }
+});
+
+test('M3 merge isolates malformed success receipts and never retries after dispatch', async () => {
+  for (const mode of ['missing-source', 'duplicate-update', 'wrong-weight'] as const) {
+    let mergeCommands = 0;
+    const p = harness({ receiveMenu: true, intercept: async (command, execute) => {
+      const result = await execute();
+      if (command.name !== 'menu_confirm_merge_direct') return result;
+      mergeCommands++;
+      const copy = structuredClone(result) as any;
+      const updates = copy.command_result.snapshot.menu.last_action_result.updated_objects;
+      const sourceIndex = updates.findIndex((item: any) => item.object_id === command.selection.source_lot_option_id);
+      const targetIndex = updates.findIndex((item: any) => item.object_id === command.selection.target_lot_option_id);
+      if (mode === 'missing-source') updates.splice(sourceIndex, 1);
+      if (mode === 'duplicate-update') updates.push(structuredClone(updates[sourceIndex]));
+      if (mode === 'wrong-weight') updates[targetIndex].summary.quantity.amount++;
+      return copy;
+    } });
+    await p.controller.start();
+    try {
+      const menu = p.controller.snapshot().menu!.selectable_view_model!;
+      await p.controller.plant(menu.field_options.find(item => item.enabled)!.id, menu.seed_lot_options.find(item => item.enabled)!.id, { amount: 2, unit: 'count' });
+      for (let i = 0; i < 4; i++) await p.controller.advanceDay();
+      for (const crop of p.controller.snapshot().menu!.selectable_view_model!.harvestable_crop_options.filter(item => item.enabled)) await p.controller.harvest(crop.id);
+      const cabbages = p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.filter(item => item.base_id === 'cabbage' && item.cabbage_pieces?.kind === 'whole');
+      assert.equal(cabbages.length, 2);
+      await assert.rejects(p.controller.confirmMerge(cabbages[0].id, cabbages[1].id), /ERR_WECHAT_MERGE_RESULT_UNCERTAIN/);
+      assert.equal(mergeCommands, 1);
+      assert.equal(p.controller.snapshot().merge_result, null);
+      assert.equal(p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.some(item => item.id === cabbages[0].id), false, 'formal merge committed; uncertainty is not called rollback');
+    } finally { await p.controller.dispose(); }
+  }
+});
+
+test('M3 count split isolates missing roles, duplicate IDs and inconsistent quantities after formal dispatch', async () => {
+  for (const mode of ['missing-role', 'duplicate-id', 'wrong-weight'] as const) {
+    let corrupt = false;
+    let splitCommands = 0;
+    const p = harness({ receiveMenu: true, intercept: async (command, execute) => {
+      const result = await execute();
+      if (command.name !== 'menu_confirm_split_direct') return result;
+      splitCommands++;
+      if (!corrupt) return result;
+      const copy = structuredClone(result) as any;
+      const created = copy.command_result.snapshot.menu.last_action_result.created_objects;
+      if (mode === 'missing-role') delete created[0].summary.split_role;
+      if (mode === 'duplicate-id') created.push(structuredClone(created[0]));
+      if (mode === 'wrong-weight') created[0].summary.quantity.amount++;
+      return copy;
+    } });
+    await p.controller.start();
+    try {
+      const menu = p.controller.snapshot().menu!.selectable_view_model!;
+      await p.controller.plant(menu.field_options.find(item => item.enabled)!.id, menu.seed_lot_options.find(item => item.enabled)!.id, { amount: 1, unit: 'count' });
+      for (let i = 0; i < 4; i++) await p.controller.advanceDay();
+      const crop = p.controller.snapshot().menu!.selectable_view_model!.harvestable_crop_options.find(item => item.enabled)!;
+      await p.controller.harvest(crop.id);
+      const lot = p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(item => item.base_id === 'cabbage' && item.cabbage_pieces?.kind === 'whole')!;
+      corrupt = true;
+      await assert.rejects(p.controller.confirmSplit(lot.id, { amount: 1, unit: 'count' }), /ERR_WECHAT_SPLIT_RESULT_UNCERTAIN/);
+      assert.equal(splitCommands, 1, 'uncertainty never automatically resubmits');
+      assert.equal(p.controller.snapshot().split_result, null);
+      assert.equal(p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.some(item => item.id === lot.id), false, 'formal split already committed; failure is not claimed as rollback');
+    } finally { await p.controller.dispose(); }
+  }
+});
+
+test('M3 planting rejects ten positions, reveals six sowing outcomes and harvest obeys a controlled physical storage capacity', async () => {
   const storage = new InMemorySaveStoragePort();
-  const p = harness({ storage, receiveMenu: true });
+  const fixture = resources();
+  const config = (fixture.snapshot as RuntimeConfigSnapshot).loaded_documents['configs/storage/physical_capacity_policies.yaml'] as { initial_container_limits: Record<string, { mass_g: number; volume_ml: number }> };
+  config.initial_container_limits.home_room_temp_01 = { mass_g: 3500, volume_ml: 100000 };
+  const p = harness({ storage, receiveMenu: true, load: async () => ({ resources: fixture, identity: identity() }) });
   await p.controller.start();
   const capture = async () => { await p.host().requireSession().save('quantity-audit'); return storage.read('quantity-audit'); };
   try {
@@ -1269,7 +1375,7 @@ test('M3 planting rejects ten positions, reveals six sowing outcomes and harvest
         break;
       }
     }
-    assert.ok(harvested > 0 && harvested < crops.length, 'the current initial storage cannot hold all successful harvests for this fixed seed');
+    assert.ok(harvested > 0 && harvested < crops.length, 'the controlled 3500g test capacity rejects at least one successful crop');
     after = p.controller.snapshot().menu!.selectable_view_model!;
     assert.equal(after.field_options[0].available_tiles, harvested + failures);
     assert.equal(after.field_options[0].active_crop_count, crops.length - harvested);
@@ -1355,4 +1461,77 @@ test('M3 a same-action receipt cannot report another planting and load preserves
     assert.equal(replacement.controller.snapshot().menu!.selectable_view_model!.field_options[0].active_crop_count, 2,
       'a new controller owns a new Session and can legitimately reuse the initial request sequence');
   } finally { await replacement.controller.dispose(); }
+});
+
+test('wechat DishLot transfer uses formal action, rejects incompatible jars, and isolates a lost receipt', async () => {
+  const storage = new InMemorySaveStoragePort(); let corrupt = false;
+  const p = harness({storage, receiveMenu:true, intercept: async (command, execute) => {
+    const result=await execute();
+    if (!corrupt || command.name !== 'menu_confirm' || command.selection.action_type !== 'store_item' || !('source_dish_lot_option_id' in command.selection)) return result;
+    const copy=structuredClone(result); Reflect.set(copy.command_result.snapshot!.menu!, 'last_action_result', null); return copy;
+  }});
+  await p.controller.start();
+  try {
+    const first=p.controller.snapshot().menu!.selectable_view_model!; const field=first.field_options.find(x=>x.enabled)!;const seed=first.seed_lot_options.find(x=>x.enabled)!;
+    await p.controller.plant(field.id,seed.id,{amount:1,unit:seed.quantity.unit});
+    for (let i=0;i<15 && !p.controller.snapshot().menu!.selectable_view_model!.harvestable_crop_options.some(x=>x.enabled);i++) await p.controller.advanceDay();
+    await p.controller.harvest(p.controller.snapshot().menu!.selectable_view_model!.harvestable_crop_options.find(x=>x.enabled)!.id);
+    const vm=p.host().requireSession().getSelectableViewModel(); const cabbage=vm.splittable_lot_options.find(x=>x.base_id==='cabbage' && x.current_form==='fresh')!;
+    const bacon=vm.splittable_lot_options.find(x=>x.base_id==='bacon')!; const recipe=vm.cookable_recipe_options.find(x=>x.enabled)!;
+    const cooked=await p.binding().execute({name:'menu_confirm',selection:{action_type:'cook_dish',recipe_option_id:recipe.id,ingredient_options:{main:{lot_option_id:cabbage.id,quantity:{amount:250,unit:'g'}},side:{lot_option_id:bacon.id,quantity:{amount:50,unit:'g'}}},operation_profile:{heat_level:'high',active_minutes:8},target_storage_option_id:'home_room_temp_01'}});
+    assert.equal(cooked.command_result.snapshot!.menu!.last_action_result!.success,true);
+    await p.host().requireSession().save('controlled_capture'); const original=JSON.parse((await storage.read('controlled_capture'))!);
+    delete original.physical_capacity_policy_id; for(const item of original.storage_containers){delete item.capacity_limits;delete item.used_capacity_limits;}
+    const room=original.storage_containers.find((item:any)=>item.container_id==='home_room_temp_01'); const extra=structuredClone(room); extra.container_id='controlled_dish_room';extra.active_object_refs=[];extra.used_capacity=0;original.storage_containers.push(extra);
+    await storage.write(WECHAT_SAVE_SLOT_ID,JSON.stringify(original)); await p.controller.load();
+    const dish=p.controller.snapshot().menu!.selectable_view_model!.submittable_dish_lot_options![0]!; assert.equal(dish.storage_form,'cooked_dish');
+    const beforeInvalid = p.controller.snapshot().accepted_commands;
+    await assert.rejects(p.controller.moveDish(dish.id,'home_cellar_01'),/ERR_WECHAT_PROBE_ACTION_FAILED:ERR_MENU_OPTION_INVALID/);
+    assert.equal(p.controller.snapshot().accepted_commands,beforeInvalid,'unsupported form is refused before dispatch');
+    assert.equal(p.controller.snapshot().menu!.selectable_view_model!.submittable_dish_lot_options![0]!.storage_ref.container_id,'home_room_temp_01');
+    await p.controller.moveDish(dish.id,'controlled_dish_room');
+    assert.equal(p.controller.snapshot().menu!.selectable_view_model!.submittable_dish_lot_options![0]!.storage_ref.container_id,'controlled_dish_room');
+    corrupt=true;await assert.rejects(p.controller.moveDish(dish.id,'home_room_temp_01'),/ERR_WECHAT_ACTION_RESULT_UNCERTAIN/);
+    assert.equal(p.controller.snapshot().menu!.selectable_view_model!.submittable_dish_lot_options![0]!.storage_ref.container_id,'home_room_temp_01');
+  } finally { await p.controller.dispose(); }
+});
+
+test('wechat decimal split and merge use exact JSON quantities and reject a forged merge receipt', async () => {
+  for (const corrupt of [false,true]) {
+    const p=harness({receiveMenu:true,intercept:async(command,execute)=>{
+      const result=await execute();
+      if (!corrupt || command.name!=='menu_confirm_merge_direct') return result;
+      const copy=structuredClone(result);const changed=copy.command_result.snapshot!.menu!.last_action_result!.updated_objects!.find(item=>item.object_id===command.selection.target_lot_option_id)!;
+      Reflect.set(changed.summary!.quantity!,'amount',0.31);return copy;
+    }});
+    await p.controller.start();
+    try {
+      const salt=p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(item=>item.base_id==='salt')!;
+      const one=await p.controller.confirmSplit(salt.id,{amount:0.1,unit:'g'});
+      const two=await p.controller.confirmSplit(salt.id,{amount:0.2,unit:'g'});
+      assert.equal(one.split_result!.quantity.amount,0.1);assert.equal(two.split_result!.quantity.amount,0.2);
+      if (corrupt) {
+        await assert.rejects(p.controller.confirmMerge(one.split_result!.newLotId,two.split_result!.newLotId),/ERR_WECHAT_MERGE_RESULT_UNCERTAIN/);
+        const after=p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options;
+        assert.equal(after.find(item=>item.id===two.split_result!.newLotId)!.quantity.amount,0.3,'formal merge committed despite a forged receipt');
+      } else {
+        const merged=await p.controller.confirmMerge(one.split_result!.newLotId,two.split_result!.newLotId);
+        assert.equal(merged.merge_result!.quantity.amount,0.3); assert.equal(merged.menu!.selectable_view_model!.splittable_lot_options.some(item=>item.id===one.split_result!.newLotId),false);
+      }
+    } finally { await p.controller.dispose(); }
+  }
+});
+
+test('wechat decimal split rejects a forged quantity even when formal action committed', async () => {
+  const p=harness({receiveMenu:true,intercept:async(command,execute)=>{
+    const result=await execute();if(command.name!=='menu_confirm_split_direct')return result;
+    const copy=structuredClone(result); const created=copy.command_result.snapshot!.menu!.last_action_result!.created_objects![0]!;
+    Reflect.set(created.summary!.quantity!,'amount',0.11);return copy;
+  }});
+  await p.controller.start();try {
+    const salt=p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(item=>item.base_id==='salt')!;
+    await assert.rejects(p.controller.confirmSplit(salt.id,{amount:0.1,unit:'g'}),/ERR_WECHAT_SPLIT_RESULT_UNCERTAIN/);
+    assert.equal(p.controller.snapshot().split_result,null);
+    assert.equal(p.controller.snapshot().menu!.selectable_view_model!.splittable_lot_options.find(item=>item.id===salt.id)!.quantity.amount,199.9);
+  } finally {await p.controller.dispose();}
 });

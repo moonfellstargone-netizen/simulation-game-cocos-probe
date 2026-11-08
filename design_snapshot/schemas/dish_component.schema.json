@@ -18,6 +18,7 @@
     "source_lot_id": {
       "type": "string"
     },
+    "source_snapshot": { "$ref": "common_defs.schema.json#/$defs/MaterialInputSourceSnapshot" },
     "base_id": {
       "type": "string"
     },

@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { resolve, sep } from 'node:path';
+import { relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { parse } from 'yaml';
@@ -15,6 +15,19 @@ export function rebuildDesignSnapshot(rootDir, { check = false } = {}) {
     if (path.includes('\\') || path.split('/').includes('..') || !sourcePath.startsWith(root.endsWith(sep) ? root : root + sep)) throw new Error(`Invalid declared path: ${path}`);
     const raw = readFileSync(sourcePath, 'utf8');
     documents[path] = path.endsWith('.json') ? JSON.parse(raw) : parse(raw);
+  }
+  // The active load order is authoritative for newly introduced stage documents.
+  const active = parse(readFileSync(resolve(root, 'configs/active_stage_1A/load_order.yaml'), 'utf8'));
+  if (!active || !Array.isArray(active.load_order)) throw new Error('ERR_DESIGN_LOAD_ORDER_INVALID');
+  for (const entry of active.load_order) {
+    if (typeof entry !== 'string' || entry.includes('\\')) throw new Error('ERR_DESIGN_LOAD_ORDER_INVALID');
+    const sourcePath = resolve(root, 'configs/active_stage_1A', entry);
+    if (!sourcePath.startsWith(root.endsWith(sep) ? root : root + sep)) throw new Error(`Invalid load order path: ${entry}`);
+    const path = relative(root, sourcePath).split(sep).join('/');
+    if (documents[path] === undefined) {
+      const raw = readFileSync(sourcePath, 'utf8');
+      documents[path] = path.endsWith('.json') ? JSON.parse(raw) : parse(raw);
+    }
   }
   function canonical(value) {
     if (Array.isArray(value)) return value.map(canonical);

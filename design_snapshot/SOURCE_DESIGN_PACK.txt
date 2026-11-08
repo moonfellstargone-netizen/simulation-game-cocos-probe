@@ -8,7 +8,8 @@ chinese_version_name: 微信真机Stage1A试水版
 scope: WeChat Stage1A Pilot M3 candidate: farming, inventory, direct split, processing, manual save/load. This runtime derivative includes the user-approved probabilistic planting amendment; full M3 and M4 acceptance remain incomplete.
 
 formal_source_statement: 正式包 v1.5.2.2为原始来源；本派生集合另含2026-11-08用户明确批准的概率播种修订，不能称原包已规定80%或与原始资料字节完全一致
-context_statement: 每个种植位最多3粒、每粒独立80%成苗，最终最多保留1株；2粒96%、3粒99.2%。最小扩展播种参数、成苗保存字段和派生配置，原始包及历史快照不改。旧作物不追溯补抽；其它Stage1A规则沿原来源，正式变化经ActionPipeline
+context_statement: 每个种植位最多3粒、每粒独立80%成苗，最终最多保留1株；2粒96%、3粒99.2%。扩展播种参数、成苗保存字段和派生配置，旧作物不追溯补抽；另增加用户授权的白菜批次与双维容量修订，正式变化经ActionPipeline
 quality_surface: trace.farming.seed-quantity and inherited traces; q:full and q:release without cache; independent Creator/SDK and built/editor regression; new WeChat device results require separate evidence
-authority_statement: design pack remains authoritative except the explicit approved planting amendment; GitHub repo is daily code authority; 代码包内部检查体系治理保持，原架构边界和正式Action校验不放宽
+authority_statement: design pack remains authoritative except the explicit approved planting and inventory amendments; GitHub repo is daily code authority; 代码包内部检查体系治理保持，原架构边界和正式Action校验不放宽
 affected_boundary: q:affected and cache probe serve development feedback only; q:full and q:release without cache remain completion authority
+2026-11-09候选补充：用户要求完整白菜同时记录颗数与重量、切开后按重量，允许受约束的批次合并；新局按容积与承重双维核算，菜窖开局三个独立坛子并允许混装，界面隐藏物理单位。加工品领取先入仓库。旧档缺失颗数不猜测，旧制容量点不转换为现实单位。此为用户授权的运行派生修订；原始正式资料包与历史固定快照保持原文，历史fixture/expected保留。

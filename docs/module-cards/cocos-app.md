@@ -7,6 +7,8 @@ source_of_truth: false
 
 # cocos-app
 
+候选共享层提供独立只读拆分/合并校验、按品种与真实坛子的库存投影、容量适配与不确定结果隔离；公开VM不得直接写存档，旧批次未知颗数不得推算。
+
 ## 模块职责
 
 Cocos 试水应用层：Session、ViewModel、Action 适配（Dispatcher、Previewer、DraftBuilder），通过 Port 访问 game-core。

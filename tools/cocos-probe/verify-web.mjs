@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertClickObservation, assertDisabledInventoryObservation, assertFarmingCommandObservation, assertFarmingLoadRecovery, assertFarmingProjection, assertInventoryCommandObservation, assertInventoryLoadRecovery, assertInventoryProjection, assertLocalInventoryObservation, assertLocalSaveRecovery, assertLocalSelectionObservation, assertSplitConfirmObservation, assertSplitDisabledObservation, assertSplitLoadRecovery, assertSplitPreviewObservation, assertSplitProjection, assertSplitQuantityObservation, assertStoredSaveUnchanged, assertUiCommandObservation, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest } from './lib/webProbeSupport.mjs';
+import { assertClickObservation, assertDisabledInventoryObservation, assertFarmingCommandObservation, assertFarmingLoadRecovery, assertFarmingProjection, assertInventoryCommandObservation, assertInventoryLoadRecovery, assertInventoryProjection, assertLocalInventoryObservation, assertLocalSaveRecovery, assertLocalSelectionObservation, assertSplitConfirmObservation, assertSplitDirectRejectionObservation, assertSplitDisabledObservation, assertSplitLoadRecovery, assertSplitPreviewObservation, assertSplitProjection, assertSplitQuantityObservation, assertStoredSaveUnchanged, assertUiCommandObservation, createWebReportDirectory, parseWebProbeArgs, readWebProbeSource, resizeViewports, serveWebProbe, sha256, timeInMinutes, webTreeDigest } from './lib/webProbeSupport.mjs';
 import { assertLocalProcessingObservation, assertProcessingCollectObservation, assertProcessingDisabledObservation, assertProcessingLoadRecovery, assertProcessingPreviewObservation, assertProcessingProjection, assertProcessingQuantityObservation, assertProcessingStartObservation } from './lib/webProbeSupport.mjs';
 import { assertCookingProjection, assertCookingPreviewObservation, assertCookingConfirmObservation, assertCookingDisabledObservation, assertCookingInputObservation, assertCookingLoadRecovery, assertLocalCookingObservation } from './lib/webProbeSupport.mjs';
 
@@ -153,7 +153,8 @@ async function physicalClick(page, caseName, result, recordDir, buttonName = 'Ad
   } else if (buttonName === 'SplitPreview') {
     assertSplitPreviewObservation(observation, expected);
   } else if (buttonName === 'SplitConfirm') {
-    assertSplitConfirmObservation(observation, expected);
+    if (expected.status === 'failed') assertSplitDirectRejectionObservation(observation, expected);
+    else assertSplitConfirmObservation(observation, expected);
   } else if (INVENTORY_LOCAL_BUTTONS.includes(buttonName)) {
     assertLocalInventoryObservation(observation, expected);
   } else if (buttonName === 'MoveInventoryLot') {
@@ -266,7 +267,6 @@ async function previewSplit(page, name, result, recordDir, statusCode = 'OK') {
 
 async function completeSplit(page, name, amount, result, recordDir) {
   await physicalSplitInput(page, name + '-quantity', String(amount), result, recordDir);
-  await previewSplit(page, name + '-preview', result, recordDir);
   return physicalClick(page, name + '-confirm', result, recordDir, 'SplitConfirm', { amount });
 }
 
@@ -586,21 +586,34 @@ async function splitLoop(browser, url, result, recordDir, logs) {
     const mature = await status(page); const crop = mature.farming.harvestableOptions.find((item) => item.enabled);
     await physicalClick(page, 'split-farm-crop', result, recordDir, 'SelectCrop', { key: 'selectedCropId', value: crop.id });
     const harvested = await physicalClick(page, 'split-farm-harvest', result, recordDir, 'HarvestCrop', { actionType: 'harvest_crop', status: 'completed', timeLabel: mature.timeLabel });
-    const produce = harvested.after.inventory.lotOptions.find((lot) => !harvested.before.inventory.lotOptions.some((previous) => previous.id === lot.id) && lot.base_id === 'cabbage' && lot.quantity.unit === 'g');
-    assert.equal(produce?.quantity.amount, 1200, 'the canonical real harvest must supply the declared 1200g split source');
+    const cabbage = harvested.after.inventory.lotOptions.find((lot) => !harvested.before.inventory.lotOptions.some((previous) => previous.id === lot.id) && lot.base_id === 'cabbage' && lot.quantity.unit === 'g');
+    assert.equal(cabbage?.quantity.amount, 1200, 'the canonical real harvest must supply one 1200g whole cabbage');
+    assert.equal(cabbage.cabbage_pieces?.kind, 'whole');
+    assert.equal(cabbage.cabbage_pieces.pieces.length, 1);
     await physicalClick(page, 'split-open-inventory', result, recordDir, 'OpenInventory', { panel: 'inventory' });
+    await chooseSplitLot(page, cabbage.id, 'split-choose-whole-cabbage', result, recordDir);
+    await physicalSplitInput(page, 'split-whole-fraction-input', '0.5', result, recordDir);
+    const wholeFraction = await previewSplit(page, 'split-whole-fraction-refused', result, recordDir, 'ERR_SPLIT_QUANTITY_INVALID');
+    await physicalClick(page, 'split-whole-fraction-direct-refused', result, recordDir, 'SplitConfirm', { status: 'failed', statusCode: 'ERR_SPLIT_QUANTITY_INVALID' });
+    const wholeSplit = await completeSplit(page, 'split-whole-cabbage', 1, result, recordDir);
+    assert.equal(wholeSplit.after.inventory.splitResult.quantity.amount, 1200, 'one actual cabbage retains its real weight');
+    assertStoredSaveUnchanged(initiallyStored, await storedSave(page));
+    const produce = (await status(page)).inventory.lotOptions.find(lot => lot.base_id === 'salt' && lot.quantity.unit === 'g' && lot.quantity.amount === 200);
+    assert.ok(produce, 'normal initial salt remains available for weight-based split regression');
     await chooseSplitLot(page, produce.id, 'split-choose-produce', result, recordDir);
-    await physicalSplitInput(page, 'split-initial-300', '300', result, recordDir);
+    await physicalSplitInput(page, 'split-initial-30', '30', result, recordDir);
     const preview = await previewSplit(page, 'split-initial-preview', result, recordDir);
     assertStoredSaveUnchanged(initiallyStored, await storedSave(page));
-    await physicalSplitInput(page, 'split-change-invalidates-preview', '301', result, recordDir);
-    const staleQuantity = await physicalClick(page, 'split-stale-quantity-disabled', result, recordDir, 'SplitConfirm', { disabled: true });
-    const partial = await completeSplit(page, 'split-partial-300', 300, result, recordDir);
-    assert.equal(partial.after.inventory.lotOptions.find((lot) => lot.id === produce.id)?.quantity.amount, 900);
+    await physicalSplitInput(page, 'split-change-invalidates-preview', '31', result, recordDir);
+    const staleQuantity = await status(page);
+    assert.equal(staleQuantity.inventory.splitPreview, null);
+    assert.equal(staleQuantity.inventory.canConfirmSplit, true, 'edited quantity can be directly confirmed without preview');
+    const partial = await completeSplit(page, 'split-partial-30', 30, result, recordDir);
+    assert.equal(partial.after.inventory.lotOptions.find((lot) => lot.id === produce.id)?.quantity.amount, 170);
     const childId = partial.after.inventory.splitResult.newLotId;
     assertStoredSaveUnchanged(initiallyStored, await storedSave(page));
 
-    await physicalSplitInput(page, 'split-preview-before-source-change', '100', result, recordDir);
+    await physicalSplitInput(page, 'split-preview-before-source-change', '10', result, recordDir);
     await previewSplit(page, 'split-preview-old-source', result, recordDir);
     await chooseSplitLot(page, childId, 'split-change-source', result, recordDir);
     assert.equal((await status(page)).inventory.splitPreview, null, 'changing the lot invalidates its old preview');
@@ -608,26 +621,27 @@ async function splitLoop(browser, url, result, recordDir, logs) {
     await physicalSplitInput(page, 'split-zero-input', '0', result, recordDir);
     assert.ok((await status(page)).inventory.splitInputError, 'zero must have visible local validation feedback');
     const zero = await physicalClick(page, 'split-zero-preview-disabled', result, recordDir, 'SplitPreview', { disabled: true });
-    await physicalSplitInput(page, 'split-oversized-input', '301', result, recordDir);
+    await physicalSplitInput(page, 'split-oversized-input', '31', result, recordDir);
     const oversized = await previewSplit(page, 'split-oversized-refused', result, recordDir, 'ERR_NOT_ENOUGH_RESOURCE');
-    await physicalClick(page, 'split-oversized-confirm-disabled', result, recordDir, 'SplitConfirm', { disabled: true });
+    await physicalClick(page, 'split-oversized-direct-refused', result, recordDir, 'SplitConfirm', { status: 'failed', statusCode: 'ERR_NOT_ENOUGH_RESOURCE' });
 
     const countLot = (await status(page)).inventory.lotOptions.find((lot) => lot.id === seed.id && lot.enabled && lot.quantity.unit === 'count' && lot.quantity.amount > 1);
     assert.ok(countLot, 'the formal planting leaves a real count-unit source for integer-only input');
     await chooseSplitLot(page, countLot.id, 'split-count-source', result, recordDir);
     await physicalSplitInput(page, 'split-count-fraction-input', '0.5', result, recordDir);
     const countFraction = await previewSplit(page, 'split-count-fraction-refused', result, recordDir, 'ERR_SPLIT_QUANTITY_INVALID');
+    await physicalClick(page, 'split-count-fraction-direct-refused', result, recordDir, 'SplitConfirm', { status: 'failed', statusCode: 'ERR_SPLIT_QUANTITY_INVALID' });
     const countHealthy = await completeSplit(page, 'split-count-healthy', 1, result, recordDir);
     assertStoredSaveUnchanged(initiallyStored, await storedSave(page));
 
     await chooseSplitLot(page, childId, 'split-full-source', result, recordDir);
-    const full = await completeSplit(page, 'split-full-300', 300, result, recordDir);
+    const full = await completeSplit(page, 'split-full-30', 30, result, recordDir);
     assert.equal(full.after.inventory.lotOptions.some((lot) => lot.id === childId), false);
     await physicalClick(page, 'split-save', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: full.after.timeLabel });
     const savedState = await status(page); const saved = { ...await storedSave(page), timeLabel: savedState.timeLabel };
     assert.ok(typeof saved.raw === 'string' && saved.raw.length > 0);
     await chooseSplitLot(page, produce.id, 'split-after-save-source', result, recordDir);
-    const transient = await completeSplit(page, 'split-after-save-transient', 100, result, recordDir);
+    const transient = await completeSplit(page, 'split-after-save-transient', 10, result, recordDir);
     await chooseSplitLot(page, transient.after.inventory.splitResult.newLotId, 'split-select-transient-before-load', result, recordDir);
     const loaded = await physicalClick(page, 'split-load-saved', result, recordDir, 'LoadLocal', { name: 'load', status: 'completed', timeLabel: saved.timeLabel });
     assertSplitLoadRecovery(savedState, loaded);
@@ -641,7 +655,7 @@ async function splitLoop(browser, url, result, recordDir, logs) {
     assertSplitLoadRecovery(savedState, reloadLoaded);
     await physicalClick(page, 'split-refresh-open-inventory', result, recordDir, 'OpenInventory', { panel: 'inventory' });
     await chooseSplitLot(page, produce.id, 'split-refresh-choose-source', result, recordDir);
-    const continuedAfterRefresh = await completeSplit(page, 'split-refresh-continued', 100, result, recordDir);
+    const continuedAfterRefresh = await completeSplit(page, 'split-refresh-continued', 10, result, recordDir);
     assertStoredSaveUnchanged(saved, await storedSave(page));
     await physicalClick(page, 'split-save-continued', result, recordDir, 'SaveLocal', { name: 'save', status: 'completed', timeLabel: saved.timeLabel });
     const reopenSavedState = await status(page); const reopenSaved = { ...await storedSave(page), timeLabel: reopenSavedState.timeLabel };
@@ -654,11 +668,11 @@ async function splitLoop(browser, url, result, recordDir, logs) {
     assertSplitLoadRecovery(reopenSavedState, reopenLoaded);
     await physicalClick(page, 'split-reopen-open-inventory', result, recordDir, 'OpenInventory', { panel: 'inventory' });
     await chooseSplitLot(page, produce.id, 'split-reopen-choose-source', result, recordDir);
-    const continuedAfterReopen = await completeSplit(page, 'split-reopen-continued', 100, result, recordDir);
+    const continuedAfterReopen = await completeSplit(page, 'split-reopen-continued', 10, result, recordDir);
     assertStoredSaveUnchanged(reopenSaved, await storedSave(page));
     const lifecycle = await disposeProbe(page); assertStoredSaveUnchanged(reopenSaved, await storedSave(page));
     return { scope: 'isolated 960x640 real mouse and keyboard EditBox inputs on built-web/editor-preview; capacity refusal remains Node coverage',
-      initial, harvested, preview, staleQuantity, partial, staleSource, zero, oversized, countFraction, countHealthy, full, saved: storedEvidence(saved), savedState,
+      initial, harvested, wholeFraction, wholeSplit, preview, staleQuantity, partial, staleSource, zero, oversized, countFraction, countHealthy, full, saved: storedEvidence(saved), savedState,
       loaded, refresh: { initial: reloadInitial, loaded: reloadLoaded, continued: continuedAfterRefresh, lifecycle: reloadLifecycle },
       reopen: { initial: reopenInitial, loaded: reopenLoaded, continued: continuedAfterReopen, saved: storedEvidence(reopenSaved) }, lifecycle };
   } finally { await context.close(); }
@@ -974,7 +988,7 @@ async function ordersLoop(page,result,recordDir,logs,priorSave){
   const duplicate=await physicalClick(page,'orders-duplicate-disabled',result,recordDir,'SubmitOrder',{disabled:true});
   await physicalClick(page,'orders-save-completed',result,recordDir,'SaveLocal',{name:'save',status:'completed',timeLabel:submitted.after.timeLabel});
   const completedState=await status(page),completed={...await storedSave(page),timeLabel:completedState.timeLabel};
-  assertOrderSerializedSettlement(saved.raw,completed.raw,submitted.after.orders.result);
+  assertOrderSerializedSettlement(saved.raw,completed.raw,submitted.after.orders.result,result.physicalPolicies);
   await page.reload();await awaitReady(page);await attachButtonObservation(page);const reloadInitial=await status(page),reloadStartup=await storedSave(page);
   const reloadLoaded=await physicalClick(page,'orders-refresh-manual-load',result,recordDir,'LoadLocal',{name:'load',status:'completed',timeLabel:completed.timeLabel});assertLocalSaveRecovery({saved:completed,initial:reloadInitial,afterStartup:reloadStartup,loaded:reloadLoaded,afterLoad:await storedSave(page)});assertOrderLoadRecovery(completedState,reloadLoaded);
   await physicalClick(page,'orders-refresh-page',result,recordDir,'OpenOrders',{panel:'orders'});await choose('order',order.id,'orders-refresh-order');
@@ -1733,6 +1747,8 @@ export async function verifyWebProbe(options) {
     const source = readWebProbeSource({ rootDir: ROOT, project: projectDir, buildRecord: parsed.buildRecord });
     Object.assign(result, { sourceCommit: source.manifest.sourceCommit, sourceDirty: source.manifest.sourceDirty, version: source.manifest.version, creatorVersion: source.creatorVersion, preparedManifestSha256: source.preparedManifestSha256, buildRecordSha256: source.buildRecordSha256, toolSha256: sha256(readFileSync(fileURLToPath(import.meta.url))), supportSha256: sha256(readFileSync(new URL('./lib/webProbeSupport.mjs', import.meta.url))) });
     if (!existsSync(parsed.browser)) throw new Error('ERR_WEB_PROBE_BROWSER_MISSING');
+    const projectResources = JSON.parse(readFileSync(join(projectDir, 'assets/resources/probe-resources.json'), 'utf8'));
+    result.physicalPolicies = projectResources.snapshot?.loaded_documents?.['configs/storage/physical_capacity_policies.yaml'] ?? null;
     result.browserExecutableSha256 = sha256(readFileSync(parsed.browser));
     if (!parsed.previewUrl) {
       result.webBuild = source.webBuild;
