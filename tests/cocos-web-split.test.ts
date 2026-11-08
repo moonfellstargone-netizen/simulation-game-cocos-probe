@@ -327,6 +327,8 @@ test('incomplete split receipt isolates the already committed action until a rea
   p.inventory.setSplitQuantity('2');
   await assert.rejects(confirm(p), /ERR_WEB_SPLIT_RESULT_UNCERTAIN/);
   assert.equal(p.inventory.status().splitNeedsReview, true);
+  const uncertainOperation = p.interaction.status().operation; p.interaction.clearStaleSplitRejection();
+  assert.deepEqual(p.interaction.status().operation, uncertainOperation, 'an uncertain result is never cleared as a correctable rejection');
   assert.equal(p.inventory.splitConfirmCommand(), null);
   assert.equal(lot(p, source.id)?.quantity.amount, source.quantity.amount - 2, 'formal action committed before its receipt was lost');
   await assert.rejects(p.send({ name: 'refresh' }), /ERR_WEB_SPLIT_RESULT_UNCERTAIN/);
@@ -395,4 +397,18 @@ test('rapid duplicate confirmations are admitted once while a delayed result can
   const committed = await p.serialized(); await p.send({ name: 'refresh' });
   assert.equal(await p.serialized(), committed); assert.equal(p.inventory.status().splitNeedsReview, false);
   assert.deepEqual(commands, ['menu_confirm_split_direct', 'refresh']);
+});
+
+test('editing after a definite split rejection clears only that stale feedback', async (t) => {
+  const p=await probe();t.after(()=>p.lifetime.dispose());
+  const seed=p.inventory.status().lotOptions.find(item=>item.quantity.unit==='count')!;select(p,seed.id);
+  p.inventory.setSplitQuantity('0.5');await confirm(p);
+  assert.equal(p.interaction.status().operation.status,'failed');assert.equal(p.interaction.status().operation.errorMessage,'ERR_SPLIT_QUANTITY_INVALID');
+  const sequence=p.interaction.status().operation.sequence;const calls=p.calls();
+  p.inventory.setSplitQuantity('1');p.interaction.clearStaleSplitRejection();
+  assert.equal(p.interaction.status().operation.status,'idle');assert.equal(p.interaction.status().operation.message,'输入已更新，可直接确认');
+  assert.equal(p.interaction.status().operation.errorMessage,null);assert.equal(p.interaction.status().operation.sequence,sequence);assert.equal(p.calls(),calls);
+  await confirm(p);assert.equal(p.interaction.status().operation.status,'completed');
+  await p.send(LOAD);const otherFailure=p.interaction.status().operation;assert.equal(otherFailure.name,'load');assert.equal(otherFailure.status,'failed');
+  p.inventory.setSplitQuantity('2');p.interaction.clearStaleSplitRejection();assert.deepEqual(p.interaction.status().operation,otherFailure,'other operation feedback must remain untouched');
 });

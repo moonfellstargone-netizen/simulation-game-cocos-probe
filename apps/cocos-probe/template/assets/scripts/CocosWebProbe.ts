@@ -558,7 +558,9 @@ export class CocosWebProbe extends Component {
     ] as const) ui.controls[name].node.on(Button.EventType.CLICK, () => { const next = command(); if (next) executeButton(next); });
     ui.split.input.node.on(EditBox.EventType.TEXT_CHANGED, () => {
       if (commands.status().busy || !alive() || panel !== 'inventory' || lifetime.status().phase !== 'ready' || lifetime.isDisposed()) return;
+      const changed = inventory.status().splitQuantityText !== ui.split.input.string;
       inventory.setSplitQuantity(ui.split.input.string);
+      if (changed && !inventory.status().splitNeedsReview) commands.clearStaleSplitRejection();
       renderInventory();
     });
     ui.controls.SplitPreview.node.on(Button.EventType.CLICK, () => {

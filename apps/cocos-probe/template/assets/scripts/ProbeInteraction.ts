@@ -35,6 +35,16 @@ export class ProbeInteraction {
     return { busy: this.busy, operation: { ...this.operation } };
   }
 
+  clearStaleSplitRejection(): void {
+    const correctable = new Set(['ERR_SPLIT_QUANTITY_INVALID', 'ERR_SPLIT_QUANTITY_NOT_REPRESENTABLE',
+      'ERR_NOT_ENOUGH_RESOURCE', 'ERR_STORAGE_CAPACITY_OVERFLOW', 'ERR_QUANTITY_UNIT_MISMATCH']);
+    if (this.busy || this.operation.name !== 'menu_confirm_split_direct' || this.operation.status !== 'failed'
+      || !this.operation.errorMessage || !correctable.has(this.operation.errorMessage)) return;
+    this.operation = { ...this.operation, name: null, status: 'idle', message: '输入已更新，可直接确认',
+      errorMessage: null, slotId: null, worldMinute: null };
+    this.publish();
+  }
+
   async execute(command: ProbeCommand): Promise<ProbeCommandResult | null> {
     if (this.busy || !this.options.isAvailable()) return null;
     this.busy = true;

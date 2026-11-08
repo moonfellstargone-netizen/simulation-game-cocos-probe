@@ -1160,8 +1160,8 @@ function recoveryDriver(page, prefix, result, recordDir, physical = { click: phy
   };
   const split = async (amount, sourceId) => {
     await open('inventory');const current=(await status(page)).inventory;
-    const lot=current.lotOptions.find(item=>sourceId?item.id===sourceId:item.enabled&&item.base_id==='cabbage'&&item.current_form==='fresh'&&item.quantity.amount>amount);
-    assert.ok(lot,'ordinary recovery needs a real fresh split source');
+    const lot=current.lotOptions.find(item=>sourceId?item.id===sourceId:item.enabled&&item.base_id==='salt'&&item.quantity.unit==='g'&&item.quantity.amount>amount);
+    assert.ok(lot,'ordinary recovery needs the requested real batch or weight-based salt');
     await choose('inventory','lot',lot.id);await input('split-'+amount,amount,'SplitQuantity');
     await click('split-preview','SplitPreview',{status:'completed',statusCode:'OK'});
     return click('split-confirm','SplitConfirm',{amount});
@@ -1173,7 +1173,9 @@ function recoveryDriver(page, prefix, result, recordDir, physical = { click: phy
     assert.ok(lot&&cellar,'ordinary harvest must have an existing compatible cellar');
     await choose('inventory','lot',lot.id);await choose('inventory','target',cellar.id);
     await click('whole-store','MoveInventoryLot',{status:'completed',timeLabel:(await status(page)).timeLabel});
-    const splitResult=await split(300,lot.id);
+    assert.equal(lot.cabbage_pieces?.kind,'whole','ordinary harvest exposes a known whole cabbage');
+    assert.ok(lot.cabbage_pieces.pieces.length >= 1);
+    const splitResult=await split(1,lot.id);
     return splitResult.after.inventory.splitResult.newLotId;
   };
   const start = async sourceId => {
@@ -1182,7 +1184,7 @@ function recoveryDriver(page, prefix, result, recordDir, physical = { click: phy
     assert.ok(method,'ordinary recovery must expose the existing pickling method');
     const primary=method.input_requirements.find(requirement=>requirement.constraints.base_id!=='salt');
     const saltRequirement=method.input_requirements.find(requirement=>requirement.constraints.base_id==='salt');
-    const lot=current.lotOptions.find(item=>item.enabled&&primary.lot_ids.includes(item.id)&&(sourceId?item.id===sourceId:item.current_form==='fresh'&&item.quantity.amount>=300));
+    const lot=current.lotOptions.find(item=>item.enabled&&primary.lot_ids.includes(item.id)&&(sourceId?item.id===sourceId:item.quantity.unit==='g'&&item.quantity.amount>=300));
     const salt=current.lotOptions.find(item=>item.enabled&&saltRequirement.lot_ids.includes(item.id));
     const facility=current.facilityOptions.find(item=>item.enabled&&method.compatible_facility_ids.includes(item.id));
     assert.ok(lot&&salt&&facility,'existing public resources must support this real processing start');
@@ -1688,8 +1690,8 @@ export async function touchLoop(browser,url,recordDir,logs,previewMode,parentRes
       // Focus is kept open for both real gestures and the simulated viewport change.
       await page.setViewportSize({width:844,height:390});await assertTouchCanvas(page,{width:844,height:390},result);
       await driver.open('inventory');
-      const lot=(await status(page)).inventory.lotOptions.find(item=>item.enabled&&item.base_id==='cabbage'&&item.current_form==='fresh'&&item.quantity.amount>100);
-      assert.ok(lot);await driver.choose('inventory','lot',lot.id);
+      const lot=(await status(page)).inventory.lotOptions.find(item=>item.enabled&&item.base_id==='salt'&&item.quantity.unit==='g'&&item.quantity.amount>32);
+      assert.ok(lot, 'touch EditBox uses an existing weight-based batch');await driver.choose('inventory','lot',lot.id);
       await focusTouchEdit(page,'SplitQuantity','31',result,recordDir,'touch-focus-before-scroll');
       const area=(await touchControlGeometry(page,'SplitQuantity',true)).clip;
       const drag=await rawTouchGesture(page,'touch-scroll-while-editing',result,recordDir,{gesture:'scroll',from:{x:area.right-4,y:area.top+area.height*.8},to:{x:area.right-4,y:area.top+area.height*.2}});

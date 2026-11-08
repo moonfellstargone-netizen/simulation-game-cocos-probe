@@ -617,6 +617,14 @@ test('split keyboard observations require real editing events, exact visible tex
     placeholder: { left: 110, top: 100, right: 290, bottom: 140, width: 180, height: 40 }
   };
   assert.doesNotThrow(() => assertSplitQuantityObservation(valid, '31'));
+  const corrected=structuredClone(valid);
+  corrected.before.operation={...corrected.before.operation, name:'menu_confirm_split_direct', status:'failed', message:'拆分数量无效', errorMessage:'ERR_SPLIT_QUANTITY_INVALID'};
+  corrected.after.operation={...corrected.before.operation, name:null, status:'idle', message:'输入已更新，可直接确认', errorMessage:null, slotId:null, worldMinute:null};
+  corrected.after.displayedOperation=corrected.after.operation.message;
+  assert.doesNotThrow(()=>assertSplitQuantityObservation(corrected,'31'));
+  for(const mutate of [x=>x.after.operation.sequence++,x=>x.after.operation.message='错误的提示',x=>x.before.operation.errorMessage='ERR_WEB_SPLIT_RESULT_UNCERTAIN']){
+    const invalid=structuredClone(corrected);mutate(invalid);assert.throws(()=>assertSplitQuantityObservation(invalid,'31'));
+  }
   for (const mutate of [
     (x) => { x.eventCount = 1; },
     (x) => { x.editEvents.began = 0; },
@@ -1308,6 +1316,9 @@ test('cross-step action records exclude verified disabled repeats but reject act
   const completed=settledOrderObservation().after;completed.processing=structuredClone(processingState().processing);
   const disabled=farmingClick(completed,structuredClone(completed));disabled.buttonName='SubmitOrder';disabled.eventCount=0;disabled.layout.buttonInteractable=false;
   assert.equal(processingChecks.crossStepActionObservations([plant,disabled]).length,1);
+  const split=actions[1].observation; assert.equal(processingChecks.crossStepActionObservations([split])[0].actionType,'split_lot');
+  for(const name of ['menu_confirm','menu_preview','load']) { const invalid=structuredClone(split); invalid.after.operation.name=name; assert.throws(()=>processingChecks.crossStepActionObservations([invalid])); }
+  { const invalid=structuredClone(split); invalid.after.operation.status='failed'; assert.throws(()=>processingChecks.crossStepActionObservations([invalid])); }
   for(const mutate of [x=>x.eventCount=2,x=>x.after.operation.status='failed',x=>x.after.operation.sequence=x.before.operation.sequence,x=>x.after.operation.name='load']){
     const bad=structuredClone(plant);mutate(bad);assert.throws(()=>processingChecks.crossStepActionObservations([bad]));
   }
@@ -1468,4 +1479,57 @@ test('only one exact SDK diagnostic in its trusted uncancelable native-cancel ca
   ]){const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertTouchBrowserDiagnostics(bad.logs,bad.touch));}
   const oldMissingResource=structuredClone(valid);oldMissingResource.logs.push({caseName:'missing-resource',type:'error',text:'intentional resource 404'});
   assert.equal(processingChecks.assertTouchBrowserDiagnostics(oldMissingResource.logs,oldMissingResource.touch).length,1,'existing intentional missing-resource error rule is unchanged');
+});
+
+test('processing verification preserves cut origin and every untouched whole cabbage', () => {
+  const before=processingReadyState();const after=processingStartedState();
+  const first={id:'crop-a',weight_g:400,source_ref:{source_type:'farming',source_id:'crop-a',source_time:1}};
+  const second={id:'crop-b',weight_g:800,source_ref:{source_type:'farming',source_id:'crop-b',source_time:2}};
+  before.inventory.lotOptions[0].cabbage_pieces={kind:'whole',pieces:[first,second]};
+  before.farming.materialOptions=structuredClone(before.inventory.lotOptions);before.processing.lotOptions=structuredClone(before.inventory.lotOptions);
+  const retained=after.inventory.lotOptions[0];retained.quantity.amount=800;retained.cabbage_pieces={kind:'whole',pieces:[second]};
+  const cut={...structuredClone(retained),id:'cut-new',current_form:'cut',quantity:{amount:100,unit:'g'},cabbage_pieces:{kind:'cut',source_piece:{id:'crop-a',original_weight_g:400,source_ref:first.source_ref}}};
+  after.inventory.lotOptions.push(cut);after.farming.materialOptions=structuredClone(after.inventory.lotOptions);after.processing.lotOptions=structuredClone(after.inventory.lotOptions);
+  const valid=farmingClick(before,after);assert.doesNotThrow(()=>processingChecks.assertProcessingStartObservation(valid));
+  for(const mutate of [
+    x=>x.after.inventory.lotOptions.find(l=>l.id==='cut-new').cabbage_pieces.source_piece.source_ref.source_id='wrong',
+    x=>x.after.inventory.lotOptions.find(l=>l.id==='cut-new').quantity.amount=101,
+    x=>x.after.inventory.lotOptions[0].cabbage_pieces.pieces[0].id='wrong',
+    x=>x.after.inventory.lotOptions[0].current_form='cut',
+    x=>x.after.inventory.lotOptions.push({...structuredClone(x.after.inventory.lotOptions[0]),id:'unrelated-new'}),
+    x=>x.after.inventory.lotOptions.find(l=>l.id==='cut-new').current_form='fresh'
+  ]) {const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertProcessingStartObservation(bad));}
+});
+
+test('cooking verification requires the partial cut remainder and its true source', () => {
+  const before=cookingState();before.cooking.preview={success:true,statusCode:'OK'};before.cooking.canCook=true;
+  const piece={id:'crop-a',weight_g:100,source_ref:{source_type:'farming',source_id:'crop-a',source_time:1}};
+  before.inventory.lotOptions[0].cabbage_pieces={kind:'whole',pieces:[piece]};
+  before.farming.materialOptions=structuredClone(before.inventory.lotOptions);before.cooking.lotOptions=structuredClone(before.inventory.lotOptions);
+  const after=structuredClone(before);after.inventory.lotOptions[0].quantity.amount=70;after.inventory.lotOptions[0].current_form='cut';
+  after.inventory.lotOptions[0].cabbage_pieces={kind:'cut',source_piece:{id:'crop-a',original_weight_g:100,source_ref:piece.source_ref}};
+  after.farming.materialOptions=structuredClone(after.inventory.lotOptions);after.cooking.lotOptions=structuredClone(after.inventory.lotOptions);
+  after.operation={sequence:before.operation.sequence+1,name:'menu_confirm',status:'completed',errorMessage:null,slotId:null,worldMinute:null,message:'烹饪成功'};after.displayedOperation=after.operation.message;
+  after.cooking.recipeOptions[0].fuel.current_quantity.amount=14;after.displayedCooking.fuel='燃料14捆';
+  const dish={id:'dish-new',recognized_dish_id:'cooked',serving_count:2,storage_ref:{location_id:'home',storage_type:'room_temp',container_id:'room'}};
+  after.cooking.dishOptions=[dish];after.cooking.result={dishLotId:dish.id,servingCount:2,recognizedDishId:'cooked',storageRef:dish.storage_ref};after.cooking.preview=null;after.cooking.canCook=false;after.displayedCooking.result='烹饪成功，2份';
+  const valid=farmingClick(before,after);assert.doesNotThrow(()=>processingChecks.assertCookingConfirmObservation(valid));
+  for(const mutate of [x=>x.after.inventory.lotOptions[0].current_form='fresh',x=>x.after.inventory.lotOptions[0].cabbage_pieces.source_piece.id='wrong',x=>x.after.inventory.lotOptions[0].quantity.amount=71]){
+    const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertCookingConfirmObservation(bad));
+  }
+});
+
+test('cooking verifier accepts real liquid inputs without mixing their units', () => {
+  const before=cookingState(); before.cooking.preview={success:true,statusCode:'OK'};before.cooking.canCook=true;
+  before.inventory.lotOptions[1].quantity={amount:50,unit:'ml'};
+  before.cooking.lotOptions=structuredClone(before.inventory.lotOptions);before.farming.materialOptions=structuredClone(before.inventory.lotOptions);
+  before.cooking.inputSelections.push({role:'oil',lotId:'other',quantityText:'10'});
+  const after=structuredClone(before);after.inventory.lotOptions[0].quantity.amount=70;after.inventory.lotOptions[1].quantity.amount=40;
+  after.cooking.lotOptions=structuredClone(after.inventory.lotOptions);after.farming.materialOptions=structuredClone(after.inventory.lotOptions);
+  after.operation={sequence:before.operation.sequence+1,name:'menu_confirm',status:'completed',errorMessage:null,slotId:null,worldMinute:null,message:'烹饪成功'};after.displayedOperation=after.operation.message;
+  after.cooking.recipeOptions[0].fuel.current_quantity.amount=14;after.displayedCooking.fuel='燃料14捆';
+  const dish={id:'dish-new',recognized_dish_id:'cooked',serving_count:2,storage_ref:{location_id:'home',storage_type:'room_temp',container_id:'room'}};
+  after.cooking.dishOptions=[dish];after.cooking.result={dishLotId:dish.id,servingCount:2,recognizedDishId:'cooked',storageRef:dish.storage_ref};after.cooking.preview=null;after.cooking.canCook=false;after.displayedCooking.result='烹饪成功，2份';
+  const valid=farmingClick(before,after);assert.doesNotThrow(()=>processingChecks.assertCookingConfirmObservation(valid));
+  for(const mutate of [x=>x.after.inventory.lotOptions[1].quantity.unit='g',x=>x.after.inventory.lotOptions[1].quantity.amount=41]) {const bad=structuredClone(valid);mutate(bad);assert.throws(()=>processingChecks.assertCookingConfirmObservation(bad));}
 });

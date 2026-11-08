@@ -469,7 +469,14 @@ export function assertSplitQuantityObservation(observation, text) {
   assertSplitProjection(before); assertSplitProjection(after);
   assert.equal(before.panel, 'inventory'); assert.equal(after.panel, 'inventory');
   assert.equal(before.busy, false); assert.equal(after.busy, false);
-  assert.deepEqual(after.operation, before.operation, 'typing must not dispatch a menu or save command');
+  const correctable = new Set(['ERR_SPLIT_QUANTITY_INVALID', 'ERR_SPLIT_QUANTITY_NOT_REPRESENTABLE', 'ERR_NOT_ENOUGH_RESOURCE', 'ERR_STORAGE_CAPACITY_OVERFLOW', 'ERR_QUANTITY_UNIT_MISMATCH']);
+  if (before.inventory.splitQuantityText !== text && !after.inventory.splitNeedsReview
+      && before.operation.name === 'menu_confirm_split_direct' && before.operation.status === 'failed'
+      && correctable.has(before.operation.errorMessage)) {
+    assert.deepEqual(after.operation, { ...before.operation, name: null, status: 'idle', message: '输入已更新，可直接确认', errorMessage: null, slotId: null, worldMinute: null },
+      'editing clears only the prior definite split rejection without dispatching');
+    assert.equal(after.displayedOperation, after.operation.message);
+  } else assert.deepEqual(after.operation, before.operation, 'typing must not dispatch a menu or save command');
   assertInventoryWorldUnchanged(before, after);
   assert.equal(observation.focused?.className, 'cocosEditBox', 'physical focus must reach the real Creator DOM input');
   assert.equal(observation.focused?.value, text, 'keyboard input must reach the focused native input');
@@ -646,6 +653,73 @@ export function assertCookingPreviewObservation(observation, { statusCode = 'OK'
   assert.deepEqual(after.preview, { success, statusCode }); assert.equal(after.canCook, success); assert.equal(after.result, null);
 }
 
+// Independent public-projection verification for formal weight consumption.
+// A partially used whole cabbage becomes a cut remainder; untouched pieces
+// stay whole with their individual identities and source records intact.
+function decimalInteger(value) {
+  assert.ok(Number.isFinite(value) && value >= 0);
+  const [mantissa, exponentText] = value.toString().toLowerCase().split('e');
+  const [integer, fraction = ''] = mantissa.split('.');
+  const exponent = Number(exponentText ?? 0) - fraction.length;
+  let digits = BigInt(integer + fraction); let scale = Math.max(0, -exponent);
+  if (exponent > 0) digits *= 10n ** BigInt(exponent);
+  return { digits, scale };
+}
+function decimalCalc(values, sign = 1) {
+  const parts = values.map(decimalInteger); const scale = parts.reduce((max, part) => Math.max(max, part.scale), 0);
+  const ints = parts.map(part => part.digits * (10n ** BigInt(scale - part.scale)));
+  const exact = ints.reduce((sum, value, index) => sum + (index === 0 ? value : BigInt(sign) * value), 0n);
+  assert.ok(exact >= 0n, 'quantity cannot become negative');
+  const result = Number(exact.toString() + 'e-' + scale); const roundtrip = decimalInteger(result);
+  const normalized = roundtrip.digits * (10n ** BigInt(Math.max(0, scale - roundtrip.scale)));
+  assert.ok(roundtrip.scale <= scale && normalized === exact, 'quantity must remain exactly representable');
+  return result;
+}
+function assertConsumptionProjection(before, after, used) {
+  const beforeLots = before.inventory.lotOptions; const afterLots = after.inventory.lotOptions;
+  const oldIds = new Set(beforeLots.map(lot => lot.id)); const newLots = afterLots.filter(lot => !oldIds.has(lot.id));
+  const matchedNew = new Set();
+  for (const lot of beforeLots) {
+    const consumed = used.get(lot.id) ?? 0;
+    const sourceAfter = afterLots.find(item => item.id === lot.id);
+    if (consumed === 0) { assert.deepEqual(sourceAfter, lot, 'unrelated batches must remain unchanged'); continue; }
+    assert.ok(consumed <= lot.quantity.amount, 'selected input must not exceed its own quantity');
+    if (lot.cabbage_pieces?.kind !== 'whole') {
+      if (consumed === lot.quantity.amount) { assert.equal(sourceAfter, undefined); continue; }
+      assert.ok(sourceAfter); assert.deepEqual(sourceAfter.quantity, { amount: decimalCalc([lot.quantity.amount, consumed], -1), unit: lot.quantity.unit });
+      for (const key of ['base_id', 'category', 'current_form', 'storage_ref', 'cabbage_pieces']) assert.deepEqual(sourceAfter[key], lot[key]);
+      continue;
+    }
+    assert.equal(lot.quantity.unit, 'g', 'whole cabbage portions use weights');
+    const pieces = lot.cabbage_pieces.pieces;
+    assert.ok(pieces.length && new Set(pieces.map(piece => piece.id)).size === pieces.length);
+    assert.equal(decimalCalc(pieces.map(piece => piece.weight_g)), lot.quantity.amount, 'input piece weights must equal the lot weight');
+    let remainingTake = consumed; const untouched = []; let cut = null;
+    for (const piece of pieces) {
+      if (remainingTake === 0) { untouched.push(piece); continue; }
+      if (remainingTake >= piece.weight_g) { remainingTake = decimalCalc([remainingTake, piece.weight_g], -1); continue; }
+      cut = { piece, amount: decimalCalc([piece.weight_g, remainingTake], -1) }; remainingTake = 0;
+    }
+    assert.equal(remainingTake, 0);
+    const expected = [];
+    if (untouched.length) expected.push({ form: lot.current_form, amount: decimalCalc(untouched.map(piece => piece.weight_g)), pieces: { kind: 'whole', pieces: untouched } });
+    if (cut) { const sourcePiece = { id: cut.piece.id, original_weight_g: cut.piece.weight_g, source_ref: cut.piece.source_ref,
+      ...(cut.piece.seed_lot_snapshot === undefined ? {} : { seed_lot_snapshot: cut.piece.seed_lot_snapshot }) };
+      expected.push({ form: 'cut', amount: cut.amount, pieces: { kind: 'cut', source_piece: sourcePiece } }); }
+    if (!expected.length) { assert.equal(sourceAfter, undefined, 'fully consumed whole batch must disappear'); continue; }
+    for (let index = 0; index < expected.length; index++) {
+      const part = expected[index];
+      const actual = index === 0 ? sourceAfter : newLots.find(item => !matchedNew.has(item.id) && JSON.stringify(item.cabbage_pieces) === JSON.stringify(part.pieces));
+      assert.ok(actual, 'every remaining whole or cut portion must exist with the expected identity');
+      if (index > 0) matchedNew.add(actual.id);
+      assert.deepEqual(actual.quantity, { amount: part.amount, unit: 'g' });
+      assert.equal(actual.current_form, part.form); assert.deepEqual(actual.cabbage_pieces, part.pieces);
+      for (const key of ['base_id', 'category', 'storage_ref']) assert.deepEqual(actual[key], lot[key]);
+    }
+  }
+  assert.equal(matchedNew.size, newLots.length, 'no unrelated new batch may appear during consumption');
+}
+
 export function assertCookingConfirmObservation(observation) {
   assertUiCommandObservation(observation, { name: 'menu_confirm', status: 'completed', timeLabel: observation.before.timeLabel });
   const before = assertCookingProjection(observation.before); const after = assertCookingProjection(observation.after);
@@ -659,11 +733,7 @@ export function assertCookingConfirmObservation(observation) {
   for (const old of before.dishOptions) assert.deepEqual(after.dishOptions.find(item => item.id === old.id), old);
   const used = new Map();
   for (const selected of before.inputSelections.filter(item => item.lotId !== null)) used.set(selected.lotId, (used.get(selected.lotId) ?? 0) + Number(selected.quantityText));
-  for (const lot of observation.before.inventory.lotOptions) {
-    const current = observation.after.inventory.lotOptions.find(item => item.id === lot.id); const amount = used.get(lot.id) ?? 0;
-    if (lot.quantity.amount === amount) assert.equal(current, undefined);
-    else { assert.ok(current); assert.deepEqual(current.quantity, { amount: lot.quantity.amount - amount, unit: lot.quantity.unit }); for (const key of ['base_id', 'current_form', 'storage_ref']) assert.deepEqual(current[key], lot[key]); }
-  }
+  assertConsumptionProjection(observation.before, observation.after, used);
   const recipe = before.recipeOptions.find(item => item.id === before.selectedRecipeId);
   const fuelBefore = recipe.fuel; const fuelAfter = after.recipeOptions.find(item => item.id === recipe.id).fuel;
   if (fuelBefore?.enabled) {
@@ -808,18 +878,7 @@ export function assertProcessingStartObservation(observation) {
     assert.ok(selection.lotId && Number.isFinite(Number(selection.quantityText)) && Number(selection.quantityText) > 0);
     used.set(selection.lotId, (used.get(selection.lotId) ?? 0) + Number(selection.quantityText));
   }
-  for (const lot of observation.before.inventory.lotOptions) {
-    const remaining = observation.after.inventory.lotOptions.find((item) => item.id === lot.id);
-    const consumed = used.get(lot.id) ?? 0;
-    if (consumed === 0) assert.deepEqual(remaining, lot, 'start must preserve unrelated material batches');
-    else if (consumed === lot.quantity.amount) assert.equal(remaining, undefined, 'exhausted input must disappear');
-    else {
-      assert.ok(remaining); assert.deepEqual(remaining.quantity, { amount: lot.quantity.amount - consumed, unit: lot.quantity.unit });
-      for (const key of ['base_id', 'category', 'current_form', 'storage_ref']) assert.deepEqual(remaining[key], lot[key]);
-    }
-  }
-  assert.equal(observation.after.inventory.lotOptions.length, observation.before.inventory.lotOptions.length
-    - observation.before.inventory.lotOptions.filter((lot) => used.get(lot.id) === lot.quantity.amount).length, 'start must not create an output batch');
+  assertConsumptionProjection(observation.before, observation.after, used);
   for (const key of ['fieldOptions', 'harvestableOptions', 'seedOptions']) assert.deepEqual(observation.after.farming[key], observation.before.farming[key]);
   assert.deepEqual(observation.after.farming.materialOptions, observation.after.inventory.lotOptions);
   assert.equal(after.preview, null); assert.equal(after.canStart, false); assert.equal(after.collectResult, null);
@@ -1220,7 +1279,7 @@ export function crossStepActionObservations(clicks) {
     }
     assert.equal(observation.eventCount, 1, 'actual actions must emit exactly one physical event');
     assert.equal(observation.after.operation.sequence, observation.before.operation.sequence + 1);
-    assert.equal(observation.after.operation.name, 'menu_confirm');
+    assert.equal(observation.after.operation.name, actionType === 'split_lot' ? 'menu_confirm_split_direct' : 'menu_confirm');
     assert.equal(observation.after.operation.status, 'completed', 'a real failed Action must fail verification rather than be silently filtered');
     actions.push({actionType,observation});
   }
